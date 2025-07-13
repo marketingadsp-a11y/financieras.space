@@ -1,5 +1,5 @@
-import { ToolsPage } from "@/components/tools/tools-page";
+import { ToolsManagement } from "@/components/tools/tools-management";
 
 export default function Tools() {
-  return <ToolsPage />;
+  return <ToolsManagement />;
 }

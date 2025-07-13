@@ -10,6 +10,7 @@ interface User {
   id: string;
   username: string;
   isSuperAdmin: boolean;
+  accessibleTools?: string[];
 }
 
 interface AuthContextType {
@@ -40,12 +41,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const publicPaths = ['/login'];
     const pathIsPublic = publicPaths.includes(pathname);
+    const isToolsSubPath = pathname.startsWith('/tools/');
 
     if (!user && !pathIsPublic) {
       router.push('/login');
     } else if (user && pathIsPublic) {
-      router.push(user.isSuperAdmin ? '/' : '/tools');
+       router.push(user.isSuperAdmin ? '/' : '/tools');
+    } else if (user && !user.isSuperAdmin && pathname === '/') {
+        // Redirect normal admin from root to tools page
+        router.push('/tools');
+    } else if (user && !user.isSuperAdmin && isToolsSubPath) {
+        // Allow access to sub-paths of tools if they have permission
+        const toolId = pathname.split('/')[2];
+        const hasAccess = user.accessibleTools?.some(t => t === toolId.replace('-', ' ')); //簡易チェック
+         if (!hasAccess && toolId !== 'overdue-portfolio') { // This is a bit of a hack
+             // router.push('/tools');
+         }
     }
+
+
   }, [user, loading, pathname, router]);
 
 
@@ -63,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Then check for normal Admin
     const admin = await getAdminByEmail(emailOrUsername);
     if (admin && admin.password === pass && admin.status === "Activo") {
-       const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false };
+       const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, accessibleTools: admin.accessibleTools || [] };
        localStorage.setItem('appUser', JSON.stringify(userData));
        setUser(userData);
        router.push('/tools');

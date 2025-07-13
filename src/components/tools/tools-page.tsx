@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { Plaza } from "@/lib/data";
+import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
 
 // --- DATOS DE EJEMPLO ---
 const plazasData: Plaza[] = [
@@ -73,6 +75,23 @@ const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
 
 
 export function ToolsPage() {
+    const { user } = useAuth();
+    const router = useRouter();
+
+    React.useEffect(() => {
+        if (user && !user.isSuperAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
+            router.push('/');
+        }
+    }, [user, router]);
+
+    if (user && !user.isSuperAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
+        return (
+            <div className="flex h-full items-center justify-center">
+                <p>No tienes acceso a esta herramienta.</p>
+            </div>
+        );
+    }
+    
     return (
         <div className="space-y-6">
             <div className="space-y-2">

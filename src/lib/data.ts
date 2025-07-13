@@ -5,6 +5,7 @@ export type Admin = {
   role: "Administrador";
   status: "Activo" | "Inactivo";
   password?: string;
+  accessibleTools?: string[];
 };
 
 export type SuperAdmin = {
@@ -28,4 +29,11 @@ export type Customer = {
   paidAmount: number;
   lastPaymentDate?: Date;
   status: "Al corriente" | "Atrasado" | "Vencido";
+};
+
+export type Tool = {
+  id: string;
+  name: string;
+  description: string;
+  href: string;
 };
