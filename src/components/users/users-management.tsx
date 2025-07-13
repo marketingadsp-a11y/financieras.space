@@ -4,8 +4,8 @@
 import * as React from "react";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UsersTable } from "@/components/tools/overdue-portfolio/users/users-table";
-import { UserForm } from "@/components/tools/overdue-portfolio/users/user-form";
+import { UsersTable } from "@/components/users/users-table";
+import { UserForm } from "@/components/users/user-form";
 import type { PlazaUser, Plaza } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -30,9 +30,10 @@ export function UsersManagement() {
     }
     try {
       setIsLoading(true);
+      const shouldFetchAllPlazas = user.isSuperAdmin;
       const [usersFromDb, plazasFromDb] = await Promise.all([
         getPlazaUsersByPrefix(user.prefix),
-        getPlazas(user.prefix),
+        getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAllPlazas }),
       ]);
       setUsers(usersFromDb);
       setPlazas(plazasFromDb);
@@ -45,7 +46,7 @@ export function UsersManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, user?.prefix]);
+  }, [toast, user?.prefix, user?.isSuperAdmin]);
 
   React.useEffect(() => {
     fetchData();
@@ -104,9 +105,9 @@ export function UsersManagement() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle>Gestión de Usuarios de Plaza</CardTitle>
+            <CardTitle>Gestión de Usuarios</CardTitle>
             <CardDescription>
-              Crea, edita y elimina usuarios con acceso a plazas específicas. Todos los usuarios creados aquí usarán el prefijo: <span className="font-bold">{user?.prefix}</span>
+              Crea, edita y elimina usuarios con acceso a plazas y permisos específicos. Todos los usuarios creados aquí usarán el prefijo: <span className="font-bold">{user?.prefix}</span>
             </CardDescription>
           </div>
           <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>

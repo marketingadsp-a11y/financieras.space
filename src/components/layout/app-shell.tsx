@@ -60,6 +60,7 @@ type NavItem = {
 const superAdminNavItems: NavItem[] = [
   { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
   { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
+  { href: "/users", label: "Gestionar Usuarios", icon: Users2, superAdminOnly: true },
   { href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: true },
   { href: "/settings", label: "Configuración", icon: Settings, superAdminOnly: true },
 ];
@@ -67,7 +68,6 @@ const superAdminNavItems: NavItem[] = [
 const carteraVencidaNavItems: NavItem[] = [
     { href: "/tools/overdue-portfolio", label: "Resumen General", icon: Building },
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
-    { href: "/tools/overdue-portfolio/users", label: "Gestionar Usuarios", icon: Users2 },
 ];
 
 const dailyControlNavItems: NavItem[] = [
@@ -224,7 +224,7 @@ function NavLinks() {
     
     // Centralized Plaza Management for Admins
     adminNavItems.push({ href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: false });
-
+    adminNavItems.push({ href: "/users", label: "Gestionar Usuarios", icon: Users2, superAdminOnly: false });
     adminNavItems.push({ href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: false });
 
 
