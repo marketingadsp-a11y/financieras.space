@@ -46,20 +46,21 @@ const baseFormSchema = z.object({
   plazaAccess: z.array(plazaAccessSchema),
 });
 
-const formSchema = baseFormSchema.refine(data => {
-    // If 'cartera-vencida' is an accessible tool, then plazaAccess must not be empty.
+const refinement = (data: z.infer<typeof baseFormSchema>, ctx: z.RefinementCtx) => {
     if (data.accessibleTools.includes('cartera-vencida') && data.plazaAccess.length === 0) {
-        return false;
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Si se asigna la herramienta 'Cartera Vencida', debe asignar acceso a al menos una plaza.",
+            path: ["plazaAccess"],
+        });
     }
-    return true;
-}, {
-    message: "Si se asigna la herramienta 'Cartera Vencida', debe asignar acceso a al menos una plaza.",
-    path: ["plazaAccess"], // You can specify the path to show the error message
-});
+};
 
-const createUserFormSchema = formSchema.extend({
+const editFormSchema = baseFormSchema.partial().omit({ username: true }).superRefine(refinement);
+
+const createFormSchema = baseFormSchema.extend({
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
-});
+}).superRefine(refinement);
 
 
 type UserFormProps = {
@@ -75,11 +76,11 @@ const allPermissions = Object.entries(PERMISSIONS) as [Permission, string][];
 export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: UserFormProps) {
     const isEditing = !!user;
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.infer<typeof baseFormSchema>>({
         resolver: zodResolver(
              isEditing
-            ? formSchema.partial().omit({ username: true })
-            : createUserFormSchema
+            ? editFormSchema
+            : createFormSchema
         ),
         defaultValues: {
             name: user?.name || "",
@@ -98,7 +99,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: User
     
     const watchAccessibleTools = form.watch("accessibleTools", user?.accessibleTools || []);
 
-    const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
+    const handleFormSubmit = (values: z.infer<typeof baseFormSchema>) => {
         const dataToSend: any = { ...values };
         if (isEditing) {
             dataToSend.id = user.id;
