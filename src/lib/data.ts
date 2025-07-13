@@ -1,4 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
+import { FolderKanban, Landmark } from "lucide-react";
 
 export type Admin = {
   id: string;
@@ -84,6 +85,7 @@ export type Tool = {
   name: string;
   description: string;
   href: string;
+  icon: React.ElementType;
 };
 
 export const allTools: Tool[] = [
@@ -92,12 +94,14 @@ export const allTools: Tool[] = [
     name: "Cartera Vencida",
     description: "Gestión de clientes con cartera vencida, registro de plazas y control de deuda.",
     href: "/tools/overdue-portfolio",
+    icon: FolderKanban,
   },
    {
     id: "income-expenses",
     name: "Gastos e Ingresos",
     description: "Administra el capital, asigna fondos a sucursales y lleva un control de los balances.",
     href: "/tools/income-expenses",
+    icon: Landmark,
   }
 ];
 

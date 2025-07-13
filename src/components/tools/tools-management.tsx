@@ -145,7 +145,7 @@ function SuperAdminToolsView() {
           <Card key={tool.id}>
             <CardHeader>
                 <div className="flex items-start gap-4">
-                    <Wrench className="h-8 w-8 text-muted-foreground mt-1" />
+                    <tool.icon className="h-8 w-8 text-muted-foreground mt-1" />
                     <div className="flex-1">
                         <CardTitle>{tool.name}</CardTitle>
                         <CardDescription>{tool.description}</CardDescription>
@@ -220,7 +220,7 @@ function AdminToolsView() {
                             <Card className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-primary/50">
                                 <CardHeader>
                                     <div className="p-3 bg-primary/10 rounded-lg w-fit">
-                                        <Wrench className="h-6 w-6 text-primary" />
+                                        <tool.icon className="h-6 w-6 text-primary" />
                                     </div>
                                 </CardHeader>
                                 <CardContent className="flex-grow">
