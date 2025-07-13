@@ -37,14 +37,16 @@ const plazaAccessSchema = z.object({
   permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
 });
 
-const formSchema = z.object({
+const baseFormSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
   accessibleTools: z.array(z.string()).min(1, "Debe asignar acceso a al menos una herramienta."),
   plazaAccess: z.array(plazaAccessSchema),
-}).refine(data => {
+});
+
+const formSchema = baseFormSchema.refine(data => {
     // If 'cartera-vencida' is an accessible tool, then plazaAccess must not be empty.
     if (data.accessibleTools.includes('cartera-vencida') && data.plazaAccess.length === 0) {
         return false;
@@ -54,6 +56,11 @@ const formSchema = z.object({
     message: "Si se asigna la herramienta 'Cartera Vencida', debe asignar acceso a al menos una plaza.",
     path: ["plazaAccess"], // You can specify the path to show the error message
 });
+
+const createUserFormSchema = formSchema.extend({
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
+});
+
 
 type UserFormProps = {
   onSubmit: (data: Omit<PlazaUser, 'id'>) => void;
@@ -70,9 +77,9 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: User
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(
-             isEditing 
+             isEditing
             ? formSchema.partial().omit({ username: true })
-            : formSchema.required({ password: true })
+            : createUserFormSchema
         ),
         defaultValues: {
             name: user?.name || "",
@@ -292,5 +299,3 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: User
         </Form>
     );
 }
-
-    
