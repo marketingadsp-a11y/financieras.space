@@ -4,7 +4,6 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   Users,
   PanelLeft,
   LogOut,
@@ -28,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 type NavItem = {
   href: string;
@@ -42,7 +41,7 @@ const navItems: NavItem[] = [
   { href: "/tools", label: "Herramientas", icon: Wrench },
 ];
 
-function SidebarNav() {
+function SidebarNavLinks() {
   const pathname = usePathname();
   const { user } = useAuth();
 
@@ -54,7 +53,7 @@ function SidebarNav() {
   });
 
   return (
-    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+    <>
       {availableNavItems.map((item) => (
         <Link
           key={item.href}
@@ -68,24 +67,27 @@ function SidebarNav() {
           {item.label}
         </Link>
       ))}
+    </>
+  );
+}
+
+function SidebarNav() {
+  return (
+    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+      <SidebarNavLinks />
     </nav>
   );
 }
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   
-  const availableNavItems = navItems.filter(item => {
-    if (item.superAdminOnly) {
-      return user?.isSuperAdmin;
-    }
-    return true;
-  });
-
-  const currentPage = availableNavItems.find(item => item.href === pathname) || { label: 'Panel' };
+  const currentPage = navItems.find(item => item.href === pathname) || { label: 'Panel' };
 
   if (!user) {
+    // For login page, don't render the shell
     return <>{children}</>
   }
 
@@ -127,9 +129,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="">{user.isSuperAdmin ? 'Super Admin' : 'Admin'}</span>
                 </Link>
               </div>
-              <div className="mt-4">
-                <SidebarNav />
-              </div>
+              <nav className="grid gap-2 text-lg font-medium mt-4 px-2">
+                <SidebarNavLinks />
+              </nav>
             </SheetContent>
           </Sheet>
            <div className="w-full flex-1">

@@ -23,7 +23,6 @@ const formSchema = z.object({
   status: z.enum(["Activo", "Inactivo"]),
 });
 
-type FormValues = Omit<Admin, 'id' | 'role'>;
 
 type AdminFormProps = {
   onSubmit: (data: any) => void;
@@ -31,100 +30,102 @@ type AdminFormProps = {
 };
 
 export function AdminForm({ onSubmit, admin }: AdminFormProps) {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: admin?.name || "",
-      email: admin?.email || "",
-      password: "",
-      status: admin?.status || "Activo",
-    },
-  });
-  
-  const isEditing = !!admin;
+    const isEditing = !!admin;
 
-  const handleFormSubmit = (values: FormValues) => {
-    const dataToSend: any = {
-      ...values,
-      role: 'Administrador' as const
-    }
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(
+          isEditing 
+          ? formSchema.partial().extend({ email: z.string().email().optional() }) 
+          : formSchema.required({ password: true })
+        ),
+        defaultValues: {
+            name: admin?.name || "",
+            email: admin?.email || "",
+            password: "",
+            status: admin?.status || "Activo",
+        },
+    });
 
-    if (isEditing) {
-      dataToSend.id = admin.id;
-    }
-    
-    if (!values.password) {
-      delete dataToSend.password;
-    } else {
-      // In a real app, you'd hash the password here before sending.
-    }
-    onSubmit(dataToSend);
-  };
+    const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
+        const dataToSend: any = {
+            ...values,
+            role: 'Administrador' as const
+        }
+
+        if (isEditing) {
+            dataToSend.id = admin.id;
+             if (!values.password) {
+                delete dataToSend.password;
+            }
+        }
+        
+        onSubmit(dataToSend);
+    };
 
 
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nombre</FormLabel>
-              <FormControl>
-                <Input placeholder="Nombre completo" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="ejemplo@correo.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Contraseña</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder={isEditing ? "Dejar en blanco para no cambiar" : "••••••••"} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-              <div className="space-y-0.5">
-                <FormLabel>Estado</FormLabel>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value === "Activo"}
-                  onCheckedChange={(checked) => field.onChange(checked ? "Activo" : "Inactivo")}
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Nombre</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Nombre completo" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
                 />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full">
-          {isEditing ? 'Guardar Cambios' : 'Crear Administrador'}
-        </Button>
-      </form>
-    </Form>
-  );
+                <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                                <Input placeholder="ejemplo@correo.com" {...field} disabled={isEditing} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Contraseña</FormLabel>
+                            <FormControl>
+                                <Input type="password" placeholder={isEditing ? "Dejar en blanco para no cambiar" : "••••••••"} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel>Estado</FormLabel>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value === "Activo"}
+                                    onCheckedChange={(checked) => field.onChange(checked ? "Activo" : "Inactivo")}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                <Button type="submit" className="w-full">
+                    {isEditing ? 'Guardar Cambios' : 'Crear Administrador'}
+                </Button>
+            </form>
+        </Form>
+    );
 }
