@@ -4,11 +4,13 @@ export type Admin = {
   email: string;
   role: "Administrador";
   status: "Activo" | "Inactivo";
+  password?: string;
 };
 
-export const initialAdmins: Admin[] = [
-  { id: "ADM001", name: "Ana López", email: "ana.lopez@example.com", role: "Administrador", status: "Activo" },
-  { id: "ADM002", name: "Carlos Martínez", email: "carlos.martinez@example.com", role: "Administrador", status: "Activo" },
-  { id: "ADM003", name: "María García", email: "maria.garcia@example.com", role: "Administrador", status: "Inactivo" },
-  { id: "ADM004", name: "José Hernández", email: "jose.hernandez@example.com", role: "Administrador", status: "Activo" },
-];
+// initialAdmins is no longer needed as data will come from Firestore
+// export const initialAdmins: Admin[] = [
+//   { id: "ADM001", name: "Ana López", email: "ana.lopez@example.com", role: "Administrador", status: "Activo" },
+//   { id: "ADM002", name: "Carlos Martínez", email: "carlos.martinez@example.com", role: "Administrador", status: "Activo" },
+//   { id: "ADM003", name: "María García", email: "maria.garcia@example.com", role: "Administrador", status: "Inactivo" },
+//   { id: "ADM004", name: "José Hernández", email: "jose.hernandez@example.com", role: "Administrador", status: "Activo" },
+// ];

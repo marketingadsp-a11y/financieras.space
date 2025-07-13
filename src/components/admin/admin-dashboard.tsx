@@ -1,33 +1,96 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminTable } from "@/components/admin/admin-table";
 import { AdminForm } from "@/components/admin/admin-form";
 import type { Admin } from "@/lib/data";
-import { initialAdmins } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getAdmins, addAdmin, updateAdmin, deleteAdmin } from "@/services/admin-service";
+import { useToast } from "@/hooks/use-toast";
 
 export function AdminDashboard() {
-  const [admins, setAdmins] = React.useState<Admin[]>(initialAdmins);
+  const [admins, setAdmins] = React.useState<Admin[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingAdmin, setEditingAdmin] = React.useState<Admin | null>(null);
+  const { toast } = useToast();
 
-  const handleAddAdmin = (newAdmin: Omit<Admin, 'id'>) => {
-    setAdmins(prev => [...prev, { ...newAdmin, id: `ADM${Date.now()}` }]);
-    setIsFormOpen(false);
+  React.useEffect(() => {
+    fetchAdmins();
+  }, []);
+
+  const fetchAdmins = async () => {
+    try {
+      setIsLoading(true);
+      const adminsFromDb = await getAdmins();
+      setAdmins(adminsFromDb);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los administradores.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleUpdateAdmin = (updatedAdmin: Admin) => {
-    setAdmins(prev => prev.map(admin => admin.id === updatedAdmin.id ? updatedAdmin : admin));
-    setEditingAdmin(null);
-    setIsFormOpen(false);
+  const handleAddAdmin = async (newAdmin: Omit<Admin, 'id'>) => {
+    try {
+      const addedAdmin = await addAdmin(newAdmin);
+      setAdmins(prev => [...prev, addedAdmin]);
+      setIsFormOpen(false);
+       toast({
+        title: "Éxito",
+        description: "Administrador agregado correctamente.",
+      });
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo agregar el administrador.",
+      });
+    }
   };
 
-  const handleDeleteAdmin = (adminId: string) => {
-    setAdmins(prev => prev.filter(admin => admin.id !== adminId));
+  const handleUpdateAdmin = async (updatedAdmin: Admin) => {
+    try {
+      const { id, ...dataToUpdate } = updatedAdmin;
+      await updateAdmin(id, dataToUpdate);
+      setAdmins(prev => prev.map(admin => admin.id === updatedAdmin.id ? updatedAdmin : admin));
+      setEditingAdmin(null);
+      setIsFormOpen(false);
+      toast({
+        title: "Éxito",
+        description: "Administrador actualizado correctamente.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar el administrador.",
+      });
+    }
+  };
+
+  const handleDeleteAdmin = async (adminId: string) => {
+     try {
+      await deleteAdmin(adminId);
+      setAdmins(prev => prev.filter(admin => admin.id !== adminId));
+      toast({
+        title: "Éxito",
+        description: "Administrador eliminado correctamente.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo eliminar el administrador.",
+      });
+    }
   };
   
   const handleEditClick = (admin: Admin) => {
@@ -72,7 +135,14 @@ export function AdminDashboard() {
         </div>
       </CardHeader>
       <CardContent>
-        <AdminTable data={admins} onEdit={handleEditClick} onDelete={handleDeleteAdmin} />
+        {isLoading ? (
+          <div className="flex justify-center items-center h-40">
+            <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+            <span>Cargando administradores...</span>
+          </div>
+        ) : (
+          <AdminTable data={admins} onEdit={handleEditClick} onDelete={handleDeleteAdmin} />
+        )}
       </CardContent>
     </Card>
   );

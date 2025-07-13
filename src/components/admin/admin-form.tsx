@@ -23,7 +23,7 @@ const formSchema = z.object({
   status: z.enum(["Activo", "Inactivo"]),
 });
 
-type FormValues = Omit<Admin, 'id' | 'role'> & { password?: string };
+type FormValues = Omit<Admin, 'id' | 'role'>;
 
 type AdminFormProps = {
   onSubmit: (data: any) => void;
@@ -44,13 +44,19 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
   const isEditing = !!admin;
 
   const handleFormSubmit = (values: FormValues) => {
-    const dataToSend = {
+    const dataToSend: any = {
       ...values,
-      id: isEditing ? admin.id : undefined,
       role: 'Administrador' as const
     }
-    if (!values.password && isEditing) {
+
+    if (isEditing) {
+      dataToSend.id = admin.id;
+    }
+    
+    if (!values.password) {
       delete dataToSend.password;
+    } else {
+      // In a real app, you'd hash the password here before sending.
     }
     onSubmit(dataToSend);
   };
