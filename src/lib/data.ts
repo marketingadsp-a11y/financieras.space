@@ -38,15 +38,6 @@ export type Customer = {
   status: "Pendiente" | "Pagado" | "Atrasado";
 };
 
-export type Payment = {
-  id: string;
-  customerId: string;
-  amount: number;
-  date: number; // Using number for timestamp (milliseconds)
-  previousDueAmount: number;
-  newDueAmount: number;
-};
-
 export type Tool = {
   id: string;
   name: string;

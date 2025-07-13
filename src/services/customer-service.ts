@@ -1,13 +1,11 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, DocumentData } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer, Payment } from "@/lib/data";
+import type { Customer } from "@/lib/data";
 
 const customersCollectionRef = collection(db, "customers");
-const paymentsCollectionRef = collection(db, "payments");
-
 
 function customerFromDoc(doc: DocumentData): Customer {
     const data = doc.data();
@@ -107,25 +105,14 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
         const customerData = customerFromDoc(customerDoc);
         const previousDueAmount = customerData.dueAmount;
         const newDueAmount = previousDueAmount - paymentAmount;
-
-        // 1. Create payment record
-        const paymentRef = doc(paymentsCollectionRef);
-        transaction.set(paymentRef, {
-            customerId: customerId,
-            amount: paymentAmount,
-            date: Timestamp.now(), // Store as Firestore Timestamp
-            previousDueAmount: previousDueAmount,
-            newDueAmount: newDueAmount,
-        });
-
-        // 2. Update customer's due amount and status
+        
         const updatedCustomerData: Partial<Pick<Customer, 'dueAmount' | 'status'>> = {
             dueAmount: newDueAmount,
         };
 
         if (newDueAmount <= 0) {
             updatedCustomerData.status = 'Pagado';
-            updatedCustomerData.dueAmount = 0; // Ensure it doesn't go negative
+            updatedCustomerData.dueAmount = 0;
         }
 
         transaction.update(customerRef, updatedCustomerData);
