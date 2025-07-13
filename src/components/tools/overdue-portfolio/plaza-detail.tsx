@@ -40,6 +40,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
 import type { Plaza, Customer } from "@/lib/data";
 import { getPlazaById } from "@/services/plaza-service";
@@ -333,30 +344,48 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                       </DialogContent>
                     </Dialog>
                     
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                         <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                         <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
-                         <DropdownMenuSeparator />
-                         <DropdownMenuItem onSelect={exportToExcel}>
-                            <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Exportar a Excel
-                         </DropdownMenuItem>
-                         <DropdownMenuItem onSelect={exportToPDF}>
-                           <FileText className="mr-2 h-4 w-4" />
-                            Exportar a PDF
-                         </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                         <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={handleDeleteAllCustomers}>
-                           <Trash2 className="mr-2 h-4 w-4" />
-                            Eliminar Todos los Clientes
-                         </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <AlertDialog>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                           <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                           </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                           <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
+                           <DropdownMenuSeparator />
+                           <DropdownMenuItem onSelect={exportToExcel}>
+                              <FileSpreadsheet className="mr-2 h-4 w-4" />
+                              Exportar a Excel
+                           </DropdownMenuItem>
+                           <DropdownMenuItem onSelect={exportToPDF}>
+                             <FileText className="mr-2 h-4 w-4" />
+                              Exportar a PDF
+                           </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                           <AlertDialogTrigger asChild>
+                              <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                  Eliminar Todos los Clientes
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás realmente seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción es irreversible. Se eliminarán permanentemente todos los clientes de la plaza '{plaza.name}'.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteAllCustomers} className="bg-destructive hover:bg-destructive/90">
+                              Sí, eliminar todo
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
             </div>
            </div>
