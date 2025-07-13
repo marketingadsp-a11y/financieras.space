@@ -17,8 +17,13 @@ export async function getExpenseCategories(prefix: string): Promise<ExpenseCateg
 
 // Add a new category
 export async function addExpenseCategory(category: Omit<ExpenseCategory, 'id'>): Promise<ExpenseCategory> {
-    const docRef = await addDoc(categoriesCollectionRef, category);
-    return { ...category, id: docRef.id };
+    const dataToAdd = {
+        name: category.name,
+        prefix: category.prefix,
+        icon: category.icon || 'ListTree', // Default icon
+    };
+    const docRef = await addDoc(categoriesCollectionRef, dataToAdd);
+    return { ...dataToAdd, id: docRef.id };
 }
 
 // Update an existing category

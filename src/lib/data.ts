@@ -134,6 +134,7 @@ export type ExpenseCategory = {
   id: string;
   prefix: string;
   name: string;
+  icon: string;
 };
 
 export type DailyRecordEntry = {

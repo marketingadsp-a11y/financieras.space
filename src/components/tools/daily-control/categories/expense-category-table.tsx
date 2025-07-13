@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2, ListTree } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, type LucideIcon as LucideIconType, icons } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +32,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+
+const LucideIcon = ({ name, className }: { name: keyof typeof icons, className?: string }) => {
+    const IconComponent = icons[name];
+    if (!IconComponent) return null;
+    return <IconComponent className={className} />;
+};
+
 
 type ExpenseCategoryTableProps = {
     data: ExpenseCategory[];
@@ -70,7 +77,7 @@ export function ExpenseCategoryTable({ data, onEdit, onDelete }: ExpenseCategory
               filteredData.map((category) => (
                 <TableRow key={category.id}>
                   <TableCell className="font-medium flex items-center gap-2">
-                    <ListTree className="h-4 w-4 text-muted-foreground" />
+                    <LucideIcon name={category.icon as keyof typeof icons} className="h-4 w-4 text-muted-foreground" />
                     {category.name}
                   </TableCell>
                   <TableCell>

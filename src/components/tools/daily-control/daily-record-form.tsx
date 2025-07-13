@@ -7,6 +7,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import * as React from "react";
+import { icons } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +49,13 @@ type DailyRecordFormProps = {
   entryDate: Date;
   onEntryDateChange: (date: Date) => void;
 };
+
+const LucideIcon = ({ name, className }: { name: keyof typeof icons, className?: string }) => {
+    const IconComponent = icons[name];
+    if (!IconComponent) return null;
+    return <IconComponent className={className} />;
+};
+
 
 export function DailyRecordForm({ onSubmit, mode, isSubmitting, entryDate, onEntryDateChange }: DailyRecordFormProps) {
     const { user } = useAuth();
@@ -174,7 +182,10 @@ export function DailyRecordForm({ onSubmit, mode, isSubmitting, entryDate, onEnt
                                     <SelectContent>
                                     {categories.map(cat => (
                                         <SelectItem key={cat.id} value={cat.name}>
-                                            {cat.name}
+                                            <div className="flex items-center gap-2">
+                                                <LucideIcon name={cat.icon as keyof typeof icons} className="h-4 w-4" />
+                                                <span>{cat.name}</span>
+                                            </div>
                                         </SelectItem>
                                     ))}
                                     </SelectContent>

@@ -62,9 +62,10 @@ export function ExpenseCategoryManagement() {
     }
   };
 
-  const handleUpdateCategory = async (updatedCategory: Pick<ExpenseCategory, 'id' | 'name'>) => {
+  const handleUpdateCategory = async (updatedCategory: Pick<ExpenseCategory, 'id' | 'name' | 'icon'>) => {
     try {
-      await updateExpenseCategory(updatedCategory.id, { name: updatedCategory.name });
+      const { id, ...dataToUpdate } = updatedCategory;
+      await updateExpenseCategory(id, dataToUpdate);
       await fetchCategories();
       setEditingCategory(null);
       setIsFormOpen(false);
