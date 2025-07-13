@@ -10,6 +10,9 @@ import {
   UserCog,
   Wrench,
   Settings,
+  Building,
+  ShieldCheck,
+  Users2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -34,11 +37,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarProvider,
-  SidebarTrigger
+  SidebarTrigger,
+  SidebarSeparator
 } from "@/components/ui/sidebar"
 
 
@@ -55,9 +58,39 @@ const superAdminNavItems: NavItem[] = [
   { href: "/settings", label: "Configuración", icon: Settings, superAdminOnly: true },
 ];
 
+const carteraVencidaNavItems: NavItem[] = [
+    { href: "/tools/overdue-portfolio/plazas", label: "Gestionar Plazas", icon: Building },
+    { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
+    { href: "/tools/overdue-portfolio/users", label: "Gestionar Usuarios", icon: Users2 },
+    { href: "/tools/overdue-portfolio/settings", label: "Ajustes", icon: Settings },
+];
+
 function NavLinks() {
   const pathname = usePathname();
   const { user } = useAuth();
+
+  const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
+
+  if (isCarteraVencidaPath) {
+    return (
+       <SidebarGroup>
+            <SidebarGroupLabel>GESTIÓN</SidebarGroupLabel>
+            <SidebarMenu>
+                {carteraVencidaNavItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                    <Link href={item.href} legacyBehavior passHref>
+                        <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                            <item.icon />
+                            <span>{item.label}</span>
+                        </SidebarMenuButton>
+                    </Link>
+                    </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+       </SidebarGroup>
+    );
+  }
+
 
   const getNavItems = () => {
     if (user?.isSuperAdmin) {
@@ -77,10 +110,10 @@ function NavLinks() {
   const availableNavItems = getNavItems();
 
   return (
-    <>
+    <SidebarMenu>
       {availableNavItems.map((item) => (
          <SidebarMenuItem key={item.href}>
-          <Link href={item.href} legacyBehavior passHref>
+          <Link href={item.href}>
              <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
                 <item.icon />
                 <span>{item.label}</span>
@@ -88,17 +121,21 @@ function NavLinks() {
           </Link>
         </SidebarMenuItem>
       ))}
-    </>
+    </SidebarMenu>
   );
 }
 
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const pathname = usePathname();
 
   if (!user) {
     return <>{children}</>
   }
+  
+  const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
+
 
   return (
     <SidebarProvider>
@@ -112,9 +149,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu>
-            <NavLinks />
-          </SidebarMenu>
+           <NavLinks />
+           { isCarteraVencidaPath && (
+            <>
+              <SidebarSeparator />
+              <SidebarMenu>
+                <SidebarMenuItem>
+                   <Link href="/tools">
+                      <SidebarMenuButton tooltip="Volver a Herramientas">
+                        <Wrench />
+                        <span>Todas las Herramientas</span>
+                      </SidebarMenuButton>
+                   </Link>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </>
+           )}
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
