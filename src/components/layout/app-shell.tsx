@@ -72,7 +72,10 @@ function NavLinks() {
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
 
   if (isCarteraVencidaPath) {
-    const items = user?.isSuperAdmin || user?.isToolAdmin ? carteraVencidaNavItems : [carteraVencidaNavItems[0], carteraVencidaNavItems[1]];
+    // Show all tool management items if user has access to the tool at all.
+    // The AdminsManagement page itself will handle finer-grained permissions.
+    const hasAccessToTool = user?.isSuperAdmin || user?.isToolAdmin || user?.accessibleTools?.includes('cartera-vencida');
+    const items = hasAccessToTool ? carteraVencidaNavItems : [];
     
     return (
        <SidebarGroup>
@@ -166,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
            <NavLinks />
-           { isCarteraVencidaPath && !user.isToolAdmin && (
+           { isCarteraVencidaPath && !user.isSuperAdmin && (
             <>
               <SidebarSeparator />
               <SidebarMenu>
