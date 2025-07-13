@@ -1,6 +1,8 @@
+
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -58,8 +60,10 @@ const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
                 </div>
                 <Progress value={plaza.recoveryRate} aria-label={`${plaza.recoveryRate}% de recuperación`} />
             </div>
-            <Button className="w-full">
-                Ver Detalles <ArrowRight className="ml-2" />
+            <Button asChild className="w-full">
+               <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
+                    Ver Detalles <ArrowRight className="ml-2" />
+                </Link>
             </Button>
         </CardContent>
     </Card>

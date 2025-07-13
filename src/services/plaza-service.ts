@@ -1,6 +1,7 @@
+
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Plaza } from "@/lib/data";
 
@@ -16,6 +17,24 @@ export async function getPlazas(): Promise<Plaza[]> {
         recoveryRate: p.recoveryRate || 0
     }));
 }
+
+export async function getPlazaById(id: string): Promise<Plaza | null> {
+    const plazaDocRef = doc(db, "plazas", id);
+    const plazaDoc = await getDoc(plazaDocRef);
+
+    if (plazaDoc.exists()) {
+        const plazaData = plazaDoc.data() as Omit<Plaza, 'id'>;
+        return { 
+            id: plazaDoc.id, 
+            ...plazaData,
+            pendingDebt: plazaData.pendingDebt || 0,
+            recoveryRate: plazaData.recoveryRate || 0
+        };
+    } else {
+        return null;
+    }
+}
+
 
 export async function addPlaza(plaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate'>) : Promise<Plaza> {
     const dataToSave = {
