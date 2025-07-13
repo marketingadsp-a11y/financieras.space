@@ -25,9 +25,11 @@ import { getAdmins, updateAdmin } from "@/services/admin-service";
 import type { Admin, Tool } from "@/lib/data";
 import { allTools } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, Wrench } from "lucide-react";
+import { Loader2, ArrowRight, Wrench, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 
 export function ToolsManagement() {
@@ -178,21 +180,30 @@ function SuperAdminToolsView() {
                 <Loader2 className="mr-2 h-8 w-8 animate-spin" />
              </div>
           ) : (
-             <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto pr-2">
-              {admins.map((admin) => (
-                <div key={admin.id} className="flex items-center space-x-3">
-                  <Checkbox
-                    id={`admin-${admin.id}`}
-                    checked={selectedAdmins.has(admin.id)}
-                    onCheckedChange={() => handleAdminSelection(admin.id)}
-                  />
-                  <Label htmlFor={`admin-${admin.id}`} className="flex-1 cursor-pointer">
-                    <span className="font-medium">{admin.name}</span>
-                    <p className="text-sm text-muted-foreground">{admin.prefix}.{admin.username}</p>
-                    <p className="text-xs text-muted-foreground">Empresa: {admin.prefix}</p>
-                  </Label>
-                </div>
-              ))}
+             <div className="space-y-2 py-4 max-h-[400px] overflow-y-auto pr-2">
+              {admins.map((admin) => {
+                const isSelected = selectedAdmins.has(admin.id);
+                return (
+                  <div 
+                    key={admin.id} 
+                    onClick={() => handleAdminSelection(admin.id)}
+                    className={cn(
+                        "flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative",
+                        isSelected ? "bg-primary/10 border-primary/50 shadow-sm" : "hover:bg-muted/50"
+                    )}
+                  >
+                    <Avatar className="h-9 w-9">
+                        <AvatarFallback>{admin.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-semibold">{admin.name}</p>
+                      <p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p>
+                      <p className="text-xs text-muted-foreground">Empresa: {admin.prefix}</p>
+                    </div>
+                    {isSelected && <CheckCircle2 className="h-5 w-5 text-primary absolute top-3 right-3" />}
+                  </div>
+                )
+              })}
             </div>
           )}
           <DialogFooter>
