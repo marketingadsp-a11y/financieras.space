@@ -9,12 +9,16 @@ const adminsCollectionRef = collection(db, "admins");
 export async function getAdmins(): Promise<Admin[]> {
     const data = await getDocs(adminsCollectionRef);
     const admins = data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
-    return admins;
+    return admins.map(admin => {
+        const { password, ...adminWithoutPassword } = admin;
+        return adminWithoutPassword;
+    });
 }
 
 export async function addAdmin(admin: Omit<Admin, 'id'>) : Promise<Admin> {
     const docRef = await addDoc(adminsCollectionRef, admin);
-    return { ...admin, id: docRef.id };
+    const { password, ...adminWithoutPassword } = admin;
+    return { ...adminWithoutPassword, id: docRef.id };
 }
 
 export async function updateAdmin(id: string, admin: Partial<Omit<Admin, 'id'>>) {
