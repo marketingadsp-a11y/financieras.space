@@ -17,7 +17,7 @@ export async function getPaymentsByCustomer(customerId: string): Promise<Payment
     
     return data.docs.map(doc => {
         const docData = doc.data();
-        // Convert Firestore Timestamp to number (milliseconds)
+        // Convert Firestore Timestamp to number (milliseconds) for client-side consistency
         const dateInMillis = (docData.date as Timestamp).toMillis();
         
         return {

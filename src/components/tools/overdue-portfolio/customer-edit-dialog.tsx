@@ -92,17 +92,18 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
     defaultValues: { amount: undefined },
   });
   
-  const fetchPayments = React.useCallback(async (customerId: string) => {
+  const fetchPayments = React.useCallback(async () => {
+    if (!customer?.id) return;
     setIsLoadingHistory(true);
     try {
-      const paymentHistory = await getPaymentsByCustomer(customerId);
+      const paymentHistory = await getPaymentsByCustomer(customer.id);
       setPayments(paymentHistory);
     } catch (error) {
        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el historial de pagos." });
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [toast]);
+  }, [customer, toast]);
 
 
   React.useEffect(() => {
@@ -118,8 +119,8 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
         installmentsDue: customer.installmentsDue,
         dueAmount: customer.dueAmount,
       });
-      paymentForm.reset();
-      fetchPayments(customer.id);
+      paymentForm.reset({ amount: undefined });
+      fetchPayments();
     }
   }, [isOpen, customer, customerForm, paymentForm, fetchPayments]);
 
@@ -146,7 +147,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
       await addPayment(customer.id, values.amount);
       toast({ title: "Éxito", description: "Abono registrado." });
       onSuccess();
-      onClose();
+      onClose(); // This re-triggers the useEffect on next open, fetching everything fresh
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "No se pudo registrar el abono.";
       toast({ variant: "destructive", title: "Error", description: errorMessage });
