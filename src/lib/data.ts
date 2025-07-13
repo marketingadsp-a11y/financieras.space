@@ -9,6 +9,7 @@ export type Admin = {
   status: "Activo" | "Inactivo";
   password?: string;
   accessibleTools?: string[];
+  createdBy?: string;
 };
 
 export type ToolAdmin = {
@@ -18,6 +19,8 @@ export type ToolAdmin = {
   status: "Activo" | "Inactivo";
   password?: string;
   toolId: 'cartera-vencida';
+  prefix?: string;
+  createdBy?: string;
 };
 
 export type SuperAdmin = {

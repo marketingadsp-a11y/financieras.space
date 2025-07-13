@@ -27,9 +27,10 @@ const formSchema = z.object({
 type ToolAdminFormProps = {
   onSubmit: (data: any) => void;
   admin?: ToolAdmin | null;
+  prefix?: string;
 };
 
-export function ToolAdminForm({ onSubmit, admin }: ToolAdminFormProps) {
+export function ToolAdminForm({ onSubmit, admin, prefix }: ToolAdminFormProps) {
     const isEditing = !!admin;
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -82,9 +83,14 @@ export function ToolAdminForm({ onSubmit, admin }: ToolAdminFormProps) {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Usuario</FormLabel>
-                            <FormControl>
-                                <Input placeholder="nombre.usuario" {...field} disabled={isEditing} />
-                            </FormControl>
+                            <div className="flex items-center">
+                                <span className="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
+                                   {prefix}.
+                                </span>
+                                <FormControl>
+                                    <Input placeholder="nombre.usuario" {...field} className="rounded-l-none" disabled={isEditing}/>
+                                </FormControl>
+                            </div>
                             <FormMessage />
                         </FormItem>
                     )}

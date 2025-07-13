@@ -102,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 2. Check for Global Admin (with prefix)
       const admin = await getAdminByUsername(usernamePart, prefix);
       if (admin && admin.password === pass && admin.status === "Activo") {
-         const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix };
+         const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
          return true;
@@ -110,10 +110,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Este usuario se encuentra inactivo.');
       }
 
-      // 3. Check for Tool Admin (no prefix for now)
-      const toolAdmin = await getToolAdminByUsername(emailOrUsername);
+      // 3. Check for Tool Admin (with prefix)
+      const toolAdmin = await getToolAdminByUsername(usernamePart, prefix);
       if (toolAdmin && toolAdmin.password === pass && toolAdmin.status === "Activo") {
-         const userData: User = { id: toolAdmin.id, username: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId] };
+         const userData: User = { id: toolAdmin.id, username: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId], prefix: toolAdmin.prefix, createdBy: toolAdmin.createdBy };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
          return true;

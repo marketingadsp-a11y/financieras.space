@@ -2,25 +2,26 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
+import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToolAdminTable } from "@/components/tools/overdue-portfolio/admins/admin-table";
 import { ToolAdminForm } from "@/components/tools/overdue-portfolio/admins/admin-form";
-import type { ToolAdmin, Admin, SuperAdmin } from "@/lib/data";
+import type { ToolAdmin, Admin } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getToolAdmins, addToolAdmin, updateToolAdmin, deleteToolAdmin } from "@/services/tool-admin-service";
-import { getAdmins } from "@/services/admin-service";
+import { getAdminsByPrefix } from "@/services/admin-service";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 
 type CombinedAdmin = (
   | (Omit<ToolAdmin, 'toolId'> & { role: 'Admin de Herramienta'; editable: true })
   | (Omit<Admin, 'role' | 'accessibleTools'> & { role: 'Admin Global'; editable: false })
-  | (Omit<SuperAdmin, 'password'> & { name: string; status: 'Activo'; role: 'Super Admin'; editable: false })
 );
 
 
 export function AdminsManagement() {
+  const { user } = useAuth();
   const [admins, setAdmins] = React.useState<CombinedAdmin[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -29,10 +30,14 @@ export function AdminsManagement() {
   const toolId = 'cartera-vencida';
 
   const fetchAdmins = React.useCallback(async () => {
+    if (!user?.prefix) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
-      const toolAdminsPromise = getToolAdmins(toolId);
-      const globalAdminsPromise = getAdmins();
+      const toolAdminsPromise = getToolAdmins(toolId, user.prefix);
+      const globalAdminsPromise = getAdminsByPrefix(user.prefix);
       
       const [toolAdmins, globalAdmins] = await Promise.all([toolAdminsPromise, globalAdminsPromise]);
 
@@ -61,16 +66,20 @@ export function AdminsManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, user?.prefix]);
   
   React.useEffect(() => {
     fetchAdmins();
   }, [fetchAdmins]);
 
 
-  const handleAddAdmin = async (newAdmin: Omit<ToolAdmin, 'id' | 'toolId'>) => {
+  const handleAddAdmin = async (newAdmin: Omit<ToolAdmin, 'id' | 'toolId' | 'prefix'>) => {
+    if(!user?.prefix || !user?.id) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudo identificar al creador."});
+        return;
+    }
     try {
-      const adminData = { ...newAdmin, toolId };
+      const adminData = { ...newAdmin, toolId, prefix: user.prefix, createdBy: user.id };
       const addedAdmin = await addToolAdmin(adminData);
       setAdmins(prev => [...prev, { ...addedAdmin, role: 'Admin de Herramienta', editable: true }]);
       setIsFormOpen(false);
@@ -132,7 +141,7 @@ export function AdminsManagement() {
          toast({
             variant: "destructive",
             title: "Acción no permitida",
-            description: "Los admins globales se gestionan desde el panel principal.",
+            description: "Los admins globales se gestionan desde el panel principal de administradores.",
         });
       }
   }
@@ -151,7 +160,7 @@ export function AdminsManagement() {
           <div>
             <CardTitle>Accesos a Cartera Vencida</CardTitle>
             <CardDescription>
-              Lista de todos los usuarios con acceso a esta herramienta. Solo los "Admin de Herramienta" se pueden gestionar desde aquí.
+              Lista de todos los usuarios con acceso a esta herramienta bajo el prefijo <span className="font-bold">{user?.prefix}</span>. Solo los "Admin de Herramienta" se pueden gestionar desde aquí.
             </CardDescription>
           </div>
           <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
@@ -165,12 +174,13 @@ export function AdminsManagement() {
               <DialogHeader>
                 <DialogTitle>{editingAdmin ? 'Editar' : 'Agregar'} Admin de Herramienta</DialogTitle>
                  <CardDescription>
-                  Este administrador solo tendrá acceso a la herramienta de Cartera Vencida.
+                  Este administrador solo tendrá acceso a la herramienta de Cartera Vencida y usará el prefijo: <span className="font-bold">{user?.prefix}</span>
                 </CardDescription>
               </DialogHeader>
               <ToolAdminForm
                 onSubmit={editingAdmin ? handleUpdateAdmin : handleAddAdmin}
                 admin={editingAdmin}
+                prefix={user?.prefix}
               />
             </DialogContent>
           </Dialog>

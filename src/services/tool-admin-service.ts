@@ -6,8 +6,12 @@ import type { ToolAdmin } from "@/lib/data";
 
 const toolAdminsCollectionRef = collection(db, "toolAdmins");
 
-export async function getToolAdmins(toolId: string): Promise<ToolAdmin[]> {
-    const q = query(toolAdminsCollectionRef, where("toolId", "==", toolId));
+export async function getToolAdmins(toolId: string, prefix?: string): Promise<ToolAdmin[]> {
+    const constraints = [where("toolId", "==", toolId)];
+    if(prefix) {
+        constraints.push(where("prefix", "==", prefix));
+    }
+    const q = query(toolAdminsCollectionRef, ...constraints);
     const data = await getDocs(q);
     const admins = data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ToolAdmin[];
     
@@ -34,8 +38,11 @@ export async function deleteToolAdmin(id: string) {
     await deleteDoc(adminDoc);
 }
 
-export async function getToolAdminByUsername(username: string): Promise<ToolAdmin & {password: string} | null> {
-    const q = query(toolAdminsCollectionRef, where("username", "==", username));
+export async function getToolAdminByUsername(username: string, prefix?: string): Promise<ToolAdmin & {password: string} | null> {
+    const q = prefix
+        ? query(toolAdminsCollectionRef, where("username", "==", username), where("prefix", "==", prefix))
+        : query(toolAdminsCollectionRef, where("username", "==", username));
+
     const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) {
         return null;

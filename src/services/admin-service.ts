@@ -6,8 +6,20 @@ import type { Admin } from "@/lib/data";
 
 const adminsCollectionRef = collection(db, "admins");
 
+// This function gets ALL admins, intended for SuperAdmin use
 export async function getAdmins(): Promise<Admin[]> {
     const data = await getDocs(adminsCollectionRef);
+    const admins = data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
+    return admins.map(admin => {
+        const { password, ...adminWithoutPassword } = admin;
+        return adminWithoutPassword;
+    });
+}
+
+// This function gets admins by a specific prefix
+export async function getAdminsByPrefix(prefix: string): Promise<Admin[]> {
+    const q = query(adminsCollectionRef, where("prefix", "==", prefix));
+    const data = await getDocs(q);
     const admins = data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
     return admins.map(admin => {
         const { password, ...adminWithoutPassword } = admin;
@@ -31,8 +43,11 @@ export async function deleteAdmin(id: string) {
     await deleteDoc(adminDoc);
 }
 
-export async function getAdminByUsername(username: string): Promise<Admin & {password: string} | null> {
-    const q = query(adminsCollectionRef, where("username", "==", username));
+export async function getAdminByUsername(username: string, prefix?: string): Promise<Admin & {password: string} | null> {
+    const q = prefix 
+        ? query(adminsCollectionRef, where("username", "==", username), where("prefix", "==", prefix))
+        : query(adminsCollectionRef, where("username", "==", username)); // This case might be ambiguous if prefixes are used, but kept for flexibility
+    
     const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) {
         return null;
