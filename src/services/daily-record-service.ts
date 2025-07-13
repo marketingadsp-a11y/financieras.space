@@ -12,7 +12,6 @@ import {
 import { db } from "@/lib/firebase";
 import type { DailyRecord, DailyRecordEntry } from "@/lib/data";
 import { v4 as uuidv4 } from 'uuid';
-import { getDocs, collection, query, where } from "firebase/firestore";
 
 function getDailyRecordDocRef(plazaId: string, date: Date) {
     const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -37,35 +36,6 @@ export async function getDailyRecord(plazaId: string, date: Date): Promise<Daily
 
     return null;
 }
-
-
-export async function getDailyRecordsForRange(plazaId: string, from: Date, to?: Date): Promise<DailyRecord[]> {
-    const startDate = new Date(from);
-    startDate.setHours(0, 0, 0, 0);
-
-    const endDate = to ? new Date(to) : new Date(from);
-    endDate.setHours(23, 59, 59, 999);
-
-    const q = query(
-        collection(db, "daily_records"),
-        where("plazaId", "==", plazaId),
-        where("date", ">=", Timestamp.fromDate(startDate)),
-        where("date", "<=", Timestamp.fromDate(endDate))
-    );
-
-    const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        return {
-            ...data,
-            id: docSnap.id,
-            date: (data.date as Timestamp).toDate(),
-            entries: (data.entries || []).map((e: any) => ({...e, date: e.date.toDate()})),
-        } as DailyRecord;
-    });
-}
-
 
 export async function addDailyRecordEntry(
     plazaId: string,
