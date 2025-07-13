@@ -9,11 +9,13 @@ import { UserForm } from "@/components/tools/overdue-portfolio/users/user-form";
 import type { PlazaUser, Plaza } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getPlazaUsers, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
+import { getPlazaUsersByPrefix, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
 import { getPlazas } from "@/services/plaza-service";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 
 export function UsersManagement() {
+  const { user } = useAuth();
   const [users, setUsers] = React.useState<PlazaUser[]>([]);
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -22,11 +24,15 @@ export function UsersManagement() {
   const { toast } = useToast();
 
   const fetchData = React.useCallback(async () => {
+    if (!user?.prefix) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const [usersFromDb, plazasFromDb] = await Promise.all([
-        getPlazaUsers(),
-        getPlazas(),
+        getPlazaUsersByPrefix(user.prefix),
+        getPlazas(user.prefix),
       ]);
       setUsers(usersFromDb);
       setPlazas(plazasFromDb);
@@ -39,19 +45,24 @@ export function UsersManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, user?.prefix]);
 
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const handleSubmit = async (userData: Omit<PlazaUser, 'id'>) => {
+    if (!user?.prefix) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo determinar el prefijo." });
+      return;
+    }
     try {
+      const dataToSave = { ...userData, prefix: user.prefix };
       if (editingUser) {
-        await updatePlazaUser(editingUser.id, userData);
+        await updatePlazaUser(editingUser.id, dataToSave);
         toast({ title: "Éxito", description: "Usuario actualizado." });
       } else {
-        await addPlazaUser(userData);
+        await addPlazaUser(dataToSave);
         toast({ title: "Éxito", description: "Usuario agregado." });
       }
       setIsFormOpen(false);
@@ -95,12 +106,12 @@ export function UsersManagement() {
           <div>
             <CardTitle>Gestión de Usuarios de Plaza</CardTitle>
             <CardDescription>
-              Crea, edita y elimina usuarios con acceso a plazas específicas.
+              Crea, edita y elimina usuarios con acceso a plazas específicas. Todos los usuarios creados aquí usarán el prefijo: <span className="font-bold">{user?.prefix}</span>
             </CardDescription>
           </div>
           <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" disabled={!user?.prefix}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Agregar Usuario
               </Button>
@@ -108,11 +119,15 @@ export function UsersManagement() {
             <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                 <DialogTitle>{editingUser ? 'Editar' : 'Agregar'} Usuario</DialogTitle>
+                 <CardDescription>
+                  El usuario se creará con el prefijo: <span className="font-bold">{user?.prefix}</span>
+                </CardDescription>
               </DialogHeader>
               <UserForm
                 onSubmit={handleSubmit}
                 user={editingUser}
                 allPlazas={plazas}
+                prefix={user?.prefix}
               />
             </DialogContent>
           </Dialog>

@@ -49,15 +49,20 @@ type UserFormProps = {
   onSubmit: (data: Omit<PlazaUser, 'id'>) => void;
   user?: PlazaUser | null;
   allPlazas: Plaza[];
+  prefix?: string;
 };
 
 const allPermissions = Object.entries(PERMISSIONS) as [Permission, string][];
 
-export function UserForm({ onSubmit, user, allPlazas }: UserFormProps) {
+export function UserForm({ onSubmit, user, allPlazas, prefix }: UserFormProps) {
     const isEditing = !!user;
 
     const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+        resolver: zodResolver(
+             isEditing 
+            ? formSchema.partial().omit({ username: true })
+            : formSchema.required({ password: true })
+        ),
         defaultValues: {
             name: user?.name || "",
             username: user?.username || "",
@@ -74,8 +79,11 @@ export function UserForm({ onSubmit, user, allPlazas }: UserFormProps) {
 
     const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSend: any = { ...values };
-        if (isEditing && !values.password) {
-            delete dataToSend.password;
+        if (isEditing) {
+            dataToSend.id = user.id;
+            if (!values.password) {
+                delete dataToSend.password;
+            }
         }
         onSubmit(dataToSend);
     };
@@ -89,7 +97,24 @@ export function UserForm({ onSubmit, user, allPlazas }: UserFormProps) {
             <ScrollArea className="h-[60vh] pr-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="username" render={({ field }) => (<FormItem><FormLabel>Usuario</FormLabel><FormControl><Input placeholder="nombre.usuario" {...field} disabled={isEditing} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Usuario</FormLabel>
+                            <div className="flex items-center">
+                                    <span className="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
+                                    {prefix}.
+                                    </span>
+                                    <FormControl>
+                                        <Input placeholder="nombre.usuario" {...field} className="rounded-l-none" disabled={isEditing}/>
+                                    </FormControl>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                     <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Contraseña</FormLabel><FormControl><Input type="password" placeholder={isEditing ? "Dejar en blanco para no cambiar" : "••••••••"} {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="status" render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm mt-auto mb-2">
@@ -104,7 +129,7 @@ export function UserForm({ onSubmit, user, allPlazas }: UserFormProps) {
                     <div>
                       <h3 className="text-lg font-medium">Accesos y Permisos</h3>
                       <p className="text-sm text-muted-foreground">Asigna las plazas y los permisos que tendrá el usuario.</p>
-                      <FormMessage>{form.formState.errors.plazaAccess?.message}</FormMessage>
+                      <FormMessage>{form.formState.errors.plazaAccess?.message || (form.formState.errors.plazaAccess as any)?.root?.message}</FormMessage>
                     </div>
                      <Select onValueChange={(plazaId) => {
                           const plaza = allPlazas.find(p => p.id === plazaId);

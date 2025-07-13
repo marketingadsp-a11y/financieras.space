@@ -57,6 +57,7 @@ export type PlazaUser = {
   password?: string;
   status: 'Activo' | 'Inactivo';
   plazaAccess: PlazaAccess[];
+  prefix?: string;
 };
 
 export type Customer = {

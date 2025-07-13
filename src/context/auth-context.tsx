@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
 
-      // 1. Check for Super Admin (no prefix for login)
+      // 1. Check for Super Admin (no prefix for login usually, but could be typed)
       const superAdmin = await getSuperAdminByUsername(emailOrUsername);
       if (superAdmin && superAdmin.password === pass) {
           const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false, prefix: superAdmin.prefix };
@@ -100,8 +100,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       // 2. Check for Global Admin (with prefix)
-      const admin = await getAdminByUsername(usernamePart);
-      if (admin && admin.password === pass && admin.status === "Activo" && admin.prefix === prefix) {
+      const admin = await getAdminByUsername(usernamePart, prefix);
+      if (admin && admin.password === pass && admin.status === "Activo") {
          const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
@@ -121,10 +121,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Este usuario se encuentra inactivo.');
       }
 
-      // 4. Check for Plaza User (no prefix for now)
-      const plazaUser = await getPlazaUserByUsername(emailOrUsername);
+      // 4. Check for Plaza User (with prefix)
+      const plazaUser = await getPlazaUserByUsername(usernamePart, prefix);
       if (plazaUser && plazaUser.password === pass && plazaUser.status === "Activo") {
-         const userData: User = { id: plazaUser.id, username: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess };
+         const userData: User = { id: plazaUser.id, username: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, prefix: plazaUser.prefix };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
          return true;
