@@ -130,15 +130,11 @@ export type CentralAccount = {
 
 export type DailyRecordType = 'collected' | 'loaned' | 'spent';
 
-export type ExpenseCategory = 'gasolina' | 'comida' | 'papeleria' | 'otros';
-
-export const expenseCategories: { value: ExpenseCategory, label: string }[] = [
-  { value: 'gasolina', label: 'Gasolina' },
-  { value: 'comida', label: 'Comida' },
-  { value: 'papeleria', label: 'Papelería' },
-  { value: 'otros', label: 'Otros' },
-];
-
+export type ExpenseCategory = {
+  id: string;
+  prefix: string;
+  name: string;
+};
 
 export type DailyRecordEntry = {
     id: string;
@@ -146,7 +142,7 @@ export type DailyRecordEntry = {
     type: DailyRecordType;
     amount: number;
     description: string;
-    category?: ExpenseCategory; 
+    category?: string; // Storing category name as string
 };
 
 export type DailyRecord = {

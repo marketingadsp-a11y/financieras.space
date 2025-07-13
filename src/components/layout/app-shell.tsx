@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   Users2,
   ChevronLeft,
-  Loader2
+  Loader2,
+  ListTree,
+  BookCheck
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -67,6 +69,14 @@ const carteraVencidaNavItems: NavItem[] = [
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
     { href: "/tools/overdue-portfolio/users", label: "Gestionar Usuarios", icon: Users2 },
 ];
+
+const dailyControlNavItems: NavItem[] = [
+    { href: "/tools/daily-control", label: "Resumen Diario", icon: BookCheck },
+];
+
+const dailyControlSettingsItems: NavItem[] = [
+    { href: "/tools/daily-control/categories", label: "Gestionar Categorías", icon: ListTree },
+]
 
 function PlazaNavLinks() {
     const { user } = useAuth();
@@ -131,6 +141,7 @@ function NavLinks() {
   const { user } = useAuth();
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
+  const isDailyControlPath = pathname.startsWith('/tools/daily-control');
 
   if (isCarteraVencidaPath) {
     const hasAccessToTool = user?.isSuperAdmin || user?.isToolAdmin || user?.accessibleTools?.includes('cartera-vencida');
@@ -158,6 +169,42 @@ function NavLinks() {
     );
   }
 
+  if (isDailyControlPath) {
+    return (
+      <>
+        <SidebarGroup>
+          <SidebarGroupLabel>CONTROL DIARIO</SidebarGroupLabel>
+          <SidebarMenu>
+            {dailyControlNavItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href}>
+                  <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>CONFIGURACIÓN</SidebarGroupLabel>
+          <SidebarMenu>
+            {dailyControlSettingsItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href}>
+                  <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      </>
+    );
+  }
 
   const getNavItems = () => {
     if (user?.isSuperAdmin) {
@@ -212,7 +259,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
   
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
-  const carteraVencidaTool = allTools.find(tool => tool.id === 'cartera-vencida');
+  const isDailyControlPath = pathname.startsWith('/tools/daily-control');
+  
+  const getToolFromPath = () => {
+    if (isCarteraVencidaPath) return allTools.find(tool => tool.id === 'cartera-vencida');
+    if (isDailyControlPath) return allTools.find(tool => tool.id === 'daily-control');
+    return null;
+  }
+
+  const currentTool = getToolFromPath();
   
   const getUserRoleLabel = () => {
     if (user.isSuperAdmin) return 'Super Admin';
@@ -221,6 +276,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
+  const showBackButton = (isCarteraVencidaPath || isDailyControlPath) && !user.isSuperAdmin && !user.isToolAdmin;
 
   return (
     <SidebarProvider>
@@ -232,9 +288,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="font-semibold group-data-[collapsible=icon]:hidden">
                 {getUserRoleLabel()}
               </span>
-              {isCarteraVencidaPath && carteraVencidaTool && (
+              {currentTool && (
                 <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-                  {carteraVencidaTool.name}
+                  {currentTool.name}
                 </span>
               )}
             </div>
@@ -242,7 +298,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
            <NavLinks />
-           { isCarteraVencidaPath && !user.isSuperAdmin && !user.isToolAdmin && (
+           { showBackButton && (
             <>
               <SidebarSeparator />
               <SidebarMenu>

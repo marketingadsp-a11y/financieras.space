@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import * as React from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -27,8 +29,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import type { DailyRecordType } from "@/lib/data";
-import { expenseCategories } from "@/lib/data";
+import type { DailyRecordType, ExpenseCategory } from "@/lib/data";
+import { useAuth } from "@/context/auth-context";
+import { getExpenseCategories } from "@/services/expense-category-service";
 import { DollarSign, Loader2, CalendarIcon } from "lucide-react";
 
 const formSchema = z.object({
@@ -47,6 +50,27 @@ type DailyRecordFormProps = {
 };
 
 export function DailyRecordForm({ onSubmit, mode, isSubmitting, entryDate, onEntryDateChange }: DailyRecordFormProps) {
+    const { user } = useAuth();
+    const [categories, setCategories] = React.useState<ExpenseCategory[]>([]);
+    const [isLoadingCategories, setIsLoadingCategories] = React.useState(false);
+
+    React.useEffect(() => {
+        const fetchCategories = async () => {
+            if (mode === 'spent' && user?.prefix) {
+                setIsLoadingCategories(true);
+                try {
+                    const fetchedCategories = await getExpenseCategories(user.prefix);
+                    setCategories(fetchedCategories);
+                } catch (error) {
+                    console.error("Failed to fetch expense categories", error);
+                } finally {
+                    setIsLoadingCategories(false);
+                }
+            }
+        };
+        fetchCategories();
+    }, [mode, user?.prefix]);
+
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema.refine(data => mode !== 'spent' || !!data.category, {
@@ -141,16 +165,16 @@ export function DailyRecordForm({ onSubmit, mode, isSubmitting, entryDate, onEnt
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Categoría de Gasto</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingCategories}>
                                     <FormControl>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona una categoría" />
+                                        <SelectValue placeholder={isLoadingCategories ? "Cargando..." : "Selecciona una categoría"} />
                                     </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                    {expenseCategories.map(cat => (
-                                        <SelectItem key={cat.value} value={cat.value}>
-                                            {cat.label}
+                                    {categories.map(cat => (
+                                        <SelectItem key={cat.id} value={cat.name}>
+                                            {cat.name}
                                         </SelectItem>
                                     ))}
                                     </SelectContent>
