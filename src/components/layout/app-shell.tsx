@@ -57,13 +57,13 @@ type NavItem = {
 
 const superAdminNavItems: NavItem[] = [
   { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
+  { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
   { href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: true },
   { href: "/settings", label: "Configuración", icon: Settings, superAdminOnly: true },
 ];
 
 const carteraVencidaNavItems: NavItem[] = [
     { href: "/tools/overdue-portfolio", label: "Resumen General", icon: Building },
-    { href: "/tools/overdue-portfolio/plazas", label: "Gestionar Plazas", icon: Building },
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
     { href: "/tools/overdue-portfolio/users", label: "Gestionar Usuarios", icon: Users2 },
 ];
@@ -173,14 +173,15 @@ function NavLinks() {
       })) || [];
     }
     // For regular admins, show their accessible tools
-    return allTools
-      .filter(tool => user?.accessibleTools?.includes(tool.id))
-      .map(tool => ({
-        href: tool.href,
-        label: tool.name,
-        icon: Wrench, // Using a generic icon for all tools
-        superAdminOnly: false,
-      }));
+    const adminNavItems = [];
+    
+    // Centralized Plaza Management for Admins
+    adminNavItems.push({ href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: false });
+
+    adminNavItems.push({ href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: false });
+
+
+    return adminNavItems;
   }
 
   const availableNavItems = getNavItems();
