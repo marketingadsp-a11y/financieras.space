@@ -19,10 +19,9 @@ import {
   Loader2,
   ClipboardPaste,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -54,10 +53,10 @@ import {
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
 import type { Plaza, Customer } from "@/lib/data";
 import { getPlazaById } from "@/services/plaza-service";
-import { getCustomersByPlaza, addCustomer, updateCustomer, deleteCustomer, addMultipleCustomers, deleteCustomersByPlaza } from "@/services/customer-service";
+import { getCustomersByPlaza, addCustomer, deleteCustomersByPlaza, addMultipleCustomers } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
-import { CustomerDetailDialog } from "@/components/tools/overdue-portfolio/customer-detail-dialog";
+import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -94,8 +93,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [plaza, setPlaza] = React.useState<Plaza | null>(null);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [editingCustomer, setEditingCustomer] = React.useState<Customer | null>(null);
+  const [isAddFormOpen, setIsAddFormOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const { toast } = useToast();
 
@@ -104,7 +102,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [isParsing, setIsParsing] = React.useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
-  const [selectedCustomerForPayment, setSelectedCustomerForPayment] = React.useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const [dialogMode, setDialogMode] = React.useState<'edit' | 'payment'>('edit');
 
 
   const fetchPlazaAndCustomers = React.useCallback(async () => {
@@ -129,39 +128,30 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     fetchPlazaAndCustomers();
   }, [fetchPlazaAndCustomers]);
 
-  const handleFormSubmit = async (customerData: Omit<Customer, 'id' | 'plazaId' | 'status'> | Customer) => {
+  const handleAddSubmit = async (customerData: Omit<Customer, 'id' | 'plazaId' | 'status'>) => {
     try {
-        if ('id' in customerData) { // Editing
-            const { id, ...dataToUpdate } = customerData;
-            await updateCustomer(id, dataToUpdate);
-            toast({ title: "Éxito", description: "Cliente actualizado correctamente." });
-        } else { // Adding
-            const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const };
-            await addCustomer(newCustomerData);
-            toast({ title: "Éxito", description: "Cliente agregado correctamente." });
-        }
-        await fetchPlazaAndCustomers(); // Refresh data
-        setIsFormOpen(false);
-        setEditingCustomer(null);
+        const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const };
+        await addCustomer(newCustomerData);
+        toast({ title: "Éxito", description: "Cliente agregado correctamente." });
+        await fetchPlazaAndCustomers();
+        setIsAddFormOpen(false);
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el cliente." });
     }
   };
-
+  
   const handleEditClick = (customer: Customer) => {
-    setEditingCustomer(customer);
-    setIsFormOpen(true);
+    setSelectedCustomer(customer);
+    setDialogMode('edit');
   };
   
-  const handleOpenChange = (open: boolean) => {
-    setIsFormOpen(open);
-    if (!open) {
-      setEditingCustomer(null);
-    }
+  const handlePaymentClick = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setDialogMode('payment');
   };
 
-  const handlePaymentClick = (customer: Customer) => {
-    setSelectedCustomerForPayment(customer);
+  const closeDialog = () => {
+    setSelectedCustomer(null);
   }
 
   const handleDeleteAllCustomers = async () => {
@@ -303,7 +293,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                     />
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
+                    <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
                         <DialogTrigger asChild>
                            <Button>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Registrar
@@ -311,11 +301,10 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>{editingCustomer ? 'Editar' : 'Registrar'} Cliente</DialogTitle>
+                                <DialogTitle>Registrar Cliente</DialogTitle>
                             </DialogHeader>
                             <CustomerForm
-                                onSubmit={handleFormSubmit}
-                                customer={editingCustomer}
+                                onSubmit={handleAddSubmit}
                             />
                         </DialogContent>
                     </Dialog>
@@ -439,14 +428,13 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         </CardContent>
       </Card>
 
-      {selectedCustomerForPayment && (
-        <CustomerDetailDialog
-          customer={selectedCustomerForPayment}
-          isOpen={!!selectedCustomerForPayment}
-          onClose={() => setSelectedCustomerForPayment(null)}
-          onPaymentSuccess={fetchPlazaAndCustomers}
-        />
-      )}
+      <CustomerEditDialog
+        customer={selectedCustomer}
+        isOpen={!!selectedCustomer}
+        onClose={closeDialog}
+        onSuccess={fetchPlazaAndCustomers}
+        mode={dialogMode}
+      />
     </div>
   );
 }

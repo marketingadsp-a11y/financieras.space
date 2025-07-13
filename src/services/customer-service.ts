@@ -1,16 +1,37 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer } from "@/lib/data";
 
 const customersCollectionRef = collection(db, "customers");
+const paymentsCollectionRef = collection(db, "payments");
+
+
+function customerFromDoc(doc: DocumentData): Customer {
+    const data = doc.data();
+    return {
+        id: doc.id,
+        plazaId: data.plazaId,
+        name: data.name,
+        address: data.address,
+        phone: data.phone || "",
+        guarantor: data.guarantor || "",
+        guarantorPhone: data.guarantorPhone || "",
+        loanAmount: data.loanAmount || 0,
+        paymentAmount: data.paymentAmount || 0,
+        installmentsDue: data.installmentsDue || 0,
+        dueAmount: data.dueAmount || 0,
+        status: data.status || "Pendiente",
+    };
+}
+
 
 export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> {
     const q = query(customersCollectionRef, where("plazaId", "==", plazaId));
     const data = await getDocs(q);
-    return data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Customer[];
+    return data.docs.map(customerFromDoc);
 }
 
 export async function addCustomer(customer: Omit<Customer, 'id'>) : Promise<Customer> {
@@ -52,9 +73,23 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], pl
         });
     }
 
-    customers.forEach(customer => {
+    customers.forEach(customerData => {
         const newDocRef = doc(customersCollectionRef);
-        batch.set(newDocRef, customer);
+        // Ensure all fields are present, even if empty, to match the Customer type
+        const completeCustomerData = {
+            plazaId: plazaId,
+            status: 'Pendiente' as const,
+            name: customerData.name || '',
+            address: customerData.address || '',
+            phone: customerData.phone || '',
+            guarantor: customerData.guarantor || '',
+            guarantorPhone: customerData.guarantorPhone || '',
+            loanAmount: customerData.loanAmount || 0,
+            paymentAmount: customerData.paymentAmount || 0,
+            installmentsDue: customerData.installmentsDue || 0,
+            dueAmount: customerData.dueAmount || customerData.loanAmount || 0,
+        };
+        batch.set(newDocRef, completeCustomerData);
     });
 
     await batch.commit();
@@ -69,10 +104,21 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
             throw new Error("El cliente no existe.");
         }
 
-        const customerData = customerDoc.data() as Customer;
+        const customerData = customerFromDoc(customerDoc);
         const previousDueAmount = customerData.dueAmount;
         const newDueAmount = previousDueAmount - paymentAmount;
 
+        // 1. Create payment record
+        const paymentRef = doc(paymentsCollectionRef);
+        transaction.set(paymentRef, {
+            customerId: customerId,
+            amount: paymentAmount,
+            date: Timestamp.now(),
+            previousBalance: previousDueAmount,
+            newBalance: newDueAmount,
+        });
+
+        // 2. Update customer's due amount and status
         const updatedCustomerData: Partial<Pick<Customer, 'dueAmount' | 'status'>> = {
             dueAmount: newDueAmount,
         };

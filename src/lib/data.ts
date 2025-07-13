@@ -30,9 +30,21 @@ export type Customer = {
   address: string;
   phone: string;
   guarantor: string;
+  guarantorPhone: string;
   loanAmount: number;
-  dueAmount: number;
+  paymentAmount: number; // Monto de pago (cuota)
+  installmentsDue: number; // No. vencidos
+  dueAmount: number; // Adeudo actual
   status: "Pendiente" | "Pagado" | "Atrasado";
+};
+
+export type Payment = {
+  id: string;
+  customerId: string;
+  amount: number;
+  date: number; // Using number for timestamp (milliseconds)
+  previousBalance: number;
+  newBalance: number;
 };
 
 export type Tool = {
