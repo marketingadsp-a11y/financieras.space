@@ -68,7 +68,7 @@ export function CustomerCard({ customer, onEdit, onPayment }: CustomerCardProps)
               <Pencil className="mr-2 h-4 w-4"/> Editar
           </Button>
           <Button size="sm" className="w-full" onClick={() => onPayment(customer)} disabled={isPaid}>
-              <DollarSign className="mr-2 h-4 w-4"/> Abonar / Ver Hist.
+              <DollarSign className="mr-2 h-4 w-4"/> Abonar
           </Button>
       </CardFooter>
     </Card>
