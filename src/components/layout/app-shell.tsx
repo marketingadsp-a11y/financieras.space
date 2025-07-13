@@ -305,7 +305,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const getUserRoleLabel = () => {
     if (user.isSuperAdmin) return 'Financieras MX';
     if (user.isToolAdmin) return 'Admin de Herramienta';
-    if (user.isPlazaUser) return 'Usuario';
+    if (user.isPlazaUser) return user.username;
     return 'Admin';
   }
 
