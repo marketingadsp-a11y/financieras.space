@@ -21,10 +21,11 @@ export function PlazasManagement() {
   const { toast } = useToast();
 
   const fetchPlazas = React.useCallback(async () => {
-    if (!user?.prefix) return;
+    if (!user) return;
     try {
       setIsLoading(true);
-      const plazasFromDb = await getPlazas(user.prefix);
+      const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
+      const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
       setPlazas(plazasFromDb);
     } catch (error) {
       toast({
@@ -35,7 +36,7 @@ export function PlazasManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.prefix, toast]);
+  }, [user, toast]);
 
   React.useEffect(() => {
     fetchPlazas();
@@ -43,8 +44,9 @@ export function PlazasManagement() {
 
   const handleAddPlaza = async (newPlaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate'>) => {
     try {
+      // Admins use their own prefix. SuperAdmins might create for others, but for now, let's stick to their prefix if they have one.
       const plazaData = { ...newPlaza, prefix: user?.prefix };
-      const addedPlaza = await addPlaza(plazaData);
+      await addPlaza(plazaData);
       await fetchPlazas();
       setIsFormOpen(false);
        toast({
@@ -115,12 +117,12 @@ export function PlazasManagement() {
           <div>
             <CardTitle>Gestión de Plazas</CardTitle>
             <CardDescription>
-              Crea, edita y elimina las plazas de la cartera vencida. Las plazas están asociadas a tu prefijo '{user?.prefix}'.
+              Crea, edita y elimina las plazas de la cartera vencida.
             </CardDescription>
           </div>
           <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-              <Button size="sm" disabled={!user?.prefix}>
+              <Button size="sm">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Agregar Plaza
               </Button>
@@ -143,11 +145,6 @@ export function PlazasManagement() {
             <Loader2 className="mr-2 h-8 w-8 animate-spin" />
             <span>Cargando plazas...</span>
           </div>
-        ) : !user?.prefix ? (
-          <div className="text-center py-10 text-muted-foreground">
-              <p>Debes tener un prefijo asignado para poder gestionar plazas.</p>
-              <p className="text-sm mt-2">Por favor, contacta al Super Administrador.</p>
-            </div>
         ) : (
           <PlazasTable data={plazas} onEdit={handleEditClick} onDelete={handleDeletePlaza} />
         )}

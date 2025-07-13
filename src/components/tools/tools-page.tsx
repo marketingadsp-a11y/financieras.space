@@ -80,18 +80,22 @@ export function ToolsPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
-    const [summary, setSummary] = React.useState({ totalDebt: 0, totalClients: 0, recoveredClients: 0, recoveryRate: 0 });
+    const [summary, setSummary] = React.useState({ totalDebt: 0, totalClients: 0, recoveredClients: 0, recoveryRate: 0, totalLoan: 0 });
     const [isLoading, setIsLoading] = React.useState(true);
 
 
     React.useEffect(() => {
-        if (user && !user.isSuperAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
+        if (user && !user.isSuperAdmin && !user.isToolAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
             router.push('/');
         } else {
              const fetchData = async () => {
+                if (!user) return;
                 try {
                     setIsLoading(true);
-                    const plazasFromDb = await getPlazas();
+
+                    // SuperAdmins and ToolAdmins should see all plazas, others see their prefixed ones.
+                    const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
+                    const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
                     setPlazas(plazasFromDb);
 
                     let totalDebt = 0;
@@ -105,7 +109,7 @@ export function ToolsPage() {
                         totalLoan += plazaTotalLoan;
                         totalClients += customers.length;
                     }
-
+                    
                     const totalPaid = totalLoan - totalDebt;
                     const recoveryRate = totalLoan > 0 ? (totalPaid / totalLoan) * 100 : 0;
                     const recoveredClients = plazasFromDb.length > 0 ? Math.round(totalClients * (recoveryRate / 100)) : 0; // Simple estimation
@@ -114,7 +118,8 @@ export function ToolsPage() {
                         totalDebt,
                         totalClients,
                         recoveredClients,
-                        recoveryRate
+                        recoveryRate,
+                        totalLoan,
                     });
 
                 } catch (error) {
@@ -131,7 +136,7 @@ export function ToolsPage() {
         }
     }, [user, router, toast]);
 
-    if (user && !user.isSuperAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
+    if (user && !user.isSuperAdmin && !user.isToolAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
         return (
             <div className="flex h-full items-center justify-center">
                 <p>No tienes acceso a esta herramienta.</p>
@@ -150,7 +155,7 @@ export function ToolsPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <DestructiveStatCard title="Deuda Total" value={summary.totalDebt} icon={DollarSign} isCurrency />
                 <StatCard title="Clientes Totales" value={summary.totalClients} icon={Users} />
-                <StatCard title="Clientes Recuperados" value={summary.recoveredClients} icon={UserCheck} />
+                <StatCard title="Recuperado" value={summary.totalLoan - summary.totalDebt} icon={UserCheck} isCurrency />
                 <StatCard title="Tasa de Recuperación" value={`${summary.recoveryRate.toFixed(1)}%`} icon={Percent} />
             </div>
 

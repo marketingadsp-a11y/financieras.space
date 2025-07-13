@@ -9,10 +9,22 @@ import { getCustomersByPlaza } from "./customer-service";
 const plazasCollectionRef = collection(db, "plazas");
 const customersCollectionRef = collection(db, "customers");
 
-export async function getPlazas(prefix?: string): Promise<Plaza[]> {
-    let q = query(plazasCollectionRef);
-    if (prefix) {
+type GetPlazasOptions = {
+    prefix?: string;
+    fetchAll?: boolean;
+}
+
+export async function getPlazas({ prefix, fetchAll = false }: GetPlazasOptions = {}): Promise<Plaza[]> {
+    let q;
+    if (fetchAll) {
+        // SuperAdmins or ToolAdmins can see everything
+        q = query(plazasCollectionRef);
+    } else if (prefix) {
+        // Global Admins see only their prefixed plazas
         q = query(plazasCollectionRef, where("prefix", "==", prefix));
+    } else {
+        // No prefix and not fetching all, return empty to avoid showing all data by mistake
+        return [];
     }
     
     const plazasSnapshot = await getDocs(q);
