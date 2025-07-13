@@ -3,20 +3,21 @@
 import * as React from "react";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AdminTable } from "@/components/admin/admin-table";
-import { AdminForm } from "@/components/admin/admin-form";
-import type { Admin } from "@/lib/data";
+import { ToolAdminTable } from "@/components/tools/overdue-portfolio/admins/admin-table";
+import { ToolAdminForm } from "@/components/tools/overdue-portfolio/admins/admin-form";
+import type { ToolAdmin } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getAdmins, addAdmin, updateAdmin, deleteAdmin } from "@/services/admin-service";
+import { getToolAdmins, addToolAdmin, updateToolAdmin, deleteToolAdmin } from "@/services/tool-admin-service";
 import { useToast } from "@/hooks/use-toast";
 
 export function AdminsManagement() {
-  const [admins, setAdmins] = React.useState<Admin[]>([]);
+  const [admins, setAdmins] = React.useState<ToolAdmin[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [editingAdmin, setEditingAdmin] = React.useState<Admin | null>(null);
+  const [editingAdmin, setEditingAdmin] = React.useState<ToolAdmin | null>(null);
   const { toast } = useToast();
+  const toolId = 'cartera-vencida';
 
   React.useEffect(() => {
     fetchAdmins();
@@ -25,22 +26,23 @@ export function AdminsManagement() {
   const fetchAdmins = async () => {
     try {
       setIsLoading(true);
-      const adminsFromDb = await getAdmins();
+      const adminsFromDb = await getToolAdmins(toolId);
       setAdmins(adminsFromDb);
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudieron cargar los administradores.",
+        description: "No se pudieron cargar los administradores de la herramienta.",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddAdmin = async (newAdmin: Omit<Admin, 'id'>) => {
+  const handleAddAdmin = async (newAdmin: Omit<ToolAdmin, 'id' | 'toolId'>) => {
     try {
-      const addedAdmin = await addAdmin(newAdmin);
+      const adminData = { ...newAdmin, toolId };
+      const addedAdmin = await addToolAdmin(adminData);
       setAdmins(prev => [...prev, addedAdmin]);
       setIsFormOpen(false);
        toast({
@@ -56,10 +58,10 @@ export function AdminsManagement() {
     }
   };
 
-  const handleUpdateAdmin = async (updatedAdmin: Admin) => {
+  const handleUpdateAdmin = async (updatedAdmin: ToolAdmin) => {
     try {
       const { id, ...dataToUpdate } = updatedAdmin;
-      await updateAdmin(id, dataToUpdate);
+      await updateToolAdmin(id, dataToUpdate);
       setAdmins(prev => prev.map(admin => admin.id === updatedAdmin.id ? updatedAdmin : admin));
       setEditingAdmin(null);
       setIsFormOpen(false);
@@ -78,7 +80,7 @@ export function AdminsManagement() {
 
   const handleDeleteAdmin = async (adminId: string) => {
      try {
-      await deleteAdmin(adminId);
+      await deleteToolAdmin(adminId);
       setAdmins(prev => prev.filter(admin => admin.id !== adminId));
       toast({
         title: "Éxito",
@@ -93,7 +95,7 @@ export function AdminsManagement() {
     }
   };
   
-  const handleEditClick = (admin: Admin) => {
+  const handleEditClick = (admin: ToolAdmin) => {
       setEditingAdmin(admin);
       setIsFormOpen(true);
   }
@@ -110,9 +112,9 @@ export function AdminsManagement() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle>Gestión de Administradores</CardTitle>
+            <CardTitle>Gestión de Administradores de Herramienta</CardTitle>
             <CardDescription>
-              Crea, edita y elimina administradores de la plataforma.
+              Estos administradores solo tienen acceso a la herramienta de Cartera Vencida.
             </CardDescription>
           </div>
           <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
@@ -126,7 +128,7 @@ export function AdminsManagement() {
               <DialogHeader>
                 <DialogTitle>{editingAdmin ? 'Editar' : 'Agregar'} Administrador</DialogTitle>
               </DialogHeader>
-              <AdminForm
+              <ToolAdminForm
                 onSubmit={editingAdmin ? handleUpdateAdmin : handleAddAdmin}
                 admin={editingAdmin}
               />
@@ -141,7 +143,7 @@ export function AdminsManagement() {
             <span>Cargando administradores...</span>
           </div>
         ) : (
-          <AdminTable data={admins} onEdit={handleEditClick} onDelete={handleDeleteAdmin} />
+          <ToolAdminTable data={admins} onEdit={handleEditClick} onDelete={handleDeleteAdmin} />
         )}
       </CardContent>
     </Card>

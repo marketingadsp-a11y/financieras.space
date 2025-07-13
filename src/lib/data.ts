@@ -10,6 +10,15 @@ export type Admin = {
   accessibleTools?: string[];
 };
 
+export type ToolAdmin = {
+  id: string;
+  name: string;
+  username: string;
+  status: "Activo" | "Inactivo";
+  password?: string;
+  toolId: 'cartera-vencida';
+};
+
 export type SuperAdmin = {
   id: string;
   username:string;

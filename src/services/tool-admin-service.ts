@@ -1,0 +1,45 @@
+'use server';
+
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { ToolAdmin } from "@/lib/data";
+
+const toolAdminsCollectionRef = collection(db, "toolAdmins");
+
+export async function getToolAdmins(toolId: string): Promise<ToolAdmin[]> {
+    const q = query(toolAdminsCollectionRef, where("toolId", "==", toolId));
+    const data = await getDocs(q);
+    const admins = data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ToolAdmin[];
+    
+    // Return without password for security
+    return admins.map(admin => {
+        const { password, ...adminWithoutPassword } = admin;
+        return adminWithoutPassword;
+    });
+}
+
+export async function addToolAdmin(admin: Omit<ToolAdmin, 'id'>) : Promise<ToolAdmin> {
+    const docRef = await addDoc(toolAdminsCollectionRef, admin);
+    const { password, ...adminWithoutPassword } = admin;
+    return { ...adminWithoutPassword, id: docRef.id };
+}
+
+export async function updateToolAdmin(id: string, admin: Partial<Omit<ToolAdmin, 'id'>>) {
+    const adminDoc = doc(db, "toolAdmins", id);
+    await updateDoc(adminDoc, admin);
+}
+
+export async function deleteToolAdmin(id: string) {
+    const adminDoc = doc(db, "toolAdmins", id);
+    await deleteDoc(adminDoc);
+}
+
+export async function getToolAdminByUsername(username: string): Promise<ToolAdmin & {password: string} | null> {
+    const q = query(toolAdminsCollectionRef, where("username", "==", username));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+        return null;
+    }
+    const adminDoc = querySnapshot.docs[0];
+    return { id: adminDoc.id, ...adminDoc.data() } as ToolAdmin & {password: string};
+}

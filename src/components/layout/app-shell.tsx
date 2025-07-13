@@ -63,8 +63,6 @@ const carteraVencidaNavItems: NavItem[] = [
     { href: "/tools/overdue-portfolio", label: "Resumen General", icon: Building },
     { href: "/tools/overdue-portfolio/plazas", label: "Gestionar Plazas", icon: Building },
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
-    { href: "/tools/overdue-portfolio/users", label: "Gestionar Usuarios", icon: Users2 },
-    { href: "/tools/overdue-portfolio/settings", label: "Ajustes", icon: Settings },
 ];
 
 function NavLinks() {
@@ -74,11 +72,13 @@ function NavLinks() {
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
 
   if (isCarteraVencidaPath) {
+    const items = user?.isSuperAdmin || user?.isToolAdmin ? carteraVencidaNavItems : [carteraVencidaNavItems[0], carteraVencidaNavItems[1]];
+    
     return (
        <SidebarGroup>
             <SidebarGroupLabel>GESTIÓN</SidebarGroupLabel>
             <SidebarMenu>
-                {carteraVencidaNavItems.map((item) => (
+                {items.map((item) => (
                     <SidebarMenuItem key={item.href}>
                     <Link href={item.href}>
                         <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
@@ -138,6 +138,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const carteraVencidaTool = allTools.find(tool => tool.id === 'cartera-vencida');
+  
+  const getUserRoleLabel = () => {
+    if (user.isSuperAdmin) return 'Super Admin';
+    if (user.isToolAdmin) return 'Admin de Herramienta';
+    return 'Admin';
+  }
 
 
   return (
@@ -148,7 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <UserCog className="h-6 w-6 text-primary" />
              <div className="flex flex-col">
               <span className="font-semibold group-data-[collapsible=icon]:hidden">
-                {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
+                {getUserRoleLabel()}
               </span>
               {isCarteraVencidaPath && carteraVencidaTool && (
                 <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
@@ -160,7 +166,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
            <NavLinks />
-           { isCarteraVencidaPath && (
+           { isCarteraVencidaPath && !user.isToolAdmin && (
             <>
               <SidebarSeparator />
               <SidebarMenu>
