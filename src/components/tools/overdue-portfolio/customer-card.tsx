@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Pencil, User, Phone, History } from "lucide-react";
+import { DollarSign, Pencil, User, Phone } from "lucide-react";
 import type { Customer } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -68,11 +68,7 @@ export function CustomerCard({ customer, onEdit, onPayment }: CustomerCardProps)
               <Pencil className="mr-2 h-4 w-4"/> Editar
           </Button>
           <Button size="sm" className="w-full" onClick={() => onPayment(customer)} disabled={isPaid}>
-              <DollarSign className="mr-2 h-4 w-4"/> Abonar
-          </Button>
-          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => onPayment(customer)}>
-             <History className="h-4 w-4" />
-             <span className="sr-only">Ver historial</span>
+              <DollarSign className="mr-2 h-4 w-4"/> Abonar / Ver Hist.
           </Button>
       </CardFooter>
     </Card>
