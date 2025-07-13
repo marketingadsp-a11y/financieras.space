@@ -18,6 +18,7 @@ import type { SuperAdmin } from "@/lib/data";
 const formSchema = z.object({
   username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(4, "La contraseña debe tener al menos 4 caracteres.").optional().or(z.literal('')),
+  prefix: z.string().optional(),
 });
 
 
@@ -38,6 +39,7 @@ export function SuperAdminForm({ onSubmit, superAdmin }: SuperAdminFormProps) {
         defaultValues: {
             username: superAdmin?.username || "",
             password: "",
+            prefix: superAdmin?.prefix || "",
         },
     });
 
@@ -66,6 +68,19 @@ export function SuperAdminForm({ onSubmit, superAdmin }: SuperAdminFormProps) {
                             <FormLabel>Usuario</FormLabel>
                             <FormControl>
                                 <Input placeholder="Nombre de usuario" {...field} disabled={isEditing}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="prefix"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Prefijo (Opcional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="ej. miempresa" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { usePathname, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { getAdminByUsername } from '@/services/admin-service';
-import { getSuperAdminByUsername } from '@/services/super-admin-service';
+import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-admin-service';
 import { getToolAdminByUsername } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import type { PlazaAccess } from '@/lib/data';
@@ -18,6 +18,8 @@ interface User {
   isPlazaUser: boolean;
   accessibleTools?: string[];
   plazaAccess?: PlazaAccess[];
+  prefix?: string;
+  createdBy?: string; // SuperAdmin ID
 }
 
 interface AuthContextType {
@@ -39,7 +41,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const storedUser = localStorage.getItem('appUser');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+       // Eagerly load prefix for super admins if missing
+      if (parsedUser.isSuperAdmin && !parsedUser.prefix) {
+          getSuperAdminById(parsedUser.id).then(fullSuperAdmin => {
+              if(fullSuperAdmin) {
+                  const updatedUser = {...parsedUser, prefix: fullSuperAdmin.prefix};
+                  setUser(updatedUser);
+                  localStorage.setItem('appUser', JSON.stringify(updatedUser));
+              }
+          })
+      } else {
+        setUser(parsedUser);
+      }
     }
     setLoading(false);
   }, []);
@@ -66,19 +80,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (emailOrUsername: string, pass: string): Promise<boolean> => {
     try {
-      // 1. Check for Super Admin
+       // Handle prefixed usernames
+      let prefix: string | undefined = undefined;
+      let usernamePart = emailOrUsername;
+      if (emailOrUsername.includes('.')) {
+        const parts = emailOrUsername.split('.');
+        prefix = parts[0];
+        usernamePart = parts.slice(1).join('.');
+      }
+
+
+      // 1. Check for Super Admin (no prefix for login)
       const superAdmin = await getSuperAdminByUsername(emailOrUsername);
       if (superAdmin && superAdmin.password === pass) {
-          const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false };
+          const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false, prefix: superAdmin.prefix };
           localStorage.setItem('appUser', JSON.stringify(userData));
           setUser(userData);
           return true;
       }
       
-      // 2. Check for Global Admin
-      const admin = await getAdminByUsername(emailOrUsername);
-      if (admin && admin.password === pass && admin.status === "Activo") {
-         const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [] };
+      // 2. Check for Global Admin (with prefix)
+      const admin = await getAdminByUsername(usernamePart);
+      if (admin && admin.password === pass && admin.status === "Activo" && admin.prefix === prefix) {
+         const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
          return true;
@@ -86,7 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Este usuario se encuentra inactivo.');
       }
 
-      // 3. Check for Tool Admin
+      // 3. Check for Tool Admin (no prefix for now)
       const toolAdmin = await getToolAdminByUsername(emailOrUsername);
       if (toolAdmin && toolAdmin.password === pass && toolAdmin.status === "Activo") {
          const userData: User = { id: toolAdmin.id, username: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId] };
@@ -97,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Este usuario se encuentra inactivo.');
       }
 
-      // 4. Check for Plaza User
+      // 4. Check for Plaza User (no prefix for now)
       const plazaUser = await getPlazaUserByUsername(emailOrUsername);
       if (plazaUser && plazaUser.password === pass && plazaUser.status === "Activo") {
          const userData: User = { id: plazaUser.id, username: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess };

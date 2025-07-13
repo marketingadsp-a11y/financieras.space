@@ -15,12 +15,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { Admin } from "@/lib/data";
+import { useAuth } from "@/context/auth-context";
 
 const formSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
+  prefix: z.string(),
 });
 
 
@@ -30,6 +32,7 @@ type AdminFormProps = {
 };
 
 export function AdminForm({ onSubmit, admin }: AdminFormProps) {
+    const { user } = useAuth();
     const isEditing = !!admin;
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -43,6 +46,7 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
             username: admin?.username || "",
             password: "",
             status: admin?.status || "Activo",
+            prefix: admin?.prefix || user?.prefix || "",
         },
     });
 
@@ -85,9 +89,18 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Usuario</FormLabel>
-                            <FormControl>
-                                <Input placeholder="nombre.usuario" {...field} disabled={isEditing} />
-                            </FormControl>
+                           <div className="flex items-center">
+                                <Input
+                                    value={form.getValues("prefix")}
+                                    className="bg-muted w-auto rounded-r-none"
+                                    readOnly
+                                    disabled
+                                />
+                                 <span className="border-y border-input bg-muted px-2 py-2 text-sm">.</span>
+                                <FormControl>
+                                    <Input placeholder="nombre.usuario" {...field} className="rounded-l-none" />
+                                </FormControl>
+                            </div>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -120,6 +133,13 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
                                 />
                             </FormControl>
                         </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="prefix"
+                    render={({ field }) => (
+                       <Input type="hidden" {...field} />
                     )}
                 />
                 <Button type="submit" className="w-full">

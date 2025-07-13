@@ -97,7 +97,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [isAddFormOpen, setIsAddFormOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const { toast } = useToast();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const [isImportModalOpen, setImportModalOpen] = React.useState(false);
   const [importText, setImportText] = React.useState('');
@@ -132,7 +132,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
   const handleAddSubmit = async (customerData: Omit<Customer, 'id' | 'plazaId' | 'status'>) => {
     try {
-        const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const };
+        const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const, prefix: user?.prefix };
         await addCustomer(newCustomerData);
         toast({ title: "Éxito", description: "Cliente agregado correctamente." });
         await fetchPlazaAndCustomers();
@@ -172,6 +172,10 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         toast({ variant: "destructive", title: "Error", description: "El área de texto no puede estar vacía." });
         return;
     }
+    if (!user?.prefix) {
+        toast({ variant: "destructive", title: "Error", description: "No tienes un prefijo asignado para importar clientes." });
+        return;
+    }
     setIsParsing(true);
     try {
         const parsedData = await parseCustomers({ inputText: importText });
@@ -182,7 +186,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
         const customersToAdd = parsedData.map(c => ({...c, plazaId, status: 'Pendiente' as const}));
         
-        await addMultipleCustomers(customersToAdd, plazaId, importMode);
+        await addMultipleCustomers(customersToAdd, plazaId, importMode, user.prefix);
 
         toast({ title: "Éxito", description: `${customersToAdd.length} clientes importados correctamente.` });
         await fetchPlazaAndCustomers();

@@ -1,6 +1,6 @@
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { SuperAdmin } from "@/lib/data";
 
@@ -13,7 +13,8 @@ const superAdminsCollectionRef = collection(db, "super-admins");
         console.log("No super admins found, creating default 'Cristobal' user...");
         await addDoc(superAdminsCollectionRef, {
             username: "Cristobal",
-            password: "0120"
+            password: "0120",
+            prefix: "demo"
         });
     }
 })();
@@ -38,6 +39,16 @@ export async function deleteSuperAdmin(id: string) {
     const adminDoc = doc(db, "super-admins", id);
     await deleteDoc(adminDoc);
 }
+
+export async function getSuperAdminById(id: string): Promise<SuperAdmin | null> {
+    const docRef = doc(db, "super-admins", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as SuperAdmin;
+    }
+    return null;
+}
+
 
 export async function getSuperAdminByUsername(username: string): Promise<SuperAdmin & {password: string} | null> {
     const q = query(superAdminsCollectionRef, where("username", "==", username));

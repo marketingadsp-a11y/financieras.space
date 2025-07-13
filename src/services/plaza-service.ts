@@ -8,8 +8,13 @@ import type { Plaza, Customer } from "@/lib/data";
 const plazasCollectionRef = collection(db, "plazas");
 const customersCollectionRef = collection(db, "customers");
 
-export async function getPlazas(): Promise<Plaza[]> {
-    const plazasSnapshot = await getDocs(plazasCollectionRef);
+export async function getPlazas(prefix?: string): Promise<Plaza[]> {
+    let q = query(plazasCollectionRef);
+    if (prefix) {
+        q = query(plazasCollectionRef, where("prefix", "==", prefix));
+    }
+    
+    const plazasSnapshot = await getDocs(q);
     const customersSnapshot = await getDocs(customersCollectionRef);
     const allCustomers = customersSnapshot.docs.map(doc => doc.data() as Customer);
 
@@ -30,6 +35,7 @@ export async function getPlazas(): Promise<Plaza[]> {
             name: plazaData.name,
             pendingDebt,
             recoveryRate,
+            prefix: plazaData.prefix,
         };
     });
 
@@ -59,6 +65,7 @@ export async function addPlaza(plaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recove
         name: plaza.name,
         pendingDebt: 0,
         recoveryRate: 0,
+        prefix: plaza.prefix || "",
     }
     const docRef = await addDoc(plazasCollectionRef, dataToSave);
     return { ...dataToSave, id: docRef.id };

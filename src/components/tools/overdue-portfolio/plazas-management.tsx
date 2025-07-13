@@ -10,22 +10,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getPlazas, addPlaza, updatePlaza, deletePlaza } from "@/services/plaza-service";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 
 export function PlazasManagement() {
+  const { user } = useAuth();
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingPlaza, setEditingPlaza] = React.useState<Plaza | null>(null);
   const { toast } = useToast();
 
-  React.useEffect(() => {
-    fetchPlazas();
-  }, []);
-
-  const fetchPlazas = async () => {
+  const fetchPlazas = React.useCallback(async () => {
+    if (!user?.prefix) return;
     try {
       setIsLoading(true);
-      const plazasFromDb = await getPlazas();
+      const plazasFromDb = await getPlazas(user.prefix);
       setPlazas(plazasFromDb);
     } catch (error) {
       toast({
@@ -36,12 +35,17 @@ export function PlazasManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.prefix, toast]);
+
+  React.useEffect(() => {
+    fetchPlazas();
+  }, [fetchPlazas]);
 
   const handleAddPlaza = async (newPlaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate'>) => {
     try {
-      const addedPlaza = await addPlaza(newPlaza);
-      setPlazas(prev => [...prev, addedPlaza]);
+      const plazaData = { ...newPlaza, prefix: user?.prefix };
+      const addedPlaza = await addPlaza(plazaData);
+      await fetchPlazas();
       setIsFormOpen(false);
        toast({
         title: "Éxito",
@@ -59,7 +63,7 @@ export function PlazasManagement() {
   const handleUpdatePlaza = async (updatedPlaza: Pick<Plaza, 'id' | 'name'>) => {
     try {
       await updatePlaza(updatedPlaza.id, { name: updatedPlaza.name });
-      setPlazas(prev => prev.map(plaza => plaza.id === updatedPlaza.id ? { ...plaza, name: updatedPlaza.name } : plaza));
+      await fetchPlazas();
       setEditingPlaza(null);
       setIsFormOpen(false);
       toast({
@@ -78,7 +82,7 @@ export function PlazasManagement() {
   const handleDeletePlaza = async (plazaId: string) => {
      try {
       await deletePlaza(plazaId);
-      setPlazas(prev => prev.filter(plaza => plaza.id !== plazaId));
+      await fetchPlazas();
       toast({
         title: "Éxito",
         description: "Plaza eliminada correctamente.",
@@ -111,12 +115,12 @@ export function PlazasManagement() {
           <div>
             <CardTitle>Gestión de Plazas</CardTitle>
             <CardDescription>
-              Crea, edita y elimina las plazas de la cartera vencida.
+              Crea, edita y elimina las plazas de la cartera vencida. Las plazas están asociadas a tu prefijo '{user?.prefix}'.
             </CardDescription>
           </div>
           <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" disabled={!user?.prefix}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Agregar Plaza
               </Button>
@@ -139,6 +143,11 @@ export function PlazasManagement() {
             <Loader2 className="mr-2 h-8 w-8 animate-spin" />
             <span>Cargando plazas...</span>
           </div>
+        ) : !user?.prefix ? (
+          <div className="text-center py-10 text-muted-foreground">
+              <p>Debes tener un prefijo asignado para poder gestionar plazas.</p>
+              <p className="text-sm mt-2">Por favor, contacta al Super Administrador.</p>
+            </div>
         ) : (
           <PlazasTable data={plazas} onEdit={handleEditClick} onDelete={handleDeletePlaza} />
         )}

@@ -3,10 +3,9 @@
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer, Payment } from "@/lib/data";
+import type { Customer } from "@/lib/data";
 
 const customersCollectionRef = collection(db, "customers");
-const paymentsCollectionRef = collection(db, "payments");
 
 
 function customerFromDoc(doc: DocumentData): Customer {
@@ -24,6 +23,7 @@ function customerFromDoc(doc: DocumentData): Customer {
         installmentsDue: data.installmentsDue || 0,
         dueAmount: data.dueAmount || 0,
         status: data.status || "Pendiente",
+        prefix: data.prefix || ""
     };
 }
 
@@ -62,7 +62,7 @@ export async function deleteCustomersByPlaza(plazaId: string): Promise<void> {
 }
 
 
-export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], plazaId: string, mode: 'add' | 'replace'): Promise<void> {
+export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], plazaId: string, mode: 'add' | 'replace', prefix: string): Promise<void> {
     const batch = writeBatch(db);
 
     if (mode === 'replace') {
@@ -79,6 +79,7 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], pl
         const completeCustomerData = {
             plazaId: plazaId,
             status: 'Pendiente' as const,
+            prefix: prefix,
             name: customerData.name || '',
             address: customerData.address || '',
             phone: customerData.phone || '',

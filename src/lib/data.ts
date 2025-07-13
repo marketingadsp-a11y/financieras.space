@@ -4,6 +4,7 @@ export type Admin = {
   id: string;
   name: string;
   username: string;
+  prefix: string;
   role: "Administrador";
   status: "Activo" | "Inactivo";
   password?: string;
@@ -23,6 +24,7 @@ export type SuperAdmin = {
   id: string;
   username:string;
   password?: string;
+  prefix?: string;
 };
 
 export type Plaza = {
@@ -30,6 +32,7 @@ export type Plaza = {
   name: string;
   pendingDebt: number;
   recoveryRate: number;
+  prefix?: string;
 };
 
 export const PERMISSIONS = {
@@ -69,17 +72,8 @@ export type Customer = {
   installmentsDue: number; // No. vencidos
   dueAmount: number; // Adeudo actual
   status: "Pendiente" | "Pagado" | "Atrasado";
+  prefix?: string;
 };
-
-export type Payment = {
-  id: string;
-  customerId: string;
-  amount: number;
-  date: number; // Using number (timestamp) to simplify date handling
-  previousDueAmount: number;
-  newDueAmount: number;
-};
-
 
 export type Tool = {
   id: string;
