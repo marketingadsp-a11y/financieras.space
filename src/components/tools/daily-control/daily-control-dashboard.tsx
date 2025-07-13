@@ -222,7 +222,7 @@ export function DailyControlDashboard() {
   const typeConfig = {
     collected: { icon: ArrowDown, color: "text-green-600", label: "Cobrado" },
     loaned: { icon: ArrowUp, color: "text-blue-600", label: "Prestado" },
-    spent: { icon: CreditCard, color: "text-red-600", label: "Gasto" },
+    spent: { icon: CreditCard, color: "text-red-600", label: "Gastado" },
   }
   
   const plazaName = plazas.find(p => p.id === selectedPlaza)?.name || 'Desconocida';
@@ -292,13 +292,13 @@ export function DailyControlDashboard() {
                     <FileText className="mr-2 h-4 w-4" /> Exportar PDF
                 </Button>
                 <Button size="sm" onClick={() => handleOpenForm('collected')}>
-                    <PlusCircle className="mr-2"/> Cobro
+                    <PlusCircle className="mr-2"/> Cobrado
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => handleOpenForm('loaned')}>
-                    <PlusCircle className="mr-2"/> Préstamo
+                    <PlusCircle className="mr-2"/> Prestado
                 </Button>
                 <Button size="sm" variant="destructive" onClick={() => handleOpenForm('spent')}>
-                    <PlusCircle className="mr-2"/> Gasto
+                    <PlusCircle className="mr-2"/> Gastado
                 </Button>
             </div>
            </div>
