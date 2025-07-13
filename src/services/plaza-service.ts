@@ -1,9 +1,10 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, where, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Plaza, Customer } from "@/lib/data";
+import { getCustomersByPlaza } from "./customer-service";
 
 const plazasCollectionRef = collection(db, "plazas");
 const customersCollectionRef = collection(db, "customers");
@@ -15,14 +16,12 @@ export async function getPlazas(prefix?: string): Promise<Plaza[]> {
     }
     
     const plazasSnapshot = await getDocs(q);
-    const customersSnapshot = await getDocs(customersCollectionRef);
-    const allCustomers = customersSnapshot.docs.map(doc => doc.data() as Customer);
-
-    const plazas = plazasSnapshot.docs.map(doc => {
+    
+    const plazasWithCalculations = await Promise.all(plazasSnapshot.docs.map(async (doc) => {
         const plazaData = doc.data() as Omit<Plaza, 'id'>;
         const plazaId = doc.id;
         
-        const customersInPlaza = allCustomers.filter(c => c.plazaId === plazaId);
+        const customersInPlaza = await getCustomersByPlaza(plazaId);
         
         const pendingDebt = customersInPlaza.reduce((acc, customer) => acc + (customer.dueAmount || 0), 0);
         
@@ -37,9 +36,9 @@ export async function getPlazas(prefix?: string): Promise<Plaza[]> {
             recoveryRate,
             prefix: plazaData.prefix,
         };
-    });
+    }));
 
-    return plazas;
+    return plazasWithCalculations;
 }
 
 export async function getPlazaById(id: string): Promise<Plaza | null> {
@@ -63,12 +62,10 @@ export async function getPlazaById(id: string): Promise<Plaza | null> {
 export async function addPlaza(plaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate'>) : Promise<Plaza> {
     const dataToSave = {
         name: plaza.name,
-        pendingDebt: 0,
-        recoveryRate: 0,
         prefix: plaza.prefix || "",
     }
     const docRef = await addDoc(plazasCollectionRef, dataToSave);
-    return { ...dataToSave, id: docRef.id };
+    return { ...dataToSave, id: docRef.id, pendingDebt: 0, recoveryRate: 0 };
 }
 
 export async function updatePlaza(id: string, plaza: Partial<Omit<Plaza, 'id'>>) {
@@ -78,14 +75,16 @@ export async function updatePlaza(id: string, plaza: Partial<Omit<Plaza, 'id'>>)
 
 export async function deletePlaza(id: string) {
     const plazaDoc = doc(db, "plazas", id);
-    // Also delete customers associated with the plaza
     const q = query(customersCollectionRef, where("plazaId", "==", id));
+    
     const customerDocs = await getDocs(q);
-    const batch = db.batch();
+    const batch = writeBatch(db);
+    
     customerDocs.forEach(doc => {
         batch.delete(doc.ref);
     });
-    await batch.commit();
+    
+    batch.delete(plazaDoc);
 
-    await deleteDoc(plazaDoc);
+    await batch.commit();
 }

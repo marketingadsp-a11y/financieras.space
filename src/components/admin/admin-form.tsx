@@ -22,7 +22,7 @@ const formSchema = z.object({
   username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
-  prefix: z.string(),
+  prefix: z.string().min(1, "El prefijo es requerido."),
 });
 
 
@@ -34,11 +34,12 @@ type AdminFormProps = {
 export function AdminForm({ onSubmit, admin }: AdminFormProps) {
     const { user } = useAuth();
     const isEditing = !!admin;
+    const isSuperAdmin = user?.isSuperAdmin;
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(
           isEditing 
-          ? formSchema.partial()
+          ? formSchema.partial().omit({ username: true }) // Username cannot be changed after creation
           : formSchema.required({ password: true })
         ),
         defaultValues: {
@@ -66,7 +67,6 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
         onSubmit(dataToSend);
     };
 
-
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
@@ -90,17 +90,26 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
                         <FormItem>
                             <FormLabel>Usuario</FormLabel>
                            <div className="flex items-center">
-                                <Input
-                                    value={form.getValues("prefix")}
-                                    className="bg-muted w-auto rounded-r-none"
-                                    readOnly
-                                    disabled
-                                />
-                                 <span className="border-y border-input bg-muted px-2 py-2 text-sm">.</span>
+                                <span className="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
+                                   {form.watch('prefix')}.
+                                </span>
                                 <FormControl>
-                                    <Input placeholder="nombre.usuario" {...field} className="rounded-l-none" />
+                                    <Input placeholder="nombre.usuario" {...field} className="rounded-l-none" disabled={isEditing}/>
                                 </FormControl>
                             </div>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="prefix"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Prefijo</FormLabel>
+                            <FormControl>
+                                <Input placeholder="ej. miempresa" {...field} disabled={!isSuperAdmin} />
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -133,13 +142,6 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
                                 />
                             </FormControl>
                         </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="prefix"
-                    render={({ field }) => (
-                       <Input type="hidden" {...field} />
                     )}
                 />
                 <Button type="submit" className="w-full">
