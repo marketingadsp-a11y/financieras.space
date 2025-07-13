@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment } from "@/lib/data";
 
@@ -17,14 +17,12 @@ export async function getPaymentsByCustomer(customerId: string): Promise<Payment
     
     return data.docs.map(doc => {
         const docData = doc.data();
-        // Convert Firestore Timestamp to number (milliseconds) for client-side consistency
-        const dateInMillis = (docData.date as Timestamp).toMillis();
         
         return {
             id: doc.id,
             customerId: docData.customerId,
             amount: docData.amount,
-            date: dateInMillis,
+            date: docData.date, // Date is already a number
         } as Payment;
     });
 }
