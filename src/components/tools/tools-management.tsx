@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -24,7 +25,7 @@ import { getAdmins, updateAdmin } from "@/services/admin-service";
 import type { Admin, Tool } from "@/lib/data";
 import { allTools } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wrench, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 
@@ -130,39 +131,42 @@ function SuperAdminToolsView() {
   };
 
   return (
-    <div className="space-y-6">
-       <Card>
-        <CardHeader>
-          <CardTitle>Gestión de Herramientas</CardTitle>
-          <CardDescription>
-            Asigna acceso a las herramientas disponibles para los administradores de la plataforma.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Gestión de Herramientas</h1>
+        <p className="text-muted-foreground">
+          Asigna acceso a las herramientas disponibles para los administradores de la plataforma.
+        </p>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {allTools.map((tool) => (
-          <Card key={tool.id}>
+          <Card 
+            key={tool.id} 
+            className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/50 cursor-pointer"
+            onClick={() => handleManageAccessClick(tool)}
+          >
             <CardHeader>
-                <div className="flex items-start gap-4">
-                    <tool.icon className="h-8 w-8 text-muted-foreground mt-1" />
-                    <div className="flex-1">
-                        <CardTitle>{tool.name}</CardTitle>
-                        <CardDescription>{tool.description}</CardDescription>
-                    </div>
-                </div>
+              <div className="p-3 bg-primary/10 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
+                <tool.icon className="h-6 w-6 text-primary" />
+              </div>
             </CardHeader>
+            <CardContent className="flex-grow">
+              <h3 className="text-lg font-semibold">{tool.name}</h3>
+              <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
+            </CardContent>
             <CardFooter>
-              <Button onClick={() => handleManageAccessClick(tool)} className="w-full">
+              <span className="text-sm font-medium text-primary flex items-center gap-2">
                 Gestionar Acceso
-              </Button>
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </span>
             </CardFooter>
           </Card>
         ))}
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Gestionar Acceso para {selectedTool?.name}</DialogTitle>
             <DialogDescription>
@@ -174,9 +178,9 @@ function SuperAdminToolsView() {
                 <Loader2 className="mr-2 h-8 w-8 animate-spin" />
              </div>
           ) : (
-             <div className="space-y-4 py-4">
+             <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto pr-2">
               {admins.map((admin) => (
-                <div key={admin.id} className="flex items-center space-x-2">
+                <div key={admin.id} className="flex items-center space-x-3">
                   <Checkbox
                     id={`admin-${admin.id}`}
                     checked={selectedAdmins.has(admin.id)}
@@ -217,9 +221,9 @@ function AdminToolsView() {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {accessibleUserTools.map((tool) => (
                         <Link href={tool.href} key={tool.id} className="group">
-                            <Card className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-primary/50">
+                            <Card className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/50">
                                 <CardHeader>
-                                    <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                                    <div className="p-3 bg-primary/10 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
                                         <tool.icon className="h-6 w-6 text-primary" />
                                     </div>
                                 </CardHeader>
