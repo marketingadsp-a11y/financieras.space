@@ -50,13 +50,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else if (user && !user.isSuperAdmin && pathname === '/') {
         // Redirect normal admin from root to tools page
         router.push('/tools');
+    } else if (user && !user.isSuperAdmin && (pathname === '/settings' || pathname === '/')) {
+        router.push('/tools');
     } else if (user && !user.isSuperAdmin && isToolsSubPath) {
-        // Allow access to sub-paths of tools if they have permission
-        const toolId = pathname.split('/')[2];
-        const hasAccess = user.accessibleTools?.some(t => t === toolId.replace('-', ' ')); //簡易チェック
-         if (!hasAccess && toolId !== 'overdue-portfolio') { // This is a bit of a hack
-             // router.push('/tools');
-         }
+        const toolId = 'cartera-vencida';
+        const hasAccess = user.accessibleTools?.includes(toolId);
+        if(!hasAccess) {
+            router.push('/tools');
+        }
     }
 
 
@@ -80,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
        const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, accessibleTools: admin.accessibleTools || [] };
        localStorage.setItem('appUser', JSON.stringify(userData));
        setUser(userData);
-       router.push('/tools');
+       router.push('/tools'); // This was the important part
        return;
     } else if (admin && admin.status === "Inactivo") {
         throw new Error('Este usuario se encuentra inactivo.');
