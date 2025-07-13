@@ -188,7 +188,8 @@ function SuperAdminToolsView() {
                   />
                   <Label htmlFor={`admin-${admin.id}`} className="flex-1 cursor-pointer">
                     <span className="font-medium">{admin.name}</span>
-                    <p className="text-sm text-muted-foreground">{admin.username}</p>
+                    <p className="text-sm text-muted-foreground">{admin.prefix}.{admin.username}</p>
+                    <p className="text-xs text-muted-foreground">Empresa: {admin.prefix}</p>
                   </Label>
                 </div>
               ))}
