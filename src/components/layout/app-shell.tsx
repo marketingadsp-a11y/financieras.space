@@ -13,6 +13,7 @@ import {
   Building,
   ShieldCheck,
   Users2,
+  ChevronLeft
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -59,6 +60,7 @@ const superAdminNavItems: NavItem[] = [
 ];
 
 const carteraVencidaNavItems: NavItem[] = [
+    { href: "/tools/overdue-portfolio", label: "Resumen General", icon: Building },
     { href: "/tools/overdue-portfolio/plazas", label: "Gestionar Plazas", icon: Building },
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
     { href: "/tools/overdue-portfolio/users", label: "Gestionar Usuarios", icon: Users2 },
@@ -78,7 +80,7 @@ function NavLinks() {
             <SidebarMenu>
                 {carteraVencidaNavItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
-                    <Link href={item.href} legacyBehavior passHref>
+                    <Link href={item.href}>
                         <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
                             <item.icon />
                             <span>{item.label}</span>
@@ -135,6 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
   
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
+  const carteraVencidaTool = allTools.find(tool => tool.id === 'cartera-vencida');
 
 
   return (
@@ -143,9 +146,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
             <UserCog className="h-6 w-6 text-primary" />
-            <span className="font-semibold group-data-[collapsible=icon]:hidden">
-              {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
-            </span>
+             <div className="flex flex-col">
+              <span className="font-semibold group-data-[collapsible=icon]:hidden">
+                {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
+              </span>
+              {isCarteraVencidaPath && carteraVencidaTool && (
+                <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+                  {carteraVencidaTool.name}
+                </span>
+              )}
+            </div>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -157,7 +167,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem>
                    <Link href="/tools">
                       <SidebarMenuButton tooltip="Volver a Herramientas">
-                        <Wrench />
+                        <ChevronLeft />
                         <span>Todas las Herramientas</span>
                       </SidebarMenuButton>
                    </Link>
