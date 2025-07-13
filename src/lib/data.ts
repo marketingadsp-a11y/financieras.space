@@ -18,7 +18,7 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida';
+  toolId: 'cartera-vencida' | 'income-expenses';
   prefix?: string;
   createdBy?: string;
 };
@@ -93,4 +93,25 @@ export const allTools: Tool[] = [
     description: "Gestión de clientes con cartera vencida, registro de plazas y control de deuda.",
     href: "/tools/overdue-portfolio",
   },
+   {
+    id: "income-expenses",
+    name: "Gastos e Ingresos",
+    description: "Administra el capital, asigna fondos a sucursales y lleva un control de los balances.",
+    href: "/tools/income-expenses",
+  }
 ];
+
+export type Sucursal = {
+    id: string;
+    name: string;
+    manager: string;
+    currentBalance: number;
+    logoUrl?: string;
+};
+
+export type CentralAccount = {
+    id: string;
+    currentBalance: number;
+    assignedCapital: number;
+    totalBranchBalance: number;
+};
