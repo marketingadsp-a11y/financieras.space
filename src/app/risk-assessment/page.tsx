@@ -6,10 +6,10 @@ export default function RiskAssessmentPage() {
       <div className="flex items-center justify-between space-y-2 mb-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            AI Risk Assessment
+            Evaluación de Riesgo con IA
           </h1>
           <p className="text-muted-foreground">
-            Analyze customer data to identify high-risk accounts and receive recommended actions.
+            Analice los datos de los clientes para identificar cuentas de alto riesgo y recibir acciones recomendadas.
           </p>
         </div>
       </div>

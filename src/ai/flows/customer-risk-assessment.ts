@@ -14,26 +14,26 @@ import {z} from 'genkit';
 const CustomerRiskInputSchema = z.object({
   customerData: z
     .string()
-    .describe('Comprehensive data about the customer including financial history, payment behavior, and demographic information.'),
+    .describe('Datos completos sobre el cliente, incluyendo historial financiero, comportamiento de pago e información demográfica.'),
   loanDetails: z
     .string()
-    .describe('Details about the loan, including loan amount, interest rate, and repayment schedule.'),
+    .describe('Detalles sobre el préstamo, incluyendo el monto del préstamo, la tasa de interés y el calendario de pagos.'),
 });
 export type CustomerRiskInput = z.infer<typeof CustomerRiskInputSchema>;
 
 const CustomerRiskOutputSchema = z.object({
   riskScore: z
     .number()
-    .describe('A numerical score indicating the risk of the customer becoming delinquent (0-100).'),
+    .describe('Una puntuación numérica que indica el riesgo de que el cliente entre en mora (0-100).'),
   riskLevel: z
     .string()
-    .describe('A categorical risk level (Low, Medium, High) based on the risk score.'),
+    .describe('Un nivel de riesgo categórico (Bajo, Medio, Alto) basado en la puntuación de riesgo.'),
   riskFactors: z
     .string()
-    .describe('A summary of the key factors contributing to the risk assessment.'),
+    .describe('Un resumen de los factores clave que contribuyen a la evaluación de riesgos.'),
   recommendedActions: z
     .string()
-    .describe('Recommended actions for collections managers based on the risk assessment.'),
+    .describe('Acciones recomendadas para los gestores de cobros basadas en la evaluación de riesgos.'),
 });
 export type CustomerRiskOutput = z.infer<typeof CustomerRiskOutputSchema>;
 
@@ -45,18 +45,18 @@ const prompt = ai.definePrompt({
   name: 'customerRiskAssessmentPrompt',
   input: {schema: CustomerRiskInputSchema},
   output: {schema: CustomerRiskOutputSchema},
-  prompt: `You are an AI assistant that assesses the risk of customers becoming delinquent on their loans.
+  prompt: `Eres un asistente de IA que evalúa el riesgo de que los clientes se atrasen en sus préstamos.
 
-You are provided with customer data and loan details. Based on this information, you will calculate a risk score (0-100), determine a risk level (Low, Medium, High), summarize the key risk factors, and recommend actions for collections managers.
+Se te proporcionan datos del cliente y detalles del préstamo. Basado en esta información, calcularás una puntuación de riesgo (0-100), determinarás un nivel de riesgo (Bajo, Medio, Alto), resumirás los factores de riesgo clave y recomendarás acciones para los gestores de cobros.
 
-Customer Data: {{{customerData}}}
-Loan Details: {{{loanDetails}}}
+Datos del Cliente: {{{customerData}}}
+Detalles del Préstamo: {{{loanDetails}}}
 
-Respond with a JSON object with the following keys:
-- riskScore: A numerical score indicating the risk of the customer becoming delinquent (0-100).
-- riskLevel: A categorical risk level (Low, Medium, High) based on the risk score.
-- riskFactors: A summary of the key factors contributing to the risk assessment.
-- recommendedActions: Recommended actions for collections managers based on the risk assessment.`,
+Responde con un objeto JSON con las siguientes claves:
+- riskScore: Una puntuación numérica que indica el riesgo de que el cliente entre en mora (0-100).
+- riskLevel: Un nivel de riesgo categórico (Bajo, Medio, Alto) basado en la puntuación de riesgo.
+- riskFactors: Un resumen de los factores clave que contribuyen a la evaluación de riesgos.
+- recommendedActions: Acciones recomendadas para los gestores de cobros basadas en la evaluación de riesgos.`,
 });
 
 const assessCustomerRiskFlow = ai.defineFlow(

@@ -21,8 +21,8 @@ import { Loader2, Zap, AlertTriangle, ShieldCheck, ListChecks, Info, FileText, B
 import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
-  customerData: z.string().min(20, "Please provide more detailed customer data for a better assessment."),
-  loanDetails: z.string().min(20, "Please provide more detailed loan information for a better assessment."),
+  customerData: z.string().min(20, "Por favor, proporcione datos más detallados del cliente para una mejor evaluación."),
+  loanDetails: z.string().min(20, "Por favor, proporcione información más detallada del préstamo para una mejor evaluación."),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -61,8 +61,8 @@ export function RiskAssessmentForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      customerData: "Customer has a stable income of $60,000/year, a credit score of 680, and has missed one payment in the last 12 months. Age: 35, Employed for 3 years.",
-      loanDetails: "Personal loan of $10,000 with an interest rate of 12% over 36 months. Monthly payment: $332.14. 5 payments remaining.",
+      customerData: "El cliente tiene un ingreso estable de $60,000/año, un puntaje de crédito de 680 y ha omitido un pago en los últimos 12 meses. Edad: 35, Empleado por 3 años.",
+      loanDetails: "Préstamo personal de $10,000 con una tasa de interés del 12% a 36 meses. Pago mensual: $332.14. Quedan 5 pagos.",
     },
   });
 
@@ -74,7 +74,7 @@ export function RiskAssessmentForm() {
       const assessmentResult = await assessCustomerRisk(values);
       setResult(assessmentResult);
     } catch (e) {
-      setError("An error occurred while assessing the risk. Please check your connection or the provided data and try again.");
+      setError("Ocurrió un error al evaluar el riesgo. Por favor, verifique su conexión o los datos proporcionados e intente de nuevo.");
       console.error(e);
     } finally {
       setIsLoading(false);
@@ -83,9 +83,9 @@ export function RiskAssessmentForm() {
 
   const getRiskLevelInfo = (level: string) => {
     const lowerLevel = level.toLowerCase();
-    if (lowerLevel.includes('high')) return { icon: AlertTriangle, variant: 'warning' as const, badgeVariant: 'destructive' as const };
-    if (lowerLevel.includes('medium')) return { icon: Info, variant: 'info' as const, badgeVariant: 'default' as const };
-    if (lowerLevel.includes('low')) return { icon: ShieldCheck, variant: 'success' as const, badgeVariant: 'secondary' as const };
+    if (lowerLevel.includes('alto') || lowerLevel.includes('high')) return { icon: AlertTriangle, variant: 'warning' as const, badgeVariant: 'destructive' as const };
+    if (lowerLevel.includes('medio') || lowerLevel.includes('medium')) return { icon: Info, variant: 'info' as const, badgeVariant: 'default' as const };
+    if (lowerLevel.includes('bajo') || lowerLevel.includes('low')) return { icon: ShieldCheck, variant: 'success' as const, badgeVariant: 'secondary' as const };
     return { icon: Info, variant: 'info' as const, badgeVariant: 'outline' as const };
   }
 
@@ -93,9 +93,9 @@ export function RiskAssessmentForm() {
     <div className="grid gap-6 md:grid-cols-2">
       <Card className="md:col-span-1">
         <CardHeader>
-          <CardTitle>Enter Customer Information</CardTitle>
+          <CardTitle>Ingrese la Información del Cliente</CardTitle>
           <CardDescription>
-            Provide comprehensive data for an accurate assessment. We've added some example data to get you started.
+            Proporcione datos completos para una evaluación precisa. Hemos añadido algunos datos de ejemplo para que pueda empezar.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -106,10 +106,10 @@ export function RiskAssessmentForm() {
                 name="customerData"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center gap-2"><FileText className="h-4 w-4" /> Customer Data</FormLabel>
+                    <FormLabel className="flex items-center gap-2"><FileText className="h-4 w-4" /> Datos del Cliente</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., Financial history, payment behavior, demographic info..."
+                        placeholder="Ej., Historial financiero, comportamiento de pago, información demográfica..."
                         className="min-h-[150px] font-mono text-xs"
                         {...field}
                       />
@@ -123,10 +123,10 @@ export function RiskAssessmentForm() {
                 name="loanDetails"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center gap-2"><Banknote className="h-4 w-4" /> Loan Details</FormLabel>
+                    <FormLabel className="flex items-center gap-2"><Banknote className="h-4 w-4" /> Detalles del Préstamo</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., Loan amount, interest rate, repayment schedule..."
+                        placeholder="Ej., Monto del préstamo, tasa de interés, calendario de pagos..."
                         className="min-h-[100px] font-mono text-xs"
                         {...field}
                       />
@@ -137,9 +137,9 @@ export function RiskAssessmentForm() {
               />
               <Button type="submit" disabled={isLoading} className="w-full">
                 {isLoading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Assessing...</>
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Evaluando...</>
                 ) : (
-                  <><Zap className="mr-2 h-4 w-4" /> Assess Risk</>
+                  <><Zap className="mr-2 h-4 w-4" /> Evaluar Riesgo</>
                 )}
               </Button>
             </form>
@@ -150,7 +150,7 @@ export function RiskAssessmentForm() {
         {isLoading && (
           <div className="flex flex-col items-center justify-center h-full gap-4 p-8 rounded-lg border-2 border-dashed">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground">AI is analyzing the data...</p>
+            <p className="text-muted-foreground">La IA está analizando los datos...</p>
           </div>
         )}
         {error && <div className="text-destructive bg-destructive/10 p-4 rounded-md">{error}</div>}
@@ -158,15 +158,15 @@ export function RiskAssessmentForm() {
             <div className="space-y-4 animate-in fade-in-50">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Assessment Result</CardTitle>
+                    <CardTitle>Resultado de la Evaluación</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <ResultCard
                         icon={getRiskLevelInfo(result.riskLevel).icon}
-                        title="Risk Level"
+                        title="Nivel de Riesgo"
                         content={
                           <div className="flex items-center gap-2">
-                             <Badge variant={getRiskLevelInfo(result.riskLevel).badgeVariant} className={result.riskLevel.toLowerCase().includes('medium') ? "bg-yellow-400 text-yellow-900" : ""}>{result.riskLevel}</Badge>
+                             <Badge variant={getRiskLevelInfo(result.riskLevel).badgeVariant} className={result.riskLevel.toLowerCase().includes('medio') ? "bg-yellow-400 text-yellow-900" : ""}>{result.riskLevel}</Badge>
                              <span className="font-bold">{result.riskScore}/100</span>
                           </div>
                         }
@@ -174,13 +174,13 @@ export function RiskAssessmentForm() {
                     />
                     <ResultCard
                         icon={Info}
-                        title="Key Risk Factors"
+                        title="Factores de Riesgo Clave"
                         content={result.riskFactors}
                         variant="info"
                     />
                     <ResultCard
                         icon={ListChecks}
-                        title="Recommended Actions"
+                        title="Acciones Recomendadas"
                         content={result.recommendedActions}
                         variant="success"
                     />
@@ -191,7 +191,7 @@ export function RiskAssessmentForm() {
         {!isLoading && !result && !error && (
             <div className="flex flex-col items-center justify-center h-full gap-4 p-8 rounded-lg border-2 border-dashed bg-muted/40">
                 <Zap className="h-12 w-12 text-muted-foreground" />
-                <p className="text-muted-foreground text-center">Assessment results will appear here after submission.</p>
+                <p className="text-muted-foreground text-center">Los resultados de la evaluación aparecerán aquí después del envío.</p>
             </div>
         )}
       </div>

@@ -11,10 +11,10 @@ export function AutomatedRemindersSwitch() {
   const handleToggle = (checked: boolean) => {
     setIsEnabled(checked);
     toast({
-      title: "Settings Updated",
-      description: `Automated reminders have been ${checked ? "enabled" : "disabled"}.`,
+      title: "Configuración Actualizada",
+      description: `Los recordatorios automáticos han sido ${checked ? "habilitados" : "deshabilitados"}.`,
     });
   };
 
-  return <Switch checked={isEnabled} onCheckedChange={handleToggle} aria-label="Toggle automated reminders" />;
+  return <Switch checked={isEnabled} onCheckedChange={handleToggle} aria-label="Alternar recordatorios automáticos" />;
 }

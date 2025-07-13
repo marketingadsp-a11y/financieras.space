@@ -27,14 +27,14 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/customers", label: "Customers", icon: Users },
+  { href: "/", label: "Panel de Control", icon: LayoutDashboard },
+  { href: "/customers", label: "Clientes", icon: Users },
   {
     href: "/risk-assessment",
-    label: "Risk Assessment",
+    label: "Evaluación de Riesgo",
     icon: ShieldAlert,
   },
-  { href: "/workflows", label: "Workflows", icon: GitBranch },
+  { href: "/workflows", label: "Flujos de Trabajo", icon: GitBranch },
 ];
 
 function SidebarNav() {
@@ -61,7 +61,7 @@ function SidebarNav() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const currentPage = navItems.find(item => item.href === pathname) || { label: 'Dashboard' };
+  const currentPage = navItems.find(item => item.href === pathname) || { label: 'Panel de Control' };
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="shrink-0 md:hidden"
               >
                 <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation menu</span>
+                <span className="sr-only">Alternar menú de navegación</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col p-0">

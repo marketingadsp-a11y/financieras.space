@@ -6,9 +6,9 @@ export default function CustomersPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Customers</CardTitle>
+        <CardTitle>Clientes</CardTitle>
         <CardDescription>
-          Search and manage your customer accounts and loan details.
+          Busque y gestione las cuentas de sus clientes y los detalles de los préstamos.
         </CardDescription>
       </CardHeader>
       <CustomerTable data={customers} />

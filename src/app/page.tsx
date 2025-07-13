@@ -20,60 +20,60 @@ export default function DashboardPage() {
   return (
     <>
       <div className="flex items-center justify-between space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Panel de Control</h1>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Portfolio Value
+              Valor Total del Portafolio
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">$4,231,890.00</div>
             <p className="text-xs text-muted-foreground">
-              +2.1% from last month
+              +2.1% desde el mes pasado
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Loans</CardTitle>
+            <CardTitle className="text-sm font-medium">Préstamos Activos</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+1,234</div>
             <p className="text-xs text-muted-foreground">
-              +18.1% from last month
+              +18.1% desde el mes pasado
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Delinquency Rate
+              Tasa de Morosidad
             </CardTitle>
             <BadgePercent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">5.3%</div>
             <p className="text-xs text-muted-foreground">
-              +0.5% from last month
+              +0.5% desde el mes pasado
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              New Loans This Month
+              Nuevos Préstamos este Mes
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+57</div>
             <p className="text-xs text-muted-foreground">
-              +12 since last month
+              +12 desde el mes pasado
             </p>
           </CardContent>
         </Card>
@@ -82,10 +82,10 @@ export default function DashboardPage() {
         <Card className="col-span-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" /> Portfolio Value Over Time
+              <Activity className="h-5 w-5" /> Valor del Portafolio a lo Largo del Tiempo
             </CardTitle>
             <CardDescription>
-              Monthly overview of your total portfolio value.
+              Resumen mensual del valor total de su portafolio.
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
@@ -95,10 +95,10 @@ export default function DashboardPage() {
         <Card className="col-span-4 lg:col-span-3">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" /> Delinquency by Month
+              <Calendar className="h-5 w-5" /> Morosidad por Mes
             </CardTitle>
             <CardDescription>
-              Number of new delinquent accounts each month.
+              Número de nuevas cuentas morosas cada mes.
             </CardDescription>
           </CardHeader>
           <CardContent>

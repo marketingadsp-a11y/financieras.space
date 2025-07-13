@@ -37,22 +37,22 @@ export function CustomerTable({ data }: { data: Customer[] }) {
     );
   }, [filter, data]);
 
-  const getRiskBadgeVariant = (risk: "Low" | "Medium" | "High") => {
+  const getRiskBadgeVariant = (risk: "Bajo" | "Medio" | "Alto") => {
     switch (risk) {
-      case "Low":
+      case "Bajo":
         return "secondary";
-      case "Medium":
+      case "Medio":
         return "default";
-      case "High":
+      case "Alto":
         return "destructive";
     }
   };
   
-  const getStatusBadgeVariant = (status: "Paid" | "Due" | "Overdue") => {
+  const getStatusBadgeVariant = (status: "Pagado" | "Pendiente" | "Vencido") => {
       switch (status) {
-          case "Paid": return "secondary";
-          case "Due": return "outline";
-          case "Overdue": return "destructive";
+          case "Pagado": return "secondary";
+          case "Pendiente": return "outline";
+          case "Vencido": return "destructive";
       }
   }
 
@@ -60,7 +60,7 @@ export function CustomerTable({ data }: { data: Customer[] }) {
     <CardContent>
       <div className="flex items-center pb-4">
         <Input
-          placeholder="Search customers..."
+          placeholder="Buscar clientes..."
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           className="max-w-sm"
@@ -70,13 +70,13 @@ export function CustomerTable({ data }: { data: Customer[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead>Nombre</TableHead>
               <TableHead className="hidden md:table-cell">Email</TableHead>
-              <TableHead className="text-right">Loan Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Risk Level</TableHead>
+              <TableHead className="text-right">Monto del Préstamo</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Nivel de Riesgo</TableHead>
               <TableHead>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">Acciones</span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -101,7 +101,7 @@ export function CustomerTable({ data }: { data: Customer[] }) {
                     <Badge
                       variant={getRiskBadgeVariant(customer.riskLevel)}
                       className={
-                        customer.riskLevel === "Medium"
+                        customer.riskLevel === "Medio"
                           ? "bg-yellow-400 text-yellow-900 hover:bg-yellow-400/80"
                           : ""
                       }
@@ -114,13 +114,13 @@ export function CustomerTable({ data }: { data: Customer[] }) {
                       <DropdownMenuTrigger asChild>
                         <Button aria-haspopup="true" size="icon" variant="ghost">
                           <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
+                          <span className="sr-only">Alternar menú</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Contact customer</DropdownMenuItem>
+                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                        <DropdownMenuItem>Ver detalles</DropdownMenuItem>
+                        <DropdownMenuItem>Contactar cliente</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -129,7 +129,7 @@ export function CustomerTable({ data }: { data: Customer[] }) {
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
-                  No results found.
+                  No se encontraron resultados.
                 </TableCell>
               </TableRow>
             )}
