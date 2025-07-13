@@ -138,6 +138,7 @@ function NavLinks() {
     
     return (
         <>
+            {hasAccessToTool && <PlazaNavLinks />}
             <SidebarGroup>
                 <SidebarGroupLabel>GESTIÓN</SidebarGroupLabel>
                 <SidebarMenu>
@@ -153,7 +154,6 @@ function NavLinks() {
                     ))}
                 </SidebarMenu>
             </SidebarGroup>
-            {hasAccessToTool && <PlazaNavLinks />}
        </>
     );
   }
