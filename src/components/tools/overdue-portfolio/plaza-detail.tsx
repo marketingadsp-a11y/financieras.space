@@ -19,7 +19,7 @@ import {
   Loader2,
   ClipboardPaste,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogDescription,
+  DialogDescription as DialogDescriptionComponent,
   DialogFooter
 } from "@/components/ui/dialog";
 import {
@@ -297,10 +297,10 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                       <DialogContent className="sm:max-w-2xl">
                           <DialogHeader>
                               <DialogTitle>Importar Clientes</DialogTitle>
-                              <DialogDescription>
+                              <DialogDescriptionComponent>
                                 Pega texto de una hoja de cálculo para añadir nuevos clientes. Las columnas deben estar separadas por tabulaciones.
                                 La IA intentará reconocer las columnas comunes como: FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, PRESTAMO, ADEUDO.
-                              </DialogDescription>
+                              </DialogDescriptionComponent>
                           </DialogHeader>
                           <div className="grid gap-4 py-4">
                               <div className="grid gap-2">
