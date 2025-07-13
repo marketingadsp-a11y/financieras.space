@@ -25,10 +25,12 @@ export type Customer = {
   id: string;
   plazaId: string;
   name: string;
-  totalDebt: number;
-  paidAmount: number;
-  lastPaymentDate?: Date;
-  status: "Al corriente" | "Atrasado" | "Vencido";
+  address: string;
+  phone: string;
+  guarantor: string;
+  loanAmount: number;
+  dueAmount: number;
+  status: "Pendiente" | "Pagado" | "Atrasado";
 };
 
 export type Tool = {

@@ -2,6 +2,9 @@
 "use client";
 
 import * as React from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import {
   DollarSign,
   Users,
@@ -11,101 +14,43 @@ import {
   Upload,
   Trash2,
   MoreHorizontal,
-  User,
-  Phone,
+  FileText,
+  FileSpreadsheet,
+  Loader2,
+  ClipboardPaste,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import type { Plaza } from "@/lib/data";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
+import type { Plaza, Customer } from "@/lib/data";
 import { getPlazaById } from "@/services/plaza-service";
+import { getCustomersByPlaza, addCustomer, updateCustomer, deleteCustomer, addMultipleCustomers, deleteCustomersByPlaza } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
+import { parseCustomers } from "@/ai/flows/customer-parser-flow";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
-// --- DATOS DE EJEMPLO PARA CLIENTES ---
-const sampleCustomers = [
-    {
-        id: "1",
-        name: "ADRIAN BRAMBILA VELASCO",
-        address: "TABACHINES 127",
-        phone: "6631227486",
-        guarantor: "IRVING ALEJANDRO RAMIREZ MORENO",
-        loanAmount: 4000.00,
-        dueAmount: 936.00,
-        status: "Pendiente"
-    },
-    {
-        id: "2",
-        name: "ALMA VIOLETA SILVA FREGOSO",
-        address: "SANTOS DEGOLLADO 322",
-        phone: "3171075566",
-        guarantor: "OMAR BERNABE RODRIGUEZ",
-        loanAmount: 3000.00,
-        dueAmount: 1500.00,
-        status: "Pendiente"
-    },
-    {
-        id: "3",
-        name: "ALVARO RAFAEL RAMOS MEJIA",
-        address: "CUAHUTEMOC 24",
-        phone: "3328994967",
-        guarantor: "NO",
-        loanAmount: 10000.00,
-        dueAmount: 8190.00,
-        status: "Pendiente"
-    },
-    {
-        id: "4",
-        name: "AMERICA LIZBETH HERNANDEZ PADILLA",
-        address: "CORONA ARAIZA 494",
-        phone: "3171090401",
-        guarantor: "LUIS EDUARDO LOPEZ HERNANDEZ",
-        loanAmount: 15000.00,
-        dueAmount: 18750.00,
-        status: "Pendiente"
-    },
-     {
-        id: "5",
-        name: "CINTHIA AZUCENA SANCHEZ PAEZ",
-        address: "VALLE DE GUADALUPE 85",
-        phone: "3171315285",
-        guarantor: "ANA ALICIA RODRIGUEZ AGUILAR",
-        loanAmount: 3000.00,
-        dueAmount: 1500.00,
-        status: "Pendiente"
-    },
-    {
-        id: "6",
-        name: "DIEGO ARMANDO FLORES GOMEZ",
-        address: "EMILIANO ZAPATA 1",
-        phone: "3171014510",
-        guarantor: "AURELIA GOMEZ HORTA",
-        loanAmount: 3000.00,
-        dueAmount: 375.00,
-        status: "Pendiente"
-    },
-    {
-        id: "7",
-        name: "DIEGO JOSE GUZMAN GONZALEZ",
-        address: "PLACERES 250 A",
-        phone: "3171203978",
-        guarantor: "GARANTIA FACTURA MOTO",
-        loanAmount: 10000.00,
-        dueAmount: 0.00,
-        status: "Pagado"
-    },
-     {
-        id: "8",
-        name: "GUMERCINDO VARGAS HERNANDEZ",
-        address: "DEGOOLLADO 200",
-        phone: "3171238682",
-        guarantor: "VALERIA MORALES ZACARIAS",
-        loanAmount: 20000.00,
-        dueAmount: 25740.00,
-        status: "Pendiente"
-    }
-];
 
 const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }) => {
     const cardClasses = {
@@ -133,82 +78,152 @@ const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, v
     );
 };
 
-
-const CustomerCard = ({ customer }) => (
-  <Card>
-    <CardHeader>
-      <div className="flex justify-between items-start">
-        <CardTitle className="text-base font-bold">{customer.name}</CardTitle>
-        <Badge variant={customer.status === 'Pendiente' ? 'destructive' : 'secondary'} className="capitalize">
-          {customer.status}
-        </Badge>
-      </div>
-      <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
-    </CardHeader>
-    <CardContent className="space-y-4">
-      <div className="space-y-2 text-sm">
-        <div className="flex items-center">
-          <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
-          <span>{customer.phone || 'No disponible'}</span>
-        </div>
-        <div className="flex items-center">
-          <User className="mr-2 h-4 w-4 text-muted-foreground" />
-          <span>{customer.guarantor || 'No disponible'}</span>
-        </div>
-      </div>
-      <div className="flex justify-between items-end border-t pt-4">
-        <div>
-          <p className="text-xs text-muted-foreground">Préstamo</p>
-          <p className="font-semibold">${customer.loanAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Adeudo</p>
-          <p className="font-bold text-destructive">${customer.dueAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-        </div>
-      </div>
-    </CardContent>
-    <div className="flex items-center p-6 pt-0">
-        <Button variant="outline" className="w-full mr-2">
-            Editar
-        </Button>
-        <Button className="w-full">
-            <DollarSign className="mr-2 h-4 w-4"/> Abonar
-        </Button>
-    </div>
-  </Card>
-);
-
 export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [plaza, setPlaza] = React.useState<Plaza | null>(null);
+  const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingCustomer, setEditingCustomer] = React.useState<Customer | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState("");
   const { toast } = useToast();
 
-  React.useEffect(() => {
-    const fetchPlaza = async () => {
-      try {
-        setIsLoading(true);
-        const plazaData = await getPlazaById(plazaId);
-        if (plazaData) {
-          setPlaza(plazaData);
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "No se encontró la plaza especificada.",
-          });
-        }
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No se pudo cargar la información de la plaza.",
-        });
-      } finally {
-        setIsLoading(false);
+  const [isImportModalOpen, setImportModalOpen] = React.useState(false);
+  const [importText, setImportText] = React.useState('');
+  const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
+  const [isParsing, setIsParsing] = React.useState(false);
+
+
+  const fetchPlazaAndCustomers = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const plazaData = await getPlazaById(plazaId);
+      if (plazaData) {
+        setPlaza(plazaData);
+        const customerData = await getCustomersByPlaza(plazaId);
+        setCustomers(customerData);
+      } else {
+        toast({ variant: "destructive", title: "Error", description: "No se encontró la plaza especificada." });
       }
-    };
-    fetchPlaza();
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información." });
+    } finally {
+      setIsLoading(false);
+    }
   }, [plazaId, toast]);
+
+  React.useEffect(() => {
+    fetchPlazaAndCustomers();
+  }, [fetchPlazaAndCustomers]);
+
+  const handleFormSubmit = async (customerData: Omit<Customer, 'id' | 'plazaId' | 'status'> | Customer) => {
+    try {
+        if ('id' in customerData) { // Editing
+            const { id, ...dataToUpdate } = customerData;
+            await updateCustomer(id, dataToUpdate);
+            toast({ title: "Éxito", description: "Cliente actualizado correctamente." });
+        } else { // Adding
+            const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const };
+            await addCustomer(newCustomerData);
+            toast({ title: "Éxito", description: "Cliente agregado correctamente." });
+        }
+        await fetchPlazaAndCustomers(); // Refresh data
+        setIsFormOpen(false);
+        setEditingCustomer(null);
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el cliente." });
+    }
+  };
+
+  const handleEditClick = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setIsFormOpen(true);
+  };
+  
+  const handleOpenChange = (open: boolean) => {
+    setIsFormOpen(open);
+    if (!open) {
+      setEditingCustomer(null);
+    }
+  };
+
+  const handleDeleteAllCustomers = async () => {
+    try {
+      await deleteCustomersByPlaza(plazaId);
+      toast({ title: "Éxito", description: "Todos los clientes de la plaza han sido eliminados." });
+      await fetchPlazaAndCustomers();
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudieron eliminar los clientes." });
+    }
+  };
+  
+  const handleImport = async () => {
+    if (!importText.trim()) {
+        toast({ variant: "destructive", title: "Error", description: "El área de texto no puede estar vacía." });
+        return;
+    }
+    setIsParsing(true);
+    try {
+        const parsedData = await parseCustomers({ inputText: importText });
+        if (!parsedData || parsedData.length === 0) {
+            toast({ variant: "destructive", title: "Error de IA", description: "La IA no pudo procesar el texto. Verifica el formato." });
+            return;
+        }
+
+        const customersToAdd = parsedData.map(c => ({...c, plazaId, status: 'Pendiente' as const}));
+        
+        await addMultipleCustomers(customersToAdd, plazaId, importMode);
+
+        toast({ title: "Éxito", description: `${customersToAdd.length} clientes importados correctamente.` });
+        await fetchPlazaAndCustomers();
+        setImportModalOpen(false);
+        setImportText('');
+
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error de Importación", description: "Ocurrió un error al importar los clientes." });
+        console.error(error);
+    } finally {
+        setIsParsing(false);
+    }
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text(`Clientes de la Plaza: ${plaza?.name}`, 14, 16);
+    autoTable(doc, {
+      head: [['Nombre', 'Dirección', 'Teléfono', 'Aval', 'Préstamo', 'Adeudo']],
+      body: filteredCustomers.map(c => [
+        c.name,
+        c.address,
+        c.phone,
+        c.guarantor,
+        `$${c.loanAmount.toLocaleString('es-MX')}`,
+        `$${c.dueAmount.toLocaleString('es-MX')}`
+      ]),
+      startY: 20,
+    });
+    doc.save(`clientes_${plaza?.name?.replace(/\s/g, '_')}.pdf`);
+  };
+
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(filteredCustomers.map(c => ({
+      Nombre: c.name,
+      Dirección: c.address,
+      Teléfono: c.phone,
+      Aval: c.guarantor,
+      'Monto Préstamo': c.loanAmount,
+      'Monto Adeudo': c.dueAmount,
+      Estado: c.status,
+    })));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+    XLSX.writeFile(workbook, `clientes_${plaza?.name?.replace(/\s/g, '_')}.xlsx`);
+  };
+
+
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.address.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (isLoading) {
     return (
@@ -223,10 +238,9 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     return <div className="text-center">No se pudo cargar la información de la plaza.</div>;
   }
   
-  // --- DATOS DE EJEMPLO PARA RESUMEN ---
-  const totalClients = sampleCustomers.length;
-  const recoveredClients = sampleCustomers.filter(c => c.status === 'Pagado').length;
-  const pendingDebt = sampleCustomers.reduce((acc, c) => acc + c.dueAmount, 0);
+  const totalClients = customers.length;
+  const recoveredClients = customers.filter(c => c.status === 'Pagado').length;
+  const pendingDebt = customers.reduce((acc, c) => acc + c.dueAmount, 0);
 
   return (
     <div className="space-y-6">
@@ -238,39 +252,130 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         <StatCard title="Recuperados" value={recoveredClients} icon={UserCheck} description={`de ${totalClients} clientes`} />
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-bold">Clientes de {plaza.name}</h2>
-          <p className="text-muted-foreground">{totalClients} cliente(s) en esta plaza.</p>
-        </div>
-        
-        <div className="flex flex-col md:flex-row gap-2 items-center">
-            <div className="relative w-full md:flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar cliente..." className="pl-9" />
+      <Card>
+        <CardHeader>
+           <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div>
+              <CardTitle>Clientes de {plaza.name}</CardTitle>
+              <CardDescription>{totalClients} cliente(s) en esta plaza.</CardDescription>
             </div>
-            <div className="flex gap-2 w-full md:w-auto">
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Registrar
-                </Button>
-                <Button variant="outline">
-                    <Upload className="mr-2 h-4 w-4" /> Importar
-                </Button>
-                <Button variant="destructive">
-                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar Todos
-                </Button>
-                <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </div>
-        </div>
+            
+            <div className="flex flex-col md:flex-row gap-2 items-center w-full md:w-auto">
+                <div className="relative w-full md:flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Buscar cliente..." 
+                      className="pl-9 w-full"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
+                        <DialogTrigger asChild>
+                           <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Registrar
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{editingCustomer ? 'Editar' : 'Registrar'} Cliente</DialogTitle>
+                            </DialogHeader>
+                            <CustomerForm
+                                onSubmit={handleFormSubmit}
+                                customer={editingCustomer}
+                            />
+                        </DialogContent>
+                    </Dialog>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {sampleCustomers.map(customer => (
-                <CustomerCard key={customer.id} customer={customer} />
-            ))}
-        </div>
-      </div>
+                    <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
+                      <DialogTrigger asChild>
+                          <Button variant="outline">
+                              <Upload className="mr-2 h-4 w-4" /> Importar
+                          </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-2xl">
+                          <DialogHeader>
+                              <DialogTitle>Importar Clientes</DialogTitle>
+                              <DialogDescription>
+                                Pega texto de una hoja de cálculo para añadir nuevos clientes. Las columnas deben estar separadas por tabulaciones.
+                                La IA intentará reconocer las columnas comunes como: FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, PRESTAMO, ADEUDO.
+                              </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                              <div className="grid gap-2">
+                                <Label>Modo de Importación</Label>
+                                 <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)}>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="add" id="r1" />
+                                    <Label htmlFor="r1">Añadir a existentes</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="replace" id="r2" />
+                                    <Label htmlFor="r2">Reemplazar todos los clientes de esta plaza</Label>
+                                  </div>
+                                </RadioGroup>
+                              </div>
+                              <Textarea 
+                                placeholder="Pega aquí los datos de tu hoja de cálculo..." 
+                                className="min-h-[200px]"
+                                value={importText}
+                                onChange={(e) => setImportText(e.target.value)}
+                              />
+                          </div>
+                          <DialogFooter>
+                              <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+                              <Button onClick={handleImport} disabled={isParsing}>
+                                  {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
+                                  {isParsing ? 'Procesando...' : 'Importar desde Texto'}
+                              </Button>
+                          </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                         <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                         </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                         <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
+                         <DropdownMenuSeparator />
+                         <DropdownMenuItem onSelect={exportToExcel}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Exportar a Excel
+                         </DropdownMenuItem>
+                         <DropdownMenuItem onSelect={exportToPDF}>
+                           <FileText className="mr-2 h-4 w-4" />
+                            Exportar a PDF
+                         </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                         <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={handleDeleteAllCustomers}>
+                           <Trash2 className="mr-2 h-4 w-4" />
+                            Eliminar Todos los Clientes
+                         </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </div>
+           </div>
+        </CardHeader>
+        <CardContent>
+          {filteredCustomers.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredCustomers.map(customer => (
+                <CustomerCard key={customer.id} customer={customer} onEdit={handleEditClick} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-muted-foreground">
+              <p>No se encontraron clientes.</p>
+              {customers.length === 0 && <p className="text-sm mt-2">Puedes registrar uno nuevo o importarlos masivamente.</p>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
