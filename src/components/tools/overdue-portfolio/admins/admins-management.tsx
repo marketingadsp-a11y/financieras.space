@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getToolAdmins, addToolAdmin, updateToolAdmin, deleteToolAdmin } from "@/services/tool-admin-service";
 import { getAdmins } from "@/services/admin-service";
-import { getSuperAdmins } from "@/services/super-admin-service";
 import { useToast } from "@/hooks/use-toast";
 
 type CombinedAdmin = (
@@ -34,16 +33,11 @@ export function AdminsManagement() {
       setIsLoading(true);
       const toolAdminsPromise = getToolAdmins(toolId);
       const globalAdminsPromise = getAdmins();
-      const superAdminsPromise = getSuperAdmins();
       
-      const [toolAdmins, globalAdmins, superAdmins] = await Promise.all([toolAdminsPromise, globalAdminsPromise, superAdminsPromise]);
+      const [toolAdmins, globalAdmins] = await Promise.all([toolAdminsPromise, globalAdminsPromise]);
 
       const combined: CombinedAdmin[] = [];
       
-      superAdmins.forEach(sa => {
-          combined.push({ ...sa, name: sa.username, status: 'Activo', role: 'Super Admin', editable: false });
-      });
-
       globalAdmins.forEach(ga => {
           if (ga.accessibleTools?.includes(toolId)) {
               combined.push({ ...ga, role: 'Admin Global', editable: false });
@@ -138,7 +132,7 @@ export function AdminsManagement() {
          toast({
             variant: "destructive",
             title: "Acción no permitida",
-            description: "Los admins globales y super admins se gestionan desde el panel principal.",
+            description: "Los admins globales se gestionan desde el panel principal.",
         });
       }
   }
