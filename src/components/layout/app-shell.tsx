@@ -290,19 +290,22 @@ function ImpersonationBar() {
     if (!impersonation) return null;
 
     return (
-        <div className="fixed top-0 left-0 right-0 z-50 flex h-10 items-center justify-center bg-yellow-400 px-4 text-sm font-semibold text-black shadow-lg">
-            <span>
-                Estás viendo como: <strong className="font-bold">{impersonation.username}</strong> ({impersonation.role})
-            </span>
-            <Button 
-                variant="ghost" 
-                size="sm" 
-                className="ml-4 h-auto px-2 py-1 hover:bg-yellow-500"
-                onClick={stopImpersonating}
-            >
-                <Undo2 className="mr-2 h-4 w-4" />
-                Volver a mi panel
-            </Button>
+        <div className="fixed top-0 left-0 right-0 z-50 flex h-12 items-center justify-center bg-yellow-400 px-4 text-sm font-semibold text-black shadow-lg">
+            <div className="flex flex-col sm:flex-row items-center gap-x-4 gap-y-1 text-center">
+                <span>
+                    Estás viendo como: <strong className="font-bold">{impersonation.username}</strong> ({impersonation.role})
+                    {impersonation.prefix && <span className="ml-2 font-normal">| Empresa: <strong className="font-bold">{impersonation.prefix}</strong></span>}
+                </span>
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-auto px-2 py-1 hover:bg-yellow-500"
+                    onClick={stopImpersonating}
+                >
+                    <Undo2 className="mr-2 h-4 w-4" />
+                    Volver a mi panel
+                </Button>
+            </div>
         </div>
     )
 }
@@ -373,7 +376,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
            )}
         </SidebarContent>
       </Sidebar>
-      <SidebarInset className={cn(impersonation && "pt-10")}>
+      <SidebarInset className={cn(impersonation && "pt-12")}>
         <ImpersonationBar />
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
           <SidebarTrigger />

@@ -26,6 +26,7 @@ interface User {
 interface ImpersonationInfo {
     username: string;
     role: string;
+    prefix?: string;
 }
 
 interface AuthContextType {
@@ -58,7 +59,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (originalUser) {
         const parsedOriginalUser = JSON.parse(originalUser);
-        setImpersonation({ username: parsedUser.name || parsedUser.username, role: parsedOriginalUser.isSuperAdmin ? 'Admin' : 'Unknown' });
+        setImpersonation({ 
+            username: parsedUser.name || parsedUser.username, 
+            role: parsedOriginalUser.isSuperAdmin ? 'Admin' : 'Unknown',
+            prefix: parsedUser.prefix,
+        });
       }
     }
     setLoading(false);
@@ -165,7 +170,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('originalAppUser', JSON.stringify(user));
         localStorage.setItem('appUser', JSON.stringify(impersonatedUserData));
         setUser(impersonatedUserData);
-        setImpersonation({ username: impersonatedAdmin.name, role: 'Admin' });
+        setImpersonation({ 
+            username: impersonatedAdmin.name, 
+            role: 'Admin',
+            prefix: impersonatedAdmin.prefix,
+        });
         router.push('/tools'); // Redirect to the admin's main view
     }
   };
