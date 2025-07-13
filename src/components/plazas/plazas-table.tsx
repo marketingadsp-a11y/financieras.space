@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -31,6 +32,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/auth-context";
 
 type PlazaTableProps = {
     data: Plaza[];
@@ -39,16 +42,18 @@ type PlazaTableProps = {
 }
 
 export function PlazasTable({ data, onEdit, onDelete }: PlazaTableProps) {
+  const { user } = useAuth();
   const [filter, setFilter] = React.useState("");
   const filteredData = data.filter((plaza) =>
-    plaza.name.toLowerCase().includes(filter.toLowerCase())
+    plaza.name.toLowerCase().includes(filter.toLowerCase()) ||
+    plaza.prefix?.toLowerCase().includes(filter.toLowerCase())
   );
 
   return (
     <>
       <div className="flex items-center pb-4">
         <Input
-          placeholder="Buscar plazas..."
+          placeholder="Buscar por nombre o empresa..."
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           className="max-w-sm"
@@ -59,6 +64,7 @@ export function PlazasTable({ data, onEdit, onDelete }: PlazaTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre de la Plaza</TableHead>
+              {user?.isSuperAdmin && <TableHead>Empresa (Prefijo)</TableHead>}
               <TableHead>
                 <span className="sr-only">Acciones</span>
               </TableHead>
@@ -72,6 +78,11 @@ export function PlazasTable({ data, onEdit, onDelete }: PlazaTableProps) {
                     <Building className="h-4 w-4 text-muted-foreground" />
                     {plaza.name}
                   </TableCell>
+                  {user?.isSuperAdmin && (
+                    <TableCell>
+                      {plaza.prefix ? <Badge variant="outline">{plaza.prefix}</Badge> : <span className="text-muted-foreground">N/A</span>}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <div className="flex justify-end">
                       <AlertDialog>
@@ -113,7 +124,7 @@ export function PlazasTable({ data, onEdit, onDelete }: PlazaTableProps) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={2} className="h-24 text-center">
+                <TableCell colSpan={user?.isSuperAdmin ? 3 : 2} className="h-24 text-center">
                   No se encontraron plazas.
                 </TableCell>
               </TableRow>
