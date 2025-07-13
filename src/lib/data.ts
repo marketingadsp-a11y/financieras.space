@@ -43,6 +43,8 @@ export type Payment = {
   customerId: string;
   amount: number;
   date: number; // Using number for timestamp (milliseconds)
+  previousDueAmount: number;
+  newDueAmount: number;
 };
 
 export type Tool = {
