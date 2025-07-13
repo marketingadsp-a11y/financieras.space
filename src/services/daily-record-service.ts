@@ -1,0 +1,85 @@
+
+'use server';
+
+import { 
+    doc, 
+    getDoc, 
+    setDoc, 
+    Timestamp, 
+    runTransaction,
+    arrayUnion
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { DailyRecord, DailyRecordEntry } from "@/lib/data";
+import { v4 as uuidv4 } from 'uuid';
+
+function getDailyRecordDocRef(plazaId: string, date: Date) {
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const docId = `${plazaId}_${dateString}`;
+    return doc(db, "daily_records", docId);
+}
+
+export async function getDailyRecord(plazaId: string, date: Date): Promise<DailyRecord | null> {
+    const recordDocRef = getDailyRecordDocRef(plazaId, date);
+    const docSnap = await getDoc(recordDocRef);
+
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+            ...data,
+            id: docSnap.id,
+            date: (data.date as Timestamp).toDate(),
+        } as DailyRecord;
+    }
+
+    return null;
+}
+
+export async function addDailyRecordEntry(
+    plazaId: string,
+    prefix: string,
+    date: Date,
+    entryData: Omit<DailyRecordEntry, 'id' | 'date'>
+): Promise<void> {
+
+    const recordDocRef = getDailyRecordDocRef(plazaId, date);
+    const newEntry: DailyRecordEntry = {
+        ...entryData,
+        id: uuidv4(),
+        date: date
+    };
+
+    await runTransaction(db, async (transaction) => {
+        const recordDoc = await transaction.get(recordDocRef);
+
+        if (!recordDoc.exists()) {
+            const newRecord: DailyRecord = {
+                id: recordDocRef.id,
+                plazaId,
+                prefix,
+                date: Timestamp.fromDate(date),
+                collected: 0,
+                loaned: 0,
+                spent: 0,
+                entries: []
+            };
+            
+            // Set initial totals based on the first entry
+            newRecord[entryData.type] = entryData.amount;
+            newRecord.entries.push(newEntry);
+            
+            transaction.set(recordDocRef, newRecord);
+
+        } else {
+            const currentData = recordDoc.data() as DailyRecord;
+            const updateData: any = {
+                entries: arrayUnion(newEntry)
+            };
+            
+            const newTotal = currentData[entryData.type] + entryData.amount;
+            updateData[entryData.type] = newTotal;
+
+            transaction.update(recordDocRef, updateData);
+        }
+    });
+}

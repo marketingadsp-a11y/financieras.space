@@ -1,3 +1,4 @@
+
 import type { Timestamp } from "firebase/firestore";
 import { FolderKanban, Landmark, BookCheck } from "lucide-react";
 
@@ -141,7 +142,6 @@ export const expenseCategories: { value: ExpenseCategory, label: string }[] = [
 
 export type DailyRecordEntry = {
     id: string;
-    plazaId: string;
     date: Date;
     type: DailyRecordType;
     amount: number;

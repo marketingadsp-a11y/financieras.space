@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/select"
 import type { DailyRecordType } from "@/lib/data";
 import { expenseCategories } from "@/lib/data";
-import { DollarSign } from "lucide-react";
+import { DollarSign, Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   amount: z.coerce.number().positive("El monto debe ser mayor a cero."),
@@ -35,12 +36,16 @@ const formSchema = z.object({
 type DailyRecordFormProps = {
   onSubmit: (data: any) => void;
   mode: DailyRecordType;
+  isSubmitting: boolean;
 };
 
-export function DailyRecordForm({ onSubmit, mode }: DailyRecordFormProps) {
+export function DailyRecordForm({ onSubmit, mode, isSubmitting }: DailyRecordFormProps) {
 
     const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+        resolver: zodResolver(formSchema.refine(data => mode !== 'spent' || !!data.category, {
+            message: "La categoría es requerida para los gastos.",
+            path: ["category"],
+        })),
         defaultValues: {
             amount: undefined,
             description: "",
@@ -51,6 +56,7 @@ export function DailyRecordForm({ onSubmit, mode }: DailyRecordFormProps) {
     const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSend: any = { ...values, type: mode };
         onSubmit(dataToSend);
+        form.reset();
     };
 
     return (
@@ -111,7 +117,8 @@ export function DailyRecordForm({ onSubmit, mode }: DailyRecordFormProps) {
                         )}
                     />
                 )}
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Registrar Movimiento
                 </Button>
             </form>

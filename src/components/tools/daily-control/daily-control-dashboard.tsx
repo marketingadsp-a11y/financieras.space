@@ -1,6 +1,9 @@
+
 "use client";
 
 import * as React from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   Calendar as CalendarIcon,
   PlusCircle,
@@ -9,6 +12,7 @@ import {
   CreditCard,
   DollarSign,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
@@ -37,6 +41,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -46,7 +57,10 @@ import {
 
 import type { DailyRecordEntry, DailyRecordType, Plaza } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import { DailyRecordForm } from "./daily-record-form";
+import { getPlazas } from "@/services/plaza-service";
+import { getDailyRecord, addDailyRecordEntry } from "@/services/daily-record-service";
 
 
 const StatCard = ({ title, value, icon: Icon, variant = 'default' }: { title: string; value: number; icon: React.ElementType; variant?: 'default' | 'destructive' | 'success' }) => {
@@ -70,33 +84,131 @@ const StatCard = ({ title, value, icon: Icon, variant = 'default' }: { title: st
   );
 };
 
-// Placeholder data - we will replace this with real data later
-const placeholderEntries: DailyRecordEntry[] = [
-  { id: '1', plazaId: 'p1', date: new Date(), type: 'collected', amount: 500, description: 'Abono cliente X' },
-  { id: '2', plazaId: 'p1', date: new Date(), type: 'loaned', amount: 1200, description: 'Préstamo nuevo cliente Y' },
-  { id: '3', plazaId: 'p1', date: new Date(), type: 'spent', amount: 150, description: 'Gasolina', category: 'gasolina' },
-  { id: '4', plazaId: 'p1', date: new Date(), type: 'collected', amount: 350, description: 'Abono cliente Z' },
-]
 
 export function DailyControlDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [date, setDate] = React.useState<Date | undefined>(new Date());
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
   const [selectedPlaza, setSelectedPlaza] = React.useState<string>('');
-  const [entries, setEntries] = React.useState<DailyRecordEntry[]>(placeholderEntries);
+  const [entries, setEntries] = React.useState<DailyRecordEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isFormOpen, setFormOpen] = React.useState(false);
   const [formMode, setFormMode] = React.useState<DailyRecordType>('collected');
 
+  const fetchPlazasForUser = React.useCallback(async () => {
+    if (!user) return;
+    const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
+    try {
+        const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+        setPlazas(plazasFromDb);
+        if (plazasFromDb.length > 0) {
+            setSelectedPlaza(plazasFromDb[0].id);
+        }
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las plazas.' });
+    }
+  }, [user, toast]);
+  
   React.useEffect(() => {
-    // Placeholder for fetching plazas
-    setIsLoading(false);
-  }, [user]);
+    fetchPlazasForUser();
+  }, [fetchPlazasForUser]);
+
+  const fetchDailyData = React.useCallback(async () => {
+    if (!selectedPlaza || !date) {
+        setEntries([]);
+        setIsLoading(false);
+        return;
+    };
+    setIsLoading(true);
+    try {
+        const record = await getDailyRecord(selectedPlaza, date);
+        setEntries(record?.entries || []);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los registros del día.' });
+        setEntries([]);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [selectedPlaza, date, toast]);
+
+  React.useEffect(() => {
+    fetchDailyData();
+  }, [fetchDailyData]);
   
   const handleOpenForm = (mode: DailyRecordType) => {
+    if (!selectedPlaza) {
+        toast({ variant: 'destructive', title: 'Selecciona una plaza', description: 'Debes seleccionar una plaza para poder registrar movimientos.' });
+        return;
+    }
     setFormMode(mode);
     setFormOpen(true);
   };
+
+  const handleSubmitEntry = async (data: Omit<DailyRecordEntry, 'id' | 'plazaId' | 'date'>) => {
+    if (!selectedPlaza || !date || !user?.prefix) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para registrar el movimiento (plaza, fecha o prefijo).' });
+        return;
+    }
+    setIsSubmitting(true);
+    try {
+        await addDailyRecordEntry(selectedPlaza, user.prefix, date, data);
+        toast({ title: 'Éxito', description: 'Movimiento registrado correctamente.' });
+        setFormOpen(false);
+        fetchDailyData(); // Refresh data for the day
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo registrar el movimiento.' });
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
+  
+  const exportToPDF = () => {
+    if (!plazaName || !date || entries.length === 0) {
+      toast({ variant: "destructive", title: "No hay datos para exportar", description: "Selecciona un día con movimientos para generar el PDF." });
+      return;
+    }
+
+    const doc = new jsPDF();
+    const formattedDate = format(date, "PPP", { locale: es });
+    doc.text(`Movimientos de la Plaza: ${plazaName}`, 14, 16);
+    doc.text(`Fecha: ${formattedDate}`, 14, 22);
+
+    autoTable(doc, {
+      head: [['Tipo', 'Descripción', 'Categoría', 'Monto']],
+      body: entries.map(e => {
+        const config = typeConfig[e.type];
+        return [
+          config.label,
+          e.description,
+          e.category?.replace(/_/g, ' ') || 'N/A',
+          `$${e.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+        ]
+      }),
+      startY: 30,
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { halign: 'left' },
+      columnStyles: { 3: { halign: 'right' } }
+    });
+    
+    const totalsY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(10);
+    doc.text('Totales del día:', 14, totalsY);
+    autoTable(doc, {
+      body: [
+        ['Total Cobrado', `$${totals.collected.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+        ['Total Prestado', `$${totals.loaned.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+        ['Total Gastado', `$${totals.spent.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+      ],
+      startY: totalsY + 4,
+      theme: 'plain',
+      columnStyles: { 1: { halign: 'right' } }
+    });
+
+    doc.save(`control_diario_${plazaName.replace(/\s/g, '_')}_${format(date, 'yyyy-MM-dd')}.pdf`);
+  };
+
 
   const totals = React.useMemo(() => {
     return entries.reduce((acc, entry) => {
@@ -112,6 +224,8 @@ export function DailyControlDashboard() {
     loaned: { icon: ArrowUp, color: "text-blue-600", label: "Prestado" },
     spent: { icon: CreditCard, color: "text-red-600", label: "Gasto" },
   }
+  
+  const plazaName = plazas.find(p => p.id === selectedPlaza)?.name || 'Desconocida';
 
   return (
     <div className="space-y-6">
@@ -122,13 +236,23 @@ export function DailyControlDashboard() {
             Registra y consulta los movimientos financieros de tus plazas.
             </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+            <Select value={selectedPlaza} onValueChange={setSelectedPlaza} disabled={plazas.length === 0}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Selecciona una plaza" />
+                </SelectTrigger>
+                <SelectContent>
+                    {plazas.length > 0 ? plazas.map(plaza => (
+                        <SelectItem key={plaza.id} value={plaza.id}>{plaza.name}</SelectItem>
+                    )) : <div className="p-4 text-sm text-muted-foreground">No hay plazas disponibles.</div>}
+                </SelectContent>
+            </Select>
             <Popover>
             <PopoverTrigger asChild>
                 <Button
                 variant={"outline"}
                 className={cn(
-                    "w-[280px] justify-start text-left font-normal",
+                    "w-full sm:w-[240px] justify-start text-left font-normal",
                     !date && "text-muted-foreground"
                 )}
                 >
@@ -157,21 +281,24 @@ export function DailyControlDashboard() {
 
       <Card>
         <CardHeader>
-           <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+           <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
             <div>
-              <CardTitle>Movimientos del Día</CardTitle>
-              <CardDescription>Resumen de todos los registros del día seleccionado.</CardDescription>
+              <CardTitle>Movimientos del Día: {plazaName}</CardTitle>
+              <CardDescription>Resumen de todos los registros del día seleccionado. Hay {entries.length} movimiento(s).</CardDescription>
             </div>
             
-            <div className="flex flex-wrap gap-2">
-                 <Button onClick={() => handleOpenForm('collected')}>
-                    <PlusCircle className="mr-2"/> Registrar Cobro
+            <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                <Button variant="outline" size="sm" onClick={exportToPDF} disabled={entries.length === 0}>
+                    <FileText className="mr-2 h-4 w-4" /> Exportar PDF
                 </Button>
-                <Button variant="outline" onClick={() => handleOpenForm('loaned')}>
-                    <PlusCircle className="mr-2"/> Registrar Préstamo
+                <Button size="sm" onClick={() => handleOpenForm('collected')}>
+                    <PlusCircle className="mr-2"/> Cobro
                 </Button>
-                <Button variant="destructive" onClick={() => handleOpenForm('spent')}>
-                    <PlusCircle className="mr-2"/> Registrar Gasto
+                <Button size="sm" variant="outline" onClick={() => handleOpenForm('loaned')}>
+                    <PlusCircle className="mr-2"/> Préstamo
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => handleOpenForm('spent')}>
+                    <PlusCircle className="mr-2"/> Gasto
                 </Button>
             </div>
            </div>
@@ -215,7 +342,7 @@ export function DailyControlDashboard() {
                 ) : (
                     <TableRow>
                         <TableCell colSpan={4} className="h-24 text-center">
-                        No hay registros para este día.
+                          {selectedPlaza ? 'No hay registros para este día.' : 'Por favor, selecciona una plaza.'}
                         </TableCell>
                     </TableRow>
                 )}
@@ -227,17 +354,15 @@ export function DailyControlDashboard() {
       <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Registrar Movimiento</DialogTitle>
+                <DialogTitle>Registrar Movimiento en {plazaName}</DialogTitle>
                 <DialogDescription>
-                    Añade un nuevo registro de tipo '{typeConfig[formMode].label}' para el día seleccionado.
+                    Añade un nuevo registro de tipo '{typeConfig[formMode].label}' para el día {date ? format(date, "PPP", { locale: es }) : ''}.
                 </DialogDescription>
             </DialogHeader>
             <DailyRecordForm 
                 mode={formMode} 
-                onSubmit={(data) => {
-                    console.log(data);
-                    setFormOpen(false);
-                }}
+                onSubmit={handleSubmitEntry}
+                isSubmitting={isSubmitting}
             />
         </DialogContent>
       </Dialog>
