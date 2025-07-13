@@ -5,8 +5,6 @@ import * as React from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 
 import {
   Dialog,
@@ -26,22 +24,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, Payment } from "@/lib/data";
+import type { Customer } from "@/lib/data";
 import { addPayment } from "@/services/customer-service";
-import { getPaymentsByCustomer } from "@/services/payment-service";
-import { Loader2, DollarSign, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Loader2, DollarSign } from "lucide-react";
 
 type CustomerDetailDialogProps = {
   customer: Customer;
@@ -55,8 +41,6 @@ const paymentSchema = z.object({
 });
 
 export function CustomerDetailDialog({ customer, isOpen, onClose, onPaymentSuccess }: CustomerDetailDialogProps) {
-  const [payments, setPayments] = React.useState<Payment[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
   const [isSubmittingPayment, setIsSubmittingPayment] = React.useState(false);
   const { toast } = useToast();
 
@@ -67,35 +51,19 @@ export function CustomerDetailDialog({ customer, isOpen, onClose, onPaymentSucce
     },
   });
 
-  const fetchPayments = React.useCallback(async () => {
-    if (!customer?.id) return;
-    setIsLoadingHistory(true);
-    try {
-      const paymentHistory = await getPaymentsByCustomer(customer.id);
-      setPayments(paymentHistory);
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el historial de pagos." });
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  }, [customer?.id, toast]);
-
   React.useEffect(() => {
     if (isOpen) {
-      fetchPayments();
       form.reset();
     }
-  }, [isOpen, fetchPayments, form]);
+  }, [isOpen, form]);
 
   const handlePaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
     setIsSubmittingPayment(true);
     try {
-      await addPayment(customer.id, customer.plazaId, values.amount);
+      await addPayment(customer.id, values.amount);
       toast({ title: "Éxito", description: "Abono registrado correctamente." });
-      onPaymentSuccess(); // This refreshes the parent component's data
-      await fetchPayments(); // Re-fetch payments to update history
-      form.reset();
-      // Keep the dialog open, user might want to see history
+      onPaymentSuccess();
+      onClose();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "No se pudo registrar el abono.";
       toast({ variant: "destructive", title: "Error", description: errorMessage });
@@ -112,95 +80,49 @@ export function CustomerDetailDialog({ customer, isOpen, onClose, onPaymentSucce
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{customer.name}</DialogTitle>
+          <DialogTitle>Registrar Abono a {customer.name}</DialogTitle>
           <DialogDescription>
             {customer.address}
           </DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="payment" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="payment" disabled={isPaid}>Registrar Abono</TabsTrigger>
-            <TabsTrigger value="history">Historial de Pagos</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="payment">
-            <div className="p-4">
-              <div className="mb-6 space-y-2 rounded-lg border bg-muted/30 p-4">
-                  <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Monto Préstamo:</span>
-                      <span className="font-medium">{formatCurrency(customer.loanAmount)}</span>
-                  </div>
-                  <div className="flex justify-between text-lg">
-                      <span className="text-muted-foreground">Adeudo Actual:</span>
-                      <span className="font-bold text-destructive">{formatCurrency(customer.dueAmount)}</span>
-                  </div>
+        <div className="p-4">
+          <div className="mb-6 space-y-2 rounded-lg border bg-muted/30 p-4">
+              <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Monto Préstamo:</span>
+                  <span className="font-medium">{formatCurrency(customer.loanAmount)}</span>
               </div>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handlePaymentSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monto a Abonar</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input type="number" step="0.01" placeholder="0.00" className="pl-9" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isSubmittingPayment || isPaid} className="w-full">
-                    {isSubmittingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isPaid ? 'Deuda Liquidada' : 'Registrar Abono'}
-                  </Button>
-                </form>
-              </Form>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="history">
-            <ScrollArea className="h-80 w-full p-1">
-              {isLoadingHistory ? (
-                  <div className="flex justify-center items-center h-full">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-              ) : payments.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead className="text-right">Abono</TableHead>
-                      <TableHead className="text-right">Adeudo Anterior</TableHead>
-                      <TableHead className="text-right">Adeudo Nuevo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell>{format(new Date(payment.date), "dd/MMM/yyyy", { locale: es })}</TableCell>
-                        <TableCell className="text-right font-medium text-green-600">{formatCurrency(payment.amount)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{formatCurrency(payment.previousDueAmount)}</TableCell>
-                        <TableCell className="text-right font-semibold">{formatCurrency(payment.newDueAmount)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
-                  <Info className="h-8 w-8 mb-2"/>
-                  <p>No se han registrado pagos para este cliente.</p>
-                </div>
-              )}
-            </ScrollArea>
-          </TabsContent>
-
-        </Tabs>
+              <div className="flex justify-between text-lg">
+                  <span className="text-muted-foreground">Adeudo Actual:</span>
+                  <span className="font-bold text-destructive">{formatCurrency(customer.dueAmount)}</span>
+              </div>
+          </div>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handlePaymentSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monto a Abonar</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="number" step="0.01" placeholder="0.00" className="pl-9" {...field} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={isSubmittingPayment || isPaid} className="w-full">
+                {isSubmittingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isPaid ? 'Deuda Liquidada' : 'Registrar Abono'}
+              </Button>
+            </form>
+          </Form>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cerrar

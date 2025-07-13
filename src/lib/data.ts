@@ -35,22 +35,6 @@ export type Customer = {
   status: "Pendiente" | "Pagado" | "Atrasado";
 };
 
-// Type for client-side use, with date as a number (timestamp)
-export type Payment = {
-  id: string;
-  customerId: string;
-  plazaId: string;
-  amount: number;
-  date: number; 
-  previousDueAmount: number;
-  newDueAmount: number;
-}
-
-// Type for Firestore interaction, with date as a Timestamp object
-export type FirebasePayment = Omit<Payment, 'id' | 'date'> & {
-  date: Timestamp;
-}
-
 export type Tool = {
   id: string;
   name: string;

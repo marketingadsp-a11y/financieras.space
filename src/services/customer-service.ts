@@ -6,8 +6,6 @@ import { db } from "@/lib/firebase";
 import type { Customer } from "@/lib/data";
 
 const customersCollectionRef = collection(db, "customers");
-const paymentsCollectionRef = collection(db, "payments");
-
 
 export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> {
     const q = query(customersCollectionRef, where("plazaId", "==", plazaId));
@@ -62,7 +60,7 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], pl
     await batch.commit();
 }
 
-export async function addPayment(customerId: string, plazaId: string, paymentAmount: number): Promise<void> {
+export async function addPayment(customerId: string, paymentAmount: number): Promise<void> {
     const customerRef = doc(db, "customers", customerId);
     
     await runTransaction(db, async (transaction) => {
@@ -75,18 +73,7 @@ export async function addPayment(customerId: string, plazaId: string, paymentAmo
         const previousDueAmount = customerData.dueAmount;
         const newDueAmount = previousDueAmount - paymentAmount;
 
-        const newPaymentRef = doc(paymentsCollectionRef);
-        
-        transaction.set(newPaymentRef, {
-            customerId,
-            plazaId,
-            amount: paymentAmount,
-            date: Timestamp.now(), // Use Firestore Timestamp object
-            previousDueAmount,
-            newDueAmount,
-        });
-
-        const updatedCustomerData: Partial<Customer> = {
+        const updatedCustomerData: Partial<Pick<Customer, 'dueAmount' | 'status'>> = {
             dueAmount: newDueAmount,
         };
 
