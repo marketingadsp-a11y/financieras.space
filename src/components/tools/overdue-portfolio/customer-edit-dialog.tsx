@@ -74,17 +74,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
 
   const customerForm = useForm<z.infer<typeof customerFormSchema>>({
     resolver: zodResolver(customerFormSchema),
-    defaultValues: {
-      name: customer?.name || "",
-      address: customer?.address || "",
-      phone: customer?.phone || "",
-      guarantor: customer?.guarantor || "",
-      guarantorPhone: customer?.guarantorPhone || "",
-      loanAmount: customer?.loanAmount || 0,
-      paymentAmount: customer?.paymentAmount || 0,
-      installmentsDue: customer?.installmentsDue || 0,
-      dueAmount: customer?.dueAmount || 0,
-    },
+    defaultValues: {},
   });
 
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({
@@ -92,18 +82,18 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
     defaultValues: { amount: undefined },
   });
   
-  const fetchPayments = React.useCallback(async () => {
-    if (!customer?.id) return;
+  const fetchPayments = React.useCallback(async (customerId: string) => {
     setIsLoadingHistory(true);
     try {
-      const paymentHistory = await getPaymentsByCustomer(customer.id);
+      const paymentHistory = await getPaymentsByCustomer(customerId);
       setPayments(paymentHistory);
     } catch (error) {
        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el historial de pagos." });
+       setPayments([]);
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [customer, toast]);
+  }, [toast]);
 
 
   React.useEffect(() => {
@@ -120,7 +110,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
         dueAmount: customer.dueAmount,
       });
       paymentForm.reset({ amount: undefined });
-      fetchPayments();
+      fetchPayments(customer.id);
     }
   }, [isOpen, customer, customerForm, paymentForm, fetchPayments]);
 
@@ -147,7 +137,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
       await addPayment(customer.id, values.amount);
       toast({ title: "Éxito", description: "Abono registrado." });
       onSuccess();
-      onClose(); // This re-triggers the useEffect on next open, fetching everything fresh
+      onClose(); 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "No se pudo registrar el abono.";
       toast({ variant: "destructive", title: "Error", description: errorMessage });
@@ -258,7 +248,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                 <Loader2 className="mr-2 h-6 w-6 animate-spin" /> <span>Cargando historial...</span>
             </div>
            ) : payments.length > 0 ? (
-                <div className="rounded-md border">
+                <div className="rounded-md border max-h-60 overflow-y-auto">
                     <Table>
                         <TableHeader>
                         <TableRow>
