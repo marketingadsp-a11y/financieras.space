@@ -303,7 +303,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const currentTool = getToolFromPath();
   
   const getUserRoleLabel = () => {
-    if (user.isSuperAdmin) return 'Super Admin';
+    if (user.isSuperAdmin) return 'Financieras MX';
     if (user.isToolAdmin) return 'Admin de Herramienta';
     if (user.isPlazaUser) return 'Usuario';
     return 'Admin';
