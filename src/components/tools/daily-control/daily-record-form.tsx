@@ -4,6 +4,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -22,9 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import type { DailyRecordType } from "@/lib/data";
 import { expenseCategories } from "@/lib/data";
-import { DollarSign, Loader2 } from "lucide-react";
+import { DollarSign, Loader2, CalendarIcon } from "lucide-react";
 
 const formSchema = z.object({
   amount: z.coerce.number().positive("El monto debe ser mayor a cero."),
@@ -37,9 +42,11 @@ type DailyRecordFormProps = {
   onSubmit: (data: any) => void;
   mode: DailyRecordType;
   isSubmitting: boolean;
+  entryDate: Date;
+  onEntryDateChange: (date: Date) => void;
 };
 
-export function DailyRecordForm({ onSubmit, mode, isSubmitting }: DailyRecordFormProps) {
+export function DailyRecordForm({ onSubmit, mode, isSubmitting, entryDate, onEntryDateChange }: DailyRecordFormProps) {
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema.refine(data => mode !== 'spent' || !!data.category, {
@@ -62,6 +69,42 @@ export function DailyRecordForm({ onSubmit, mode, isSubmitting }: DailyRecordFor
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+                <FormItem>
+                    <FormLabel>Fecha del Movimiento</FormLabel>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <FormControl>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !entryDate && "text-muted-foreground"
+                                )}
+                            >
+                                {entryDate ? (
+                                format(entryDate, "PPP", { locale: es })
+                                ) : (
+                                <span>Selecciona una fecha</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                            </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                            mode="single"
+                            selected={entryDate}
+                            onSelect={(date) => date && onEntryDateChange(date)}
+                            disabled={(date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                </FormItem>
+
                 <FormField
                     control={form.control}
                     name="amount"

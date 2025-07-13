@@ -14,8 +14,9 @@ import {
   Loader2,
   FileText,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { es } from 'date-fns/locale';
+import { DateRange } from "react-day-picker";
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DailyRecordForm } from "./daily-record-form";
 import { getPlazas } from "@/services/plaza-service";
-import { getDailyRecord, addDailyRecordEntry } from "@/services/daily-record-service";
+import { addDailyRecordEntry, getDailyRecordsForRange } from "@/services/daily-record-service";
 
 
 const StatCard = ({ title, value, icon: Icon, variant = 'default' }: { title: string; value: number; icon: React.ElementType; variant?: 'default' | 'destructive' | 'success' }) => {
@@ -88,7 +89,10 @@ const StatCard = ({ title, value, icon: Icon, variant = 'default' }: { title: st
 export function DailyControlDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [date, setDate] = React.useState<Date | undefined>(new Date());
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date(),
+  });
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
   const [selectedPlaza, setSelectedPlaza] = React.useState<string>('');
   const [entries, setEntries] = React.useState<DailyRecordEntry[]>([]);
@@ -96,6 +100,7 @@ export function DailyControlDashboard() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isFormOpen, setFormOpen] = React.useState(false);
   const [formMode, setFormMode] = React.useState<DailyRecordType>('collected');
+  const [entryDate, setEntryDate] = React.useState(new Date());
 
   const fetchPlazasForUser = React.useCallback(async () => {
     if (!user) return;
@@ -116,15 +121,17 @@ export function DailyControlDashboard() {
   }, [fetchPlazasForUser]);
 
   const fetchDailyData = React.useCallback(async () => {
-    if (!selectedPlaza || !date) {
+    if (!selectedPlaza || !date?.from) {
         setEntries([]);
         setIsLoading(false);
         return;
     };
     setIsLoading(true);
     try {
-        const record = await getDailyRecord(selectedPlaza, date);
-        setEntries(record?.entries || []);
+        const records = await getDailyRecordsForRange(selectedPlaza, date.from, date.to);
+        const allEntries = records.flatMap(r => r.entries || []);
+        allEntries.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        setEntries(allEntries);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los registros del día.' });
         setEntries([]);
@@ -142,18 +149,19 @@ export function DailyControlDashboard() {
         toast({ variant: 'destructive', title: 'Selecciona una plaza', description: 'Debes seleccionar una plaza para poder registrar movimientos.' });
         return;
     }
+    setEntryDate(date?.from || new Date()); // Default to the start of the range or today
     setFormMode(mode);
     setFormOpen(true);
   };
 
   const handleSubmitEntry = async (data: Omit<DailyRecordEntry, 'id' | 'plazaId' | 'date'>) => {
-    if (!selectedPlaza || !date || !user?.prefix) {
+    if (!selectedPlaza || !entryDate || !user?.prefix) {
         toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para registrar el movimiento (plaza, fecha o prefijo).' });
         return;
     }
     setIsSubmitting(true);
     try {
-        await addDailyRecordEntry(selectedPlaza, user.prefix, date, data);
+        await addDailyRecordEntry(selectedPlaza, user.prefix, entryDate, data);
         toast({ title: 'Éxito', description: 'Movimiento registrado correctamente.' });
         setFormOpen(false);
         fetchDailyData(); // Refresh data for the day
@@ -165,21 +173,26 @@ export function DailyControlDashboard() {
   }
   
   const exportToPDF = () => {
-    if (!plazaName || !date || entries.length === 0) {
-      toast({ variant: "destructive", title: "No hay datos para exportar", description: "Selecciona un día con movimientos para generar el PDF." });
+    if (!plazaName || !date?.from || entries.length === 0) {
+      toast({ variant: "destructive", title: "No hay datos para exportar", description: "Selecciona un rango de fechas con movimientos para generar el PDF." });
       return;
     }
 
     const doc = new jsPDF();
-    const formattedDate = format(date, "PPP", { locale: es });
+    const dateTo = date.to || date.from;
+    const formattedDateFrom = format(date.from, "PPP", { locale: es });
+    const formattedDateTo = format(dateTo, "PPP", { locale: es });
+    const dateHeader = date.to ? `Del ${formattedDateFrom} al ${formattedDateTo}` : formattedDateFrom;
+    
     doc.text(`Movimientos de la Plaza: ${plazaName}`, 14, 16);
-    doc.text(`Fecha: ${formattedDate}`, 14, 22);
+    doc.text(`Periodo: ${dateHeader}`, 14, 22);
 
     autoTable(doc, {
-      head: [['Tipo', 'Descripción', 'Categoría', 'Monto']],
+      head: [['Fecha', 'Tipo', 'Descripción', 'Categoría', 'Monto']],
       body: entries.map(e => {
         const config = typeConfig[e.type];
         return [
+          format(new Date(e.date), 'dd/MM/yyyy'),
           config.label,
           e.description,
           e.category?.replace(/_/g, ' ') || 'N/A',
@@ -189,12 +202,12 @@ export function DailyControlDashboard() {
       startY: 30,
       headStyles: { fillColor: [41, 128, 185] },
       styles: { halign: 'left' },
-      columnStyles: { 3: { halign: 'right' } }
+      columnStyles: { 4: { halign: 'right' } }
     });
     
     const totalsY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(10);
-    doc.text('Totales del día:', 14, totalsY);
+    doc.text('Totales del periodo:', 14, totalsY);
     autoTable(doc, {
       body: [
         ['Total Cobrado', `$${totals.collected.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
@@ -206,7 +219,7 @@ export function DailyControlDashboard() {
       columnStyles: { 1: { halign: 'right' } }
     });
 
-    doc.save(`control_diario_${plazaName.replace(/\s/g, '_')}_${format(date, 'yyyy-MM-dd')}.pdf`);
+    doc.save(`control_diario_${plazaName.replace(/\s/g, '_')}_${format(date.from, 'yyyy-MM-dd')}.pdf`);
   };
 
 
@@ -226,6 +239,8 @@ export function DailyControlDashboard() {
   }
   
   const plazaName = plazas.find(p => p.id === selectedPlaza)?.name || 'Desconocida';
+  const entryDateLabel = entryDate ? format(entryDate, "PPP", { locale: es }) : 'la fecha seleccionada';
+
 
   return (
     <div className="space-y-6">
@@ -252,20 +267,33 @@ export function DailyControlDashboard() {
                 <Button
                 variant={"outline"}
                 className={cn(
-                    "w-full sm:w-[240px] justify-start text-left font-normal",
+                    "w-full sm:w-auto justify-start text-left font-normal",
                     !date && "text-muted-foreground"
                 )}
                 >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
+                {date?.from ? (
+                    date.to ? (
+                    <>
+                        {format(date.from, "LLL dd, y", { locale: es })} -{" "}
+                        {format(date.to, "LLL dd, y", { locale: es })}
+                    </>
+                    ) : (
+                    format(date.from, "LLL dd, y", { locale: es })
+                    )
+                ) : (
+                    <span>Selecciona un rango</span>
+                )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
+            <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
-                mode="single"
+                initialFocus
+                mode="range"
+                defaultMonth={date?.from}
                 selected={date}
                 onSelect={setDate}
-                initialFocus
+                numberOfMonths={2}
                 locale={es}
                 />
             </PopoverContent>
@@ -283,8 +311,8 @@ export function DailyControlDashboard() {
         <CardHeader>
            <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
             <div>
-              <CardTitle>Movimientos del Día: {plazaName}</CardTitle>
-              <CardDescription>Resumen de todos los registros del día seleccionado. Hay {entries.length} movimiento(s).</CardDescription>
+              <CardTitle>Movimientos: {plazaName}</CardTitle>
+              <CardDescription>Resumen de todos los registros del periodo seleccionado. Hay {entries.length} movimiento(s).</CardDescription>
             </div>
             
             <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
@@ -307,6 +335,7 @@ export function DailyControlDashboard() {
           <Table>
             <TableHeader>
                 <TableRow>
+                    <TableHead>Fecha</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead>Categoría</TableHead>
@@ -316,7 +345,7 @@ export function DailyControlDashboard() {
             <TableBody>
                 {isLoading ? (
                     <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                           <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                         </TableCell>
                     </TableRow>
@@ -325,6 +354,7 @@ export function DailyControlDashboard() {
                         const config = typeConfig[entry.type];
                         return (
                             <TableRow key={entry.id}>
+                                <TableCell className="font-medium">{format(new Date(entry.date), "dd/MM/yyyy")}</TableCell>
                                 <TableCell>
                                     <div className={cn("flex items-center gap-2 font-medium", config.color)}>
                                         <config.icon className="h-4 w-4" />
@@ -341,8 +371,8 @@ export function DailyControlDashboard() {
                     })
                 ) : (
                     <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
-                          {selectedPlaza ? 'No hay registros para este día.' : 'Por favor, selecciona una plaza.'}
+                        <TableCell colSpan={5} className="h-24 text-center">
+                          {selectedPlaza ? 'No hay registros para este periodo.' : 'Por favor, selecciona una plaza.'}
                         </TableCell>
                     </TableRow>
                 )}
@@ -356,13 +386,15 @@ export function DailyControlDashboard() {
             <DialogHeader>
                 <DialogTitle>Registrar Movimiento en {plazaName}</DialogTitle>
                 <DialogDescription>
-                    Añade un nuevo registro de tipo '{typeConfig[formMode].label}' para el día {date ? format(date, "PPP", { locale: es }) : ''}.
+                    Añade un nuevo registro de tipo '{typeConfig[formMode].label}' para el día {entryDateLabel}.
                 </DialogDescription>
             </DialogHeader>
             <DailyRecordForm 
                 mode={formMode} 
                 onSubmit={handleSubmitEntry}
                 isSubmitting={isSubmitting}
+                entryDate={entryDate}
+                onEntryDateChange={setEntryDate}
             />
         </DialogContent>
       </Dialog>
