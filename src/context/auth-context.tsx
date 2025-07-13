@@ -4,17 +4,17 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { usePathname, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { getAdminByEmail } from '@/services/admin-service';
+import { getSuperAdminByUsername } from '@/services/super-admin-service';
 
 interface User {
   id: string;
   username: string;
-  email: string;
   isSuperAdmin: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, pass: string) => Promise<void>;
+  login: (emailOrUsername: string, pass: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -49,30 +49,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, loading, pathname, router]);
 
 
-  const login = async (email: string, pass: string) => {
-    // Super Admin login
-    if (email.toLowerCase() === 'cristobal' && pass === '0120') {
-      const userData: User = { id: 'superadmin01', username: 'Cristobal', email: 'cristobal', isSuperAdmin: true };
-      localStorage.setItem('appUser', JSON.stringify(userData));
-      setUser(userData);
-      router.push('/');
-      return;
+  const login = async (emailOrUsername: string, pass: string) => {
+    // Check for Super Admin first
+    const superAdmin = await getSuperAdminByUsername(emailOrUsername);
+    if (superAdmin && superAdmin.password === pass) {
+        const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true };
+        localStorage.setItem('appUser', JSON.stringify(userData));
+        setUser(userData);
+        router.push('/');
+        return;
     }
-
-    // Normal Admin login
-    const admin = await getAdminByEmail(email);
     
+    // Then check for normal Admin
+    const admin = await getAdminByEmail(emailOrUsername);
     if (admin && admin.password === pass && admin.status === "Activo") {
-       const userData: User = { id: admin.id, username: admin.name, email: admin.email, isSuperAdmin: false };
+       const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false };
        localStorage.setItem('appUser', JSON.stringify(userData));
        setUser(userData);
        router.push('/tools');
+       return;
     } else if (admin && admin.status === "Inactivo") {
         throw new Error('Este usuario se encuentra inactivo.');
     }
-    else {
-      throw new Error('Email o contraseña incorrectos.');
-    }
+    
+    throw new Error('Usuario/Email o contraseña incorrectos.');
   };
 
   const logout = () => {

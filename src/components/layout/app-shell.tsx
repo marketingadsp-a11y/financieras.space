@@ -9,6 +9,7 @@ import {
   LogOut,
   UserCog,
   Wrench,
+  Settings,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
   { href: "/tools", label: "Herramientas", icon: Wrench },
+  { href: "/settings", label: "Configuración", icon: Settings, superAdminOnly: true },
 ];
 
 function SidebarNavLinks() {

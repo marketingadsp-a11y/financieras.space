@@ -7,10 +7,8 @@ export type Admin = {
   password?: string;
 };
 
-// initialAdmins is no longer needed as data will come from Firestore
-// export const initialAdmins: Admin[] = [
-//   { id: "ADM001", name: "Ana López", email: "ana.lopez@example.com", role: "Administrador", status: "Activo" },
-//   { id: "ADM002", name: "Carlos Martínez", email: "carlos.martinez@example.com", role: "Administrador", status: "Activo" },
-//   { id: "ADM003", name: "María García", email: "maria.garcia@example.com", role: "Administrador", status: "Inactivo" },
-//   { id: "ADM004", name: "José Hernández", email: "jose.hernandez@example.com", role: "Administrador", status: "Activo" },
-// ];
+export type SuperAdmin = {
+  id: string;
+  username: string;
+  password?: string;
+};
