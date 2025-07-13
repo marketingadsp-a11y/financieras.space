@@ -114,8 +114,6 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
             customerId: customerId,
             amount: paymentAmount,
             date: Timestamp.now(),
-            previousBalance: previousDueAmount,
-            newBalance: newDueAmount,
         });
 
         // 2. Update customer's due amount and status

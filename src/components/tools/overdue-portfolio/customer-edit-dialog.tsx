@@ -161,12 +161,10 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
     doc.text(`Historial de Pagos - ${customer.name}`, 14, 16);
     doc.text(`Dirección: ${customer.address}`, 14, 22);
     autoTable(doc, {
-      head: [['Fecha', 'Monto', 'Saldo Anterior', 'Saldo Nuevo']],
+      head: [['Fecha', 'Monto']],
       body: payments.map(p => [
-        new Date(p.date).toLocaleDateString('es-MX'),
+        new Date(p.date).toLocaleString('es-MX'),
         `$${p.amount.toLocaleString('es-MX')}`,
-        `$${p.previousBalance.toLocaleString('es-MX')}`,
-        `$${p.newBalance.toLocaleString('es-MX')}`
       ]),
       startY: 30,
     });
@@ -265,17 +263,13 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                         <TableRow>
                             <TableHead>Fecha</TableHead>
                             <TableHead className="text-right">Monto</TableHead>
-                            <TableHead className="text-right">Saldo Anterior</TableHead>
-                            <TableHead className="text-right">Saldo Nuevo</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                         {payments.map((payment) => (
                             <TableRow key={payment.id}>
-                                <TableCell>{new Date(payment.date).toLocaleDateString('es-MX')}</TableCell>
+                                <TableCell>{new Date(payment.date).toLocaleString('es-MX')}</TableCell>
                                 <TableCell className="text-right font-medium text-green-600">${payment.amount.toLocaleString('es-MX')}</TableCell>
-                                <TableCell className="text-right">${payment.previousBalance.toLocaleString('es-MX')}</TableCell>
-                                <TableCell className="text-right font-bold">${payment.newBalance.toLocaleString('es-MX')}</TableCell>
                             </TableRow>
                         ))}
                         </TableBody>

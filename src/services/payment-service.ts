@@ -25,8 +25,6 @@ export async function getPaymentsByCustomer(customerId: string): Promise<Payment
             customerId: docData.customerId,
             amount: docData.amount,
             date: dateInMillis,
-            previousBalance: docData.previousBalance,
-            newBalance: docData.newBalance,
         } as Payment;
     });
 }
