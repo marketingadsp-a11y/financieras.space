@@ -56,7 +56,8 @@ const paymentSchema = z.object({
 
 export function CustomerDetailDialog({ customer, isOpen, onClose, onPaymentSuccess }: CustomerDetailDialogProps) {
   const [payments, setPayments] = React.useState<Payment[]>([]);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
+  const [isSubmittingPayment, setIsSubmittingPayment] = React.useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof paymentSchema>>({
@@ -66,36 +67,40 @@ export function CustomerDetailDialog({ customer, isOpen, onClose, onPaymentSucce
     },
   });
 
+  const fetchPayments = React.useCallback(async () => {
+    if (!customer?.id) return;
+    setIsLoadingHistory(true);
+    try {
+      const paymentHistory = await getPaymentsByCustomer(customer.id);
+      setPayments(paymentHistory);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el historial de pagos." });
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [customer?.id, toast]);
+
   React.useEffect(() => {
     if (isOpen) {
-      const fetchPayments = async () => {
-        setIsLoading(true);
-        try {
-          const paymentHistory = await getPaymentsByCustomer(customer.id);
-          setPayments(paymentHistory);
-        } catch (error) {
-          toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el historial de pagos." });
-        } finally {
-          setIsLoading(false);
-        }
-      };
       fetchPayments();
       form.reset();
     }
-  }, [isOpen, customer.id, toast, form]);
+  }, [isOpen, fetchPayments, form]);
 
   const handlePaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
-    setIsLoading(true);
+    setIsSubmittingPayment(true);
     try {
       await addPayment(customer.id, customer.plazaId, values.amount);
       toast({ title: "Éxito", description: "Abono registrado correctamente." });
-      onPaymentSuccess();
-      onClose(); // Close dialog on success
+      onPaymentSuccess(); // This refreshes the parent component's data
+      await fetchPayments(); // Re-fetch payments to update history
+      form.reset();
+      // Keep the dialog open, user might want to see history
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "No se pudo registrar el abono.";
       toast({ variant: "destructive", title: "Error", description: errorMessage });
     } finally {
-      setIsLoading(false);
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -150,8 +155,8 @@ export function CustomerDetailDialog({ customer, isOpen, onClose, onPaymentSucce
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={isLoading || isPaid} className="w-full">
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button type="submit" disabled={isSubmittingPayment || isPaid} className="w-full">
+                    {isSubmittingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isPaid ? 'Deuda Liquidada' : 'Registrar Abono'}
                   </Button>
                 </form>
@@ -161,7 +166,7 @@ export function CustomerDetailDialog({ customer, isOpen, onClose, onPaymentSucce
 
           <TabsContent value="history">
             <ScrollArea className="h-80 w-full p-1">
-              {isLoading ? (
+              {isLoadingHistory ? (
                   <div className="flex justify-center items-center h-full">
                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
