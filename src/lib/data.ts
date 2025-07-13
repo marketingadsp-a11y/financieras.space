@@ -1,5 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck } from "lucide-react";
 
 export type Admin = {
   id: string;
@@ -102,6 +102,13 @@ export const allTools: Tool[] = [
     description: "Administra el capital, asigna fondos a sucursales y lleva un control de los balances.",
     href: "/tools/income-expenses",
     icon: Landmark,
+  },
+  {
+    id: "daily-control",
+    name: "Control Diario",
+    description: "Registra y sigue el flujo financiero diario (cobrado, prestado, gastado) por plaza.",
+    href: "/tools/daily-control",
+    icon: BookCheck,
   }
 ];
 
@@ -118,4 +125,37 @@ export type CentralAccount = {
     currentBalance: number;
     assignedCapital: number;
     totalBranchBalance: number;
+};
+
+export type DailyRecordType = 'collected' | 'loaned' | 'spent';
+
+export type ExpenseCategory = 'gasolina' | 'comida' | 'papeleria' | 'otros';
+
+export const expenseCategories: { value: ExpenseCategory, label: string }[] = [
+  { value: 'gasolina', label: 'Gasolina' },
+  { value: 'comida', label: 'Comida' },
+  { value: 'papeleria', label: 'Papelería' },
+  { value: 'otros', label: 'Otros' },
+];
+
+
+export type DailyRecordEntry = {
+    id: string;
+    plazaId: string;
+    date: Date;
+    type: DailyRecordType;
+    amount: number;
+    description: string;
+    category?: ExpenseCategory; 
+};
+
+export type DailyRecord = {
+  id: string;
+  plazaId: string;
+  prefix: string;
+  date: Timestamp;
+  collected: number;
+  loaned: number;
+  spent: number;
+  entries: DailyRecordEntry[];
 };
