@@ -81,7 +81,7 @@ export async function addPayment(customerId: string, plazaId: string, paymentAmo
             customerId,
             plazaId,
             amount: paymentAmount,
-            date: Timestamp.now().toMillis(),
+            date: Timestamp.now(), // Use Firestore Timestamp object
             previousDueAmount,
             newDueAmount,
         });

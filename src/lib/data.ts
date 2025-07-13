@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export type Admin = {
   id: string;
   name: string;
@@ -33,14 +35,20 @@ export type Customer = {
   status: "Pendiente" | "Pagado" | "Atrasado";
 };
 
+// Type for client-side use, with date as a number (timestamp)
 export type Payment = {
   id: string;
   customerId: string;
   plazaId: string;
   amount: number;
-  date: number; // Storing as timestamp
+  date: number; 
   previousDueAmount: number;
   newDueAmount: number;
+}
+
+// Type for Firestore interaction, with date as a Timestamp object
+export type FirebasePayment = Omit<Payment, 'id' | 'date'> & {
+  date: Timestamp;
 }
 
 export type Tool = {
