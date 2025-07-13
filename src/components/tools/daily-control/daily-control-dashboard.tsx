@@ -15,6 +15,7 @@ import {
   Loader2,
   FileText,
   FileSpreadsheet,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
@@ -62,7 +63,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DailyRecordForm } from "./daily-record-form";
 import { getPlazas } from "@/services/plaza-service";
-import { addDailyRecordEntry, getDailyRecord } from "@/services/daily-record-service";
+import { addDailyRecordEntry, getDailyRecord, getAllDailyRecordsByPlaza } from "@/services/daily-record-service";
 
 
 const StatCard = ({ title, value, icon: Icon, variant = 'default' }: { title: string; value: number; icon: React.ElementType; variant?: 'default' | 'destructive' | 'success' }) => {
@@ -99,6 +100,7 @@ export function DailyControlDashboard() {
   const [isFormOpen, setFormOpen] = React.useState(false);
   const [formMode, setFormMode] = React.useState<DailyRecordType>('collected');
   const [entryDate, setEntryDate] = React.useState(new Date());
+  const [isExportingAll, setIsExportingAll] = React.useState(false);
 
   const fetchPlazasForUser = React.useCallback(async () => {
     if (!user) return;
@@ -248,6 +250,43 @@ export function DailyControlDashboard() {
     XLSX.writeFile(workbook, `control_diario_${plazaName.replace(/\s/g, '_')}_${format(date, 'yyyy-MM-dd')}.xlsx`);
   }
 
+  const handleExportAll = async () => {
+    if (!selectedPlaza) {
+      toast({ variant: "destructive", title: "Selecciona una plaza", description: "Debes seleccionar una plaza para exportar su historial." });
+      return;
+    }
+    setIsExportingAll(true);
+    try {
+      const allEntries = await getAllDailyRecordsByPlaza(selectedPlaza);
+      if (allEntries.length === 0) {
+        toast({ title: "Sin datos", description: "No hay movimientos registrados para esta plaza." });
+        return;
+      }
+      
+      allEntries.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      const dataToExport = allEntries.map(e => {
+          const config = typeConfig[e.type];
+          return {
+              Fecha: format(new Date(e.date), 'dd/MM/yyyy'),
+              Tipo: config.label,
+              Descripción: e.description,
+              Categoría: e.category?.replace(/_/g, ' ') || 'N/A',
+              Monto: e.amount
+          }
+      });
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Historial Completo");
+      XLSX.writeFile(workbook, `historial_completo_${plazaName.replace(/\s/g, '_')}.xlsx`);
+
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo exportar el historial." });
+    } finally {
+      setIsExportingAll(false);
+    }
+  }
+
 
   const totals = React.useMemo(() => {
     return entries.reduce((acc, entry) => {
@@ -333,6 +372,10 @@ export function DailyControlDashboard() {
             </div>
             
             <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                <Button variant="outline" size="sm" onClick={handleExportAll} disabled={isExportingAll || !selectedPlaza}>
+                    {isExportingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
+                    {isExportingAll ? 'Exportando...' : 'Exportar Todo (Excel)'}
+                </Button>
                 <Button variant="outline" size="sm" onClick={exportToExcel} disabled={entries.length === 0}>
                     <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
                 </Button>

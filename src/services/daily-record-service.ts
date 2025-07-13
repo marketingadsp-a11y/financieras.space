@@ -7,7 +7,11 @@ import {
     setDoc, 
     Timestamp, 
     runTransaction,
-    arrayUnion
+    arrayUnion,
+    collection,
+    query,
+    where,
+    getDocs
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { DailyRecord, DailyRecordEntry } from "@/lib/data";
@@ -93,4 +97,24 @@ export async function addDailyRecordEntry(
             transaction.update(recordDocRef, updateData);
         }
     });
+}
+
+export async function getAllDailyRecordsByPlaza(plazaId: string): Promise<DailyRecordEntry[]> {
+    const recordsRef = collection(db, "daily_records");
+    const q = query(recordsRef, where("plazaId", "==", plazaId));
+
+    const querySnapshot = await getDocs(q);
+    
+    let allEntries: DailyRecordEntry[] = [];
+
+    querySnapshot.forEach(doc => {
+        const record = doc.data() as DailyRecord;
+        const entriesFromRecord = (record.entries || []).map((e: any) => ({
+            ...e,
+            date: e.date.toDate() // Convert Timestamp to Date
+        }));
+        allEntries = allEntries.concat(entriesFromRecord);
+    });
+
+    return allEntries;
 }
