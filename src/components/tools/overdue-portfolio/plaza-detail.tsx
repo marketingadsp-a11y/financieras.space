@@ -102,6 +102,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [importText, setImportText] = React.useState('');
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [isParsing, setIsParsing] = React.useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
 
 
   const fetchPlazaAndCustomers = React.useCallback(async () => {
@@ -162,6 +163,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
       await deleteCustomersByPlaza(plazaId);
       toast({ title: "Éxito", description: "Todos los clientes de la plaza han sido eliminados." });
       await fetchPlazaAndCustomers();
+      setDeleteConfirmationText("");
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudieron eliminar los clientes." });
     }
@@ -252,6 +254,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const totalClients = customers.length;
   const recoveredClients = customers.filter(c => c.status === 'Pagado').length;
   const pendingDebt = customers.reduce((acc, c) => acc + c.dueAmount, 0);
+  const expectedConfirmationText = `${plaza.name} eliminar`;
 
   return (
     <div className="space-y-6">
@@ -373,14 +376,26 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                       </DropdownMenu>
                       <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás realmente seguro?</AlertDialogTitle>
+                            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Esta acción es irreversible. Se eliminarán permanentemente todos los clientes de la plaza '{plaza.name}'.
+                              Esta acción es irreversible y eliminará permanentemente a todos los <strong>{customers.length}</strong> clientes de la plaza <strong>'{plaza.name}'</strong>.
+                              Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong> a continuación.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
+                          <Input
+                            id="delete-confirm"
+                            value={deleteConfirmationText}
+                            onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                            placeholder={expectedConfirmationText}
+                            autoComplete="off"
+                            autoFocus
+                           />
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteAllCustomers} className="bg-destructive hover:bg-destructive/90">
+                            <AlertDialogCancel onClick={() => setDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={handleDeleteAllCustomers} 
+                              disabled={deleteConfirmationText !== expectedConfirmationText}
+                              className="bg-destructive hover:bg-destructive/90">
                               Sí, eliminar todo
                             </AlertDialogAction>
                           </AlertDialogFooter>
