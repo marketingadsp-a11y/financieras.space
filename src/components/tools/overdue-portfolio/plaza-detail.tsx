@@ -57,6 +57,7 @@ import { getPlazaById } from "@/services/plaza-service";
 import { getCustomersByPlaza, addCustomer, updateCustomer, deleteCustomer, addMultipleCustomers, deleteCustomersByPlaza } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
+import { CustomerDetailDialog } from "@/components/tools/overdue-portfolio/customer-detail-dialog";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -103,6 +104,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [isParsing, setIsParsing] = React.useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
+  const [selectedCustomerForPayment, setSelectedCustomerForPayment] = React.useState<Customer | null>(null);
 
 
   const fetchPlazaAndCustomers = React.useCallback(async () => {
@@ -158,6 +160,10 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     }
   };
 
+  const handlePaymentClick = (customer: Customer) => {
+    setSelectedCustomerForPayment(customer);
+  }
+
   const handleDeleteAllCustomers = async () => {
     try {
       await deleteCustomersByPlaza(plazaId);
@@ -204,7 +210,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     doc.text(`Clientes de la Plaza: ${plaza?.name}`, 14, 16);
     autoTable(doc, {
       head: [['Nombre', 'Dirección', 'Teléfono', 'Aval', 'Préstamo', 'Adeudo']],
-      body: filteredCustomers.map(c => [
+      body: sortedCustomers.map(c => [
         c.name,
         c.address,
         c.phone,
@@ -218,7 +224,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   };
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(filteredCustomers.map(c => ({
+    const worksheet = XLSX.utils.json_to_sheet(sortedCustomers.map(c => ({
       Nombre: c.name,
       Dirección: c.address,
       Teléfono: c.phone,
@@ -233,10 +239,22 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   };
 
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.address.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const sortedCustomers = React.useMemo(() => {
+    const filtered = customers.filter(customer =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.address.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Separate paid from unpaid
+    const paid = filtered.filter(c => c.status === 'Pagado');
+    const unpaid = filtered.filter(c => c.status !== 'Pagado');
+
+    // Sort unpaid by name, then append paid sorted by name
+    return [
+        ...unpaid.sort((a, b) => a.name.localeCompare(b.name)),
+        ...paid.sort((a, b) => a.name.localeCompare(b.name))
+    ];
+  }, [customers, searchTerm]);
 
   if (isLoading) {
     return (
@@ -253,7 +271,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   
   const totalClients = customers.length;
   const recoveredClients = customers.filter(c => c.status === 'Pagado').length;
-  const pendingDebt = customers.reduce((acc, c) => acc + c.dueAmount, 0);
+  const pendingDebt = customers.reduce((acc, c) => c.dueAmount > 0 ? acc + c.dueAmount : acc, 0);
   const expectedConfirmationText = `${plaza.name} eliminar`;
 
   return (
@@ -406,10 +424,10 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
            </div>
         </CardHeader>
         <CardContent>
-          {filteredCustomers.length > 0 ? (
+          {sortedCustomers.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredCustomers.map(customer => (
-                <CustomerCard key={customer.id} customer={customer} onEdit={handleEditClick} />
+              {sortedCustomers.map(customer => (
+                <CustomerCard key={customer.id} customer={customer} onEdit={handleEditClick} onPayment={handlePaymentClick} />
               ))}
             </div>
           ) : (
@@ -420,6 +438,15 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
           )}
         </CardContent>
       </Card>
+
+      {selectedCustomerForPayment && (
+        <CustomerDetailDialog
+          customer={selectedCustomerForPayment}
+          isOpen={!!selectedCustomerForPayment}
+          onClose={() => setSelectedCustomerForPayment(null)}
+          onPaymentSuccess={fetchPlazaAndCustomers}
+        />
+      )}
     </div>
   );
 }

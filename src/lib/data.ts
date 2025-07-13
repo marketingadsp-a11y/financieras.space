@@ -10,7 +10,7 @@ export type Admin = {
 
 export type SuperAdmin = {
   id: string;
-  username: string;
+  username:string;
   password?: string;
 };
 
@@ -32,6 +32,16 @@ export type Customer = {
   dueAmount: number;
   status: "Pendiente" | "Pagado" | "Atrasado";
 };
+
+export type Payment = {
+  id: string;
+  customerId: string;
+  plazaId: string;
+  amount: number;
+  date: number; // Storing as timestamp
+  previousDueAmount: number;
+  newDueAmount: number;
+}
 
 export type Tool = {
   id: string;

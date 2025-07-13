@@ -4,15 +4,17 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Pencil, User, Phone } from "lucide-react";
+import { DollarSign, Pencil, User, Phone, History } from "lucide-react";
 import type { Customer } from "@/lib/data";
+import { cn } from "@/lib/utils";
 
 type CustomerCardProps = {
   customer: Customer;
   onEdit: (customer: Customer) => void;
+  onPayment: (customer: Customer) => void;
 };
 
-export function CustomerCard({ customer, onEdit }: CustomerCardProps) {
+export function CustomerCard({ customer, onEdit, onPayment }: CustomerCardProps) {
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
       case 'Pendiente':
@@ -24,8 +26,10 @@ export function CustomerCard({ customer, onEdit }: CustomerCardProps) {
     }
   };
 
+  const isPaid = customer.status === 'Pagado';
+
   return (
-    <Card className="flex flex-col">
+    <Card className={cn("flex flex-col", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
       <CardHeader>
         <div className="flex justify-between items-start">
           <CardTitle className="text-base font-bold">{customer.name}</CardTitle>
@@ -53,16 +57,22 @@ export function CustomerCard({ customer, onEdit }: CustomerCardProps) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Adeudo</p>
-            <p className="font-bold text-destructive">${customer.dueAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+            <p className={cn("font-bold", customer.dueAmount > 0 ? "text-destructive" : "")}>
+              ${customer.dueAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            </p>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex items-center pt-0">
-          <Button variant="outline" className="w-full mr-2" onClick={() => onEdit(customer)}>
+      <CardFooter className="flex items-center pt-0 space-x-2">
+          <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(customer)}>
               <Pencil className="mr-2 h-4 w-4"/> Editar
           </Button>
-          <Button className="w-full">
+          <Button size="sm" className="w-full" onClick={() => onPayment(customer)} disabled={isPaid}>
               <DollarSign className="mr-2 h-4 w-4"/> Abonar
+          </Button>
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => onPayment(customer)}>
+             <History className="h-4 w-4" />
+             <span className="sr-only">Ver historial</span>
           </Button>
       </CardFooter>
     </Card>

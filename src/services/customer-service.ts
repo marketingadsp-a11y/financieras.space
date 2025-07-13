@@ -1,11 +1,13 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer } from "@/lib/data";
 
 const customersCollectionRef = collection(db, "customers");
+const paymentsCollectionRef = collection(db, "payments");
+
 
 export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> {
     const q = query(customersCollectionRef, where("plazaId", "==", plazaId));
@@ -58,4 +60,40 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], pl
     });
 
     await batch.commit();
+}
+
+export async function addPayment(customerId: string, plazaId: string, paymentAmount: number): Promise<void> {
+    const customerRef = doc(db, "customers", customerId);
+    
+    await runTransaction(db, async (transaction) => {
+        const customerDoc = await transaction.get(customerRef);
+        if (!customerDoc.exists()) {
+            throw new Error("El cliente no existe.");
+        }
+
+        const customerData = customerDoc.data() as Customer;
+        const previousDueAmount = customerData.dueAmount;
+        const newDueAmount = previousDueAmount - paymentAmount;
+
+        const newPaymentRef = doc(paymentsCollectionRef);
+        
+        transaction.set(newPaymentRef, {
+            customerId,
+            plazaId,
+            amount: paymentAmount,
+            date: Timestamp.now().toMillis(),
+            previousDueAmount,
+            newDueAmount,
+        });
+
+        const updatedCustomerData: Partial<Customer> = {
+            dueAmount: newDueAmount,
+        };
+
+        if (newDueAmount <= 0) {
+            updatedCustomerData.status = 'Pagado';
+        }
+
+        transaction.update(customerRef, updatedCustomerData);
+    });
 }
