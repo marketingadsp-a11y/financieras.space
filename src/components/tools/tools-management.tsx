@@ -24,7 +24,7 @@ import { getAdmins, updateAdmin } from "@/services/admin-service";
 import type { Admin, Tool } from "@/lib/data";
 import { allTools } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wrench } from "lucide-react";
+import { Loader2, Wrench, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 
@@ -204,48 +204,50 @@ function SuperAdminToolsView() {
 
 function AdminToolsView() {
     const { user } = useAuth();
-
     const accessibleUserTools = allTools.filter(tool => user?.accessibleTools?.includes(tool.id));
     
     return (
-         <div className="space-y-6">
-             <Card>
-                <CardHeader>
-                <CardTitle>Herramientas Disponibles</CardTitle>
-                <CardDescription>
-                    Aquí encontrarás las herramientas a las que tienes acceso.
-                </CardDescription>
-                </CardHeader>
-            </Card>
+        <div className="space-y-8">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Bienvenido, {user?.username}</h1>
+                <p className="text-muted-foreground">Aquí están las herramientas disponibles para ti. ¡Comencemos!</p>
+            </div>
 
             {accessibleUserTools.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {accessibleUserTools.map((tool) => (
-                    <Card key={tool.id}>
-                         <CardHeader>
-                            <div className="flex items-start gap-4">
-                                <Wrench className="h-8 w-8 text-muted-foreground mt-1" />
-                                <div className="flex-1">
-                                    <CardTitle>{tool.name}</CardTitle>
-                                    <CardDescription>{tool.description}</CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardFooter>
-                            <Button asChild className="w-full">
-                               <Link href={tool.href}>Abrir Herramienta</Link>
-                            </Button>
-                        </CardFooter>
-                    </Card>
+                        <Link href={tool.href} key={tool.id} className="group">
+                            <Card className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-primary/50">
+                                <CardHeader>
+                                    <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                                        <Wrench className="h-6 w-6 text-primary" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="flex-grow">
+                                    <h3 className="text-lg font-semibold">{tool.name}</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
+                                </CardContent>
+                                <CardFooter>
+                                    <span className="text-sm font-medium text-primary flex items-center gap-2">
+                                        Abrir herramienta
+                                        <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                                    </span>
+                                </CardFooter>
+                            </Card>
+                        </Link>
                     ))}
                 </div>
             ) : (
                 <Card>
                     <CardContent className="pt-6">
-                        <p className="text-center text-muted-foreground">No tienes herramientas asignadas. Contacta a un super administrador.</p>
+                        <div className="text-center text-muted-foreground py-10">
+                            <Wrench className="mx-auto h-12 w-12 text-gray-400" />
+                            <h3 className="mt-2 text-lg font-medium">No tienes herramientas asignadas</h3>
+                            <p className="mt-1 text-sm">Contacta a un super administrador para que te de acceso a las herramientas que necesites.</p>
+                        </div>
                     </CardContent>
                 </Card>
             )}
         </div>
-    )
+    );
 }
