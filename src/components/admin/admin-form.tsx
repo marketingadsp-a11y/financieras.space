@@ -18,7 +18,7 @@ import type { Admin } from "@/lib/data";
 
 const formSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
-  email: z.string().email("El correo electrónico no es válido."),
+  username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
 });
@@ -35,12 +35,12 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(
           isEditing 
-          ? formSchema.partial().extend({ email: z.string().email().optional() }) 
+          ? formSchema.partial()
           : formSchema.required({ password: true })
         ),
         defaultValues: {
             name: admin?.name || "",
-            email: admin?.email || "",
+            username: admin?.username || "",
             password: "",
             status: admin?.status || "Activo",
         },
@@ -81,12 +81,12 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
                 />
                 <FormField
                     control={form.control}
-                    name="email"
+                    name="username"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>Usuario</FormLabel>
                             <FormControl>
-                                <Input placeholder="ejemplo@correo.com" {...field} disabled={isEditing} />
+                                <Input placeholder="nombre.usuario" {...field} disabled={isEditing} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

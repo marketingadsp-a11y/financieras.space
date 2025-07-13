@@ -60,7 +60,7 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Usuario</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>
@@ -73,7 +73,7 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
               filteredData.map((admin) => (
                 <TableRow key={admin.id}>
                   <TableCell className="font-medium">{admin.name}</TableCell>
-                  <TableCell>{admin.email}</TableCell>
+                  <TableCell>{admin.username}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{admin.role}</Badge>
                   </TableCell>

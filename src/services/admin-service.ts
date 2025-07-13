@@ -31,8 +31,8 @@ export async function deleteAdmin(id: string) {
     await deleteDoc(adminDoc);
 }
 
-export async function getAdminByEmail(email: string): Promise<Admin & {password: string} | null> {
-    const q = query(adminsCollectionRef, where("email", "==", email));
+export async function getAdminByUsername(username: string): Promise<Admin & {password: string} | null> {
+    const q = query(adminsCollectionRef, where("username", "==", username));
     const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) {
         return null;

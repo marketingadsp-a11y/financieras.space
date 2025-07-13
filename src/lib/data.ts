@@ -1,7 +1,7 @@
 export type Admin = {
   id: string;
   name: string;
-  email: string;
+  username: string;
   role: "Administrador";
   status: "Activo" | "Inactivo";
   password?: string;

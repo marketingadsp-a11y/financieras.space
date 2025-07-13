@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
-import { getAdminByEmail } from '@/services/admin-service';
+import { getAdminByUsername } from '@/services/admin-service';
 import { getSuperAdminByUsername } from '@/services/super-admin-service';
 
 interface User {
@@ -57,16 +57,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true };
           localStorage.setItem('appUser', JSON.stringify(userData));
           setUser(userData);
-          // Router push is handled by the useEffect
           return true;
       }
       
-      const admin = await getAdminByEmail(emailOrUsername);
+      const admin = await getAdminByUsername(emailOrUsername);
       if (admin && admin.password === pass && admin.status === "Activo") {
          const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, accessibleTools: admin.accessibleTools || [] };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
-         // Router push is handled by the useEffect
          return true;
       } else if (admin && admin.status === "Inactivo") {
           throw new Error('Este usuario se encuentra inactivo.');
