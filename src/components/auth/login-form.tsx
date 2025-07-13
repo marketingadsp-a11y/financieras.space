@@ -43,9 +43,10 @@ export function LoginForm() {
     setError(null);
     try {
       await login(values.email, values.password);
+      // On success, the AuthProvider will handle the redirect.
     } catch (e: any) {
       setError(e.message || "Ocurrió un error inesperado.");
-      form.reset();
+      // Do not reset form on error, so user can correct their input
     } finally {
       setIsLoading(false);
     }

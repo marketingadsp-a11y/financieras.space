@@ -15,7 +15,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (emailOrUsername: string, pass: string) => Promise<void>;
+  login: (emailOrUsername: string, pass: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
 }
@@ -41,53 +41,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const publicPaths = ['/login'];
     const pathIsPublic = publicPaths.includes(pathname);
-    const isToolsSubPath = pathname.startsWith('/tools/');
 
     if (!user && !pathIsPublic) {
       router.push('/login');
     } else if (user && pathIsPublic) {
        router.push(user.isSuperAdmin ? '/' : '/tools');
-    } else if (user && !user.isSuperAdmin && pathname === '/') {
-        // Redirect normal admin from root to tools page
-        router.push('/tools');
-    } else if (user && !user.isSuperAdmin && (pathname === '/settings' || pathname === '/')) {
-        router.push('/tools');
-    } else if (user && !user.isSuperAdmin && isToolsSubPath) {
-        const toolId = 'cartera-vencida';
-        const hasAccess = user.accessibleTools?.includes(toolId);
-        if(!hasAccess) {
-            router.push('/tools');
-        }
     }
-
-
   }, [user, loading, pathname, router]);
 
 
-  const login = async (emailOrUsername: string, pass: string) => {
-    // Check for Super Admin first
-    const superAdmin = await getSuperAdminByUsername(emailOrUsername);
-    if (superAdmin && superAdmin.password === pass) {
-        const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true };
-        localStorage.setItem('appUser', JSON.stringify(userData));
-        setUser(userData);
-        router.push('/');
-        return;
+  const login = async (emailOrUsername: string, pass: string): Promise<boolean> => {
+    try {
+      const superAdmin = await getSuperAdminByUsername(emailOrUsername);
+      if (superAdmin && superAdmin.password === pass) {
+          const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true };
+          localStorage.setItem('appUser', JSON.stringify(userData));
+          setUser(userData);
+          router.push('/');
+          return true;
+      }
+      
+      const admin = await getAdminByEmail(emailOrUsername);
+      if (admin && admin.password === pass && admin.status === "Activo") {
+         const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, accessibleTools: admin.accessibleTools || [] };
+         localStorage.setItem('appUser', JSON.stringify(userData));
+         setUser(userData);
+         router.push('/tools');
+         return true;
+      } else if (admin && admin.status === "Inactivo") {
+          throw new Error('Este usuario se encuentra inactivo.');
+      }
+      
+      throw new Error('Usuario/Email o contraseña incorrectos.');
+    } catch (error) {
+        console.error(error);
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error('Ocurrió un error inesperado durante el inicio de sesión.');
     }
-    
-    // Then check for normal Admin
-    const admin = await getAdminByEmail(emailOrUsername);
-    if (admin && admin.password === pass && admin.status === "Activo") {
-       const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, accessibleTools: admin.accessibleTools || [] };
-       localStorage.setItem('appUser', JSON.stringify(userData));
-       setUser(userData);
-       router.push('/tools'); // This was the important part
-       return;
-    } else if (admin && admin.status === "Inactivo") {
-        throw new Error('Este usuario se encuentra inactivo.');
-    }
-    
-    throw new Error('Usuario/Email o contraseña incorrectos.');
   };
 
   const logout = () => {
