@@ -1,26 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight } from "lucide-react";
+import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
+import { getPlazas } from "@/services/plaza-service";
+import { useToast } from "@/hooks/use-toast";
 
-// --- DATOS DE EJEMPLO ---
-const plazasData: Plaza[] = [
-    { id: "1", name: "AUTLAN PREPA", pendingDebt: 105106.00, recoveryRate: 5.9 },
-    { id: "2", name: "CREDIMEX", pendingDebt: 79250.00, recoveryRate: 0.0 },
-    { id: "3", name: "EDUARDO UNION", pendingDebt: 18435.00, recoveryRate: 0.0 },
-    { id: "4", name: "GRULLO OFICINA", pendingDebt: 496457.00, recoveryRate: 4.7 },
-    { id: "5", name: "OFICINA CENTRO", pendingDebt: 1292794.00, recoveryRate: 6.0 },
-    { id: "6", name: "RUTA AARON", pendingDebt: 34880.00, recoveryRate: 30.3 },
-    { id: "7", name: "TECOLOTLAN", pendingDebt: 55925.00, recoveryRate: 0.0 },
-    { id: "8", name: "UNION DE TULA", pendingDebt: 77324.00, recoveryRate: 11.8 },
-];
 
+// --- DATOS DE EJEMPLO PARA RESUMEN ---
 const summaryData = {
     totalDebt: 2160171.00,
     totalClients: 324,
@@ -77,12 +69,33 @@ const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
 export function ToolsPage() {
     const { user } = useAuth();
     const router = useRouter();
+    const { toast } = useToast();
+    const [plazas, setPlazas] = React.useState<Plaza[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+
 
     React.useEffect(() => {
         if (user && !user.isSuperAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
             router.push('/');
+        } else {
+             const fetchPlazas = async () => {
+                try {
+                    setIsLoading(true);
+                    const plazasFromDb = await getPlazas();
+                    setPlazas(plazasFromDb);
+                } catch (error) {
+                    toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "No se pudieron cargar las plazas.",
+                    });
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchPlazas();
         }
-    }, [user, router]);
+    }, [user, router, toast]);
 
     if (user && !user.isSuperAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
         return (
@@ -121,11 +134,24 @@ export function ToolsPage() {
             <div className="space-y-2">
                 <h2 className="text-2xl font-bold tracking-tight">Cartera por Plaza</h2>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {plazasData.map((plaza) => (
-                    <PlazaCard key={plaza.id} plaza={plaza} />
-                ))}
-            </div>
+            {isLoading ? (
+                <div className="flex justify-center items-center h-40">
+                    <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+                    <span>Cargando plazas...</span>
+                </div>
+            ) : plazas.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {plazas.map((plaza) => (
+                        <PlazaCard key={plaza.id} plaza={plaza} />
+                    ))}
+                </div>
+            ) : (
+                 <Card>
+                    <CardContent className="pt-6">
+                        <p className="text-center text-muted-foreground">No hay plazas registradas. Comienza agregando una en la sección de "Gestionar Plazas".</p>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
