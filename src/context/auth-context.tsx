@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true };
           localStorage.setItem('appUser', JSON.stringify(userData));
           setUser(userData);
-          router.push('/');
+          // Router push is handled by the useEffect
           return true;
       }
       
@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
          const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, accessibleTools: admin.accessibleTools || [] };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
-         router.push('/tools');
+         // Router push is handled by the useEffect
          return true;
       } else if (admin && admin.status === "Inactivo") {
           throw new Error('Este usuario se encuentra inactivo.');
