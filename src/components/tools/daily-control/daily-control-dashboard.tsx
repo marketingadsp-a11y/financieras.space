@@ -4,6 +4,7 @@
 import * as React from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import {
   Calendar as CalendarIcon,
   PlusCircle,
@@ -13,6 +14,7 @@ import {
   DollarSign,
   Loader2,
   FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
@@ -215,6 +217,37 @@ export function DailyControlDashboard() {
     doc.save(`control_diario_${plazaName.replace(/\s/g, '_')}_${format(date, 'yyyy-MM-dd')}.pdf`);
   };
 
+  const exportToExcel = () => {
+    if (!plazaName || !date || entries.length === 0) {
+      toast({ variant: "destructive", title: "No hay datos para exportar", description: "Selecciona una fecha con movimientos para generar el Excel." });
+      return;
+    }
+
+    const dataToExport = entries.map(e => {
+        const config = typeConfig[e.type];
+        return {
+            Fecha: format(new Date(e.date), 'dd/MM/yyyy'),
+            Tipo: config.label,
+            Descripción: e.description,
+            Categoría: e.category?.replace(/_/g, ' ') || 'N/A',
+            Monto: e.amount
+        }
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Movimientos");
+
+    // Add totals
+    XLSX.utils.sheet_add_aoa(worksheet, [[]], {origin: -1}); // Add a blank row
+    XLSX.utils.sheet_add_aoa(worksheet, [['Totales del Día']], {origin: -1});
+    XLSX.utils.sheet_add_aoa(worksheet, [['Total Cobrado', totals.collected]], {origin: -1});
+    XLSX.utils.sheet_add_aoa(worksheet, [['Total Prestado', totals.loaned]], {origin: -1});
+    XLSX.utils.sheet_add_aoa(worksheet, [['Total Gastado', totals.spent]], {origin: -1});
+
+    XLSX.writeFile(workbook, `control_diario_${plazaName.replace(/\s/g, '_')}_${format(date, 'yyyy-MM-dd')}.xlsx`);
+  }
+
 
   const totals = React.useMemo(() => {
     return entries.reduce((acc, entry) => {
@@ -300,6 +333,9 @@ export function DailyControlDashboard() {
             </div>
             
             <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                <Button variant="outline" size="sm" onClick={exportToExcel} disabled={entries.length === 0}>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
+                </Button>
                 <Button variant="outline" size="sm" onClick={exportToPDF} disabled={entries.length === 0}>
                     <FileText className="mr-2 h-4 w-4" /> Exportar PDF
                 </Button>
