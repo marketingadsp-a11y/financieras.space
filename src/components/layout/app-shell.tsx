@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -5,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Users,
-  PanelLeft,
   LogOut,
   UserCog,
   Wrench,
@@ -13,12 +13,6 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { useAuth } from "@/context/auth-context";
 import {
   DropdownMenu,
@@ -29,6 +23,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { allTools, type Tool } from "@/lib/data";
+
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarTrigger
+} from "@/components/ui/sidebar"
+
 
 type NavItem = {
   href: string;
@@ -37,109 +49,79 @@ type NavItem = {
   superAdminOnly?: boolean;
 };
 
-const navItems: NavItem[] = [
+const superAdminNavItems: NavItem[] = [
   { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
-  { href: "/tools", label: "Herramientas", icon: Wrench },
+  { href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: true },
   { href: "/settings", label: "Configuración", icon: Settings, superAdminOnly: true },
 ];
 
-function SidebarNavLinks() {
+function NavLinks() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const availableNavItems = navItems.filter(item => {
-    if (item.superAdminOnly) {
-      return user?.isSuperAdmin;
+  const getNavItems = () => {
+    if (user?.isSuperAdmin) {
+      return superAdminNavItems;
     }
-    return true;
-  });
+    // For regular admins, show their accessible tools
+    return allTools
+      .filter(tool => user?.accessibleTools?.includes(tool.id))
+      .map(tool => ({
+        href: tool.href,
+        label: tool.name,
+        icon: Wrench, // Using a generic icon for all tools
+        superAdminOnly: false,
+      }));
+  }
+
+  const availableNavItems = getNavItems();
 
   return (
     <>
       {availableNavItems.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-            pathname === item.href && "bg-muted text-primary"
-          )}
-        >
-          <item.icon className="h-4 w-4" />
-          {item.label}
-        </Link>
+         <SidebarMenuItem key={item.href}>
+          <Link href={item.href} legacyBehavior passHref>
+             <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                <item.icon />
+                <span>{item.label}</span>
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
       ))}
     </>
   );
 }
 
-function SidebarNav() {
-  return (
-    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-      <SidebarNavLinks />
-    </nav>
-  );
-}
-
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const { user, logout } = useAuth();
-  
-  const currentPage = navItems.find(item => item.href === pathname) || { label: 'Panel' };
 
   if (!user) {
-    // For login page, don't render the shell
     return <>{children}</>
   }
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <aside className="hidden border-r bg-muted/40 md:block">
-        <div className="flex h-full max-h-screen flex-col gap-2">
-          <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-              <UserCog className="h-6 w-6 text-primary" />
-              <span className="">{user.isSuperAdmin ? 'Super Admin' : 'Admin'}</span>
-            </Link>
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <div className="flex items-center gap-2 p-2">
+            <UserCog className="h-6 w-6 text-primary" />
+            <span className="font-semibold group-data-[collapsible=icon]:hidden">
+              {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
+            </span>
           </div>
-          <div className="flex-1 mt-4">
-            <SidebarNav />
-          </div>
-        </div>
-      </aside>
-      <div className="flex flex-col">
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
+            <NavLinks />
+          </SidebarMenu>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-           <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="shrink-0 md:hidden"
-              >
-                <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Alternar menú de navegación</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col p-0">
-               <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                <Link
-                  href="/"
-                  className="flex items-center gap-2 font-semibold"
-                >
-                  <UserCog className="h-6 w-6 text-primary" />
-                  <span className="">{user.isSuperAdmin ? 'Super Admin' : 'Admin'}</span>
-                </Link>
-              </div>
-              <nav className="grid gap-2 text-lg font-medium mt-4 px-2">
-                <SidebarNavLinks />
-              </nav>
-            </SheetContent>
-          </Sheet>
-           <div className="w-full flex-1">
-             <h1 className="font-semibold text-lg">{currentPage.label}</h1>
-          </div>
-          <DropdownMenu>
+          <SidebarTrigger />
+          <div className="flex-1" />
+           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
                 <Avatar>
@@ -159,9 +141,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </DropdownMenu>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          {children}
+            {children}
         </main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

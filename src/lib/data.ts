@@ -37,3 +37,12 @@ export type Tool = {
   description: string;
   href: string;
 };
+
+export const allTools: Tool[] = [
+  {
+    id: "cartera-vencida",
+    name: "Cartera Vencida",
+    description: "Gestión de clientes con cartera vencida, registro de plazas y control de deuda.",
+    href: "/tools/overdue-portfolio",
+  },
+];

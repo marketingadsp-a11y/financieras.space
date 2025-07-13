@@ -22,19 +22,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { getAdmins, updateAdmin } from "@/services/admin-service";
 import type { Admin, Tool } from "@/lib/data";
+import { allTools } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 
-const availableTools: Tool[] = [
-  {
-    id: "cartera-vencida",
-    name: "Cartera Vencida",
-    description: "Gestión de clientes con cartera vencida, registro de plazas y control de deuda.",
-    href: "/tools/overdue-portfolio",
-  },
-];
 
 export function ToolsManagement() {
   const { user } = useAuth();
@@ -148,7 +141,7 @@ function SuperAdminToolsView() {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {availableTools.map((tool) => (
+        {allTools.map((tool) => (
           <Card key={tool.id}>
             <CardHeader>
                 <div className="flex items-start gap-4">
@@ -191,7 +184,7 @@ function SuperAdminToolsView() {
                   />
                   <Label htmlFor={`admin-${admin.id}`} className="flex-1 cursor-pointer">
                     <span className="font-medium">{admin.name}</span>
-                    <p className="text-sm text-muted-foreground">{admin.email}</p>
+                    <p className="text-sm text-muted-foreground">{admin.username}</p>
                   </Label>
                 </div>
               ))}
@@ -212,7 +205,7 @@ function SuperAdminToolsView() {
 function AdminToolsView() {
     const { user } = useAuth();
 
-    const accessibleUserTools = availableTools.filter(tool => user?.accessibleTools?.includes(tool.id));
+    const accessibleUserTools = allTools.filter(tool => user?.accessibleTools?.includes(tool.id));
     
     return (
          <div className="space-y-6">
