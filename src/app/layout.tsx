@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { AppShell } from "@/components/layout/app-shell";
+import { AuthProvider } from "@/context/auth-context";
 
 export const metadata: Metadata = {
-  title: "Soluciones Financieras",
-  description: "Sistema para controlar financieras y sus carteras vencidas.",
+  title: "Panel de Super Administrador",
+  description: "Gestión de administradores y herramientas.",
 };
 
 export default function RootLayout({
@@ -28,7 +28,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AppShell>{children}</AppShell>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

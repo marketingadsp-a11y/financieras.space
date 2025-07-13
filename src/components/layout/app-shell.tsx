@@ -4,12 +4,11 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  GitBranch,
   LayoutDashboard,
-  ShieldAlert,
   Users,
-  DollarSign,
   PanelLeft,
+  LogOut,
+  UserCog
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -19,6 +18,16 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useAuth } from "@/context/auth-context";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type NavItem = {
   href: string;
@@ -27,14 +36,8 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Panel de Control", icon: LayoutDashboard },
-  { href: "/customers", label: "Clientes", icon: Users },
-  {
-    href: "/risk-assessment",
-    label: "Evaluación de Riesgo",
-    icon: ShieldAlert,
-  },
-  { href: "/workflows", label: "Flujos de Trabajo", icon: GitBranch },
+  { href: "/", label: "Administradores", icon: Users },
+  // Future nav items can be added here
 ];
 
 function SidebarNav() {
@@ -61,7 +64,12 @@ function SidebarNav() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const currentPage = navItems.find(item => item.href === pathname) || { label: 'Panel de Control' };
+  const { user, logout } = useAuth();
+  const currentPage = navItems.find(item => item.href === pathname) || { label: 'Panel' };
+
+  if (!user) {
+    return <>{children}</>
+  }
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -69,8 +77,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
             <Link href="/" className="flex items-center gap-2 font-semibold">
-              <DollarSign className="h-6 w-6 text-primary" />
-              <span className="">Soluciones Financieras</span>
+              <UserCog className="h-6 w-6 text-primary" />
+              <span className="">Super Admin</span>
             </Link>
           </div>
           <div className="flex-1 mt-4">
@@ -97,8 +105,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href="/"
                   className="flex items-center gap-2 font-semibold"
                 >
-                  <DollarSign className="h-6 w-6 text-primary" />
-                  <span className="">Soluciones Financieras</span>
+                  <UserCog className="h-6 w-6 text-primary" />
+                  <span className="">Super Admin</span>
                 </Link>
               </div>
               <div className="mt-4">
@@ -109,6 +117,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
            <div className="w-full flex-1">
              <h1 className="font-semibold text-lg">{currentPage.label}</h1>
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="icon" className="rounded-full">
+                <Avatar>
+                  <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <span className="sr-only">Toggle user menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Cerrar Sesión</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           {children}
