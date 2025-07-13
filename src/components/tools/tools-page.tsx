@@ -11,17 +11,8 @@ import type { Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { getPlazas } from "@/services/plaza-service";
+import { getCustomersByPlaza } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
-
-
-// --- DATOS DE EJEMPLO PARA RESUMEN ---
-const summaryData = {
-    totalDebt: 2160171.00,
-    totalClients: 324,
-    recoveredClients: 24,
-    recoveryRate: 7.4,
-};
-// --- FIN DE DATOS DE EJEMPLO ---
 
 
 const StatCard = ({ title, value, icon: Icon, isCurrency = false }) => (
@@ -37,6 +28,20 @@ const StatCard = ({ title, value, icon: Icon, isCurrency = false }) => (
         </CardContent>
     </Card>
 );
+
+const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }) => (
+     <Card className="bg-destructive/90 text-destructive-foreground">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-destructive-foreground/70" />
+        </CardHeader>
+        <CardContent>
+            <div className="text-3xl font-bold">
+                {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+            </div>
+        </CardContent>
+    </Card>
+)
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
     <Card>
@@ -75,6 +80,7 @@ export function ToolsPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
+    const [summary, setSummary] = React.useState({ totalDebt: 0, totalClients: 0, recoveredClients: 0, recoveryRate: 0 });
     const [isLoading, setIsLoading] = React.useState(true);
 
 
@@ -82,22 +88,46 @@ export function ToolsPage() {
         if (user && !user.isSuperAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
             router.push('/');
         } else {
-             const fetchPlazas = async () => {
+             const fetchData = async () => {
                 try {
                     setIsLoading(true);
                     const plazasFromDb = await getPlazas();
                     setPlazas(plazasFromDb);
+
+                    let totalDebt = 0;
+                    let totalLoan = 0;
+                    let totalClients = 0;
+
+                    for(const plaza of plazasFromDb) {
+                        const customers = await getCustomersByPlaza(plaza.id);
+                        const plazaTotalLoan = customers.reduce((acc, c) => acc + c.loanAmount, 0);
+                        totalDebt += plaza.pendingDebt;
+                        totalLoan += plazaTotalLoan;
+                        totalClients += customers.length;
+                    }
+
+                    const totalPaid = totalLoan - totalDebt;
+                    const recoveryRate = totalLoan > 0 ? (totalPaid / totalLoan) * 100 : 0;
+                    const recoveredClients = plazasFromDb.length > 0 ? Math.round(totalClients * (recoveryRate / 100)) : 0; // Simple estimation
+
+                    setSummary({
+                        totalDebt,
+                        totalClients,
+                        recoveredClients,
+                        recoveryRate
+                    });
+
                 } catch (error) {
                     toast({
                         variant: "destructive",
                         title: "Error",
-                        description: "No se pudieron cargar las plazas.",
+                        description: "No se pudieron cargar los datos del resumen.",
                     });
                 } finally {
                     setIsLoading(false);
                 }
             };
-            fetchPlazas();
+            fetchData();
         }
     }, [user, router, toast]);
 
@@ -118,20 +148,10 @@ export function ToolsPage() {
 
             {/* --- SECCIÓN DE RESUMEN GENERAL --- */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="bg-destructive/90 text-destructive-foreground">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Deuda Total</CardTitle>
-                        <DollarSign className="h-4 w-4 text-destructive-foreground/70" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold">
-                            ${summaryData.totalDebt.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                    </CardContent>
-                </Card>
-                <StatCard title="Clientes Totales" value={summaryData.totalClients} icon={Users} />
-                <StatCard title="Clientes Recuperados" value={summaryData.recoveredClients} icon={UserCheck} />
-                <StatCard title="Tasa de Recuperación" value={`${summaryData.recoveryRate}%`} icon={Percent} />
+                <DestructiveStatCard title="Deuda Total" value={summary.totalDebt} icon={DollarSign} isCurrency />
+                <StatCard title="Clientes Totales" value={summary.totalClients} icon={Users} />
+                <StatCard title="Clientes Recuperados" value={summary.recoveredClients} icon={UserCheck} />
+                <StatCard title="Tasa de Recuperación" value={`${summary.recoveryRate.toFixed(1)}%`} icon={Percent} />
             </div>
 
             {/* --- SECCIÓN DE CARTERA POR PLAZA --- */}

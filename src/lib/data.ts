@@ -32,6 +32,30 @@ export type Plaza = {
   recoveryRate: number;
 };
 
+export const PERMISSIONS = {
+  CAN_REGISTER: 'Registrar Clientes',
+  CAN_IMPORT: 'Importar Clientes',
+  CAN_EXPORT: 'Exportar Datos',
+  CAN_DELETE_ALL: 'Eliminar Todos los Clientes',
+} as const;
+
+export type Permission = keyof typeof PERMISSIONS;
+
+export type PlazaAccess = {
+  plazaId: string;
+  plazaName: string;
+  permissions: Permission[];
+}
+
+export type PlazaUser = {
+  id: string;
+  name: string;
+  username: string;
+  password?: string;
+  status: 'Activo' | 'Inactivo';
+  plazaAccess: PlazaAccess[];
+};
+
 export type Customer = {
   id: string;
   plazaId: string;
@@ -46,6 +70,16 @@ export type Customer = {
   dueAmount: number; // Adeudo actual
   status: "Pendiente" | "Pagado" | "Atrasado";
 };
+
+export type Payment = {
+  id: string;
+  customerId: string;
+  amount: number;
+  date: number; // Using number (timestamp) to simplify date handling
+  previousDueAmount: number;
+  newDueAmount: number;
+};
+
 
 export type Tool = {
   id: string;

@@ -1,21 +1,39 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Plaza } from "@/lib/data";
+import type { Plaza, Customer } from "@/lib/data";
 
 const plazasCollectionRef = collection(db, "plazas");
+const customersCollectionRef = collection(db, "customers");
 
 export async function getPlazas(): Promise<Plaza[]> {
-    const data = await getDocs(plazasCollectionRef);
-    const plazas = data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Plaza[];
-    // Aquí podrías calcular pendingDebt y recoveryRate si fuera necesario
-    return plazas.map(p => ({
-        ...p,
-        pendingDebt: p.pendingDebt || 0,
-        recoveryRate: p.recoveryRate || 0
-    }));
+    const plazasSnapshot = await getDocs(plazasCollectionRef);
+    const customersSnapshot = await getDocs(customersCollectionRef);
+    const allCustomers = customersSnapshot.docs.map(doc => doc.data() as Customer);
+
+    const plazas = plazasSnapshot.docs.map(doc => {
+        const plazaData = doc.data() as Omit<Plaza, 'id'>;
+        const plazaId = doc.id;
+        
+        const customersInPlaza = allCustomers.filter(c => c.plazaId === plazaId);
+        
+        const pendingDebt = customersInPlaza.reduce((acc, customer) => acc + (customer.dueAmount || 0), 0);
+        
+        const totalLoanAmount = customersInPlaza.reduce((acc, customer) => acc + (customer.loanAmount || 0), 0);
+        const totalPaidAmount = totalLoanAmount - pendingDebt;
+        const recoveryRate = totalLoanAmount > 0 ? (totalPaidAmount / totalLoanAmount) * 100 : 0;
+
+        return {
+            id: plazaId,
+            name: plazaData.name,
+            pendingDebt,
+            recoveryRate,
+        };
+    });
+
+    return plazas;
 }
 
 export async function getPlazaById(id: string): Promise<Plaza | null> {
@@ -53,5 +71,14 @@ export async function updatePlaza(id: string, plaza: Partial<Omit<Plaza, 'id'>>)
 
 export async function deletePlaza(id: string) {
     const plazaDoc = doc(db, "plazas", id);
+    // Also delete customers associated with the plaza
+    const q = query(customersCollectionRef, where("plazaId", "==", id));
+    const customerDocs = await getDocs(q);
+    const batch = db.batch();
+    customerDocs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+
     await deleteDoc(plazaDoc);
 }

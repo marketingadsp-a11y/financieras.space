@@ -1,11 +1,13 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer } from "@/lib/data";
+import type { Customer, Payment } from "@/lib/data";
 
 const customersCollectionRef = collection(db, "customers");
+const paymentsCollectionRef = collection(db, "payments");
+
 
 function customerFromDoc(doc: DocumentData): Customer {
     const data = doc.data();

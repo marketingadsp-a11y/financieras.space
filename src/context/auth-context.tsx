@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -6,13 +7,17 @@ import { AppShell } from '@/components/layout/app-shell';
 import { getAdminByUsername } from '@/services/admin-service';
 import { getSuperAdminByUsername } from '@/services/super-admin-service';
 import { getToolAdminByUsername } from '@/services/tool-admin-service';
+import { getPlazaUserByUsername } from '@/services/plaza-user-service';
+import type { PlazaAccess } from '@/lib/data';
 
 interface User {
   id: string;
   username: string;
   isSuperAdmin: boolean;
   isToolAdmin: boolean;
+  isPlazaUser: boolean;
   accessibleTools?: string[];
+  plazaAccess?: PlazaAccess[];
 }
 
 interface AuthContextType {
@@ -20,6 +25,7 @@ interface AuthContextType {
   login: (emailOrUsername: string, pass: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
+  hasPermission: (plazaId: string, permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,6 +54,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       router.push('/login');
     } else if (user && pathIsPublic) {
        if (user.isSuperAdmin) router.push('/');
+       else if (user.isPlazaUser) {
+         const firstPlaza = user.plazaAccess?.[0]?.plazaId;
+         if(firstPlaza) router.push(`/tools/overdue-portfolio/plaza/${firstPlaza}`);
+         else router.push('/tools');
+       }
        else router.push('/tools');
     }
   }, [user, loading, pathname, router]);
@@ -58,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 1. Check for Super Admin
       const superAdmin = await getSuperAdminByUsername(emailOrUsername);
       if (superAdmin && superAdmin.password === pass) {
-          const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true, isToolAdmin: false };
+          const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false };
           localStorage.setItem('appUser', JSON.stringify(userData));
           setUser(userData);
           return true;
@@ -67,7 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 2. Check for Global Admin
       const admin = await getAdminByUsername(emailOrUsername);
       if (admin && admin.password === pass && admin.status === "Activo") {
-         const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, isToolAdmin: false, accessibleTools: admin.accessibleTools || [] };
+         const userData: User = { id: admin.id, username: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [] };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
          return true;
@@ -78,11 +89,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 3. Check for Tool Admin
       const toolAdmin = await getToolAdminByUsername(emailOrUsername);
       if (toolAdmin && toolAdmin.password === pass && toolAdmin.status === "Activo") {
-         const userData: User = { id: toolAdmin.id, username: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, accessibleTools: [toolAdmin.toolId] };
+         const userData: User = { id: toolAdmin.id, username: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId] };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
          return true;
       } else if (toolAdmin && toolAdmin.status === "Inactivo") {
+          throw new Error('Este usuario se encuentra inactivo.');
+      }
+
+      // 4. Check for Plaza User
+      const plazaUser = await getPlazaUserByUsername(emailOrUsername);
+      if (plazaUser && plazaUser.password === pass && plazaUser.status === "Activo") {
+         const userData: User = { id: plazaUser.id, username: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess };
+         localStorage.setItem('appUser', JSON.stringify(userData));
+         setUser(userData);
+         return true;
+      } else if (plazaUser && plazaUser.status === "Inactivo") {
           throw new Error('Este usuario se encuentra inactivo.');
       }
       
@@ -102,7 +124,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     router.push('/login');
   };
 
-  const value = { user, login, logout, loading };
+  const hasPermission = (plazaId: string, permission: string): boolean => {
+    if (!user) return false;
+    // SuperAdmins, ToolAdmins, and global Admins with access have all permissions
+    if (user.isSuperAdmin || user.isToolAdmin || user.accessibleTools?.includes('cartera-vencida')) {
+      return true;
+    }
+    if (user.isPlazaUser) {
+      const plazaAccess = user.plazaAccess?.find(p => p.plazaId === plazaId);
+      return !!plazaAccess?.permissions.includes(permission as any);
+    }
+    return false;
+  }
+
+  const value = { user, login, logout, loading, hasPermission };
 
   return (
     <AuthContext.Provider value={value}>

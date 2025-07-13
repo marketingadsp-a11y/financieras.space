@@ -63,6 +63,7 @@ const carteraVencidaNavItems: NavItem[] = [
     { href: "/tools/overdue-portfolio", label: "Resumen General", icon: Building },
     { href: "/tools/overdue-portfolio/plazas", label: "Gestionar Plazas", icon: Building },
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
+    { href: "/tools/overdue-portfolio/users", label: "Gestionar Usuarios", icon: Users2 },
 ];
 
 function NavLinks() {
@@ -72,8 +73,6 @@ function NavLinks() {
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
 
   if (isCarteraVencidaPath) {
-    // Show all tool management items if user has access to the tool at all.
-    // The AdminsManagement page itself will handle finer-grained permissions.
     const hasAccessToTool = user?.isSuperAdmin || user?.isToolAdmin || user?.accessibleTools?.includes('cartera-vencida');
     const items = hasAccessToTool ? carteraVencidaNavItems : [];
     
@@ -100,6 +99,15 @@ function NavLinks() {
   const getNavItems = () => {
     if (user?.isSuperAdmin) {
       return superAdminNavItems;
+    }
+     if (user?.isPlazaUser) {
+      // Plaza users see a list of their assigned plazas
+      return user.plazaAccess?.map(pa => ({
+        href: `/tools/overdue-portfolio/plaza/${pa.plazaId}`,
+        label: pa.plazaName,
+        icon: Building,
+        superAdminOnly: false,
+      })) || [];
     }
     // For regular admins, show their accessible tools
     return allTools
@@ -145,6 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const getUserRoleLabel = () => {
     if (user.isSuperAdmin) return 'Super Admin';
     if (user.isToolAdmin) return 'Admin de Herramienta';
+    if (user.isPlazaUser) return 'Usuario de Plaza';
     return 'Admin';
   }
 
@@ -169,7 +178,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
            <NavLinks />
-           { isCarteraVencidaPath && !user.isSuperAdmin && (
+           { isCarteraVencidaPath && !user.isSuperAdmin && !user.isToolAdmin && (
             <>
               <SidebarSeparator />
               <SidebarMenu>

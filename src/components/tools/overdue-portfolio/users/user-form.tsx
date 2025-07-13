@@ -1,0 +1,204 @@
+
+"use client";
+
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { PlazaUser, Plaza, Permission } from "@/lib/data";
+import { PERMISSIONS } from "@/lib/data";
+import { Trash2 } from "lucide-react";
+
+const plazaAccessSchema = z.object({
+  plazaId: z.string().min(1),
+  plazaName: z.string().min(1),
+  permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
+});
+
+const formSchema = z.object({
+  name: z.string().min(2, "El nombre es requerido."),
+  username: z.string().min(2, "El nombre de usuario es requerido."),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
+  status: z.enum(["Activo", "Inactivo"]),
+  plazaAccess: z.array(plazaAccessSchema).min(1, "Debe asignar acceso a al menos una plaza."),
+});
+
+type UserFormProps = {
+  onSubmit: (data: Omit<PlazaUser, 'id'>) => void;
+  user?: PlazaUser | null;
+  allPlazas: Plaza[];
+};
+
+const allPermissions = Object.entries(PERMISSIONS) as [Permission, string][];
+
+export function UserForm({ onSubmit, user, allPlazas }: UserFormProps) {
+    const isEditing = !!user;
+
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            name: user?.name || "",
+            username: user?.username || "",
+            password: "",
+            status: user?.status || "Activo",
+            plazaAccess: user?.plazaAccess || [],
+        },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+      control: form.control,
+      name: "plazaAccess"
+    });
+
+    const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
+        const dataToSend: any = { ...values };
+        if (isEditing && !values.password) {
+            delete dataToSend.password;
+        }
+        onSubmit(dataToSend);
+    };
+
+    const assignedPlazaIds = fields.map(field => field.plazaId);
+    const availablePlazas = allPlazas.filter(p => !assignedPlazaIds.includes(p.id));
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+            <ScrollArea className="h-[60vh] pr-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="username" render={({ field }) => (<FormItem><FormLabel>Usuario</FormLabel><FormControl><Input placeholder="nombre.usuario" {...field} disabled={isEditing} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Contraseña</FormLabel><FormControl><Input type="password" placeholder={isEditing ? "Dejar en blanco para no cambiar" : "••••••••"} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="status" render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm mt-auto mb-2">
+                          <FormLabel>Estado</FormLabel>
+                          <FormControl><Switch checked={field.value === "Activo"} onCheckedChange={(checked) => field.onChange(checked ? "Activo" : "Inactivo")} /></FormControl>
+                        </FormItem>
+                    )} />
+                </div>
+                
+                <div className="space-y-4 pt-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-medium">Accesos y Permisos</h3>
+                      <p className="text-sm text-muted-foreground">Asigna las plazas y los permisos que tendrá el usuario.</p>
+                      <FormMessage>{form.formState.errors.plazaAccess?.message}</FormMessage>
+                    </div>
+                     <Select onValueChange={(plazaId) => {
+                          const plaza = allPlazas.find(p => p.id === plazaId);
+                          if(plaza) {
+                            append({ plazaId: plaza.id, plazaName: plaza.name, permissions: [] });
+                          }
+                      }} value="">
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Asignar plaza..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {availablePlazas.length > 0 ? (
+                                availablePlazas.map(plaza => (
+                                    <SelectItem key={plaza.id} value={plaza.id}>{plaza.name}</SelectItem>
+                                ))
+                            ) : (
+                                <div className="p-2 text-sm text-muted-foreground">No hay más plazas para asignar.</div>
+                            )}
+                        </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Accordion type="multiple" className="w-full space-y-2" defaultValue={fields.map((_, i) => `item-${i}`)}>
+                      {fields.map((field, index) => (
+                          <AccordionItem key={field.id} value={`item-${index}`} className="border rounded-md px-4 bg-muted/20">
+                              <div className="flex items-center">
+                                <AccordionTrigger className="flex-1 text-base">{field.plazaName}</AccordionTrigger>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                              <AccordionContent>
+                                  <FormField
+                                    control={form.control}
+                                    name={`plazaAccess.${index}.permissions`}
+                                    render={() => (
+                                      <FormItem>
+                                        <div className="mb-4">
+                                          <FormLabel className="text-base">Permisos para {field.plazaName}</FormLabel>
+                                          <FormDescription>
+                                            Selecciona las acciones que este usuario podrá realizar en esta plaza.
+                                          </FormDescription>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                        {allPermissions.map(([key, label]) => (
+                                          <FormField
+                                            key={key}
+                                            control={form.control}
+                                            name={`plazaAccess.${index}.permissions`}
+                                            render={({ field }) => {
+                                              return (
+                                                <FormItem
+                                                  key={key}
+                                                  className="flex flex-row items-start space-x-3 space-y-0"
+                                                >
+                                                  <FormControl>
+                                                    <Checkbox
+                                                      checked={field.value?.includes(key)}
+                                                      onCheckedChange={(checked) => {
+                                                        return checked
+                                                          ? field.onChange([...(field.value || []), key])
+                                                          : field.onChange(
+                                                              (field.value || []).filter(
+                                                                (value) => value !== key
+                                                              )
+                                                            )
+                                                      }}
+                                                    />
+                                                  </FormControl>
+                                                  <FormLabel className="font-normal">
+                                                    {label}
+                                                  </FormLabel>
+                                                </FormItem>
+                                              )
+                                            }}
+                                          />
+                                        ))}
+                                        </div>
+                                        <FormMessage>{form.formState.errors.plazaAccess?.[index]?.permissions?.message}</FormMessage>
+                                      </FormItem>
+                                    )}
+                                  />
+                              </AccordionContent>
+                          </AccordionItem>
+                      ))}
+                  </Accordion>
+                </div>
+              </ScrollArea>
+              <div className="pt-6">
+                <Button type="submit" className="w-full">
+                    {isEditing ? 'Guardar Cambios' : 'Crear Usuario'}
+                </Button>
+              </div>
+            </form>
+        </Form>
+    );
+}

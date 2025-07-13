@@ -61,6 +61,7 @@ import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/context/auth-context";
 
 
 const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }) => {
@@ -96,6 +97,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [isAddFormOpen, setIsAddFormOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
 
   const [isImportModalOpen, setImportModalOpen] = React.useState(false);
   const [importText, setImportText] = React.useState('');
@@ -245,6 +247,12 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         ...paid.sort((a, b) => a.name.localeCompare(b.name))
     ];
   }, [customers, searchTerm]);
+  
+  const canRegister = hasPermission(plazaId, 'CAN_REGISTER');
+  const canImport = hasPermission(plazaId, 'CAN_IMPORT');
+  const canExport = hasPermission(plazaId, 'CAN_EXPORT');
+  const canDeleteAll = hasPermission(plazaId, 'CAN_DELETE_ALL');
+
 
   if (isLoading) {
     return (
@@ -293,121 +301,133 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                     />
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
+                    {canRegister && (
+                      <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
+                          <DialogTrigger asChild>
+                            <Button>
+                                  <PlusCircle className="mr-2 h-4 w-4" /> Registrar
+                              </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                              <DialogHeader>
+                                  <DialogTitle>Registrar Cliente</DialogTitle>
+                              </DialogHeader>
+                              <CustomerForm
+                                  onSubmit={handleAddSubmit}
+                              />
+                          </DialogContent>
+                      </Dialog>
+                    )}
+
+                    {canImport && (
+                      <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                         <DialogTrigger asChild>
-                           <Button>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Registrar
+                            <Button variant="outline">
+                                <Upload className="mr-2 h-4 w-4" /> Importar
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="sm:max-w-2xl">
                             <DialogHeader>
-                                <DialogTitle>Registrar Cliente</DialogTitle>
+                                <DialogTitle>Importar Clientes</DialogTitle>
+                                <DialogDescriptionComponent>
+                                  Pega texto de una hoja de cálculo para añadir nuevos clientes. Las columnas deben estar separadas por tabulaciones.
+                                  La IA intentará reconocer las columnas comunes como: FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, PRESTAMO, ADEUDO.
+                                </DialogDescriptionComponent>
                             </DialogHeader>
-                            <CustomerForm
-                                onSubmit={handleAddSubmit}
-                            />
+                            <div className="grid gap-4 py-4">
+                                <div className="grid gap-2">
+                                  <Label>Modo de Importación</Label>
+                                  <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)}>
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="add" id="r1" />
+                                      <Label htmlFor="r1">Añadir a existentes</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="replace" id="r2" />
+                                      <Label htmlFor="r2">Reemplazar todos los clientes de esta plaza</Label>
+                                    </div>
+                                  </RadioGroup>
+                                </div>
+                                <Textarea 
+                                  placeholder="Pega aquí los datos de tu hoja de cálculo..." 
+                                  className="min-h-[200px]"
+                                  value={importText}
+                                  onChange={(e) => setImportText(e.target.value)}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+                                <Button onClick={handleImport} disabled={isParsing}>
+                                    {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
+                                    {isParsing ? 'Procesando...' : 'Importar desde Texto'}
+                                </Button>
+                            </DialogFooter>
                         </DialogContent>
-                    </Dialog>
-
-                    <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
-                      <DialogTrigger asChild>
-                          <Button variant="outline">
-                              <Upload className="mr-2 h-4 w-4" /> Importar
-                          </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-2xl">
-                          <DialogHeader>
-                              <DialogTitle>Importar Clientes</DialogTitle>
-                              <DialogDescriptionComponent>
-                                Pega texto de una hoja de cálculo para añadir nuevos clientes. Las columnas deben estar separadas por tabulaciones.
-                                La IA intentará reconocer las columnas comunes como: FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, PRESTAMO, ADEUDO.
-                              </DialogDescriptionComponent>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                              <div className="grid gap-2">
-                                <Label>Modo de Importación</Label>
-                                 <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)}>
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="add" id="r1" />
-                                    <Label htmlFor="r1">Añadir a existentes</Label>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="replace" id="r2" />
-                                    <Label htmlFor="r2">Reemplazar todos los clientes de esta plaza</Label>
-                                  </div>
-                                </RadioGroup>
-                              </div>
-                              <Textarea 
-                                placeholder="Pega aquí los datos de tu hoja de cálculo..." 
-                                className="min-h-[200px]"
-                                value={importText}
-                                onChange={(e) => setImportText(e.target.value)}
-                              />
-                          </div>
-                          <DialogFooter>
-                              <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                              <Button onClick={handleImport} disabled={isParsing}>
-                                  {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
-                                  {isParsing ? 'Procesando...' : 'Importar desde Texto'}
-                              </Button>
-                          </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                      </Dialog>
+                    )}
                     
-                    <AlertDialog>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                           <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                           <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
-                           <DropdownMenuSeparator />
-                           <DropdownMenuItem onSelect={exportToExcel}>
-                              <FileSpreadsheet className="mr-2 h-4 w-4" />
-                              Exportar a Excel
-                           </DropdownMenuItem>
-                           <DropdownMenuItem onSelect={exportToPDF}>
-                             <FileText className="mr-2 h-4 w-4" />
-                              Exportar a PDF
-                           </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                           <AlertDialogTrigger asChild>
-                              <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                  Eliminar Todos los Clientes
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción es irreversible y eliminará permanentemente a todos los <strong>{customers.length}</strong> clientes de la plaza <strong>'{plaza.name}'</strong>.
-                              Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong> a continuación.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <Input
-                            id="delete-confirm"
-                            value={deleteConfirmationText}
-                            onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                            placeholder={expectedConfirmationText}
-                            autoComplete="off"
-                            autoFocus
-                           />
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={handleDeleteAllCustomers} 
-                              disabled={deleteConfirmationText !== expectedConfirmationText}
-                              className="bg-destructive hover:bg-destructive/90">
-                              Sí, eliminar todo
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    {(canExport || canDeleteAll) && (
+                      <AlertDialog>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
+                            {canExport && <DropdownMenuSeparator />}
+                            {canExport && (
+                              <>
+                                <DropdownMenuItem onSelect={exportToExcel}>
+                                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                    Exportar a Excel
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={exportToPDF}>
+                                  <FileText className="mr-2 h-4 w-4" />
+                                    Exportar a PDF
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {canDeleteAll && <DropdownMenuSeparator />}
+                            {canDeleteAll && (
+                              <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                      Eliminar Todos los Clientes
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción es irreversible y eliminará permanentemente a todos los <strong>{customers.length}</strong> clientes de la plaza <strong>'{plaza.name}'</strong>.
+                                Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong> a continuación.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <Input
+                              id="delete-confirm"
+                              value={deleteConfirmationText}
+                              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                              placeholder={expectedConfirmationText}
+                              autoComplete="off"
+                              autoFocus
+                            />
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={handleDeleteAllCustomers} 
+                                disabled={deleteConfirmationText !== expectedConfirmationText}
+                                className="bg-destructive hover:bg-destructive/90">
+                                Sí, eliminar todo
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                 </div>
             </div>
            </div>

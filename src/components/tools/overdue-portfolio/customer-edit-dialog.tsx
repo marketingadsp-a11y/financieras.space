@@ -5,6 +5,8 @@ import * as React from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 import {
   Dialog,
@@ -25,7 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer } from "@/lib/data";
+import type { Customer, Payment } from "@/lib/data";
 import { addPayment, updateCustomer } from "@/services/customer-service";
 import { Loader2, DollarSign } from "lucide-react";
 
@@ -120,7 +122,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
   const isPaid = customer.status === 'Pagado';
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Editar Cliente' : 'Registrar Abono'}</DialogTitle>
@@ -171,7 +173,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                           <FormControl>
                             <div className="relative">
                               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input type="number" step="0.01" placeholder="0.00" className="pl-9" {...field} />
+                              <Input type="number" step="0.01" placeholder="0.00" className="pl-9" {...field} autoFocus />
                             </div>
                           </FormControl>
                           <FormMessage />
