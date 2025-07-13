@@ -380,21 +380,21 @@ export function DailyControlDashboard() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <ActionCard 
-            title="Registrar Cobrado"
+            title="Registrar a Cobrado"
             description="Abonos de clientes y entradas."
             icon={TrendingDown}
             onClick={() => handleOpenForm('collected')}
             className="border-green-500/50 hover:border-green-500"
         />
         <ActionCard 
-            title="Registrar Préstamo"
+            title="Registrar a Prestado"
             description="Nuevos créditos otorgados."
             icon={TrendingUp}
             onClick={() => handleOpenForm('loaned')}
             className="border-blue-500/50 hover:border-blue-500"
         />
         <ActionCard 
-            title="Registrar Gasto"
+            title="Registrar a Gasto"
             description="Salidas de dinero operativo."
             icon={PiggyBank}
             onClick={() => handleOpenForm('spent')}
