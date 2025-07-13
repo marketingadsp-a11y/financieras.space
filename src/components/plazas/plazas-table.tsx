@@ -44,6 +44,8 @@ type PlazaTableProps = {
 export function PlazasTable({ data, onEdit, onDelete }: PlazaTableProps) {
   const { user } = useAuth();
   const [filter, setFilter] = React.useState("");
+  const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
+  
   const filteredData = data.filter((plaza) =>
     plaza.name.toLowerCase().includes(filter.toLowerCase()) ||
     plaza.prefix?.toLowerCase().includes(filter.toLowerCase())
@@ -72,7 +74,9 @@ export function PlazasTable({ data, onEdit, onDelete }: PlazaTableProps) {
           </TableHeader>
           <TableBody>
             {filteredData.length > 0 ? (
-              filteredData.map((plaza) => (
+              filteredData.map((plaza) => {
+                const expectedConfirmationText = `${plaza.name} eliminar`;
+                return (
                 <TableRow key={plaza.id}>
                   <TableCell className="font-medium flex items-center gap-2">
                     <Building className="h-4 w-4 text-muted-foreground" />
@@ -85,7 +89,7 @@ export function PlazasTable({ data, onEdit, onDelete }: PlazaTableProps) {
                   )}
                   <TableCell>
                     <div className="flex justify-end">
-                      <AlertDialog>
+                      <AlertDialog onOpenChange={(open) => !open && setDeleteConfirmationText('')}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -107,21 +111,36 @@ export function PlazasTable({ data, onEdit, onDelete }: PlazaTableProps) {
                           </DropdownMenu>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                              <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Esto eliminará permanentemente la plaza y todos los datos asociados a ella.
+                                Esta acción es irreversible. Se eliminará permanentemente la plaza y todos los clientes asociados.
+                                Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong> a continuación.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
+                             <Input
+                              id="delete-confirm"
+                              value={deleteConfirmationText}
+                              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                              placeholder={expectedConfirmationText}
+                              autoComplete="off"
+                              autoFocus
+                            />
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => onDelete(plaza.id)}>Eliminar</AlertDialogAction>
+                              <AlertDialogAction 
+                                disabled={deleteConfirmationText !== expectedConfirmationText}
+                                onClick={() => onDelete(plaza.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Sí, eliminar esta plaza
+                              </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             ) : (
               <TableRow>
                 <TableCell colSpan={user?.isSuperAdmin ? 3 : 2} className="h-24 text-center">
