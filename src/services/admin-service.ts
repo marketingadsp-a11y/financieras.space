@@ -1,6 +1,6 @@
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Admin } from "@/lib/data";
 
@@ -25,4 +25,14 @@ export async function updateAdmin(id: string, admin: Partial<Omit<Admin, 'id'>>)
 export async function deleteAdmin(id: string) {
     const adminDoc = doc(db, "admins", id);
     await deleteDoc(adminDoc);
+}
+
+export async function getAdminByEmail(email: string): Promise<Admin & {password: string} | null> {
+    const q = query(adminsCollectionRef, where("email", "==", email));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+        return null;
+    }
+    const adminDoc = querySnapshot.docs[0];
+    return { id: adminDoc.id, ...adminDoc.data() } as Admin & {password: string};
 }

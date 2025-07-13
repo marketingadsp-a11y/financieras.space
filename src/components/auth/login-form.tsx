@@ -19,7 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, UserCog } from "lucide-react";
 
 const formSchema = z.object({
-  username: z.string().min(1, "El nombre de usuario es requerido."),
+  email: z.string().min(1, "El email o usuario es requerido."),
   password: z.string().min(1, "La contraseña es requerida."),
 });
 
@@ -33,7 +33,7 @@ export function LoginForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -42,7 +42,7 @@ export function LoginForm() {
     setIsLoading(true);
     setError(null);
     try {
-      await login(values.username, values.password);
+      await login(values.email, values.password);
     } catch (e: any) {
       setError(e.message || "Ocurrió un error inesperado.");
       form.reset();
@@ -58,7 +58,7 @@ export function LoginForm() {
           <div className="flex justify-center mb-4">
              <UserCog className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle>Panel de Super Administrador</CardTitle>
+          <CardTitle>Panel de Administración</CardTitle>
           <CardDescription>
             Ingrese sus credenciales para acceder.
           </CardDescription>
@@ -68,13 +68,13 @@ export function LoginForm() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="username"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Usuario</FormLabel>
+                    <FormLabel>Usuario o Email</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="ej. Cristobal"
+                        placeholder="ej. cristobal / admin@correo.com"
                         {...field}
                       />
                     </FormControl>
@@ -96,7 +96,7 @@ export function LoginForm() {
                       />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
+                  </Item>
                 )}
               />
               {error && <p className="text-sm font-medium text-destructive">{error}</p>}

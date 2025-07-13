@@ -8,7 +8,8 @@ import {
   Users,
   PanelLeft,
   LogOut,
-  UserCog
+  UserCog,
+  Wrench,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -33,19 +34,28 @@ type NavItem = {
   href: string;
   label: string;
   icon: React.ElementType;
+  superAdminOnly?: boolean;
 };
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Administradores", icon: Users },
-  // Future nav items can be added here
+  { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
+  { href: "/tools", label: "Herramientas", icon: Wrench },
 ];
 
 function SidebarNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const availableNavItems = navItems.filter(item => {
+    if (item.superAdminOnly) {
+      return user?.isSuperAdmin;
+    }
+    return true;
+  });
 
   return (
     <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-      {navItems.map((item) => (
+      {availableNavItems.map((item) => (
         <Link
           key={item.href}
           href={item.href}
@@ -65,7 +75,15 @@ function SidebarNav() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const currentPage = navItems.find(item => item.href === pathname) || { label: 'Panel' };
+  
+  const availableNavItems = navItems.filter(item => {
+    if (item.superAdminOnly) {
+      return user?.isSuperAdmin;
+    }
+    return true;
+  });
+
+  const currentPage = availableNavItems.find(item => item.href === pathname) || { label: 'Panel' };
 
   if (!user) {
     return <>{children}</>
@@ -78,7 +96,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <UserCog className="h-6 w-6 text-primary" />
-              <span className="">Super Admin</span>
+              <span className="">{user.isSuperAdmin ? 'Super Admin' : 'Admin'}</span>
             </Link>
           </div>
           <div className="flex-1 mt-4">
@@ -106,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="flex items-center gap-2 font-semibold"
                 >
                   <UserCog className="h-6 w-6 text-primary" />
-                  <span className="">Super Admin</span>
+                  <span className="">{user.isSuperAdmin ? 'Super Admin' : 'Admin'}</span>
                 </Link>
               </div>
               <div className="mt-4">

@@ -3,15 +3,18 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
+import { getAdminByEmail } from '@/services/admin-service';
 
 interface User {
   id: string;
   username: string;
+  email: string;
+  isSuperAdmin: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -25,7 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('superAdminUser');
+    const storedUser = localStorage.getItem('appUser');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
@@ -41,25 +44,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user && !pathIsPublic) {
       router.push('/login');
     } else if (user && pathIsPublic) {
-      router.push('/');
+      router.push(user.isSuperAdmin ? '/' : '/tools');
     }
   }, [user, loading, pathname, router]);
 
 
-  const login = async (username: string, pass: string) => {
-    // This is a mock login. In a real app, you'd call an API.
-    if (username.toLowerCase() === 'cristobal' && pass === '0120') {
-      const userData: User = { id: 'superadmin01', username: 'Cristobal' };
-      localStorage.setItem('superAdminUser', JSON.stringify(userData));
+  const login = async (email: string, pass: string) => {
+    // Super Admin login
+    if (email.toLowerCase() === 'cristobal' && pass === '0120') {
+      const userData: User = { id: 'superadmin01', username: 'Cristobal', email: 'cristobal', isSuperAdmin: true };
+      localStorage.setItem('appUser', JSON.stringify(userData));
       setUser(userData);
       router.push('/');
-    } else {
-      throw new Error('Nombre de usuario o contraseña incorrectos.');
+      return;
+    }
+
+    // Normal Admin login
+    const admin = await getAdminByEmail(email);
+    
+    if (admin && admin.password === pass && admin.status === "Activo") {
+       const userData: User = { id: admin.id, username: admin.name, email: admin.email, isSuperAdmin: false };
+       localStorage.setItem('appUser', JSON.stringify(userData));
+       setUser(userData);
+       router.push('/tools');
+    } else if (admin && admin.status === "Inactivo") {
+        throw new Error('Este usuario se encuentra inactivo.');
+    }
+    else {
+      throw new Error('Email o contraseña incorrectos.');
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('superAdminUser');
+    localStorage.removeItem('appUser');
     setUser(null);
     router.push('/login');
   };
