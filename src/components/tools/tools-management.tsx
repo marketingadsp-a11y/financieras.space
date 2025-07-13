@@ -232,11 +232,9 @@ function AdminToolsView() {
                             </div>
                         </CardHeader>
                         <CardFooter>
-                        <Link href={tool.href} passHref legacyBehavior>
                             <Button asChild className="w-full">
-                               <a>Abrir Herramienta</a>
+                               <Link href={tool.href}>Abrir Herramienta</Link>
                             </Button>
-                        </Link>
                         </CardFooter>
                     </Card>
                     ))}
