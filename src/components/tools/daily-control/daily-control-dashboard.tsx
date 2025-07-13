@@ -16,6 +16,9 @@ import {
   FileText,
   FileSpreadsheet,
   Download,
+  PiggyBank,
+  TrendingUp,
+  TrendingDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
@@ -86,6 +89,24 @@ const StatCard = ({ title, value, icon: Icon, variant = 'default' }: { title: st
     </Card>
   );
 };
+
+const ActionCard = ({ title, description, icon: Icon, onClick, className }: { title: string; description: string; icon: React.ElementType; onClick: () => void; className?: string }) => (
+    <Card 
+        onClick={onClick}
+        className={cn("group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/50", className)}>
+        <CardHeader>
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                    <Icon className="h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
+                </div>
+                <div>
+                    <CardTitle className="text-lg">{title}</CardTitle>
+                    <CardDescription>{description}</CardDescription>
+                </div>
+            </div>
+        </CardHeader>
+    </Card>
+);
 
 
 export function DailyControlDashboard() {
@@ -298,9 +319,9 @@ export function DailyControlDashboard() {
   }, [entries]);
 
   const typeConfig = {
-    collected: { icon: ArrowDown, color: "text-green-600", label: "Cobrado" },
-    loaned: { icon: ArrowUp, color: "text-blue-600", label: "Prestado" },
-    spent: { icon: CreditCard, color: "text-red-600", label: "Gastado" },
+    collected: { icon: TrendingDown, color: "text-green-600", label: "Cobrado" },
+    loaned: { icon: TrendingUp, color: "text-blue-600", label: "Prestado" },
+    spent: { icon: PiggyBank, color: "text-red-600", label: "Gastado" },
   }
   
   const plazaName = plazas.find(p => p.id === selectedPlaza)?.name || 'Desconocida';
@@ -357,18 +378,36 @@ export function DailyControlDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Total Cobrado" value={totals.collected} icon={DollarSign} variant="success" />
-        <StatCard title="Total Prestado" value={totals.loaned} icon={ArrowUp} variant="default" />
-        <StatCard title="Total Gastado" value={totals.spent} icon={ArrowDown} variant="destructive" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <ActionCard 
+            title="Registrar Cobrado"
+            description="Abonos de clientes y entradas."
+            icon={TrendingDown}
+            onClick={() => handleOpenForm('collected')}
+            className="border-green-500/50 hover:border-green-500"
+        />
+        <ActionCard 
+            title="Registrar Préstamo"
+            description="Nuevos créditos otorgados."
+            icon={TrendingUp}
+            onClick={() => handleOpenForm('loaned')}
+            className="border-blue-500/50 hover:border-blue-500"
+        />
+        <ActionCard 
+            title="Registrar Gasto"
+            description="Salidas de dinero operativo."
+            icon={PiggyBank}
+            onClick={() => handleOpenForm('spent')}
+            className="border-red-500/50 hover:border-red-500"
+        />
       </div>
 
       <Card>
         <CardHeader>
            <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
             <div>
-              <CardTitle>Movimientos: {plazaName}</CardTitle>
-              <CardDescription>Resumen de todos los registros del día seleccionado. Hay {entries.length} movimiento(s).</CardDescription>
+              <CardTitle>Movimientos del día: {plazaName}</CardTitle>
+              <CardDescription>Resumen de todos los registros para el {date ? format(date, "PPP", { locale: es }) : 'día seleccionado'}. Hay {entries.length} movimiento(s).</CardDescription>
             </div>
             
             <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
@@ -382,19 +421,15 @@ export function DailyControlDashboard() {
                 <Button variant="outline" size="sm" onClick={exportToPDF} disabled={entries.length === 0}>
                     <FileText className="mr-2 h-4 w-4" /> Exportar PDF
                 </Button>
-                <Button size="sm" onClick={() => handleOpenForm('collected')}>
-                    <PlusCircle className="mr-2"/> Cobrado
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleOpenForm('loaned')}>
-                    <PlusCircle className="mr-2"/> Prestado
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleOpenForm('spent')}>
-                    <PlusCircle className="mr-2"/> Gastado
-                </Button>
             </div>
            </div>
         </CardHeader>
         <CardContent>
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <StatCard title="Total Cobrado" value={totals.collected} icon={DollarSign} variant="success" />
+            <StatCard title="Total Prestado" value={totals.loaned} icon={ArrowUp} variant="default" />
+            <StatCard title="Total Gastado" value={totals.spent} icon={ArrowDown} variant="destructive" />
+          </div>
           <Table>
             <TableHeader>
                 <TableRow>
