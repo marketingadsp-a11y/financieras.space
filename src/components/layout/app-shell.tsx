@@ -89,10 +89,22 @@ function PlazaNavLinks() {
             if (!user) return;
             setIsLoading(true);
             try {
-                // Fetch all for super/tool admins, prefixed for global admins
-                const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-                const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
-                setPlazas(plazasFromDb.sort((a,b) => a.name.localeCompare(b.name)));
+                // If the user is a plaza user, we use their direct plazaAccess list
+                if (user.isPlazaUser) {
+                    const userPlazas = user.plazaAccess?.map(pa => ({
+                        id: pa.plazaId,
+                        name: pa.plazaName,
+                        pendingDebt: 0, // Not needed for nav
+                        recoveryRate: 0, // Not needed for nav
+                    })) || [];
+                     setPlazas(userPlazas.sort((a,b) => a.name.localeCompare(b.name)));
+                } else {
+                    // For admins, fetch based on their prefix
+                    const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
+                    const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+                    setPlazas(plazasFromDb.sort((a,b) => a.name.localeCompare(b.name)));
+                }
+
             } catch (error) {
                 console.error("Failed to fetch plazas for nav", error);
             } finally {
@@ -142,6 +154,38 @@ function NavLinks() {
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
+  
+  if (user?.isPlazaUser) {
+      // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
+      const userTools = allTools.filter(tool => user.accessibleTools?.includes(tool.id));
+      
+      const mainNavItems = userTools.map(tool => ({
+        href: tool.href,
+        label: tool.name,
+        icon: tool.icon,
+      }));
+
+      return (
+        <>
+            {isCarteraVencidaPath && <PlazaNavLinks />}
+            <SidebarGroup>
+                 <SidebarGroupLabel>HERRAMIENTAS</SidebarGroupLabel>
+                <SidebarMenu>
+                    {mainNavItems.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                            <Link href={item.href}>
+                                <SidebarMenuButton isActive={pathname.startsWith(item.href)} tooltip={item.label}>
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+            </SidebarGroup>
+        </>
+      )
+  }
 
   if (isCarteraVencidaPath) {
     const hasAccessToTool = user?.isSuperAdmin || user?.isToolAdmin || user?.accessibleTools?.includes('cartera-vencida');
@@ -210,23 +254,12 @@ function NavLinks() {
     if (user?.isSuperAdmin) {
       return superAdminNavItems;
     }
-     if (user?.isPlazaUser) {
-      // Plaza users see a list of their assigned plazas
-      return user.plazaAccess?.map(pa => ({
-        href: `/tools/overdue-portfolio/plaza/${pa.plazaId}`,
-        label: pa.plazaName,
-        icon: Building,
-        superAdminOnly: false,
-      })) || [];
-    }
     // For regular admins, show their accessible tools
     const adminNavItems = [];
     
-    // Centralized Plaza Management for Admins
     adminNavItems.push({ href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: false });
     adminNavItems.push({ href: "/users", label: "Gestionar Usuarios", icon: Users2, superAdminOnly: false });
     adminNavItems.push({ href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: false });
-
 
     return adminNavItems;
   }
@@ -272,7 +305,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const getUserRoleLabel = () => {
     if (user.isSuperAdmin) return 'Super Admin';
     if (user.isToolAdmin) return 'Admin de Herramienta';
-    if (user.isPlazaUser) return 'Usuario de Plaza';
+    if (user.isPlazaUser) return 'Usuario';
     return 'Admin';
   }
 
@@ -345,3 +378,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    

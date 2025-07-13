@@ -62,6 +62,7 @@ export type PlazaUser = {
   password?: string;
   status: 'Activo' | 'Inactivo';
   plazaAccess: PlazaAccess[];
+  accessibleTools: string[];
   prefix?: string;
 };
 
@@ -156,3 +157,5 @@ export type DailyRecord = {
   spent: number;
   entries: DailyRecordEntry[];
 };
+
+    

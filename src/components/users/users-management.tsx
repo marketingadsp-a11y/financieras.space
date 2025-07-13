@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UsersTable } from "@/components/users/users-table";
 import { UserForm } from "@/components/users/user-form";
 import type { PlazaUser, Plaza } from "@/lib/data";
+import { allTools } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getPlazaUsersByPrefix, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
@@ -88,8 +89,8 @@ export function UsersManagement() {
     }
   };
   
-  const handleEditClick = (user: PlazaUser) => {
-      setEditingUser(user);
+  const handleEditClick = (userToEdit: PlazaUser) => {
+      setEditingUser(userToEdit);
       setIsFormOpen(true);
   }
 
@@ -99,6 +100,9 @@ export function UsersManagement() {
       setEditingUser(null);
     }
   }
+  
+  // Admins can only assign tools they themselves have access to. SuperAdmins can assign any.
+  const adminTools = user?.isSuperAdmin ? allTools : allTools.filter(tool => user?.accessibleTools?.includes(tool.id));
 
   return (
     <Card>
@@ -129,6 +133,7 @@ export function UsersManagement() {
                 user={editingUser}
                 allPlazas={plazas}
                 prefix={user?.prefix}
+                adminTools={adminTools}
               />
             </DialogContent>
           </Dialog>
@@ -147,3 +152,5 @@ export function UsersManagement() {
     </Card>
   );
 }
+
+    

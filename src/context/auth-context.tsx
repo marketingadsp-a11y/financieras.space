@@ -69,9 +69,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else if (user && pathIsPublic) {
        if (user.isSuperAdmin) router.push('/');
        else if (user.isPlazaUser) {
-         const firstPlaza = user.plazaAccess?.[0]?.plazaId;
-         if(firstPlaza) router.push(`/tools/overdue-portfolio/plaza/${firstPlaza}`);
-         else router.push('/tools');
+         // Redirect PlazaUser to their first accessible tool
+         const firstToolPath = user.accessibleTools?.[0];
+         if (firstToolPath) {
+           router.push(`/tools/${firstToolPath}`);
+         } else {
+           // Fallback if no tools assigned, though this shouldn't happen with validation
+           router.push('/tools');
+         }
        }
        else router.push('/tools');
     }
@@ -124,7 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 4. Check for Plaza User (with prefix)
       const plazaUser = await getPlazaUserByUsername(usernamePart, prefix);
       if (plazaUser && plazaUser.password === pass && plazaUser.status === "Activo") {
-         const userData: User = { id: plazaUser.id, username: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, prefix: plazaUser.prefix };
+         const userData: User = { id: plazaUser.id, username: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, accessibleTools: plazaUser.accessibleTools, prefix: plazaUser.prefix };
          localStorage.setItem('appUser', JSON.stringify(userData));
          setUser(userData);
          return true;
@@ -181,3 +186,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+    
