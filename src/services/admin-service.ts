@@ -55,3 +55,14 @@ export async function getAdminByUsername(username: string, prefix?: string): Pro
     const adminDoc = querySnapshot.docs[0];
     return { id: adminDoc.id, ...adminDoc.data() } as Admin & {password: string};
 }
+
+export async function getAdminById(id: string): Promise<Admin | null> {
+    const docRef = doc(db, 'admins', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        const { password, ...adminData } = data;
+        return { id: docSnap.id, ...adminData } as Admin;
+    }
+    return null;
+}

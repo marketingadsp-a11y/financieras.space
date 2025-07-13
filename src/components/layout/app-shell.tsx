@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   Loader2,
   ListTree,
-  BookCheck
+  BookCheck,
+  LayoutDashboard,
+  Undo2
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -59,6 +61,7 @@ type NavItem = {
 
 const superAdminNavItems: NavItem[] = [
   { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
+  { href: "/panel-viewer", label: "Visualizador de Paneles", icon: LayoutDashboard, superAdminOnly: true },
   { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
   { href: "/users", label: "Gestionar Usuarios", icon: Users2, superAdminOnly: true },
   { href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: true },
@@ -282,9 +285,31 @@ function NavLinks() {
   );
 }
 
+function ImpersonationBar() {
+    const { impersonation, stopImpersonating } = useAuth();
+    if (!impersonation) return null;
+
+    return (
+        <div className="fixed top-0 left-0 right-0 z-50 flex h-10 items-center justify-center bg-yellow-400 px-4 text-sm font-semibold text-black shadow-lg">
+            <span>
+                Estás viendo como: <strong className="font-bold">{impersonation.username}</strong> ({impersonation.role})
+            </span>
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                className="ml-4 h-auto px-2 py-1 hover:bg-yellow-500"
+                onClick={stopImpersonating}
+            >
+                <Undo2 className="mr-2 h-4 w-4" />
+                Volver a mi panel
+            </Button>
+        </div>
+    )
+}
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, impersonation } = useAuth();
   const pathname = usePathname();
 
   if (!user) {
@@ -303,7 +328,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const currentTool = getToolFromPath();
   
   const getUserRoleLabel = () => {
-    if (user.isSuperAdmin) return 'Financieras MX';
+    if (user.isSuperAdmin && !impersonation) return 'Financieras MX';
     if (user.isToolAdmin) return 'Admin de Herramienta';
     if (user.isPlazaUser) return user.username;
     return 'Admin';
@@ -348,7 +373,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
            )}
         </SidebarContent>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className={cn(impersonation && "pt-10")}>
+        <ImpersonationBar />
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
           <SidebarTrigger />
           <div className="flex-1" />
