@@ -34,6 +34,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Reusable Dialog for Daily Record Import
 const DailyRecordImportDialog = ({
@@ -52,6 +53,7 @@ const DailyRecordImportDialog = ({
     const [importText, setImportText] = React.useState('');
     const [isParsing, setIsParsing] = React.useState(false);
     const [importPlazaId, setImportPlazaId] = React.useState<string>(plazas[0]?.id || '');
+    const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
 
     React.useEffect(() => {
         if (plazas.length > 0 && !importPlazaId) {
@@ -85,7 +87,7 @@ const DailyRecordImportDialog = ({
                 category: p.category && p.category !== 'N/A' ? p.category : undefined,
             }));
             
-            await addMultipleDailyRecords(importPlazaId, user.prefix, recordsToAdd);
+            await addMultipleDailyRecords(importPlazaId, user.prefix, recordsToAdd, importMode);
 
             toast({ title: "Éxito", description: `${recordsToAdd.length} registros importados correctamente a la plaza seleccionada.` });
             
@@ -112,6 +114,19 @@ const DailyRecordImportDialog = ({
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
+                        <Label>Modo de Importación</Label>
+                        <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="add" id="r-add" />
+                                <Label htmlFor="r-add">Agregar a existentes</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="replace" id="r-replace" />
+                                <Label htmlFor="r-replace">Reemplazar en fechas importadas</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+                     <div className="space-y-2">
                         <Label htmlFor="plaza-select">Selecciona la Plaza para Importar</Label>
                         <Select value={importPlazaId} onValueChange={setImportPlazaId}>
                             <SelectTrigger id="plaza-select">
@@ -407,5 +422,3 @@ function AdminToolsView() {
         </div>
     );
 }
-
-    
