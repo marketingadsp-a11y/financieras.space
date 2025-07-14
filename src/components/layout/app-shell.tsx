@@ -18,8 +18,12 @@ import {
   ListTree,
   BookCheck,
   LayoutDashboard,
-  Undo2
+  Undo2,
+  ChevronDown,
+  Contact
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -48,19 +52,29 @@ import {
   SidebarGroupLabel,
   SidebarProvider,
   SidebarTrigger,
-  SidebarSeparator
+  SidebarSeparator,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar"
 
 
 type NavItem = {
-  href: string;
+  href?: string;
   label: string;
   icon: React.ElementType;
   superAdminOnly?: boolean;
+  children?: NavItem[];
 };
 
 const superAdminNavItems: NavItem[] = [
-  { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
+  { 
+    label: "Clientes", 
+    icon: Contact, 
+    superAdminOnly: true,
+    children: [
+        { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
+    ]
+  },
   { href: "/panel-viewer", label: "Visualizador de Paneles", icon: LayoutDashboard, superAdminOnly: true },
   { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
   { href: "/users", label: "Gestionar Usuarios", icon: Users2, superAdminOnly: true },
@@ -176,8 +190,8 @@ function NavLinks() {
                 <SidebarMenu>
                     {mainNavItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
-                            <Link href={item.href}>
-                                <SidebarMenuButton isActive={pathname.startsWith(item.href)} tooltip={item.label}>
+                            <Link href={item.href!}>
+                                <SidebarMenuButton isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
                                     <item.icon />
                                     <span>{item.label}</span>
                                 </SidebarMenuButton>
@@ -202,7 +216,7 @@ function NavLinks() {
                 <SidebarMenu>
                     {items.map((item) => (
                         <SidebarMenuItem key={item.href}>
-                        <Link href={item.href}>
+                        <Link href={item.href!}>
                             <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
                                 <item.icon />
                                 <span>{item.label}</span>
@@ -224,7 +238,7 @@ function NavLinks() {
           <SidebarMenu>
             {dailyControlNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
+                <Link href={item.href!}>
                   <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
                     <item.icon />
                     <span>{item.label}</span>
@@ -239,7 +253,7 @@ function NavLinks() {
           <SidebarMenu>
             {dailyControlSettingsItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
+                <Link href={item.href!}>
                   <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
                     <item.icon />
                     <span>{item.label}</span>
@@ -268,19 +282,58 @@ function NavLinks() {
   }
 
   const availableNavItems = getNavItems();
+  
+  const renderNavItems = (items: NavItem[]) => {
+    return items.map((item, index) => {
+        if (item.children && item.children.length > 0) {
+            const isChildActive = item.children.some(child => child.href && pathname.startsWith(child.href));
+            return (
+                <Collapsible key={`${item.label}-${index}`} defaultOpen={isChildActive}>
+                    <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip={item.label} className="justify-between">
+                                <div className="flex items-center gap-2">
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                </div>
+                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 data-[state=open]:rotate-180" />
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                    </SidebarMenuItem>
+                    <CollapsibleContent>
+                        <SidebarMenuSub>
+                            {item.children.map(child => (
+                                <SidebarMenuSubItem key={child.href}>
+                                    <Link href={child.href!}>
+                                        <SidebarMenuSubButton isActive={pathname === child.href}>
+                                            <child.icon />
+                                            <span>{child.label}</span>
+                                        </SidebarMenuSubButton>
+                                    </Link>
+                                </SidebarMenuSubItem>
+                            ))}
+                        </SidebarMenuSub>
+                    </CollapsibleContent>
+                </Collapsible>
+            )
+        }
+        
+        return (
+            <SidebarMenuItem key={item.href}>
+                <Link href={item.href!}>
+                    <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+        )
+    });
+  }
 
   return (
     <SidebarMenu>
-      {availableNavItems.map((item) => (
-         <SidebarMenuItem key={item.href}>
-          <Link href={item.href}>
-             <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
-                <item.icon />
-                <span>{item.label}</span>
-            </SidebarMenuButton>
-          </Link>
-        </SidebarMenuItem>
-      ))}
+      {renderNavItems(availableNavItems)}
     </SidebarMenu>
   );
 }
@@ -407,5 +460,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
