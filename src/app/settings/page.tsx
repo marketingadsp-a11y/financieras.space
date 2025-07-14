@@ -1,5 +1,6 @@
-import { SuperAdminDashboard } from "@/components/settings/super-admin-dashboard";
+
+import { AppSettings } from "@/components/settings/app-settings";
 
 export default function SettingsPage() {
-  return <SuperAdminDashboard />;
+  return <AppSettings />;
 }
