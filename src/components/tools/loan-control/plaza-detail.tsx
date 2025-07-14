@@ -5,17 +5,19 @@ import * as React from "react";
 import Link from "next/link";
 import { getPlazaById } from "@/services/plaza-service";
 import type { Plaza, LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Users, DollarSign } from "lucide-react";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Users, DollarSign, ClipboardPaste } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getGruposByCartera, getCustomersByCartera } from "@/services/loan-control-service";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getCustomersByCartera, importPlazaStructureFromPaste } from "@/services/loan-control-service";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription as DialogDescriptionComponent, DialogFooter } from "@/components/ui/dialog";
 import { CarteraForm } from "./cartera-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 
 type CarteraWithStats = LoanControlCartera & {
@@ -117,11 +119,15 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const [carteras, setCarteras] = React.useState<CarteraWithStats[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isImportModalOpen, setImportModalOpen] = React.useState(false);
+  const [importText, setImportText] = React.useState('');
+  const [isProcessingImport, setIsProcessingImport] = React.useState(false);
   const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
   const { toast } = useToast();
 
   const fetchCarterasWithStats = React.useCallback(async () => {
     try {
+      setIsLoading(true);
       const carterasData = await getCarterasByPlaza(plazaId);
       const carterasWithStats = await Promise.all(carterasData.map(async (cartera) => {
           const [groups, customers] = await Promise.all([
@@ -147,6 +153,8 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
       setCarteras(carterasWithStats);
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la lista de carteras." });
+    } finally {
+        setIsLoading(false);
     }
   }, [plazaId, toast]);
 
@@ -205,6 +213,30 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     }
   }
 
+  const handleImportSubmit = async () => {
+    if (!importText.trim() || !user?.prefix) return;
+    setIsProcessingImport(true);
+    try {
+        const result = await importPlazaStructureFromPaste({
+            plazaId,
+            prefix: user.prefix,
+            pasteData: importText
+        });
+        toast({
+            title: "Importación Completa",
+            description: `Se crearon ${result.newCarteras} carteras, ${result.newGroups} grupos y se importaron ${result.totalCustomers} clientes.`
+        });
+        await fetchCarterasWithStats();
+        setImportModalOpen(false);
+        setImportText('');
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+        toast({ variant: "destructive", title: "Error de Importación", description: errorMessage });
+    } finally {
+        setIsProcessingImport(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -236,22 +268,54 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                         Organiza tus clientes en diferentes carteras.
                     </CardDescription>
                 </div>
-                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingCartera(null);}}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Agregar Cartera
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>{editingCartera ? "Editar" : "Agregar"} Cartera</DialogTitle>
-                        </DialogHeader>
-                        <CarteraForm
-                            onSubmit={handleFormSubmit}
-                            cartera={editingCartera}
-                        />
-                    </DialogContent>
-                </Dialog>
+                 <div className="flex items-center gap-2">
+                    <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline"><ClipboardPaste className="mr-2 h-4 w-4"/> Importar Todo</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-xl">
+                            <DialogHeader>
+                                <DialogTitle>Importar Estructura Completa de la Plaza</DialogTitle>
+                                <DialogDescriptionComponent>
+                                    Pega los datos de Excel. El sistema identificará clientes, grupos y carteras. Si no existen, se crearán automáticamente.
+                                </DialogDescriptionComponent>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <Label htmlFor="import-textarea">Datos de Cartera, Grupos y Clientes</Label>
+                                <Textarea 
+                                    id="import-textarea"
+                                    placeholder="Pega aquí los datos..." 
+                                    className="min-h-[250px] font-mono text-xs" 
+                                    value={importText} 
+                                    onChange={(e) => setImportText(e.target.value)}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+                                <Button onClick={handleImportSubmit} disabled={isProcessingImport}>
+                                    {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
+                                    {isProcessingImport ? 'Procesando...' : 'Importar'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingCartera(null);}}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Agregar Cartera
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{editingCartera ? "Editar" : "Agregar"} Cartera</DialogTitle>
+                            </DialogHeader>
+                            <CarteraForm
+                                onSubmit={handleFormSubmit}
+                                cartera={editingCartera}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
         </CardHeader>
         <CardContent>

@@ -17,6 +17,8 @@ const CustomerParserInputSchema = z.object({
 export type CustomerParserInput = z.infer<typeof CustomerParserInputSchema>;
 
 const ParsedCustomerSchema = z.object({
+    carteraName: z.string().optional().describe("The name of the portfolio ('cartera') the customer belongs to. This is crucial for organizing groups."),
+    responsable: z.string().optional().describe("The person responsible for the portfolio ('cartera')."),
     groupName: z.string().optional().describe("The name of the group the customer belongs to. This field is crucial for organizing customers."),
     name: z.string().describe("The full name of the customer."),
     address: z.string().describe("The customer's full address, street and number."),
@@ -50,8 +52,9 @@ const prompt = ai.definePrompt({
   output: {schema: CustomerParserOutputSchema},
   prompt: `You are an expert data processor. Your task is to parse the following text, which contains customer data pasted from a spreadsheet.
 The data is semi-structured. Each line represents a customer. The columns are likely separated by tabs.
-The columns could be in any order, but common headers include: GRUPO, FECHA, NOMBRE, DIRECCION, COLONIA, CP, TELEFONO, AVAL, TEL AVAL, DIR AVAL, COL AVAL, CP AVAL, PRESTAMO, PAGO, VENCIDOS, ADEUDO. Your job is to intelligently identify the correct data for each field in the output schema.
-- It is CRITICAL to identify the 'GRUPO' column. This is used to organize customers. If a group name is not present for a row, you can try to infer it from previous rows if it seems logical.
+The columns could be in any order, but common headers include: CARTERA, RESPONSABLE, GRUPO, FECHA, NOMBRE, DIRECCION, COLONIA, CP, TELEFONO, AVAL, TEL AVAL, DIR AVAL, COL AVAL, CP AVAL, PRESTAMO, PAGO, VENCIDOS, ADEUDO. Your job is to intelligently identify the correct data for each field in the output schema.
+- It is CRITICAL to identify the 'CARTERA' and 'GRUPO' columns. These are used to organize everything. If a cartera or group name is not present for a row, you can try to infer it from previous rows if it seems logical.
+- The 'RESPONSABLE' field is associated with the 'CARTERA'. Try to find it.
 - For numerical fields, clean the data to remove currency symbols, commas, or any other non-numeric characters. If a value is not present, use a sensible default (e.g., 0 for numbers, empty string for text).
 - For the 'fechaPrestamo' field, convert any found date into YYYY-MM-DD format.
 

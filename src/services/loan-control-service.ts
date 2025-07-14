@@ -28,6 +28,16 @@ export async function getCarteraById(id: string): Promise<LoanControlCartera | n
     return null;
 }
 
+async function getCarteraByNameAndPlaza(name: string, plazaId: string): Promise<LoanControlCartera | null> {
+    const q = query(carterasCollectionRef, where("name", "==", name), where("plazaId", "==", plazaId));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+        return null;
+    }
+    const carteraDoc = querySnapshot.docs[0];
+    return { id: carteraDoc.id, ...carteraDoc.data() } as LoanControlCartera;
+}
+
 export async function addCartera(cartera: Omit<LoanControlCartera, 'id'>): Promise<LoanControlCartera> {
     const docRef = await addDoc(carterasCollectionRef, cartera);
     return { ...cartera, id: docRef.id };
@@ -106,7 +116,6 @@ interface ImportParams {
     carteraId: string;
     plazaId: string;
     prefix: string;
-    responsable: string;
     pasteData: string;
     mode: 'add' | 'replace';
 }
@@ -117,7 +126,7 @@ interface ImportResult {
 }
 
 export async function importGruposAndCustomersFromPaste(params: ImportParams): Promise<ImportResult> {
-    const { carteraId, plazaId, prefix, responsable, pasteData, mode } = params;
+    const { carteraId, plazaId, prefix, pasteData, mode } = params;
 
     // 1. Parse data with AI
     const parsedCustomers = await parseCustomers({ inputText: pasteData });
@@ -126,7 +135,6 @@ export async function importGruposAndCustomersFromPaste(params: ImportParams): P
     }
     
     let newGroupsCount = 0;
-    const groupsCache: Record<string, LoanControlGrupo> = {};
 
     // Group customers by their detected group name
     const customersByGroup: Record<string, ParsedCustomer[]> = {};
@@ -169,6 +177,85 @@ export async function importGruposAndCustomersFromPaste(params: ImportParams): P
     }
 
     return {
+        newGroups: newGroupsCount,
+        totalCustomers: parsedCustomers.length,
+    };
+}
+
+
+// --- Plaza Level Import ---
+interface PlazaImportParams {
+    plazaId: string;
+    prefix: string;
+    pasteData: string;
+}
+
+interface PlazaImportResult {
+    newCarteras: number;
+    newGroups: number;
+    totalCustomers: number;
+}
+
+export async function importPlazaStructureFromPaste(params: PlazaImportParams): Promise<PlazaImportResult> {
+    const { plazaId, prefix, pasteData } = params;
+    
+    // 1. AI Parsing
+    const parsedCustomers = await parseCustomers({ inputText: pasteData });
+    if (!parsedCustomers || parsedCustomers.length === 0) {
+        throw new Error("La IA no pudo procesar los datos. Verifica el formato.");
+    }
+    
+    let newCarterasCount = 0;
+    let newGroupsCount = 0;
+    
+    // 2. Group by Cartera, then by Group
+    const structure: Record<string, Record<string, ParsedCustomer[]>> = {};
+    for (const customer of parsedCustomers) {
+        const carteraName = customer.carteraName || "Cartera General";
+        const groupName = customer.groupName || "Sin Grupo Asignado";
+        
+        if (!structure[carteraName]) {
+            structure[carteraName] = {};
+        }
+        if (!structure[carteraName][groupName]) {
+            structure[carteraName][groupName] = [];
+        }
+        structure[carteraName][groupName].push(customer);
+    }
+    
+    // 3. Process structure
+    for (const carteraName in structure) {
+        // Find or create Cartera
+        let cartera = await getCarteraByNameAndPlaza(carteraName, plazaId);
+        if (!cartera) {
+            const firstCustomerInCartera = structure[carteraName][Object.keys(structure[carteraName])[0]][0];
+            const responsable = firstCustomerInCartera.responsable || "No especificado";
+            cartera = await addCartera({ name: carteraName, plazaId, prefix, responsable });
+            newCarterasCount++;
+        }
+        
+        for (const groupName in structure[carteraName]) {
+            // Find or create Grupo
+            let grupo = await getGrupoByNameAndCartera(groupName, cartera.id);
+            if (!grupo) {
+                grupo = await addGrupo({ name: groupName, carteraId: cartera.id, plazaId, prefix });
+                newGroupsCount++;
+            }
+            
+            // Add customers to the group
+            const customersToAdd = structure[carteraName][groupName].map(c => ({
+                ...c,
+                plazaId,
+                loanControlGroupId: grupo!.id,
+                status: 'Pendiente' as const,
+            }));
+            
+            await addMultipleCustomers(customersToAdd, plazaId, 'add', prefix, grupo.id);
+        }
+    }
+
+    return {
+        newCarteras: newCarterasCount,
         newGroups: newGroupsCount,
         totalCustomers: parsedCustomers.length,
     };
