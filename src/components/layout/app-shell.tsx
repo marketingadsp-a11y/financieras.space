@@ -311,6 +311,36 @@ function NavLinks() {
   if (isLoanControlPath) {
     const plazaMatch = pathname.match(/\/tools\/loan-control\/plaza\/([^/]+)/);
     const carteraMatch = pathname.match(/\/tools\/loan-control\/cartera\/([^/]+)/);
+    const grupoMatch = pathname.match(/\/tools\/loan-control\/grupo\/([^/]+)/);
+
+    if (grupoMatch) {
+       const carteraId = searchParams.get('carteraId') || '';
+       const plazaId = searchParams.get('plazaId') || '';
+       return (
+        <SidebarGroup>
+          <SidebarGroupLabel>GESTIÓN DE GRUPO</SidebarGroupLabel>
+           <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href={{pathname: `/tools/loan-control/grupo/${grupoMatch[1]}`, query: {plazaId, carteraId}}}>
+                    <SidebarMenuButton asChild isActive={true} tooltip="Clientes">
+                        <span><Users /><span>Clientes</span></span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+           </SidebarMenu>
+           <SidebarSeparator />
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <Link href={{pathname: `/tools/loan-control/cartera/${carteraId}`, query: {plazaId}}}>
+                        <SidebarMenuButton asChild tooltip="Volver a Grupos">
+                            <span><ChevronLeft /><span>Volver a Grupos</span></span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarGroup>
+       )
+    }
 
     if (carteraMatch) {
       const plazaId = searchParams.get('plazaId') || '';
@@ -565,5 +595,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    

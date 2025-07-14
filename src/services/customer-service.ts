@@ -10,18 +10,35 @@ const customersCollectionRef = collection(db, "customers");
 
 function customerFromDoc(doc: DocumentData): Customer {
     const data = doc.data();
+    // Helper to safely convert Firestore Timestamp to JS Date
+    const toDate = (timestamp: any): Date | undefined => {
+        if (timestamp instanceof Timestamp) {
+            return timestamp.toDate();
+        }
+        if (timestamp && typeof timestamp.toDate === 'function') {
+           return timestamp.toDate();
+        }
+        return undefined;
+    }
+
     return {
         id: doc.id,
         plazaId: data.plazaId,
         name: data.name,
         address: data.address,
+        colonia: data.colonia || "",
+        cp: data.cp || "",
         phone: data.phone || "",
         guarantor: data.guarantor || "",
         guarantorPhone: data.guarantorPhone || "",
+        direccionAval: data.direccionAval || "",
+        coloniaAval: data.coloniaAval || "",
+        cpAval: data.cpAval || "",
         loanAmount: data.loanAmount || 0,
         paymentAmount: data.paymentAmount || 0,
         installmentsDue: data.installmentsDue || 0,
         dueAmount: data.dueAmount || 0,
+        fechaPrestamo: toDate(data.fechaPrestamo),
         status: data.status || "Pendiente",
         prefix: data.prefix || "",
         loanControlGroupId: data.loanControlGroupId || undefined,
@@ -42,13 +59,21 @@ export async function getCustomersByLoanControlGroup(groupId: string): Promise<C
 }
 
 export async function addCustomer(customer: Omit<Customer, 'id'>) : Promise<Customer> {
-    const docRef = await addDoc(customersCollectionRef, customer);
+     const customerDataWithTimestamp = {
+        ...customer,
+        fechaPrestamo: customer.fechaPrestamo ? Timestamp.fromDate(customer.fechaPrestamo) : Timestamp.now()
+    };
+    const docRef = await addDoc(customersCollectionRef, customerDataWithTimestamp);
     return { ...customer, id: docRef.id };
 }
 
 export async function updateCustomer(id: string, customer: Partial<Omit<Customer, 'id'>>) {
     const customerDoc = doc(db, "customers", id);
-    await updateDoc(customerDoc, customer);
+    const dataToUpdate: Partial<any> = {...customer};
+    if (customer.fechaPrestamo) {
+        dataToUpdate.fechaPrestamo = Timestamp.fromDate(new Date(customer.fechaPrestamo));
+    }
+    await updateDoc(customerDoc, dataToUpdate);
 }
 
 export async function deleteCustomer(id: string) {
@@ -83,7 +108,7 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], pl
     customers.forEach(customerData => {
         const newDocRef = doc(customersCollectionRef);
         // Ensure all fields are present, even if empty, to match the Customer type
-        const completeCustomerData = {
+        const completeCustomerData: any = {
             plazaId: plazaId,
             status: 'Pendiente' as const,
             prefix: prefix,
@@ -96,6 +121,13 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], pl
             paymentAmount: customerData.paymentAmount || 0,
             installmentsDue: customerData.installmentsDue || 0,
             dueAmount: customerData.dueAmount || customerData.loanAmount || 0,
+            // Add new fields with defaults
+            colonia: customerData.colonia || '',
+            cp: customerData.cp || '',
+            direccionAval: customerData.direccionAval || '',
+            coloniaAval: customerData.coloniaAval || '',
+            cpAval: customerData.cpAval || '',
+            fechaPrestamo: customerData.fechaPrestamo ? Timestamp.fromDate(new Date(customerData.fechaPrestamo)) : Timestamp.now(),
         };
         batch.set(newDocRef, completeCustomerData);
     });

@@ -2,7 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, FolderKanban, Users, PlusCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, FolderKanban, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo } from "@/services/loan-control-service";
@@ -149,39 +150,46 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
                       <TableCell className="font-medium">{grupo.name}</TableCell>
                       <TableCell>0</TableCell>
                       <TableCell className="text-right">
-                         <AlertDialog>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Alternar menú</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                    <DropdownMenuItem onSelect={() => handleEditClick(grupo)}>
-                                        <Pencil className="mr-2 h-4 w-4" /> Editar
-                                    </DropdownMenuItem>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
-                                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                        <div className="flex gap-2 justify-end">
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={{pathname: `/tools/loan-control/grupo/${grupo.id}`, query: {plazaId, carteraId}}}>
+                                    Gestionar Clientes <ArrowRight className="ml-2 h-4 w-4"/>
+                                </Link>
+                            </Button>
+                            <AlertDialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Alternar menú</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                        <DropdownMenuItem onSelect={() => handleEditClick(grupo)}>
+                                            <Pencil className="mr-2 h-4 w-4" /> Editar
                                         </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                             <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                    Esta acción eliminará el grupo y desvinculará a los clientes asociados. Esta acción no se puede deshacer.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteClick(grupo.id)}>Eliminar</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
+                                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                        Esta acción eliminará el grupo y desvinculará a los clientes asociados. Esta acción no se puede deshacer.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteClick(grupo.id)}>Eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

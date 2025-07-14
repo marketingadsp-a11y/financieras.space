@@ -52,6 +52,17 @@ export async function getGruposByCartera(carteraId: string): Promise<LoanControl
     return data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlGrupo[];
 }
 
+export async function getGrupoById(id: string): Promise<LoanControlGrupo | null> {
+    const grupoDoc = doc(db, "loanControlGrupos", id);
+    const docSnap = await getDoc(grupoDoc);
+
+    if (docSnap.exists()) {
+        return { ...docSnap.data(), id: docSnap.id } as LoanControlGrupo;
+    }
+    return null;
+}
+
+
 export async function addGrupo(grupo: Omit<LoanControlGrupo, 'id'>): Promise<LoanControlGrupo> {
     const docRef = await addDoc(gruposCollectionRef, grupo);
     return { ...grupo, id: docRef.id };
