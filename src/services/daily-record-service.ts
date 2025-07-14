@@ -12,7 +12,9 @@ import {
     query,
     where,
     getDocs,
-    writeBatch
+    writeBatch,
+    DocumentSnapshot,
+    DocumentData
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { DailyRecord, DailyRecordEntry } from "@/lib/data";
@@ -106,11 +108,9 @@ export async function addMultipleDailyRecords(
     entries: Omit<DailyRecordEntry, 'id'>[],
     mode: 'add' | 'replace'
 ): Promise<void> {
-
     // Group entries by date
     const groupedByDate: { [key: string]: Omit<DailyRecordEntry, 'id'>[] } = {};
     for (const entry of entries) {
-        // Normalize date to avoid timezone issues during grouping
         const localDate = new Date(entry.date.getFullYear(), entry.date.getMonth(), entry.date.getDate());
         const dateString = localDate.toISOString().split('T')[0];
         if (!groupedByDate[dateString]) {
@@ -119,15 +119,31 @@ export async function addMultipleDailyRecords(
         groupedByDate[dateString].push(entry);
     }
     
-    // Using a transaction to ensure atomicity for each day's update
     await runTransaction(db, async (transaction) => {
-        for (const dateString in groupedByDate) {
+        const dateStrings = Object.keys(groupedByDate);
+        const recordDocRefs = dateStrings.map(dateString => {
             const date = new Date(dateString);
-            date.setUTCHours(12,0,0,0); // Use UTC hours to be consistent
+            date.setUTCHours(12, 0, 0, 0);
+            return getDailyRecordDocRef(plazaId, date);
+        });
+
+        // 1. Perform all reads first
+        const recordDocs = await Promise.all(recordDocRefs.map(ref => transaction.get(ref)));
+        const existingDocsMap = new Map<string, DocumentSnapshot<DocumentData>>();
+        recordDocs.forEach(doc => {
+            if (doc.exists()) {
+                existingDocsMap.set(doc.id, doc);
+            }
+        });
+
+        // 2. Perform all writes second
+        for (const dateString of dateStrings) {
+            const date = new Date(dateString);
+            date.setUTCHours(12, 0, 0, 0);
             
             const entriesForDate = groupedByDate[dateString];
             const recordDocRef = getDailyRecordDocRef(plazaId, date);
-            const recordDoc = await transaction.get(recordDocRef);
+            const recordDoc = existingDocsMap.get(recordDocRef.id);
 
             const newEntriesWithIds = entriesForDate.map(e => ({
                 ...e, 
@@ -141,7 +157,7 @@ export async function addMultipleDailyRecords(
                 spent: newEntriesWithIds.filter(e => e.type === 'spent').reduce((sum, e) => sum + e.amount, 0),
             };
 
-            if (!recordDoc.exists() || mode === 'replace') {
+            if (!recordDoc || mode === 'replace') {
                 const newRecord: DailyRecord = {
                     id: recordDocRef.id,
                     plazaId,
