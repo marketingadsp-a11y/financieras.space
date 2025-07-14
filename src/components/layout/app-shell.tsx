@@ -74,10 +74,10 @@ const superAdminNavItems: NavItem[] = [
     superAdminOnly: true,
     children: [
         { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
+        { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
     ]
   },
   { href: "/panel-viewer", label: "Visualizador de Paneles", icon: LayoutDashboard, superAdminOnly: true },
-  { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
   { href: "/users", label: "Gestionar Usuarios", icon: Users2, superAdminOnly: true },
   { href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: true },
   { href: "/settings", label: "Configuración", icon: Settings, superAdminOnly: true },
