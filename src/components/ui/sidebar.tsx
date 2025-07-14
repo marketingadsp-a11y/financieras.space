@@ -19,7 +19,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { CollapsibleTrigger } from "./collapsible"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -557,8 +556,7 @@ const SidebarMenuButton = React.forwardRef<
   ) => {
     // If we're using a CollapsibleTrigger, we need to wrap the button in a Slot.
     // Otherwise, we can just use a button.
-    const isCollapsibleTrigger = props.role === "button"
-    const Comp = asChild || isCollapsibleTrigger ? Slot : "button"
+    const Comp = asChild ? Slot : "button"
     const { isMobile, state } = useSidebar()
 
     const button = (
