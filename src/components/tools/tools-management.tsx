@@ -19,8 +19,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { getAdmins, updateAdmin } from "@/services/admin-service";
 import type { Admin, Tool } from "@/lib/data";
 import { allTools } from "@/lib/data";
@@ -46,6 +44,7 @@ function SuperAdminToolsView() {
   const [admins, setAdmins] = React.useState<Admin[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
   const [selectedTool, setSelectedTool] = React.useState<Tool | null>(null);
   const [selectedAdmins, setSelectedAdmins] = React.useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -93,17 +92,17 @@ function SuperAdminToolsView() {
 
   const handleSaveChanges = async () => {
     if (!selectedTool) return;
-
+    setIsSaving(true);
     try {
       const updates = admins.map(admin => {
         const hasAccess = selectedAdmins.has(admin.id);
         const hadAccess = admin.accessibleTools?.includes(selectedTool.id);
-        let newTools = admin.accessibleTools ? [...admin.accessibleTools] : [];
-
+        
+        let newTools: string[];
         if (hasAccess && !hadAccess) {
-            newTools.push(selectedTool.id);
+            newTools = [...(admin.accessibleTools || []), selectedTool.id];
         } else if (!hasAccess && hadAccess) {
-            newTools = newTools.filter(t => t !== selectedTool.id);
+            newTools = (admin.accessibleTools || []).filter(t => t !== selectedTool.id);
         } else {
             return null; // No changes for this admin
         }
@@ -128,6 +127,7 @@ function SuperAdminToolsView() {
         description: "No se pudieron guardar los cambios.",
       });
     } finally {
+      setIsSaving(false);
       setIsModalOpen(false);
     }
   };
@@ -198,7 +198,6 @@ function SuperAdminToolsView() {
                     <div className="flex-1">
                       <p className="font-semibold">{admin.name}</p>
                       <p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p>
-                      <p className="text-xs text-muted-foreground">Empresa: {admin.prefix}</p>
                     </div>
                     {isSelected && <CheckCircle2 className="h-5 w-5 text-primary absolute top-3 right-3" />}
                   </div>
@@ -210,7 +209,10 @@ function SuperAdminToolsView() {
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveChanges}>Guardar Cambios</Button>
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar Cambios
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -225,7 +227,7 @@ function AdminToolsView() {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Bienvenido, {user?.username}</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Bienvenido, {user?.name || user?.username}</h1>
                 <p className="text-muted-foreground">Aquí están las herramientas disponibles para ti. ¡Comencemos!</p>
             </div>
 
