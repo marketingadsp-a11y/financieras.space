@@ -339,16 +339,16 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                 </DialogDescriptionComponent>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
+                                <div className="space-y-2">
                                   <Label>Modo de Importación</Label>
-                                  <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)}>
+                                  <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
                                     <div className="flex items-center space-x-2">
                                       <RadioGroupItem value="add" id="r1" />
                                       <Label htmlFor="r1">Añadir a existentes</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                       <RadioGroupItem value="replace" id="r2" />
-                                      <Label htmlFor="r2">Reemplazar todos los clientes de esta plaza</Label>
+                                      <Label htmlFor="r2">Reemplazar todos los clientes</Label>
                                     </div>
                                   </RadioGroup>
                                 </div>
