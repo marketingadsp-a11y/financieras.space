@@ -2,14 +2,16 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Users, PlusCircle, User, Phone, MapPin, Hash, Calendar, DollarSign, ClipboardPaste, Trash2 } from "lucide-react";
+import * as XLSX from "xlsx";
+import { Loader2, Users, PlusCircle, User, Phone, MapPin, Hash, Calendar as CalendarIcon, DollarSign, ClipboardPaste, Trash2, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { getGrupoById } from "@/services/loan-control-service";
+import { getGrupoById, getCarteraById } from "@/services/loan-control-service";
+import { getPlazaById } from "@/services/plaza-service";
 import { getCustomersByLoanControlGroup, addCustomer, addMultipleCustomers, deleteCustomersByGroupId } from "@/services/customer-service";
-import type { LoanControlGrupo, Customer } from "@/lib/data";
+import type { LoanControlGrupo, Customer, LoanControlCartera, Plaza } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription as DialogDescriptionComponent, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent, DialogFooter } from "@/components/ui/dialog";
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
 import { useAuth } from "@/context/auth-context";
 import { Badge } from "@/components/ui/badge";
@@ -19,12 +21,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Calendar as CalendarIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
 
@@ -66,7 +66,7 @@ const CustomerInfoCard = ({ customer }: { customer: Customer }) => {
                     </div>
                      <div className="space-y-2">
                         <h4 className="font-semibold">Información del Préstamo</h4>
-                        <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground"/> <span>{displayDate ? format(displayDate, 'PPP', {locale: es}) : 'N/A'}</span></div>
+                        <div className="flex items-center gap-2"><CalendarIcon className="h-4 w-4 text-muted-foreground"/> <span>{displayDate ? format(displayDate, 'PPP', {locale: es}) : 'N/A'}</span></div>
                         <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground"/> <span>Préstamo: ${customer.loanAmount.toLocaleString()}</span></div>
                         <div className="flex items-center gap-2 font-bold text-destructive"><DollarSign className="h-4 w-4"/> <span>Saldo: ${customer.dueAmount.toLocaleString()}</span></div>
                     </div>
@@ -101,6 +101,8 @@ const CustomerInfoCard = ({ customer }: { customer: Customer }) => {
 export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoId: string, plazaId: string, carteraId: string }) {
   const { user } = useAuth();
   const [grupo, setGrupo] = React.useState<LoanControlGrupo | null>(null);
+  const [cartera, setCartera] = React.useState<LoanControlCartera | null>(null);
+  const [plaza, setPlaza] = React.useState<Plaza | null>(null);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isAddFormOpen, setIsAddFormOpen] = React.useState(false);
@@ -117,18 +119,22 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
   const fetchGrupoData = React.useCallback(async () => {
       try {
         setIsLoading(true);
-        const [grupoData, customersData] = await Promise.all([
+        const [grupoData, customersData, carteraData, plazaData] = await Promise.all([
           getGrupoById(grupoId),
           getCustomersByLoanControlGroup(grupoId),
+          getCarteraById(carteraId),
+          getPlazaById(plazaId)
         ]);
         setGrupo(grupoData);
         setCustomers(customersData);
+        setCartera(carteraData);
+        setPlaza(plazaData);
       } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información del grupo." });
       } finally {
         setIsLoading(false);
       }
-  }, [grupoId, toast]);
+  }, [grupoId, carteraId, plazaId, toast]);
 
   React.useEffect(() => {
     fetchGrupoData();
@@ -223,6 +229,58 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
     }, { totalPrestado: 0, totalPendiente: 0});
   }, [filteredCustomers]);
   
+    const exportToExcel = () => {
+        if (!grupo || !cartera || !plaza) {
+            toast({ variant: "destructive", title: "Error", description: "Faltan datos para exportar." });
+            return;
+        }
+
+        const header = [
+            ["Grupo:", grupo.name],
+            ["Cartera:", cartera.name],
+            ["Plaza:", plaza.name],
+            [], // Empty row for spacing
+            ["Resumen del Grupo"],
+            ["Total Prestado", summary.totalPrestado],
+            ["Total Pendiente", summary.totalPendiente],
+            [], // Empty row
+            ["Detalle de Clientes"]
+        ];
+
+        const customersData = filteredCustomers.map(c => ({
+            "Nombre": c.name,
+            "Dirección": c.address,
+            "Colonia": c.colonia,
+            "CP": c.cp,
+            "Teléfono": c.phone,
+            "Aval": c.guarantor,
+            "Teléfono Aval": c.guarantorPhone,
+            "Dirección Aval": c.direccionAval,
+            "Colonia Aval": c.coloniaAval,
+            "CP Aval": c.cpAval,
+            "Fecha Préstamo": c.fechaPrestamo ? format(addMinutes(new Date(c.fechaPrestamo), new Date(c.fechaPrestamo).getTimezoneOffset()), 'dd/MM/yyyy') : 'N/A',
+            "Monto Préstamo": c.loanAmount,
+            "Saldo": c.dueAmount,
+            "Estado": c.status,
+        }));
+        
+        const worksheet = XLSX.utils.json_to_sheet([]);
+        XLSX.utils.sheet_add_aoa(worksheet, header, { origin: "A1" });
+        XLSX.utils.sheet_add_json(worksheet, customersData, { origin: "A10", skipHeader: false });
+
+        // Formatting columns
+        worksheet["!cols"] = [
+            { wch: 30 }, { wch: 30 }, { wch: 15 }, { wch: 8 }, { wch: 15 }, 
+            { wch: 30 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 8 }, 
+            { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte de Grupo");
+
+        XLSX.writeFile(workbook, `Reporte_Grupo_${grupo.name.replace(/\s/g, '_')}.xlsx`);
+    };
+
   const expectedConfirmationText = `${grupo?.name} eliminar`;
 
   if (isLoading) {
@@ -267,7 +325,7 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
                     </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
+                    <Calendar
                         mode="single"
                         selected={startDate}
                         onSelect={setStartDate}
@@ -287,7 +345,7 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
                     </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
+                    <Calendar
                         mode="single"
                         selected={endDate}
                         onSelect={setEndDate}
@@ -351,6 +409,7 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                <Button variant="outline" onClick={exportToExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel</Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="mr-2 h-4 w-4"/> Limpiar Grupo</Button></AlertDialogTrigger>
                      <AlertDialogContent>
