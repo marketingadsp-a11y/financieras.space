@@ -178,12 +178,12 @@ function PlazaNavLinks() {
             <SidebarMenu>
                 {plazas.map((plaza) => (
                     <SidebarMenuItem key={plaza.id}>
-                        <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`} passHref legacyBehavior>
+                        <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
                             <SidebarMenuButton asChild isActive={pathname === `/tools/overdue-portfolio/plaza/${plaza.id}`} tooltip={plaza.name}>
-                                <a>
+                                <span>
                                     <Building />
                                     <span>{plaza.name}</span>
-                                </a>
+                                </span>
                             </SidebarMenuButton>
                         </Link>
                     </SidebarMenuItem>
@@ -218,12 +218,12 @@ function NavLinks() {
                 <SidebarMenu>
                     {mainNavItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
-                            <Link href={item.href!} passHref legacyBehavior>
+                            <Link href={item.href!}>
                                 <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
-                                    <a>
+                                    <span>
                                         <item.icon />
                                         <span>{item.label}</span>
-                                    </a>
+                                    </span>
                                 </SidebarMenuButton>
                             </Link>
                         </SidebarMenuItem>
@@ -246,12 +246,12 @@ function NavLinks() {
                 <SidebarMenu>
                     {items.map((item) => (
                         <SidebarMenuItem key={item.href}>
-                        <Link href={item.href!} passHref legacyBehavior>
+                        <Link href={item.href!}>
                             <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
-                                <a>
+                                <span>
                                     <item.icon />
                                     <span>{item.label}</span>
-                                </a>
+                                </span>
                             </SidebarMenuButton>
                         </Link>
                         </SidebarMenuItem>
@@ -270,12 +270,12 @@ function NavLinks() {
           <SidebarMenu>
             {dailyControlNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href!} passHref legacyBehavior>
+                <Link href={item.href!}>
                   <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
-                    <a>
+                    <span>
                       <item.icon />
                       <span>{item.label}</span>
-                    </a>
+                    </span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -287,12 +287,12 @@ function NavLinks() {
           <SidebarMenu>
             {dailyControlSettingsItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href!} passHref legacyBehavior>
+                <Link href={item.href!}>
                   <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
-                    <a>
+                    <span>
                       <item.icon />
                       <span>{item.label}</span>
-                    </a>
+                    </span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -333,12 +333,12 @@ function NavLinks() {
                         <SidebarMenuSub>
                             {item.children.map(child => (
                                 <SidebarMenuSubItem key={child.href}>
-                                    <Link href={child.href!} passHref legacyBehavior>
+                                    <Link href={child.href!}>
                                         <SidebarMenuSubButton asChild isActive={pathname === child.href}>
-                                            <a>
+                                            <span>
                                                 <child.icon />
                                                 <span>{child.label}</span>
-                                            </a>
+                                            </span>
                                         </SidebarMenuSubButton>
                                     </Link>
                                 </SidebarMenuSubItem>
@@ -351,12 +351,12 @@ function NavLinks() {
         
         return (
             <SidebarMenuItem key={item.href}>
-                <Link href={item.href!} passHref legacyBehavior>
+                <Link href={item.href!}>
                     <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
-                        <a>
+                        <span>
                             <item.icon />
                             <span>{item.label}</span>
-                        </a>
+                        </span>
                 </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
@@ -450,12 +450,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <SidebarSeparator />
               <SidebarMenu>
                 <SidebarMenuItem>
-                   <Link href="/tools" passHref legacyBehavior>
+                   <Link href="/tools">
                       <SidebarMenuButton asChild tooltip="Volver a Herramientas">
-                        <a>
+                        <span>
                             <ChevronLeft />
                             <span>Todas las Herramientas</span>
-                        </a>
+                        </span>
                       </SidebarMenuButton>
                    </Link>
                 </SidebarMenuItem>
