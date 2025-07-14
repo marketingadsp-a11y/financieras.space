@@ -3,9 +3,9 @@
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { LoanControlCartera, LoanControlGrupo } from "@/lib/data";
+import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
 import { parseCustomers, type ParsedCustomer } from "@/ai/flows/customer-parser-flow";
-import { addMultipleCustomers, deleteCustomersByGroupId } from "./customer-service";
+import { addMultipleCustomers, deleteCustomersByGroupId, getCustomersByLoanControlGroup } from "./customer-service";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
@@ -43,6 +43,16 @@ export async function deleteCartera(id: string) {
     // For now, simple delete
     const carteraDoc = doc(db, "loanControlCarteras", id);
     await deleteDoc(carteraDoc);
+}
+
+export async function getCustomersByCartera(carteraId: string): Promise<Customer[]> {
+    // This is not the most efficient query for Firestore at scale.
+    // A better approach would be to have a 'carteraId' field on the customer document itself.
+    // For now, we will fetch groups and then customers for each group.
+    const grupos = await getGruposByCartera(carteraId);
+    const customerPromises = grupos.map(g => getCustomersByLoanControlGroup(g.id));
+    const customersByGroup = await Promise.all(customerPromises);
+    return customersByGroup.flat();
 }
 
 

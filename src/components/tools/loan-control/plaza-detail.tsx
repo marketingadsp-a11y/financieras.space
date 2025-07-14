@@ -4,20 +4,31 @@
 import * as React from "react";
 import Link from "next/link";
 import { getPlazaById } from "@/services/plaza-service";
-import type { Plaza, LoanControlCartera } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User } from "lucide-react";
+import type { Plaza, LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Users, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera } from "@/services/loan-control-service";
+import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getGruposByCartera, getCustomersByCartera } from "@/services/loan-control-service";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CarteraForm } from "./cartera-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/auth-context";
+import { cn } from "@/lib/utils";
 
-const CarteraCard = ({ cartera, onEdit, onDelete }: { cartera: LoanControlCartera, onEdit: (cartera: LoanControlCartera) => void, onDelete: (id: string) => void }) => (
-    <Card>
+
+type CarteraWithStats = LoanControlCartera & {
+    stats: {
+        totalPrestado: number;
+        totalPendiente: number;
+        customerCount: number;
+        groupCount: number;
+    }
+};
+
+const CarteraCard = ({ cartera, onEdit, onDelete }: { cartera: CarteraWithStats, onEdit: (cartera: LoanControlCartera) => void, onDelete: (id: string) => void }) => (
+    <Card className="flex flex-col">
         <CardHeader>
             <div className="flex justify-between items-start">
                  <CardTitle className="flex items-center gap-2 text-lg">
@@ -62,10 +73,30 @@ const CarteraCard = ({ cartera, onEdit, onDelete }: { cartera: LoanControlCarter
                 <User className="h-4 w-4" /> {cartera.responsable}
             </CardDescription>
         </CardHeader>
-        <CardContent>
-           <p className="text-sm text-muted-foreground">
-                Selecciona esta cartera para administrar sus grupos de clientes.
-           </p>
+        <CardContent className="space-y-4 flex-grow">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="rounded-lg bg-muted p-2">
+                    <p className="text-muted-foreground text-xs font-medium">GRUPOS</p>
+                    <p className="font-bold text-lg">{cartera.stats.groupCount}</p>
+                </div>
+                 <div className="rounded-lg bg-muted p-2">
+                    <p className="text-muted-foreground text-xs font-medium">CLIENTES</p>
+                    <p className="font-bold text-lg">{cartera.stats.customerCount}</p>
+                </div>
+            </div>
+            <div className="space-y-2">
+                 <div>
+                    <p className="text-xs text-muted-foreground">Total Prestado</p>
+                    <p className="font-semibold text-base">${cartera.stats.totalPrestado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+                    <p className={cn("font-bold text-base", cartera.stats.totalPendiente > 0 ? "text-destructive" : "")}>
+                       ${cartera.stats.totalPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </p>
+                </div>
+            </div>
+
         </CardContent>
         <CardFooter>
             <Button asChild className="w-full">
@@ -83,16 +114,37 @@ const CarteraCard = ({ cartera, onEdit, onDelete }: { cartera: LoanControlCarter
 export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const { user } = useAuth();
   const [plaza, setPlaza] = React.useState<Plaza | null>(null);
-  const [carteras, setCarteras] = React.useState<LoanControlCartera[]>([]);
+  const [carteras, setCarteras] = React.useState<CarteraWithStats[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
   const { toast } = useToast();
 
-  const fetchCarteras = React.useCallback(async () => {
+  const fetchCarterasWithStats = React.useCallback(async () => {
     try {
       const carterasData = await getCarterasByPlaza(plazaId);
-      setCarteras(carterasData);
+      const carterasWithStats = await Promise.all(carterasData.map(async (cartera) => {
+          const [groups, customers] = await Promise.all([
+              getGruposByCartera(cartera.id),
+              getCustomersByCartera(cartera.id)
+          ]);
+          
+          const stats = customers.reduce((acc, customer) => {
+              acc.totalPrestado += customer.loanAmount;
+              acc.totalPendiente += customer.dueAmount;
+              return acc;
+          }, { totalPrestado: 0, totalPendiente: 0 });
+          
+          return {
+              ...cartera,
+              stats: {
+                  ...stats,
+                  customerCount: customers.length,
+                  groupCount: groups.length
+              }
+          };
+      }));
+      setCarteras(carterasWithStats);
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la lista de carteras." });
     }
@@ -104,7 +156,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
         setIsLoading(true);
         const plazaData = await getPlazaById(plazaId);
         setPlaza(plazaData);
-        await fetchCarteras();
+        await fetchCarterasWithStats();
       } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información de la plaza." });
       } finally {
@@ -112,23 +164,27 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
       }
     };
     fetchInitialData();
-  }, [plazaId, toast, fetchCarteras]);
+  }, [plazaId, toast, fetchCarterasWithStats]);
   
-  const handleFormSubmit = async (values: Omit<LoanControlCartera, 'id' | 'plazaId' | 'prefix'>) => {
+  const handleFormSubmit = async (values: Omit<LoanControlCartera, 'id' | 'plazaId' | 'prefix' | 'responsable'>) => {
     if (!user?.prefix) return;
 
     try {
+        const dataToSave = {
+            name: values.name,
+            responsable: values.responsable,
+        };
         if (editingCartera) {
-            await updateCartera(editingCartera.id, { name: values.name, responsable: values.responsable });
+            await updateCartera(editingCartera.id, dataToSave);
             toast({ title: "Éxito", description: "Cartera actualizada." });
         } else {
-            await addCartera({ ...values, plazaId, prefix: user.prefix });
+            await addCartera({ ...dataToSave, plazaId, prefix: user.prefix });
             toast({ title: "Éxito", description: "Cartera creada." });
         }
         
         setIsFormOpen(false);
         setEditingCartera(null);
-        await fetchCarteras();
+        await fetchCarterasWithStats();
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la cartera." });
     }
@@ -143,7 +199,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     try {
         await deleteCartera(id);
         toast({ title: "Éxito", description: "Cartera eliminada." });
-        await fetchCarteras();
+        await fetchCarterasWithStats();
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar la cartera." });
     }
