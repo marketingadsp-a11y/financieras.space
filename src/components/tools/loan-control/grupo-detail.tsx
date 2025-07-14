@@ -22,6 +22,10 @@ import { Input } from "@/components/ui/input";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 
 const StatCard = ({ title, value, isCurrency = false }: { title: string; value: number; isCurrency?: boolean }) => (
@@ -101,6 +105,9 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
   const { toast } = useToast();
+  
+  const [startDate, setStartDate] = React.useState<Date | undefined>();
+  const [endDate, setEndDate] = React.useState<Date | undefined>();
 
   const fetchGrupoData = React.useCallback(async () => {
       try {
@@ -181,13 +188,27 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
     }
   };
   
+  const filteredCustomers = React.useMemo(() => {
+    return customers.filter(customer => {
+        if (!startDate || !endDate) return true;
+        if (!customer.fechaPrestamo) return false;
+        
+        const customerDate = new Date(customer.fechaPrestamo);
+        // Normalize dates to avoid time issues
+        const start = new Date(startDate.setHours(0, 0, 0, 0));
+        const end = new Date(endDate.setHours(23, 59, 59, 999));
+        
+        return customerDate >= start && customerDate <= end;
+    });
+  }, [customers, startDate, endDate]);
+
   const summary = React.useMemo(() => {
-    return customers.reduce((acc, customer) => {
+    return filteredCustomers.reduce((acc, customer) => {
         acc.totalPrestado += customer.loanAmount;
         acc.totalPendiente += customer.dueAmount;
         return acc;
     }, { totalPrestado: 0, totalPendiente: 0});
-  }, [customers]);
+  }, [filteredCustomers]);
   
   const expectedConfirmationText = `${grupo?.name} eliminar`;
 
@@ -218,13 +239,59 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
             <StatCard title="Total Pendiente" value={summary.totalPendiente} isCurrency />
        </div>
 
+        <div className="flex flex-col md:flex-row gap-4 items-center p-4 border rounded-lg bg-card">
+            <h4 className="font-medium text-sm whitespace-nowrap">Filtrar por Fecha de Préstamo:</h4>
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date-start"
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de Inicio</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date-end"
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de Fin</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
+        </div>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5"/>Clientes del Grupo</CardTitle>
                 <CardDescription>
-                    {customers.length} cliente(s) en este grupo.
+                    {filteredCustomers.length} cliente(s) en este grupo.
                 </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -294,11 +361,11 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {customers.length > 0 ? (
-                customers.map(customer => <CustomerInfoCard key={customer.id} customer={customer} />)
+            {filteredCustomers.length > 0 ? (
+                filteredCustomers.map(customer => <CustomerInfoCard key={customer.id} customer={customer} />)
             ) : (
                 <div className="text-center py-10 text-muted-foreground">
-                    No hay clientes registrados en este grupo.
+                    No hay clientes que coincidan con los filtros seleccionados.
                 </div>
             )}
           </div>
