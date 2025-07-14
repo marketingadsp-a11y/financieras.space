@@ -19,14 +19,25 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription as AlertDialogDescriptionComponent,
+} from "@/components/ui/alert-dialog"
+
 import { getAdmins, updateAdmin } from "@/services/admin-service";
 import { getPlazas } from "@/services/plaza-service";
-import { addMultipleDailyRecords } from "@/services/daily-record-service";
+import { addMultipleDailyRecords, deleteDailyRecordsByPlaza } from "@/services/daily-record-service";
 import { parseDailyRecords } from "@/ai/flows/daily-record-parser-flow";
 import type { Admin, Tool, Plaza, DailyRecordEntry } from "@/lib/data";
 import { allTools } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, Wrench, CheckCircle2, ClipboardPaste } from "lucide-react";
+import { Loader2, ArrowRight, Wrench, CheckCircle2, ClipboardPaste, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
@@ -35,6 +46,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
 
 // Reusable Dialog for Daily Record Import
 const DailyRecordImportDialog = ({
@@ -158,6 +170,109 @@ const DailyRecordImportDialog = ({
     )
 }
 
+// Reusable Dialog for Daily Record Deletion
+const DailyRecordDeleteDialog = ({
+    isOpen,
+    onClose,
+    onSuccess,
+    plazas
+}: {
+    isOpen: boolean,
+    onClose: () => void,
+    onSuccess: () => void,
+    plazas: Plaza[]
+}) => {
+    const { toast } = useToast();
+    const [isDeleting, setIsDeleting] = React.useState(false);
+    const [selectedPlazaId, setSelectedPlazaId] = React.useState<string>('');
+    const [confirmationText, setConfirmationText] = React.useState('');
+
+    const expectedConfirmationText = "ELIMINAR DATOS";
+
+    const handleDelete = async () => {
+        if (!selectedPlazaId) {
+            toast({ variant: "destructive", title: "Error", description: "Debes seleccionar una plaza." });
+            return;
+        }
+        if (confirmationText !== expectedConfirmationText) {
+            toast({ variant: "destructive", title: "Error", description: "El texto de confirmación no coincide." });
+            return;
+        }
+        
+        setIsDeleting(true);
+        try {
+            await deleteDailyRecordsByPlaza(selectedPlazaId);
+            toast({ title: "Éxito", description: `Todos los registros de control diario para la plaza seleccionada han sido eliminados.` });
+            onSuccess();
+            onClose();
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudieron eliminar los registros." });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+    
+    const handleClose = () => {
+        setSelectedPlazaId('');
+        setConfirmationText('');
+        onClose();
+    }
+    
+    const selectedPlazaName = plazas.find(p => p.id === selectedPlazaId)?.name || '';
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                    <AlertDialogDescriptionComponent>
+                        Esta acción es irreversible y eliminará permanentemente TODOS los registros de Control Diario para la plaza que selecciones.
+                    </AlertDialogDescriptionComponent>
+                </AlertDialogHeader>
+                <div className="space-y-4 py-4">
+                     <div className="space-y-2">
+                        <Label htmlFor="plaza-delete-select">Selecciona la Plaza a Afectar</Label>
+                        <Select value={selectedPlazaId} onValueChange={setSelectedPlazaId} disabled={isDeleting}>
+                            <SelectTrigger id="plaza-delete-select">
+                                <SelectValue placeholder="Selecciona una plaza" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {plazas.map(plaza => (
+                                    <SelectItem key={plaza.id} value={plaza.id}>{plaza.name} ({plaza.prefix})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {selectedPlazaId && (
+                        <div className="space-y-2">
+                            <Label htmlFor="delete-confirm">Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong></Label>
+                             <Input
+                                id="delete-confirm"
+                                value={confirmationText}
+                                onChange={(e) => setConfirmationText(e.target.value)}
+                                placeholder={expectedConfirmationText}
+                                autoComplete="off"
+                                disabled={isDeleting}
+                            />
+                        </div>
+                    )}
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={handleClose}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                        onClick={handleDelete}
+                        disabled={isDeleting || confirmationText !== expectedConfirmationText || !selectedPlazaId}
+                        className="bg-destructive hover:bg-destructive/90"
+                    >
+                         {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                         Sí, eliminar datos de {selectedPlazaName}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+};
+
 
 export function ToolsManagement() {
   const { user } = useAuth();
@@ -175,6 +290,7 @@ function SuperAdminToolsView() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isAccessModalOpen, setAccessModalOpen] = React.useState(false);
   const [isImportModalOpen, setImportModalOpen] = React.useState(false);
+  const [isDeleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [selectedTool, setSelectedTool] = React.useState<Tool | null>(null);
   const [selectedAdmins, setSelectedAdmins] = React.useState<Set<string>>(new Set());
@@ -301,10 +417,16 @@ function SuperAdminToolsView() {
                     </span>
                  </Button>
                 {tool.id === 'daily-control' && (
-                    <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
-                        <ClipboardPaste className="mr-2 h-4 w-4" />
-                        Importar Registros
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
+                            <ClipboardPaste className="mr-2 h-4 w-4" />
+                            Importar Registros
+                        </Button>
+                         <Button variant="destructive" size="sm" onClick={() => setDeleteModalOpen(true)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Eliminar Registros
+                        </Button>
+                    </div>
                 )}
             </CardFooter>
           </Card>
@@ -366,7 +488,15 @@ function SuperAdminToolsView() {
       <DailyRecordImportDialog 
         isOpen={isImportModalOpen}
         onClose={() => setImportModalOpen(false)}
-        onSuccess={() => { /* maybe a toast here is enough */ }}
+        onSuccess={fetchData}
+        plazas={allPlazas}
+      />
+
+       {/* Daily Record Delete Dialog */}
+      <DailyRecordDeleteDialog 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onSuccess={fetchData}
         plazas={allPlazas}
       />
     </div>

@@ -187,3 +187,20 @@ export async function getAllDailyRecordsByPlaza(plazaId: string): Promise<DailyR
 
     return allEntries;
 }
+
+export async function deleteDailyRecordsByPlaza(plazaId: string): Promise<void> {
+    const recordsRef = collection(db, "daily_records");
+    const q = query(recordsRef, where("plazaId", "==", plazaId));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+        return; // No records to delete
+    }
+
+    const batch = writeBatch(db);
+    querySnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+}
