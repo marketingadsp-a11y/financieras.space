@@ -20,14 +20,128 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { getAdmins, updateAdmin } from "@/services/admin-service";
-import type { Admin, Tool } from "@/lib/data";
+import { getPlazas } from "@/services/plaza-service";
+import { addMultipleDailyRecords } from "@/services/daily-record-service";
+import { parseDailyRecords } from "@/ai/flows/daily-record-parser-flow";
+import type { Admin, Tool, Plaza, DailyRecordEntry } from "@/lib/data";
 import { allTools } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, Wrench, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowRight, Wrench, CheckCircle2, ClipboardPaste } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+
+// Reusable Dialog for Daily Record Import
+const DailyRecordImportDialog = ({
+    isOpen,
+    onClose,
+    onSuccess,
+    plazas
+}: {
+    isOpen: boolean,
+    onClose: () => void,
+    onSuccess: () => void,
+    plazas: Plaza[]
+}) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [importText, setImportText] = React.useState('');
+    const [isParsing, setIsParsing] = React.useState(false);
+    const [importPlazaId, setImportPlazaId] = React.useState<string>(plazas[0]?.id || '');
+
+    React.useEffect(() => {
+        if (plazas.length > 0 && !importPlazaId) {
+            setImportPlazaId(plazas[0].id);
+        }
+    }, [plazas, importPlazaId]);
+
+
+    const handleImport = async () => {
+        if (!importText.trim()) {
+            toast({ variant: "destructive", title: "Error", description: "El área de texto no puede estar vacía." });
+            return;
+        }
+        if (!importPlazaId || !user?.prefix) {
+            toast({ variant: "destructive", title: "Error", description: "Debes seleccionar una plaza y tener un prefijo para importar." });
+            return;
+        }
+        setIsParsing(true);
+        try {
+            const parsedData = await parseDailyRecords({ inputText: importText });
+            if (!parsedData || parsedData.length === 0) {
+                toast({ variant: "destructive", title: "Error de IA", description: "La IA no pudo procesar el texto. Verifica el formato." });
+                return;
+            }
+
+            const recordsToAdd: Omit<DailyRecordEntry, 'id'>[] = parsedData.map(p => ({
+                date: new Date(p.date), // Assumes YYYY-MM-DD from AI
+                type: p.type,
+                amount: p.amount,
+                description: p.description,
+                category: p.category && p.category !== 'N/A' ? p.category : undefined,
+            }));
+            
+            await addMultipleDailyRecords(importPlazaId, user.prefix, recordsToAdd);
+
+            toast({ title: "Éxito", description: `${recordsToAdd.length} registros importados correctamente a la plaza seleccionada.` });
+            
+            onSuccess(); // Callback to parent
+            onClose(); // Close the dialog
+            setImportText('');
+
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error de Importación", description: "Ocurrió un error al importar los registros." });
+            console.error(error);
+        } finally {
+            setIsParsing(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Importar Registros de Control Diario</DialogTitle>
+                    <DialogDescription>
+                        Pega texto de una hoja de cálculo. La IA intentará reconocer las columnas comunes como FECHA, TIPO, MONTO, etc., y las asignará a la plaza que elijas.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="plaza-select">Selecciona la Plaza para Importar</Label>
+                        <Select value={importPlazaId} onValueChange={setImportPlazaId}>
+                            <SelectTrigger id="plaza-select">
+                                <SelectValue placeholder="Selecciona una plaza" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {plazas.map(plaza => (
+                                    <SelectItem key={plaza.id} value={plaza.id}>{plaza.name} ({plaza.prefix})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Textarea 
+                        placeholder="Pega aquí los datos de tu hoja de cálculo..." 
+                        className="min-h-[200px]"
+                        value={importText}
+                        onChange={(e) => setImportText(e.target.value)}
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>Cancelar</Button>
+                    <Button onClick={handleImport} disabled={isParsing || !importPlazaId}>
+                        {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
+                        {isParsing ? 'Procesando...' : 'Importar Registros'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 
 export function ToolsManagement() {
@@ -42,30 +156,38 @@ export function ToolsManagement() {
 
 function SuperAdminToolsView() {
   const [admins, setAdmins] = React.useState<Admin[]>([]);
+  const [allPlazas, setAllPlazas] = React.useState<Plaza[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isAccessModalOpen, setAccessModalOpen] = React.useState(false);
+  const [isImportModalOpen, setImportModalOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [selectedTool, setSelectedTool] = React.useState<Tool | null>(null);
   const [selectedAdmins, setSelectedAdmins] = React.useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  React.useEffect(() => {
-    async function loadAdmins() {
-      try {
-        const adminData = await getAdmins();
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const [adminData, plazaData] = await Promise.all([
+            getAdmins(),
+            getPlazas({ fetchAll: true })
+        ]);
         setAdmins(adminData);
-      } catch (error) {
+        setAllPlazas(plazaData);
+    } catch (error) {
         toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No se pudieron cargar los administradores.",
+            variant: "destructive",
+            title: "Error",
+            description: "No se pudieron cargar los datos iniciales.",
         });
-      } finally {
+    } finally {
         setIsLoading(false);
-      }
     }
-    loadAdmins();
   }, [toast]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleManageAccessClick = (tool: Tool) => {
     setSelectedTool(tool);
@@ -75,7 +197,7 @@ function SuperAdminToolsView() {
         .map((admin) => admin.id)
     );
     setSelectedAdmins(adminsWithAccess);
-    setIsModalOpen(true);
+    setAccessModalOpen(true);
   };
 
   const handleAdminSelection = (adminId: string) => {
@@ -128,7 +250,7 @@ function SuperAdminToolsView() {
       });
     } finally {
       setIsSaving(false);
-      setIsModalOpen(false);
+      setAccessModalOpen(false);
     }
   };
 
@@ -145,29 +267,37 @@ function SuperAdminToolsView() {
         {allTools.map((tool) => (
           <Card 
             key={tool.id} 
-            className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/50 cursor-pointer"
-            onClick={() => handleManageAccessClick(tool)}
+            className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5"
           >
-            <CardHeader>
+            <CardHeader className="cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
               <div className="p-3 bg-primary/10 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
                 <tool.icon className="h-6 w-6 text-primary" />
               </div>
             </CardHeader>
-            <CardContent className="flex-grow">
+            <CardContent className="flex-grow cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
               <h3 className="text-lg font-semibold">{tool.name}</h3>
               <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
             </CardContent>
-            <CardFooter>
-              <span className="text-sm font-medium text-primary flex items-center gap-2">
-                Gestionar Acceso
-                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </span>
+            <CardFooter className="flex flex-col items-start gap-2">
+                 <Button variant="ghost" className="p-0 h-auto text-primary" onClick={() => handleManageAccessClick(tool)}>
+                    <span className="text-sm font-medium flex items-center gap-2">
+                        Gestionar Acceso
+                        <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    </span>
+                 </Button>
+                {tool.id === 'daily-control' && (
+                    <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
+                        <ClipboardPaste className="mr-2 h-4 w-4" />
+                        Importar Registros
+                    </Button>
+                )}
             </CardFooter>
           </Card>
         ))}
       </div>
-
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      
+      {/* Access Management Dialog */}
+      <Dialog open={isAccessModalOpen} onOpenChange={setAccessModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Gestionar Acceso para {selectedTool?.name}</DialogTitle>
@@ -206,7 +336,7 @@ function SuperAdminToolsView() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+            <Button variant="outline" onClick={() => setAccessModalOpen(false)}>
               Cancelar
             </Button>
             <Button onClick={handleSaveChanges} disabled={isSaving}>
@@ -216,6 +346,14 @@ function SuperAdminToolsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Daily Record Import Dialog */}
+      <DailyRecordImportDialog 
+        isOpen={isImportModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => { /* maybe a toast here is enough */ }}
+        plazas={allPlazas}
+      />
     </div>
   );
 }
@@ -269,3 +407,5 @@ function AdminToolsView() {
         </div>
     );
 }
+
+    
