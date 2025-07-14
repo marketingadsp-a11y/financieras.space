@@ -6,7 +6,7 @@ import Link from "next/link";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight, ClipboardPaste, FileSpreadsheet, FileText } from "lucide-react";
+import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight, ClipboardPaste, FileSpreadsheet, FileText, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo, importGruposAndCustomersFromPaste } from "@/services/loan-control-service";
@@ -55,6 +55,8 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [isProcessingImport, setIsProcessingImport] = React.useState(false);
   const { toast } = useToast();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
 
   const fetchGruposAndCustomers = React.useCallback(async () => {
       try {
@@ -124,16 +126,15 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
     }
   }
 
-  const handleImportSubmit = async () => {
-      if (!importText.trim() || !user?.prefix || !cartera) return;
+  const handleImportSubmit = async (textToImport: string) => {
+      if (!textToImport.trim() || !user?.prefix || !cartera) return;
       setIsProcessingImport(true);
       try {
         const result = await importGruposAndCustomersFromPaste({
             carteraId: cartera.id,
             plazaId: cartera.plazaId,
             prefix: user.prefix,
-            responsable: cartera.responsable,
-            pasteData: importText,
+            pasteData: textToImport,
             mode: importMode,
         });
 
@@ -151,6 +152,37 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
       } finally {
           setIsProcessingImport(false);
       }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const data = e.target?.result;
+        if (!data) return;
+        try {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const textData = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
+            
+            // Now we have the text, we can use the existing import logic
+            setImportMode('add'); // Reset mode for file import
+            handleImportSubmit(textData);
+
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error al leer archivo", description: "El archivo no es un formato de Excel válido."})
+        }
+    };
+    reader.onerror = () => {
+        toast({ variant: "destructive", title: "Error", description: "No se pudo leer el archivo."})
+    }
+    reader.readAsArrayBuffer(file);
+    
+    // Reset file input value to allow re-uploading the same file
+    event.target.value = '';
   };
   
   const summary = React.useMemo(() => {
@@ -260,9 +292,20 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
                 </CardDescription>
             </div>
              <div className="flex items-center gap-2">
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept=".xlsx, .xls, .csv"
+                />
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isProcessingImport}>
+                    {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
+                    {isProcessingImport ? 'Procesando...' : 'Importar Archivo'}
+                </Button>
                 <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline"><ClipboardPaste className="mr-2 h-4 w-4"/> Importar Todo</Button>
+                        <Button variant="outline"><ClipboardPaste className="mr-2 h-4 w-4"/> Importar por Texto</Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
@@ -290,15 +333,15 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                            <Button onClick={handleImportSubmit} disabled={isProcessingImport}>
+                            <Button onClick={() => handleImportSubmit(importText)} disabled={isProcessingImport}>
                                 {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
                                 {isProcessingImport ? 'Procesando...' : 'Importar'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-                <Button variant="outline" onClick={exportToExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel</Button>
-                <Button variant="outline" onClick={exportToPDF}><FileText className="mr-2 h-4 w-4" /> Exportar PDF</Button>
+                <Button variant="outline" onClick={exportToExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Excel</Button>
+                <Button variant="outline" onClick={exportToPDF}><FileText className="mr-2 h-4 w-4" /> PDF</Button>
                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingGrupo(null);}}>
                     <DialogTrigger asChild>
                         <Button>
@@ -393,3 +436,5 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
     </div>
   );
 }
+
+    
