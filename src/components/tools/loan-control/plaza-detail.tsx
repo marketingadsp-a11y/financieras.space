@@ -9,7 +9,7 @@ import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, 
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getCustomersByCartera, importPlazaStructureFromPaste } from "@/services/loan-control-service";
+import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getGroupsAndCustomersByCartera, importPlazaStructureFromPaste } from "@/services/loan-control-service";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription as DialogDescriptionComponent, DialogFooter } from "@/components/ui/dialog";
 import { CarteraForm } from "./cartera-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -127,13 +127,9 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
 
   const fetchCarterasWithStats = React.useCallback(async () => {
     try {
-      setIsLoading(true);
       const carterasData = await getCarterasByPlaza(plazaId);
       const carterasWithStats = await Promise.all(carterasData.map(async (cartera) => {
-          const [groups, customers] = await Promise.all([
-              getGruposByCartera(cartera.id),
-              getCustomersByCartera(cartera.id)
-          ]);
+          const { groups, customers } = await getGroupsAndCustomersByCartera(cartera.id);
           
           const stats = customers.reduce((acc, customer) => {
               acc.totalPrestado += customer.loanAmount;
@@ -152,16 +148,15 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
       }));
       setCarteras(carterasWithStats);
     } catch (error) {
+      console.error("Error fetching carteras with stats:", error);
       toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la lista de carteras." });
-    } finally {
-        setIsLoading(false);
     }
   }, [plazaId, toast]);
 
   React.useEffect(() => {
     const fetchInitialData = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
         const plazaData = await getPlazaById(plazaId);
         setPlaza(plazaData);
         await fetchCarterasWithStats();

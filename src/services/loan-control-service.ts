@@ -55,14 +55,16 @@ export async function deleteCartera(id: string) {
     await deleteDoc(carteraDoc);
 }
 
-export async function getCustomersByCartera(carteraId: string): Promise<Customer[]> {
+// New efficient function to get groups and all their customers for a cartera
+export async function getGroupsAndCustomersByCartera(carteraId: string): Promise<{ groups: LoanControlGrupo[], customers: Customer[] }> {
     const grupos = await getGruposByCartera(carteraId);
     if (grupos.length === 0) {
-        return [];
+        return { groups: [], customers: [] };
     }
     const customerPromises = grupos.map(g => getCustomersByLoanControlGroup(g.id));
     const customersByGroup = await Promise.all(customerPromises);
-    return customersByGroup.flat();
+    const allCustomers = customersByGroup.flat();
+    return { groups: grupos, customers: allCustomers };
 }
 
 
