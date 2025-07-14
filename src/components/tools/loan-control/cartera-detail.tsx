@@ -3,19 +3,21 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight } from "lucide-react";
+import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight, ClipboardPaste } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo } from "@/services/loan-control-service";
+import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo, importGruposAndCustomersFromPaste } from "@/services/loan-control-service";
 import { getCustomersByLoanControlGroup } from "@/services/customer-service";
 import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { GrupoForm } from "./grupo-form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/auth-context";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 type GrupoWithStats = LoanControlGrupo & {
     customerCount: number;
@@ -42,6 +44,9 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingGrupo, setEditingGrupo] = React.useState<LoanControlGrupo | null>(null);
+  const [isImportModalOpen, setImportModalOpen] = React.useState(false);
+  const [importText, setImportText] = React.useState('');
+  const [isProcessingImport, setIsProcessingImport] = React.useState(false);
   const { toast } = useToast();
 
   const fetchGruposAndCustomers = React.useCallback(async () => {
@@ -109,6 +114,34 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
         toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el grupo." });
     }
   }
+
+  const handleImportSubmit = async () => {
+      if (!importText.trim() || !user?.prefix || !cartera) return;
+      setIsProcessingImport(true);
+      try {
+        const result = await importGruposAndCustomersFromPaste({
+            carteraId: cartera.id,
+            plazaId: cartera.plazaId,
+            prefix: user.prefix,
+            responsable: cartera.responsable,
+            pasteData: importText,
+        });
+
+        toast({
+            title: "Importación Completa",
+            description: `Se crearon ${result.newGroups} grupos nuevos y se importaron ${result.totalCustomers} clientes.`,
+        });
+
+        await fetchGruposAndCustomers();
+        setImportModalOpen(false);
+        setImportText('');
+
+      } catch (error) {
+        toast({ variant: "destructive", title: "Error de Importación", description: `Ocurrió un error: ${error instanceof Error ? error.message : 'Error desconocido'}` });
+      } finally {
+          setIsProcessingImport(false);
+      }
+  };
   
   const summary = React.useMemo(() => {
     return allCustomers.reduce((acc, customer) => {
@@ -154,22 +187,54 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
                     Organiza tus clientes en diferentes grupos dentro de la cartera.
                 </CardDescription>
             </div>
-            <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingGrupo(null);}}>
-                <DialogTrigger asChild>
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Agregar Grupo
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{editingGrupo ? "Editar" : "Agregar"} Grupo</DialogTitle>
-                    </DialogHeader>
-                    <GrupoForm
-                        onSubmit={handleFormSubmit}
-                        grupo={editingGrupo}
-                    />
-                </DialogContent>
-            </Dialog>
+             <div className="flex items-center gap-2">
+                <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline"><ClipboardPaste className="mr-2 h-4 w-4"/> Importar Todo</Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-xl">
+                        <DialogHeader>
+                            <DialogTitle>Importar Grupos y Clientes</DialogTitle>
+                            <DialogDescriptionComponent>
+                                Pega los datos de Excel aquí. La IA identificará clientes y grupos. Si un grupo no existe, se creará automáticamente.
+                            </DialogDescriptionComponent>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <Label htmlFor="import-textarea">Datos de Clientes y Grupos</Label>
+                            <Textarea 
+                                id="import-textarea"
+                                placeholder="Pega aquí los datos..." 
+                                className="min-h-[250px] font-mono text-xs" 
+                                value={importText} 
+                                onChange={(e) => setImportText(e.target.value)}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+                            <Button onClick={handleImportSubmit} disabled={isProcessingImport}>
+                                {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
+                                {isProcessingImport ? 'Procesando...' : 'Importar'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+                <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingGrupo(null);}}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Agregar Grupo
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{editingGrupo ? "Editar" : "Agregar"} Grupo</DialogTitle>
+                        </DialogHeader>
+                        <GrupoForm
+                            onSubmit={handleFormSubmit}
+                            grupo={editingGrupo}
+                        />
+                    </DialogContent>
+                </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
