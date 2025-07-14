@@ -9,6 +9,7 @@ import { addMultipleCustomers, deleteCustomersByGroupId, getCustomersByLoanContr
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
+const customersCollectionRef = collection(db, "customers");
 
 // --- Cartera Functions ---
 
@@ -225,73 +226,50 @@ export async function importPlazaStructureFromPaste(params: PlazaImportParams): 
         structure[carteraName][groupName].push(customer);
     }
 
-    // 3. Process structure using a transaction to ensure atomicity
-    await runTransaction(db, async (transaction) => {
-        // Use maps to cache created/found documents within the transaction
-        const carterasMap = new Map<string, LoanControlCartera>();
-        const gruposMap = new Map<string, LoanControlGrupo>();
+    // 3. Process structure using batched writes for performance.
+    // Note: We are no longer using a single giant transaction, as it hits Firestore limits.
+    // We will process cartera by cartera. This is less atomic but necessary for large datasets.
 
-        for (const carteraName in structure) {
-            let cartera: LoanControlCartera | undefined = carterasMap.get(carteraName);
+    for (const carteraName in structure) {
+        // Find or Create Cartera
+        let cartera = await getCarteraByNameAndPlaza(carteraName, plazaId);
+        if (!cartera) {
+            const firstCustomerInCartera = structure[carteraName][Object.keys(structure[carteraName])[0]][0];
+            const responsable = firstCustomerInCartera.responsable || "No especificado";
+            cartera = await addCartera({ name: carteraName, plazaId, prefix, responsable });
+            newCarterasCount++;
+        }
 
-            // Find or Create Cartera
-            if (!cartera) {
-                const q = query(carterasCollectionRef, where("name", "==", carteraName), where("plazaId", "==", plazaId));
-                const existingCarteraSnap = await getDocs(q); // getDocs is allowed in transactions
-                
-                if (existingCarteraSnap.empty) {
-                    const firstCustomerInCartera = structure[carteraName][Object.keys(structure[carteraName])[0]][0];
-                    const responsable = firstCustomerInCartera.responsable || "No especificado";
-                    const newCarteraRef = doc(collection(db, "loanControlCarteras"));
-                    const newCarteraData = { name: carteraName, plazaId, prefix, responsable };
-                    transaction.set(newCarteraRef, newCarteraData);
-                    cartera = { ...newCarteraData, id: newCarteraRef.id };
-                    newCarterasCount++;
-                } else {
-                    const doc = existingCarteraSnap.docs[0];
-                    cartera = { id: doc.id, ...doc.data() } as LoanControlCartera;
-                }
-                carterasMap.set(carteraName, cartera);
+        for (const groupName in structure[carteraName]) {
+            // Find or Create Grupo
+            let grupo = await getGrupoByNameAndCartera(groupName, cartera.id);
+            if (!grupo) {
+                grupo = await addGrupo({ name: groupName, carteraId: cartera.id, plazaId, prefix });
+                newGroupsCount++;
             }
 
-            for (const groupName in structure[carteraName]) {
-                const grupoCacheKey = `${cartera.id}-${groupName}`;
-                let grupo: LoanControlGrupo | undefined = gruposMap.get(grupoCacheKey);
-
-                // Find or Create Grupo
-                if (!grupo) {
-                    const q = query(gruposCollectionRef, where("name", "==", groupName), where("carteraId", "==", cartera.id));
-                    const existingGrupoSnap = await getDocs(q);
-
-                    if (existingGrupoSnap.empty) {
-                        const newGrupoRef = doc(collection(db, "loanControlGrupos"));
-                        const newGrupoData = { name: groupName, carteraId: cartera.id, plazaId, prefix };
-                        transaction.set(newGrupoRef, newGrupoData);
-                        grupo = { ...newGrupoData, id: newGrupoRef.id };
-                        newGroupsCount++;
-                    } else {
-                        const doc = existingGrupoSnap.docs[0];
-                        grupo = { id: doc.id, ...doc.data() } as LoanControlGrupo;
-                    }
-                    gruposMap.set(grupoCacheKey, grupo);
-                }
-
-                // Add customers to the group
-                const customersToAdd = structure[carteraName][groupName].map(c => ({
-                    ...c,
+            // Batch-add customers to the group
+            const customersToAdd = structure[carteraName][groupName].map(c => {
+                const { carteraName, groupName, responsable, ...rest } = c;
+                return {
+                    ...rest,
                     plazaId,
                     loanControlGroupId: grupo!.id,
                     status: 'Pendiente' as const,
                     prefix: prefix,
-                }));
-
-                customersToAdd.forEach(customerData => {
-                    const newCustomerRef = doc(collection(db, "customers"));
-                    transaction.set(newCustomerRef, customerData);
-                });
-            }
+                };
+            });
+            
+            // Using a batched write for the customers within a group
+            const batch = writeBatch(db);
+            customersToAdd.forEach(customerData => {
+                const newCustomerRef = doc(customersCollectionRef);
+                batch.set(newCustomerRef, customerData);
+            });
+            await batch.commit();
         }
-    });
+    }
+
 
     return {
         newCarteras: newCarterasCount,
