@@ -4,13 +4,9 @@
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/auth-context";
-import React from "react";
+import React, { Suspense } from "react";
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+function AppNameUpdater() {
   const [appName, setAppName] = React.useState("Panel de Administración");
 
   React.useEffect(() => {
@@ -33,10 +29,9 @@ export default function RootLayout({
         window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
-
+  
   return (
-    <html lang="es" suppressHydrationWarning>
-      <head>
+    <head>
         <title>{appName}</title>
         <meta name="description" content="Gestión de administradores y herramientas." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -49,13 +44,27 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-      </head>
+    </head>
+  )
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="es" suppressHydrationWarning>
+      <AppNameUpdater />
       <body className="font-body antialiased">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <Suspense>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </Suspense>
         <Toaster />
       </body>
     </html>
   );
 }
+

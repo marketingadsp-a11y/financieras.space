@@ -3,7 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
   LogOut,
@@ -198,8 +198,8 @@ function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
 
 function NavLinks() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
-  const router = useRouter();
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
@@ -313,13 +313,13 @@ function NavLinks() {
     const carteraMatch = pathname.match(/\/tools\/loan-control\/cartera\/([^/]+)/);
 
     if (carteraMatch) {
-      const plazaId = router.query.plazaId as string || ''; // Need to get plazaId from context or query
+      const plazaId = searchParams.get('plazaId') || '';
       return (
         <SidebarGroup>
           <SidebarGroupLabel>GESTIÓN DE CARTERA</SidebarGroupLabel>
            <SidebarMenu>
               <SidebarMenuItem>
-                <Link href={`/tools/loan-control/cartera/${carteraMatch[1]}`}>
+                <Link href={{pathname: `/tools/loan-control/cartera/${carteraMatch[1]}`, query: {plazaId}}}>
                     <SidebarMenuButton asChild isActive={true} tooltip="Grupos">
                         <span><Users /><span>Grupos</span></span>
                     </SidebarMenuButton>
