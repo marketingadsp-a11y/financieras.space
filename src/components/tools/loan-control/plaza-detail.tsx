@@ -3,9 +3,10 @@
 
 import * as React from "react";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 import { getPlazaById } from "@/services/plaza-service";
-import type { Plaza, LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Users, DollarSign, ClipboardPaste } from "lucide-react";
+import type { Plaza, LoanControlCartera } from "@/lib/data";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, ClipboardPaste, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const [isProcessingImport, setIsProcessingImport] = React.useState(false);
   const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
   const { toast } = useToast();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchCarterasWithStats = React.useCallback(async () => {
     try {
@@ -208,14 +210,14 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     }
   }
 
-  const handleImportSubmit = async () => {
-    if (!importText.trim() || !user?.prefix) return;
+  const handleImportSubmit = async (textToImport: string) => {
+    if (!textToImport.trim() || !user?.prefix) return;
     setIsProcessingImport(true);
     try {
         const result = await importPlazaStructureFromPaste({
             plazaId,
             prefix: user.prefix,
-            pasteData: importText
+            pasteData: textToImport
         });
         toast({
             title: "Importación Completa",
@@ -229,6 +231,36 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
         toast({ variant: "destructive", title: "Error de Importación", description: errorMessage });
     } finally {
         setIsProcessingImport(false);
+    }
+  };
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const data = e.target?.result;
+        if (!data) return;
+        try {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const textData = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
+            
+            handleImportSubmit(textData);
+
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error al leer archivo", description: "El archivo no es un formato de Excel válido."})
+        }
+    };
+    reader.onerror = () => {
+        toast({ variant: "destructive", title: "Error", description: "No se pudo leer el archivo."})
+    }
+    reader.readAsArrayBuffer(file);
+    
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
@@ -264,9 +296,20 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                     </CardDescription>
                 </div>
                  <div className="flex items-center gap-2">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept=".xlsx, .xls, .csv"
+                    />
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isProcessingImport}>
+                        {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
+                        {isProcessingImport ? 'Procesando...' : 'Importar Archivo'}
+                    </Button>
                     <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline"><ClipboardPaste className="mr-2 h-4 w-4"/> Importar Todo</Button>
+                            <Button variant="outline"><ClipboardPaste className="mr-2 h-4 w-4"/> Importar por Texto</Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-xl">
                             <DialogHeader>
@@ -287,7 +330,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                                <Button onClick={handleImportSubmit} disabled={isProcessingImport}>
+                                <Button onClick={() => handleImportSubmit(importText)} disabled={isProcessingImport}>
                                     {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
                                     {isProcessingImport ? 'Procesando...' : 'Importar'}
                                 </Button>
