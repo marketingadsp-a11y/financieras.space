@@ -11,7 +11,7 @@ import { getPlazaById } from "@/services/plaza-service";
 import { getCustomersByLoanControlGroup, addCustomer, addMultipleCustomers, deleteCustomersByGroupId } from "@/services/customer-service";
 import type { LoanControlGrupo, Customer, LoanControlCartera, Plaza } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
 import { useAuth } from "@/context/auth-context";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 
 
 const StatCard = ({ title, value, isCurrency = false }: { title: string; value: number; isCurrency?: boolean }) => (
@@ -446,3 +447,4 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
     </div>
   );
 }
+
