@@ -11,7 +11,8 @@ import {
     collection,
     query,
     where,
-    getDocs
+    getDocs,
+    writeBatch
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { DailyRecord, DailyRecordEntry } from "@/lib/data";
@@ -98,6 +99,65 @@ export async function addDailyRecordEntry(
         }
     });
 }
+
+export async function addMultipleDailyRecords(
+    plazaId: string,
+    prefix: string,
+    entries: Omit<DailyRecordEntry, 'id'>[]
+): Promise<void> {
+    const batch = writeBatch(db);
+
+    // Group entries by date
+    const groupedByDate: { [key: string]: Omit<DailyRecordEntry, 'id'>[] } = {};
+    for (const entry of entries) {
+        const dateString = entry.date.toISOString().split('T')[0];
+        if (!groupedByDate[dateString]) {
+            groupedByDate[dateString] = [];
+        }
+        groupedByDate[dateString].push(entry);
+    }
+
+    for (const dateString in groupedByDate) {
+        const date = new Date(dateString);
+        date.setHours(12, 0, 0, 0);
+        const entriesForDate = groupedByDate[dateString];
+        const recordDocRef = getDailyRecordDocRef(plazaId, date);
+
+        // Fetch existing record for this date
+        const recordDoc = await getDoc(recordDocRef);
+
+        if (!recordDoc.exists()) {
+            const newEntriesWithIds = entriesForDate.map(e => ({...e, id: uuidv4(), date: Timestamp.fromDate(e.date)}));
+            const newRecord: DailyRecord = {
+                id: recordDocRef.id,
+                plazaId,
+                prefix,
+                date: Timestamp.fromDate(date),
+                collected: newEntriesWithIds.filter(e => e.type === 'collected').reduce((sum, e) => sum + e.amount, 0),
+                loaned: newEntriesWithIds.filter(e => e.type === 'loaned').reduce((sum, e) => sum + e.amount, 0),
+                spent: newEntriesWithIds.filter(e => e.type === 'spent').reduce((sum, e) => sum + e.amount, 0),
+                entries: newEntriesWithIds as any,
+            };
+            batch.set(recordDocRef, newRecord);
+        } else {
+            const currentData = recordDoc.data() as DailyRecord;
+            const entriesToAdd = entriesForDate.map(e => ({...e, id: uuidv4(), date: Timestamp.fromDate(e.date)}));
+            
+            const updateData: any = {
+                entries: arrayUnion(...(entriesToAdd as any))
+            };
+            
+            updateData.collected = currentData.collected + entriesToAdd.filter(e => e.type === 'collected').reduce((sum, e) => sum + e.amount, 0);
+            updateData.loaned = currentData.loaned + entriesToAdd.filter(e => e.type === 'loaned').reduce((sum, e) => sum + e.amount, 0);
+            updateData.spent = currentData.spent + entriesToAdd.filter(e => e.type === 'spent').reduce((sum, e) => sum + e.amount, 0);
+            
+            batch.update(recordDocRef, updateData);
+        }
+    }
+
+    await batch.commit();
+}
+
 
 export async function getAllDailyRecordsByPlaza(plazaId: string): Promise<DailyRecordEntry[]> {
     const recordsRef = collection(db, "daily_records");

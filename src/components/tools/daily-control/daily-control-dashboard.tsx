@@ -18,7 +18,8 @@ import {
   Download,
   PiggyBank,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  ClipboardPaste,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
@@ -59,14 +60,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 import type { DailyRecordEntry, DailyRecordType, Plaza } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DailyRecordForm } from "./daily-record-form";
 import { getPlazas } from "@/services/plaza-service";
-import { addDailyRecordEntry, getDailyRecord, getAllDailyRecordsByPlaza } from "@/services/daily-record-service";
+import { addDailyRecordEntry, getDailyRecord, getAllDailyRecordsByPlaza, addMultipleDailyRecords } from "@/services/daily-record-service";
+import { parseDailyRecords, type DailyRecordParserOutput } from "@/ai/flows/daily-record-parser-flow";
 
 
 const StatCard = ({ title, value, icon: Icon, variant = 'default' }: { title: string; value: number; icon: React.ElementType; variant?: 'default' | 'destructive' | 'success' }) => {
@@ -122,6 +127,13 @@ export function DailyControlDashboard() {
   const [formMode, setFormMode] = React.useState<DailyRecordType>('collected');
   const [entryDate, setEntryDate] = React.useState(new Date());
   const [isExportingAll, setIsExportingAll] = React.useState(false);
+  
+  // States for AI import
+  const [isImportModalOpen, setImportModalOpen] = React.useState(false);
+  const [importText, setImportText] = React.useState('');
+  const [isParsing, setIsParsing] = React.useState(false);
+  const [importPlazaId, setImportPlazaId] = React.useState<string>('');
+
 
   const fetchPlazasForUser = React.useCallback(async () => {
     if (!user) return;
@@ -131,6 +143,7 @@ export function DailyControlDashboard() {
         setPlazas(plazasFromDb);
         if (plazasFromDb.length > 0) {
             setSelectedPlaza(plazasFromDb[0].id);
+            setImportPlazaId(plazasFromDb[0].id);
         }
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las plazas.' });
@@ -192,6 +205,51 @@ export function DailyControlDashboard() {
         setIsSubmitting(false);
     }
   }
+
+  const handleImport = async () => {
+    if (!importText.trim()) {
+        toast({ variant: "destructive", title: "Error", description: "El área de texto no puede estar vacía." });
+        return;
+    }
+    if (!importPlazaId || !user?.prefix) {
+        toast({ variant: "destructive", title: "Error", description: "Debes seleccionar una plaza y tener un prefijo para importar." });
+        return;
+    }
+    setIsParsing(true);
+    try {
+        const parsedData = await parseDailyRecords({ inputText: importText });
+        if (!parsedData || parsedData.length === 0) {
+            toast({ variant: "destructive", title: "Error de IA", description: "La IA no pudo procesar el texto. Verifica el formato." });
+            return;
+        }
+
+        const recordsToAdd: Omit<DailyRecordEntry, 'id'>[] = parsedData.map(p => ({
+            date: new Date(p.date), // Assumes YYYY-MM-DD from AI
+            type: p.type,
+            amount: p.amount,
+            description: p.description,
+            category: p.category && p.category !== 'N/A' ? p.category : undefined,
+        }));
+        
+        await addMultipleDailyRecords(importPlazaId, user.prefix, recordsToAdd);
+
+        toast({ title: "Éxito", description: `${recordsToAdd.length} registros importados correctamente a la plaza seleccionada.` });
+        
+        // Refresh data if the imported plaza is the one currently being viewed
+        if(importPlazaId === selectedPlaza) {
+            fetchDailyData();
+        }
+
+        setImportModalOpen(false);
+        setImportText('');
+
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error de Importación", description: "Ocurrió un error al importar los registros." });
+        console.error(error);
+    } finally {
+        setIsParsing(false);
+    }
+  };
   
   const exportToPDF = () => {
     if (!plazaName || !date || entries.length === 0) {
@@ -411,6 +469,51 @@ export function DailyControlDashboard() {
             </div>
             
             <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                {user?.isSuperAdmin && (
+                   <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <ClipboardPaste className="mr-2 h-4 w-4" /> Importar con IA
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-xl">
+                            <DialogHeader>
+                                <DialogTitle>Importar Registros Diarios</DialogTitle>
+                                <DialogDescription>
+                                  Pega texto de una hoja de cálculo. La IA intentará reconocer las columnas comunes como FECHA, TIPO, MONTO, etc.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                               <div className="space-y-2">
+                                    <Label htmlFor="plaza-select">Plaza para Importar</Label>
+                                    <Select value={importPlazaId} onValueChange={setImportPlazaId}>
+                                        <SelectTrigger id="plaza-select">
+                                            <SelectValue placeholder="Selecciona una plaza" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {plazas.map(plaza => (
+                                                <SelectItem key={plaza.id} value={plaza.id}>{plaza.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                               </div>
+                                <Textarea 
+                                  placeholder="Pega aquí los datos de tu hoja de cálculo..." 
+                                  className="min-h-[200px]"
+                                  value={importText}
+                                  onChange={(e) => setImportText(e.target.value)}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+                                <Button onClick={handleImport} disabled={isParsing || !importPlazaId}>
+                                    {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
+                                    {isParsing ? 'Procesando...' : 'Importar Registros'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                )}
                 <Button variant="outline" size="sm" onClick={handleExportAll} disabled={isExportingAll || !selectedPlaza}>
                     {isExportingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
                     {isExportingAll ? 'Exportando...' : 'Exportar Todo (Excel)'}
