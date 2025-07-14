@@ -56,10 +56,10 @@ export async function deleteCartera(id: string) {
 }
 
 export async function getCustomersByCartera(carteraId: string): Promise<Customer[]> {
-    // This is not the most efficient query for Firestore at scale.
-    // A better approach would be to have a 'carteraId' field on the customer document itself.
-    // For now, we will fetch groups and then customers for each group.
     const grupos = await getGruposByCartera(carteraId);
+    if (grupos.length === 0) {
+        return [];
+    }
     const customerPromises = grupos.map(g => getCustomersByLoanControlGroup(g.id));
     const customersByGroup = await Promise.all(customerPromises);
     return customersByGroup.flat();
