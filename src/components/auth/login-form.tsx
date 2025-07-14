@@ -89,7 +89,7 @@ export function LoginForm() {
                     <FormLabel>Usuario o Email</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="ej. cristobal / admin@correo.com"
+                        placeholder="ej. plaza.usuario"
                         {...field}
                       />
                     </FormControl>
