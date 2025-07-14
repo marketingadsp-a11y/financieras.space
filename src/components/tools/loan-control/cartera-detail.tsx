@@ -3,11 +3,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Loader2, FolderKanban, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight } from "lucide-react";
+import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo } from "@/services/loan-control-service";
-import type { LoanControlCartera, LoanControlGrupo } from "@/lib/data";
+import { getCustomersByLoanControlGroup } from "@/services/customer-service";
+import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { GrupoForm } from "./grupo-form";
@@ -16,40 +17,65 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/auth-context";
 
+type GrupoWithStats = LoanControlGrupo & {
+    customerCount: number;
+};
+
+const StatCard = ({ title, value, isCurrency = false }: { title: string; value: number; isCurrency?: boolean }) => (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">
+            {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+        </div>
+      </CardContent>
+    </Card>
+);
 
 export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: string, plazaId: string }) {
   const { user } = useAuth();
   const [cartera, setCartera] = React.useState<LoanControlCartera | null>(null);
-  const [grupos, setGrupos] = React.useState<LoanControlGrupo[]>([]);
+  const [grupos, setGrupos] = React.useState<GrupoWithStats[]>([]);
+  const [allCustomers, setAllCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingGrupo, setEditingGrupo] = React.useState<LoanControlGrupo | null>(null);
   const { toast } = useToast();
 
-  const fetchGrupos = React.useCallback(async () => {
+  const fetchGruposAndCustomers = React.useCallback(async () => {
       try {
-        const gruposData = await getGruposByCartera(carteraId);
-        setGrupos(gruposData);
+        setIsLoading(true);
+        const [carteraData, gruposData] = await Promise.all([
+             getCarteraById(carteraId),
+             getGruposByCartera(carteraId)
+        ]);
+
+        setCartera(carteraData);
+        
+        const customerPromises = gruposData.map(grupo => getCustomersByLoanControlGroup(grupo.id));
+        const customersByGroup = await Promise.all(customerPromises);
+        
+        const allCustomersFlat = customersByGroup.flat();
+        setAllCustomers(allCustomersFlat);
+
+        const gruposWithStats = gruposData.map((grupo, index) => ({
+            ...grupo,
+            customerCount: customersByGroup[index].length
+        }));
+        setGrupos(gruposWithStats);
+
       } catch (error) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la lista de grupos." });
+        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información de la cartera." });
+      } finally {
+          setIsLoading(false);
       }
   }, [carteraId, toast]);
 
   React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const carteraData = await getCarteraById(carteraId);
-        setCartera(carteraData);
-        await fetchGrupos();
-      } catch (error) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información de la cartera." });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [carteraId, toast, fetchGrupos]);
+    fetchGruposAndCustomers();
+  }, [fetchGruposAndCustomers]);
 
   const handleFormSubmit = async (values: Omit<LoanControlGrupo, 'id' | 'carteraId' | 'plazaId' | 'prefix'>) => {
     if (!user?.prefix) return;
@@ -63,7 +89,7 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
         }
         setIsFormOpen(false);
         setEditingGrupo(null);
-        await fetchGrupos();
+        await fetchGruposAndCustomers();
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el grupo." });
     }
@@ -78,11 +104,19 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
     try {
         await deleteGrupo(id);
         toast({ title: "Éxito", description: "Grupo eliminado." });
-        await fetchGrupos();
+        await fetchGruposAndCustomers();
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el grupo." });
     }
   }
+  
+  const summary = React.useMemo(() => {
+    return allCustomers.reduce((acc, customer) => {
+        acc.totalPrestado += customer.loanAmount;
+        acc.totalPendiente += customer.dueAmount;
+        return acc;
+    }, { totalPrestado: 0, totalPendiente: 0});
+  }, [allCustomers]);
 
   if (isLoading) {
     return (
@@ -102,9 +136,14 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Cartera: {cartera.name}</h1>
         <p className="text-muted-foreground">
-          Gestiona los grupos de clientes de esta cartera.
+          Gestiona los grupos de clientes de esta cartera. Responsable: <span className="font-medium">{cartera.responsable}</span>
         </p>
       </div>
+
+       <div className="grid gap-4 md:grid-cols-2">
+            <StatCard title="Total Prestado" value={summary.totalPrestado} isCurrency />
+            <StatCard title="Total Pendiente" value={summary.totalPendiente} isCurrency />
+       </div>
 
       <Card>
         <CardHeader>
@@ -148,7 +187,7 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
                   grupos.map((grupo) => (
                     <TableRow key={grupo.id}>
                       <TableCell className="font-medium">{grupo.name}</TableCell>
-                      <TableCell>0</TableCell>
+                      <TableCell>{grupo.customerCount}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                             <Button asChild size="sm" variant="outline">
