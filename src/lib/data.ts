@@ -162,4 +162,5 @@ export type CompanyProfile = {
   id: string; // Corresponds to the prefix
   companyName: string;
   logoUrl?: string;
+  loginBackgroundColor?: string;
 };

@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, Loader2, Pencil, Trash2, PlusCircle, Building } from "lucide-react";
+import { Briefcase, Loader2, Pencil, Trash2, PlusCircle, Building, Palette } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getCompanyProfileByPrefix, saveCompanyProfile, getAllCompanyProfiles, deleteCompanyProfile } from "@/services/company-profile-service";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -61,17 +61,19 @@ import {
 const companyProfileSchema = z.object({
   companyName: z.string().min(3, "El nombre de la empresa debe tener al menos 3 caracteres."),
   logoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
+  loginBackgroundColor: z.string().optional(),
 });
 
 type CompanyProfileFormValues = z.infer<typeof companyProfileSchema>;
 
 // Form component for reuse in dialogs
-const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<CompanyProfileFormValues>, onSubmit: (data: CompanyProfileFormValues) => void, isSaving: boolean }) => {
+const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<CompanyProfile>, onSubmit: (data: CompanyProfileFormValues) => void, isSaving: boolean }) => {
     const form = useForm<CompanyProfileFormValues>({
         resolver: zodResolver(companyProfileSchema),
         defaultValues: {
             companyName: profile?.companyName || "",
             logoUrl: profile?.logoUrl || "",
+            loginBackgroundColor: profile?.loginBackgroundColor || "#f4f4f5", // Default to muted gray
         },
     });
     
@@ -118,6 +120,25 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
                         </FormItem>
                     )}
                 />
+                 <FormField
+                    control={form.control}
+                    name="loginBackgroundColor"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Color de Fondo del Login</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center gap-2">
+                              <Input type="color" className="w-16 h-10 p-1" {...field} />
+                              <Input type="text" placeholder="#f4f4f5" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormDescriptionComponent>
+                            Selecciona un color para el fondo de la pantalla de inicio de sesión.
+                        </FormDescriptionComponent>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
                  <CardFooter className="border-t px-0 pt-6 mt-6">
                     <Button type="submit" disabled={isSaving}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -137,10 +158,7 @@ function AdminProfileView() {
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
     
-    const form = useForm<CompanyProfileFormValues>({
-        resolver: zodResolver(companyProfileSchema),
-        defaultValues: { companyName: "", logoUrl: "" },
-    });
+    const [initialProfile, setInitialProfile] = React.useState<Partial<CompanyProfile>>({});
     
     React.useEffect(() => {
         const fetchProfile = async () => {
@@ -149,10 +167,7 @@ function AdminProfileView() {
             try {
                 const profile = await getCompanyProfileByPrefix(user.prefix);
                 if (profile) {
-                    form.reset({
-                        companyName: profile.companyName,
-                        logoUrl: profile.logoUrl || "",
-                    });
+                    setInitialProfile(profile);
                 }
             } catch (error) {
                 toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el perfil." });
@@ -161,7 +176,7 @@ function AdminProfileView() {
             }
         };
         fetchProfile();
-    }, [user?.prefix, form, toast]);
+    }, [user?.prefix, toast]);
     
     const onSubmit = async (data: CompanyProfileFormValues) => {
         if (!user?.prefix) return;
@@ -195,7 +210,7 @@ function AdminProfileView() {
                 </div>
             </CardHeader>
              <CardContent>
-                <ProfileForm profile={form.getValues()} onSubmit={onSubmit} isSaving={isSaving} />
+                <ProfileForm profile={initialProfile} onSubmit={onSubmit} isSaving={isSaving} />
             </CardContent>
         </Card>
     );
@@ -286,6 +301,7 @@ function SuperAdminProfileView() {
                                 <TableHead className="w-[80px]">Logo</TableHead>
                                 <TableHead>Nombre de Empresa</TableHead>
                                 <TableHead>Prefijo (ID)</TableHead>
+                                <TableHead>Color Login</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -298,6 +314,12 @@ function SuperAdminProfileView() {
                                             </TableCell>
                                             <TableCell className="font-medium">{p.companyName}</TableCell>
                                             <TableCell><span className="font-mono text-xs bg-muted px-2 py-1 rounded">{p.id}</span></TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-4 h-4 rounded-full border" style={{ backgroundColor: p.loginBackgroundColor || '#FFFFFF' }}></div>
+                                                    <span className="font-mono text-xs">{p.loginBackgroundColor || 'Default'}</span>
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
                                                     <Button variant="outline" size="icon" onClick={() => handleEditClick(p)}><Pencil className="h-4 w-4" /></Button>
@@ -322,7 +344,7 @@ function SuperAdminProfileView() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">No hay perfiles de empresa. Se crearán cuando un admin los guarde.</TableCell>
+                                        <TableCell colSpan={5} className="h-24 text-center">No hay perfiles de empresa. Se crearán cuando un admin los guarde.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -339,7 +361,7 @@ function SuperAdminProfileView() {
                     </DialogHeader>
                     {editingProfile && (
                         <ProfileForm
-                            profile={{ companyName: editingProfile.companyName, logoUrl: editingProfile.logoUrl }}
+                            profile={editingProfile}
                             onSubmit={handleFormSubmit}
                             isSaving={isSaving}
                         />
@@ -360,5 +382,3 @@ export function CompanyProfileManagement() {
   
   return <AdminProfileView />;
 }
-
-    

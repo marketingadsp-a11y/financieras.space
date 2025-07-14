@@ -38,6 +38,7 @@ export function LoginForm() {
   const [appName, setAppName] = useState("Panel de Administración");
   const [footerText, setFooterText] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [backgroundColor, setBackgroundColor] = useState<string>("#f4f4f5"); // Default muted gray
 
   const [lastCheckedPrefix, setLastCheckedPrefix] = useState<string | null>(null);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
@@ -56,7 +57,8 @@ export function LoginForm() {
     const storedFooterText = localStorage.getItem('footerText');
     setAppName(storedAppName || "Panel de Administración");
     setFooterText(storedFooterText || "");
-    setLogoUrl(null); // Reset logo when no prefix is detected
+    setLogoUrl(null); // Reset logo
+    setBackgroundColor("#f4f4f5"); // Reset background color
   }, []);
 
   useEffect(() => {
@@ -75,8 +77,7 @@ export function LoginForm() {
       if (profile) {
         setAppName(profile.companyName);
         setLogoUrl(profile.logoUrl || null);
-        // We can decide if company footer should override global one
-        // For now, let's keep the global footer text
+        setBackgroundColor(profile.loginBackgroundColor || "#f4f4f5");
       } else {
         // If no profile found for the prefix, revert to default
         loadDefaultSettings();
@@ -122,7 +123,10 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40">
+    <div 
+        className="flex min-h-screen items-center justify-center p-4 transition-colors duration-500"
+        style={{ backgroundColor: backgroundColor }}
+    >
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
