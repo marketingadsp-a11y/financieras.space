@@ -20,14 +20,17 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription as FormDescriptionComponent
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { AppWindow } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 const appSettingsSchema = z.object({
   appName: z.string().min(3, "El nombre de la aplicación debe tener al menos 3 caracteres."),
+  footerText: z.string().optional(),
 });
 
 type AppSettingsFormValues = z.infer<typeof appSettingsSchema>;
@@ -38,32 +41,38 @@ export function AppSettings() {
     resolver: zodResolver(appSettingsSchema),
     defaultValues: {
       appName: "",
+      footerText: "",
     },
   });
 
   React.useEffect(() => {
     const storedAppName = localStorage.getItem("appName");
+    const storedFooterText = localStorage.getItem("footerText");
     if (storedAppName) {
       form.setValue("appName", storedAppName);
+    }
+    if (storedFooterText) {
+      form.setValue("footerText", storedFooterText);
     }
   }, [form]);
 
   const onSubmit = (data: AppSettingsFormValues) => {
     try {
       localStorage.setItem("appName", data.appName);
+      localStorage.setItem("footerText", data.footerText || "");
       
       // Dispatch a storage event to notify other parts of the app (like the layout)
       window.dispatchEvent(new Event("storage"));
 
       toast({
         title: "Éxito",
-        description: "El nombre de la aplicación ha sido actualizado.",
+        description: "La configuración de la aplicación ha sido actualizada.",
       });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudo guardar el nombre de la aplicación.",
+        description: "No se pudo guardar la configuración de la aplicación.",
       });
     }
   };
@@ -85,7 +94,7 @@ export function AppSettings() {
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent>
+          <CardContent className="space-y-6">
             <FormField
               control={form.control}
               name="appName"
@@ -95,6 +104,22 @@ export function AppSettings() {
                   <FormControl>
                     <Input placeholder="Ej. Mi Panel Financiero" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="footerText"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Texto del Pie de Página (Login)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Ej. © 2024 Mi Empresa. Todos los derechos reservados." {...field} />
+                  </FormControl>
+                   <FormDescriptionComponent>
+                    Este texto aparecerá en la parte inferior de la pantalla de inicio de sesión.
+                  </FormDescriptionComponent>
                   <FormMessage />
                 </FormItem>
               )}

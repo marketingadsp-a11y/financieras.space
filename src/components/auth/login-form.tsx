@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, UserCog } from "lucide-react";
 
 const formSchema = z.object({
@@ -29,6 +30,19 @@ export function LoginForm() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appName, setAppName] = useState("Panel de Administración");
+  const [footerText, setFooterText] = useState("");
+
+  useEffect(() => {
+    const storedAppName = localStorage.getItem('appName');
+    const storedFooterText = localStorage.getItem('footerText');
+    if (storedAppName) {
+      setAppName(storedAppName);
+    }
+    if (storedFooterText) {
+      setFooterText(storedFooterText);
+    }
+  }, []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -59,7 +73,7 @@ export function LoginForm() {
           <div className="flex justify-center mb-4">
              <UserCog className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle>Panel de Administración</CardTitle>
+          <CardTitle>{appName}</CardTitle>
           <CardDescription>
             Ingrese sus credenciales para acceder.
           </CardDescription>
@@ -113,6 +127,13 @@ export function LoginForm() {
             </form>
           </Form>
         </CardContent>
+        {footerText && (
+          <CardFooter>
+            <p className="w-full text-center text-xs text-muted-foreground">
+              {footerText}
+            </p>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );
