@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -21,6 +22,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import type { Admin } from "@/lib/data";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type AdminTableProps = {
     data: Admin[];
@@ -30,6 +42,8 @@ type AdminTableProps = {
 
 export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
   const [filter, setFilter] = React.useState("");
+  const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
+  
   const filteredData = data.filter((admin) =>
     Object.values(admin).some((value) =>
       String(value).toLowerCase().includes(filter.toLowerCase())
@@ -70,7 +84,9 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
           </TableHeader>
           <TableBody>
             {filteredData.length > 0 ? (
-              filteredData.map((admin) => (
+              filteredData.map((admin) => {
+                const expectedConfirmationText = `${admin.name} eliminar`;
+                return (
                 <TableRow key={admin.id}>
                   <TableCell className="font-medium">{admin.name}</TableCell>
                   <TableCell>{admin.username}</TableCell>
@@ -83,26 +99,57 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Alternar menú</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem onSelect={() => onEdit(admin)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => onDelete(admin.id)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                     <AlertDialog onOpenChange={(open) => !open && setDeleteConfirmationText('')}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Alternar menú</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => onEdit(admin)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Editar
+                            </DropdownMenuItem>
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción es irreversible. Se eliminará permanentemente al administrador.
+                                Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong> a continuación.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <Input
+                            id="delete-confirm"
+                            value={deleteConfirmationText}
+                            onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                            placeholder={expectedConfirmationText}
+                            autoComplete="off"
+                            autoFocus
+                            />
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                disabled={deleteConfirmationText !== expectedConfirmationText}
+                                onClick={() => onDelete(admin.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                            >
+                                Sí, eliminar administrador
+                            </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
