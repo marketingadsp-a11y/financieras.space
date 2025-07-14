@@ -217,8 +217,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider value={value}>
         {loading ? (
              <div className="flex h-screen items-center justify-center">Cargando...</div>
-        ) : (
+        ) : user && pathname !== '/login' ? (
             <AppShell>{children}</AppShell>
+        ) : (
+             children
         )}
     </AuthContext.Provider>
   );
