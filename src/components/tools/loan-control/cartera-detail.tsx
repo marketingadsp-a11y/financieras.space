@@ -182,7 +182,9 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
     reader.readAsArrayBuffer(file);
     
     // Reset file input value to allow re-uploading the same file
-    event.target.value = '';
+    if (event.target) {
+      event.target.value = '';
+    }
   };
   
   const summary = React.useMemo(() => {
@@ -436,5 +438,3 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
     </div>
   );
 }
-
-    
