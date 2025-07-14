@@ -469,7 +469,7 @@ export function DailyControlDashboard() {
             </div>
             
             <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                {user?.isSuperAdmin && (
+                {(user?.isSuperAdmin || user?.isToolAdmin) && (
                    <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline" size="sm">
