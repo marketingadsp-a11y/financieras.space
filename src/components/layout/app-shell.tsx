@@ -21,7 +21,8 @@ import {
   Undo2,
   ChevronDown,
   Contact,
-  AppWindow
+  AppWindow,
+  Briefcase
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -65,6 +66,7 @@ type NavItem = {
   label: string;
   icon: React.ElementType;
   superAdminOnly?: boolean;
+  adminOnly?: boolean;
   children?: NavItem[];
 };
 
@@ -90,6 +92,20 @@ const superAdminNavItems: NavItem[] = [
         { href: "/settings/users", label: "Usuarios de Plaza", icon: Users2, superAdminOnly: true },
     ]
   },
+];
+
+const adminNavItems: NavItem[] = [
+    { href: "/plazas", label: "Gestionar Plazas", icon: Building, adminOnly: true },
+    { href: "/settings/users", label: "Gestionar Usuarios", icon: Users2, adminOnly: true },
+    { href: "/tools", label: "Herramientas", icon: Wrench, adminOnly: true },
+    { 
+        label: "Ajustes", 
+        icon: Settings, 
+        adminOnly: true,
+        children: [
+            { href: "/settings/company-profile", label: "Perfil de Empresa", icon: Briefcase, adminOnly: true },
+        ]
+    },
 ];
 
 const carteraVencidaNavItems: NavItem[] = [
@@ -281,13 +297,6 @@ function NavLinks() {
     if (user?.isSuperAdmin) {
       return superAdminNavItems;
     }
-    // For regular admins, show their accessible tools
-    const adminNavItems = [];
-    
-    adminNavItems.push({ href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: false });
-    adminNavItems.push({ href: "/settings/users", label: "Gestionar Usuarios", icon: Users2, superAdminOnly: false });
-    adminNavItems.push({ href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: false });
-
     return adminNavItems;
   }
 
