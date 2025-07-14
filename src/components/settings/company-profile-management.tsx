@@ -25,10 +25,38 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, Loader2, Upload } from "lucide-react";
+import { Briefcase, Loader2, Pencil, Trash2, PlusCircle, Building } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { getCompanyProfileByPrefix, saveCompanyProfile } from "@/services/company-profile-service";
+import { getCompanyProfileByPrefix, saveCompanyProfile, getAllCompanyProfiles, deleteCompanyProfile } from "@/services/company-profile-service";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { CompanyProfile } from "@/lib/data";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+ import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription as AlertDialogDescriptionComponent,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const companyProfileSchema = z.object({
   companyName: z.string().min(3, "El nombre de la empresa debe tener al menos 3 caracteres."),
@@ -37,160 +65,300 @@ const companyProfileSchema = z.object({
 
 type CompanyProfileFormValues = z.infer<typeof companyProfileSchema>;
 
-export function CompanyProfileManagement() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isSaving, setIsSaving] = React.useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+// Form component for reuse in dialogs
+const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<CompanyProfileFormValues>, onSubmit: (data: CompanyProfileFormValues) => void, isSaving: boolean }) => {
+    const form = useForm<CompanyProfileFormValues>({
+        resolver: zodResolver(companyProfileSchema),
+        defaultValues: {
+            companyName: profile?.companyName || "",
+            logoUrl: profile?.logoUrl || "",
+        },
+    });
+    
+    const currentLogoUrl = form.watch("logoUrl");
+    const currentCompanyName = form.watch("companyName");
 
-  const form = useForm<CompanyProfileFormValues>({
-    resolver: zodResolver(companyProfileSchema),
-    defaultValues: {
-      companyName: "",
-      logoUrl: "",
-    },
-  });
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                    control={form.control}
+                    name="companyName"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Nombre de la Empresa</FormLabel>
+                        <FormControl>
+                            <Input placeholder="El nombre de tu empresa" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="logoUrl"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Logotipo</FormLabel>
+                        <div className="flex items-center gap-4">
+                            <Avatar className="h-20 w-20">
+                            <AvatarImage src={currentLogoUrl} alt={currentCompanyName} />
+                            <AvatarFallback><Briefcase className="h-10 w-10 text-muted-foreground"/></AvatarFallback>
+                            </Avatar>
+                            <div className="flex-grow">
+                                <FormControl>
+                                    <Input placeholder="https://ejemplo.com/logo.png" {...field} />
+                                </FormControl>
+                                <FormDescriptionComponent className="mt-2">
+                                    Pega una URL a una imagen para el logotipo.
+                                </FormDescriptionComponent>
+                            </div>
+                        </div>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <CardFooter className="border-t px-0 pt-6 mt-6">
+                    <Button type="submit" disabled={isSaving}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Guardar Cambios
+                    </Button>
+                </CardFooter>
+            </form>
+        </Form>
+    );
+};
 
-  React.useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user?.prefix) return;
-      setIsLoading(true);
-      try {
-        const profile = await getCompanyProfileByPrefix(user.prefix);
-        if (profile) {
-          form.reset({
-            companyName: profile.companyName,
-            logoUrl: profile.logoUrl || "",
-          });
+
+// Main component: Admin view
+function AdminProfileView() {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [isSaving, setIsSaving] = React.useState(false);
+    
+    const form = useForm<CompanyProfileFormValues>({
+        resolver: zodResolver(companyProfileSchema),
+        defaultValues: { companyName: "", logoUrl: "" },
+    });
+    
+    React.useEffect(() => {
+        const fetchProfile = async () => {
+            if (!user?.prefix) return;
+            setIsLoading(true);
+            try {
+                const profile = await getCompanyProfileByPrefix(user.prefix);
+                if (profile) {
+                    form.reset({
+                        companyName: profile.companyName,
+                        logoUrl: profile.logoUrl || "",
+                    });
+                }
+            } catch (error) {
+                toast({ variant: "destructive", title: "Error", description: "No se pudo cargar el perfil." });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchProfile();
+    }, [user?.prefix, form, toast]);
+    
+    const onSubmit = async (data: CompanyProfileFormValues) => {
+        if (!user?.prefix) return;
+        setIsSaving(true);
+        try {
+            await saveCompanyProfile(user.prefix, data);
+            toast({ title: "Éxito", description: "Perfil actualizado." });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el perfil." });
+        } finally {
+            setIsSaving(false);
         }
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No se pudo cargar el perfil de la empresa.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
     };
-    fetchProfile();
-  }, [user?.prefix, form, toast]);
 
-  const onSubmit = async (data: CompanyProfileFormValues) => {
-    if (!user?.prefix) {
-      toast({ variant: "destructive", title: "Error", description: "No tienes un prefijo de empresa asignado." });
-      return;
+    if (isLoading) {
+        return (
+            <Card><CardHeader><CardTitle>Perfil de Empresa</CardTitle><CardDescription>Cargando perfil...</CardDescription></CardHeader>
+            <CardContent className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" /></CardContent></Card>
+        )
     }
-    setIsSaving(true);
-    try {
-      await saveCompanyProfile(user.prefix, data);
-      toast({
-        title: "Éxito",
-        description: "El perfil de la empresa ha sido actualizado.",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo guardar el perfil de la empresa.",
-      });
-    } finally {
-        setIsSaving(false);
-    }
-  };
-  
-  const handleLogoUpload = () => {
-    // Placeholder for actual file upload logic
-    // In a real app, this would involve uploading to a storage service (like Firebase Storage)
-    // and getting back a URL. For now, we'll just prompt for a URL.
-    const url = prompt("Pega la URL de tu logotipo:");
-    if (url) {
-      form.setValue("logoUrl", url, { shouldValidate: true });
-    }
-  };
-  
-  const currentLogoUrl = form.watch("logoUrl");
-  const currentCompanyName = form.watch("companyName");
 
-  if (isLoading) {
     return (
         <Card>
             <CardHeader>
-                 <CardTitle>Perfil de Empresa</CardTitle>
-                 <CardDescription>Cargando perfil...</CardDescription>
+                <div className="flex items-start gap-4">
+                    <div className="p-2 bg-primary/10 rounded-lg"><Briefcase className="h-6 w-6 text-primary"/></div>
+                    <div>
+                        <CardTitle>Perfil de Empresa</CardTitle>
+                        <CardDescription>Personaliza cómo se muestra tu empresa en el inicio de sesión. Estos cambios se aplicarán a todos los usuarios con el prefijo: <span className="font-bold">{user?.prefix}</span>.</CardDescription>
+                    </div>
+                </div>
             </CardHeader>
-            <CardContent className="flex justify-center items-center h-40">
-                <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+             <CardContent>
+                <ProfileForm profile={form.getValues()} onSubmit={onSubmit} isSaving={isSaving} />
             </CardContent>
         </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-4">
-            <div className="p-2 bg-primary/10 rounded-lg">
-                <Briefcase className="h-6 w-6 text-primary"/>
-            </div>
-            <div>
-                <CardTitle>Perfil de Empresa</CardTitle>
-                <CardDescription>
-                  Personaliza cómo se muestra tu empresa en el inicio de sesión. Estos cambios se aplicarán a todos los usuarios con el prefijo: <span className="font-bold">{user?.prefix}</span>.
-                </CardDescription>
-            </div>
-        </div>
-      </CardHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="space-y-6">
-            <FormField
-              control={form.control}
-              name="companyName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre de la Empresa</FormLabel>
-                  <FormControl>
-                    <Input placeholder="El nombre de tu empresa" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="logoUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Logotipo</FormLabel>
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src={currentLogoUrl} alt={currentCompanyName} />
-                      <AvatarFallback><Briefcase className="h-10 w-10 text-muted-foreground"/></AvatarFallback>
-                    </Avatar>
-                    <div className="flex-grow">
-                         <FormControl>
-                            <Input placeholder="https://ejemplo.com/logo.png" {...field} />
-                         </FormControl>
-                         <FormDescriptionComponent className="mt-2">
-                            Pega una URL a una imagen para el logotipo.
-                        </FormDescriptionComponent>
-                    </div>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-          <CardFooter className="border-t px-6 py-4">
-            <Button type="submit" disabled={isSaving}>
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar Cambios
-            </Button>
-          </CardFooter>
-        </form>
-      </Form>
-    </Card>
-  );
+    );
 }
+
+// Main component: SuperAdmin view
+function SuperAdminProfileView() {
+    const { toast } = useToast();
+    const [profiles, setProfiles] = React.useState<CompanyProfile[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [isSaving, setIsSaving] = React.useState(false);
+    const [editingProfile, setEditingProfile] = React.useState<CompanyProfile | null>(null);
+    const [isFormOpen, setIsFormOpen] = React.useState(false);
+    
+    const fetchProfiles = React.useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const allProfiles = await getAllCompanyProfiles();
+            setProfiles(allProfiles);
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los perfiles de empresa." });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [toast]);
+
+    React.useEffect(() => {
+        fetchProfiles();
+    }, [fetchProfiles]);
+
+    const handleEditClick = (profile: CompanyProfile) => {
+        setEditingProfile(profile);
+        setIsFormOpen(true);
+    };
+
+    const handleFormSubmit = async (data: CompanyProfileFormValues) => {
+        if (!editingProfile) return;
+        setIsSaving(true);
+        try {
+            await saveCompanyProfile(editingProfile.id, data);
+            toast({ title: "Éxito", description: `Perfil para ${editingProfile.id} actualizado.` });
+            closeDialog();
+            fetchProfiles();
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el perfil." });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+     const handleDeleteProfile = async (prefix: string) => {
+        try {
+            await deleteCompanyProfile(prefix);
+            toast({ title: "Éxito", description: `Perfil para ${prefix} eliminado.` });
+            fetchProfiles();
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el perfil." });
+        }
+    };
+    
+    const closeDialog = () => {
+        setIsFormOpen(false);
+        setEditingProfile(null);
+    }
+    
+    return (
+        <Card>
+            <CardHeader>
+                 <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Gestor de Perfiles de Empresa</CardTitle>
+                        <CardDescription>Administra el nombre y logotipo para cada prefijo de empresa.</CardDescription>
+                    </div>
+                    {/* Placeholder for future "Add New" button */}
+                </div>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-40">
+                        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+                        <span>Cargando perfiles...</span>
+                    </div>
+                ) : (
+                    <div className="rounded-md border">
+                        <Table>
+                             <TableHeader>
+                                <TableRow>
+                                <TableHead className="w-[80px]">Logo</TableHead>
+                                <TableHead>Nombre de Empresa</TableHead>
+                                <TableHead>Prefijo (ID)</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {profiles.length > 0 ? (
+                                    profiles.map(p => (
+                                        <TableRow key={p.id}>
+                                            <TableCell>
+                                                <Avatar><AvatarImage src={p.logoUrl} /><AvatarFallback><Building /></AvatarFallback></Avatar>
+                                            </TableCell>
+                                            <TableCell className="font-medium">{p.companyName}</TableCell>
+                                            <TableCell><span className="font-mono text-xs bg-muted px-2 py-1 rounded">{p.id}</span></TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button variant="outline" size="icon" onClick={() => handleEditClick(p)}><Pencil className="h-4 w-4" /></Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                                <AlertDialogDescriptionComponent>Esta acción eliminará el perfil de la empresa <span className="font-bold">{p.companyName} ({p.id})</span>. No se puede deshacer.</AlertDialogDescriptionComponent>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteProfile(p.id)}>Eliminar</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">No hay perfiles de empresa. Se crearán cuando un admin los guarde.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
+            </CardContent>
+
+             <Dialog open={isFormOpen} onOpenChange={closeDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Editando Perfil de: {editingProfile?.companyName}</DialogTitle>
+                        <DialogDescription>Prefijo: <span className="font-mono text-sm bg-muted px-2 py-1 rounded">{editingProfile?.id}</span></DialogDescription>
+                    </DialogHeader>
+                    {editingProfile && (
+                        <ProfileForm
+                            profile={{ companyName: editingProfile.companyName, logoUrl: editingProfile.logoUrl }}
+                            onSubmit={handleFormSubmit}
+                            isSaving={isSaving}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+        </Card>
+    )
+}
+
+
+export function CompanyProfileManagement() {
+  const { user } = useAuth();
+  
+  if (user?.isSuperAdmin) {
+    return <SuperAdminProfileView />;
+  }
+  
+  return <AdminProfileView />;
+}
+
+    
