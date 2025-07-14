@@ -61,6 +61,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
