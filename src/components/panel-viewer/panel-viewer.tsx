@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -99,6 +100,7 @@ export function PanelViewer() {
   }, [filteredAdmins]);
   
   const companyPrefixes = React.useMemo(() => Object.keys(groupedAdmins).sort((a, b) => a.localeCompare(b)), [groupedAdmins]);
+  const allTabs = ['Todos', ...companyPrefixes];
 
   if (isLoading) {
     return (
@@ -129,16 +131,34 @@ export function PanelViewer() {
         </div>
        </div>
 
-      {companyPrefixes.length > 0 ? (
-        <Tabs defaultValue={companyPrefixes[0]} className="w-full">
+      {filteredAdmins.length > 0 ? (
+        <Tabs defaultValue="Todos" className="w-full">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 h-auto bg-transparent p-0 gap-2">
-                {companyPrefixes.map(prefix => (
-                    <TabsTrigger key={prefix} value={prefix} className="h-auto data-[state=active]:shadow-lg data-[state=inactive]:bg-card data-[state=inactive]:border data-[state=inactive]:text-muted-foreground">
+                {allTabs.map(prefix => (
+                    <TabsTrigger 
+                        key={prefix} 
+                        value={prefix} 
+                        className="h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=inactive]:bg-card data-[state=inactive]:border data-[state=inactive]:text-muted-foreground"
+                    >
                          <Building className="mr-2 h-4 w-4"/>
                          {prefix}
                     </TabsTrigger>
                 ))}
             </TabsList>
+
+            <TabsContent value="Todos" className="pt-6">
+                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {filteredAdmins.sort((a,b) => a.name.localeCompare(b.name)).map((admin) => (
+                        <AdminCard 
+                            key={admin.id} 
+                            admin={admin}
+                            onImpersonate={handleImpersonate}
+                            isImpersonating={isImpersonating}
+                        />
+                    ))}
+                 </div>
+            </TabsContent>
+
             {companyPrefixes.map(prefix => (
                 <TabsContent key={prefix} value={prefix} className="pt-6">
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -165,3 +185,4 @@ export function PanelViewer() {
     </div>
   );
 }
+
