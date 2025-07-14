@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -8,24 +9,28 @@ import { AdminForm } from "@/components/admin/admin-form";
 import type { Admin } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getAdmins, addAdmin, updateAdmin, deleteAdmin } from "@/services/admin-service";
+import { getAdmins, addAdmin, updateAdmin, deleteAdmin, getAdminsByPrefix } from "@/services/admin-service";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 
 export function AdminDashboard() {
+  const { user } = useAuth();
   const [admins, setAdmins] = React.useState<Admin[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingAdmin, setEditingAdmin] = React.useState<Admin | null>(null);
   const { toast } = useToast();
 
-  React.useEffect(() => {
-    fetchAdmins();
-  }, []);
-
-  const fetchAdmins = async () => {
+  const fetchAdmins = React.useCallback(async () => {
+    if (!user) return;
     try {
       setIsLoading(true);
-      const adminsFromDb = await getAdmins();
+      let adminsFromDb: Admin[];
+      if (user.isSuperAdmin) {
+        adminsFromDb = await getAdmins();
+      } else {
+        adminsFromDb = await getAdminsByPrefix(user.prefix!);
+      }
       setAdmins(adminsFromDb);
     } catch (error) {
       toast({
@@ -36,7 +41,11 @@ export function AdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, toast]);
+
+  React.useEffect(() => {
+    fetchAdmins();
+  }, [fetchAdmins]);
 
   const handleAddAdmin = async (newAdmin: Omit<Admin, 'id'>) => {
     try {
