@@ -333,7 +333,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const getUserRoleLabel = () => {
     if (user.isSuperAdmin && !impersonation) return 'Financieras MX';
     if (user.isToolAdmin) return 'Admin de Herramienta';
-    if (user.isPlazaUser) return user.username;
+    if (user.isPlazaUser) return user.name;
     return 'Admin';
   }
 
@@ -343,14 +343,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center gap-2 p-2">
-            <UserCog className="h-6 w-6 text-primary" />
+          <div className="flex items-center gap-3 p-2">
+            <UserCog className="h-8 w-8 text-primary" />
              <div className="flex flex-col">
-              <span className="font-semibold group-data-[collapsible=icon]:hidden">
+              <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">
                 {getUserRoleLabel()}
               </span>
               {currentTool && (
-                <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+                <span className="text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
                   {currentTool.name}
                 </span>
               )}
