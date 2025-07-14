@@ -18,6 +18,7 @@ import type { LoanControlCartera } from "@/lib/data";
 
 const formSchema = z.object({
   name: z.string().min(3, "El nombre de la cartera es requerido (mínimo 3 caracteres)."),
+  responsable: z.string().min(3, "El nombre del responsable es requerido (mínimo 3 caracteres)."),
 });
 
 type CarteraFormProps = {
@@ -32,6 +33,7 @@ export function CarteraForm({ onSubmit, cartera }: CarteraFormProps) {
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: cartera?.name || "",
+            responsable: cartera?.responsable || "",
         },
     });
 
@@ -50,6 +52,19 @@ export function CarteraForm({ onSubmit, cartera }: CarteraFormProps) {
                             <FormLabel>Nombre de la Cartera</FormLabel>
                             <FormControl>
                                 <Input placeholder="Ej. Cartera de Cobranza Semanal" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="responsable"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Responsable</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Ej. Juan Pérez" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

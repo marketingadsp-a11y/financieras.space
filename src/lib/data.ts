@@ -178,6 +178,7 @@ export type CompanyProfile = {
 export type LoanControlCartera = {
   id: string;
   name: string;
+  responsable: string;
   plazaId: string;
   prefix: string;
 }

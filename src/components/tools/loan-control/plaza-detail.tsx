@@ -5,7 +5,7 @@ import * as React from "react";
 import Link from "next/link";
 import { getPlazaById } from "@/services/plaza-service";
 import type { Plaza, LoanControlCartera } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,9 @@ const CarteraCard = ({ cartera, onEdit, onDelete }: { cartera: LoanControlCarter
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
+            <CardDescription className="flex items-center gap-2 pt-1 text-sm">
+                <User className="h-4 w-4" /> {cartera.responsable}
+            </CardDescription>
         </CardHeader>
         <CardContent>
            <p className="text-sm text-muted-foreground">
@@ -116,7 +119,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
 
     try {
         if (editingCartera) {
-            await updateCartera(editingCartera.id, { name: values.name });
+            await updateCartera(editingCartera.id, { name: values.name, responsable: values.responsable });
             toast({ title: "Éxito", description: "Cartera actualizada." });
         } else {
             await addCartera({ ...values, plazaId, prefix: user.prefix });

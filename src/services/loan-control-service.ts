@@ -66,5 +66,3 @@ export async function deleteGrupo(id: string) {
     const grupoDoc = doc(db, "loanControlGrupos", id);
     await deleteDoc(grupoDoc);
 }
-
-    
