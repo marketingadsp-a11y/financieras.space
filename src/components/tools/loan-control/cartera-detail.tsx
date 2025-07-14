@@ -2,12 +2,14 @@
 "use client";
 
 import * as React from "react";
-import type { LoanControlCartera } from "@/lib/data";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, FolderKanban, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { getCarteraById } from "@/services/loan-control-service";
+import type { LoanControlCartera } from "@/lib/data";
 
-export function LoanControlCarteraDetail({ carteraId }: { carteraId: string }) {
+export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: string, plazaId: string }) {
   const [cartera, setCartera] = React.useState<LoanControlCartera | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
@@ -16,9 +18,8 @@ export function LoanControlCarteraDetail({ carteraId }: { carteraId: string }) {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        // TODO: Fetch cartera by ID
-        // const carteraData = await getCarteraById(carteraId);
-        // setCartera(carteraData);
+        const carteraData = await getCarteraById(carteraId);
+        setCartera(carteraData);
       } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información de la cartera." });
       } finally {
@@ -36,21 +37,28 @@ export function LoanControlCarteraDetail({ carteraId }: { carteraId: string }) {
       </div>
     );
   }
+  
+  if (!cartera) {
+     return <div className="text-center">No se encontró la cartera.</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Cartera: (Nombre de Cartera)</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Cartera: {cartera.name}</h1>
         <p className="text-muted-foreground">
-          Gestiona los grupos de esta cartera.
+          Gestiona los grupos de clientes de esta cartera.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Grupos</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5"/>Grupos</CardTitle>
+            {/* Add button for new group */}
+          </div>
           <CardDescription>
-            Organiza tus clientes en diferentes grupos.
+            Organiza tus clientes en diferentes grupos dentro de la cartera.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -62,3 +70,5 @@ export function LoanControlCarteraDetail({ carteraId }: { carteraId: string }) {
     </div>
   );
 }
+
+    

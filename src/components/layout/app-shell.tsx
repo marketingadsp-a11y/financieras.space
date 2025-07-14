@@ -3,7 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Users,
   LogOut,
@@ -22,7 +22,9 @@ import {
   ChevronDown,
   Contact,
   AppWindow,
-  Briefcase
+  Briefcase,
+  Files,
+  FolderKanban,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -197,6 +199,7 @@ function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
 function NavLinks() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const router = useRouter();
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
@@ -306,10 +309,66 @@ function NavLinks() {
   }
 
   if (isLoanControlPath) {
-    // Basic navigation for now, will be expanded
-    return (
-        <PlazaNavLinks toolPrefix="tools/loan-control" />
-    );
+    const plazaMatch = pathname.match(/\/tools\/loan-control\/plaza\/([^/]+)/);
+    const carteraMatch = pathname.match(/\/tools\/loan-control\/cartera\/([^/]+)/);
+
+    if (carteraMatch) {
+      const plazaId = router.query.plazaId as string || ''; // Need to get plazaId from context or query
+      return (
+        <SidebarGroup>
+          <SidebarGroupLabel>GESTIÓN DE CARTERA</SidebarGroupLabel>
+           <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href={`/tools/loan-control/cartera/${carteraMatch[1]}`}>
+                    <SidebarMenuButton asChild isActive={true} tooltip="Grupos">
+                        <span><Users /><span>Grupos</span></span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+           </SidebarMenu>
+           <SidebarSeparator />
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <Link href={`/tools/loan-control/plaza/${plazaId}`}>
+                        <SidebarMenuButton asChild tooltip="Volver a Carteras">
+                            <span><ChevronLeft /><span>Volver a Carteras</span></span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarGroup>
+      );
+    }
+
+    if (plazaMatch) {
+      return (
+        <SidebarGroup>
+          <SidebarGroupLabel>GESTIÓN DE PLAZA</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+                <Link href={`/tools/loan-control/plaza/${plazaMatch[1]}`}>
+                    <SidebarMenuButton asChild isActive={true} tooltip="Carteras">
+                       <span><FolderKanban /><span>Carteras</span></span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <SidebarSeparator />
+          <SidebarMenu>
+            <SidebarMenuItem>
+                <Link href="/tools/loan-control">
+                    <SidebarMenuButton asChild tooltip="Volver a Plazas">
+                       <span><ChevronLeft /><span>Volver a Plazas</span></span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+      );
+    }
+    
+    // Default view for /tools/loan-control
+    return <PlazaNavLinks toolPrefix="tools/loan-control" />;
   }
 
   const getNavItems = () => {
@@ -506,3 +565,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    
