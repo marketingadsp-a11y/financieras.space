@@ -18,11 +18,20 @@ export type CustomerParserInput = z.infer<typeof CustomerParserInputSchema>;
 
 const ParsedCustomerSchema = z.object({
     name: z.string().describe("The full name of the customer."),
-    address: z.string().describe("The customer's full address."),
+    address: z.string().describe("The customer's full address, street and number."),
+    colonia: z.string().optional().describe("The customer's neighborhood or 'colonia'."),
+    cp: z.string().optional().describe("The customer's postal code ('código postal')."),
     phone: z.string().describe("The customer's phone number."),
     guarantor: z.string().describe("The name of the guarantor, or 'NO' if none."),
+    guarantorPhone: z.string().optional().describe("The guarantor's phone number."),
+    direccionAval: z.string().optional().describe("The guarantor's full address."),
+    coloniaAval: z.string().optional().describe("The guarantor's neighborhood or 'colonia'."),
+    cpAval: z.string().optional().describe("The guarantor's postal code ('código postal')."),
     loanAmount: z.number().describe("The initial amount of the loan."),
+    paymentAmount: z.number().optional().describe("The amount for each payment or installment."),
+    installmentsDue: z.number().optional().describe("The number of overdue installments."),
     dueAmount: z.number().describe("The outstanding amount owed by the customer."),
+    fechaPrestamo: z.string().optional().describe("The date the loan was given, in YYYY-MM-DD format."),
 });
 
 const CustomerParserOutputSchema = z.array(ParsedCustomerSchema);
@@ -39,8 +48,9 @@ const prompt = ai.definePrompt({
   output: {schema: CustomerParserOutputSchema},
   prompt: `You are an expert data processor. Your task is to parse the following text, which contains customer data pasted from a spreadsheet.
 The data is semi-structured. Each line represents a customer. The columns are likely separated by tabs.
-The columns could be in any order, but common headers include: FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, PRESTAMO, PAGO, ADEUDO. Your job is to intelligently identify the correct data for each field in the output schema.
-For numerical fields like 'loanAmount' and 'dueAmount', clean the data to remove currency symbols, commas, or any other non-numeric characters. If a value is not present, use a sensible default (e.g., 0 for numbers, empty string for text).
+The columns could be in any order, but common headers include: FECHA, NOMBRE, DIRECCION, COLONIA, CP, TELEFONO, AVAL, TEL AVAL, DIR AVAL, COL AVAL, CP AVAL, PRESTAMO, PAGO, VENCIDOS, ADEUDO. Your job is to intelligently identify the correct data for each field in the output schema.
+- For numerical fields, clean the data to remove currency symbols, commas, or any other non-numeric characters. If a value is not present, use a sensible default (e.g., 0 for numbers, empty string for text).
+- For the 'fechaPrestamo' field, convert any found date into YYYY-MM-DD format.
 
 Parse the data and return a JSON array of customers.
 

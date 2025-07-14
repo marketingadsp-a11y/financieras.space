@@ -61,13 +61,22 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
             direccionAval: customer?.direccionAval || "",
             coloniaAval: customer?.coloniaAval || "",
             cpAval: customer?.cpAval || "",
-            loanAmount: customer?.loanAmount || 0,
+            loanAmount: customer?.loanAmount || undefined,
             paymentAmount: customer?.paymentAmount || 0,
             installmentsDue: customer?.installmentsDue || 0,
-            dueAmount: customer?.dueAmount || customer?.loanAmount || 0,
+            dueAmount: customer?.dueAmount || customer?.loanAmount || undefined,
             fechaPrestamo: customer?.fechaPrestamo ? new Date(customer.fechaPrestamo) : new Date(),
         },
     });
+    
+    // Watch loanAmount to auto-update dueAmount
+    const loanAmount = form.watch("loanAmount");
+    React.useEffect(() => {
+        if (loanAmount && !form.getValues("dueAmount")) {
+            form.setValue("dueAmount", loanAmount);
+        }
+    }, [loanAmount, form]);
+
 
     const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSend: any = { ...values };
