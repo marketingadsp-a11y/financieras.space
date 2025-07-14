@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 const StatCard = ({ title, value, isCurrency = false }: { title: string; value: number; isCurrency?: boolean }) => (
@@ -61,18 +62,25 @@ const CustomerInfoCard = ({ customer }: { customer: Customer }) => {
                         <div className="flex items-center gap-2 font-bold text-destructive"><DollarSign className="h-4 w-4"/> <span>Saldo: ${customer.dueAmount.toLocaleString()}</span></div>
                     </div>
                 </div>
-                 <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                    <div className="space-y-2">
-                        <h4 className="font-semibold">Información del Aval</h4>
-                         <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground"/> <span>{customer.guarantor || 'N/A'}</span></div>
-                         <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/> <span>{customer.guarantorPhone || 'N/A'}</span></div>
-                    </div>
-                     <div className="space-y-2">
-                        <h4 className="font-semibold">Dirección del Aval</h4>
-                         <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground"/> <span>{customer.direccionAval || 'N/A'}</span></div>
-                         <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-muted-foreground"/> <span>{customer.coloniaAval}, {customer.cpAval}</span></div>
-                    </div>
-                </div>
+                 <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1" className="border-t">
+                        <AccordionTrigger>Información del Aval</AccordionTrigger>
+                        <AccordionContent>
+                           <div className="grid grid-cols-2 gap-4 pt-2">
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold">Datos del Aval</h4>
+                                    <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground"/> <span>{customer.guarantor || 'N/A'}</span></div>
+                                    <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/> <span>{customer.guarantorPhone || 'N/A'}</span></div>
+                                </div>
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold">Dirección del Aval</h4>
+                                    <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground"/> <span>{customer.direccionAval || 'N/A'}</span></div>
+                                    <div className="flex items-center gap-2"><Hash className="h-4 w-4 text-muted-foreground"/> <span>{customer.coloniaAval}, {customer.cpAval}</span></div>
+                                </div>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </CardContent>
             <CardFooter>
                 <Button variant="outline" className="w-full">Administrar Cliente</Button>
