@@ -3,7 +3,9 @@
 
 import * as React from "react";
 import * as XLSX from "xlsx";
-import { Loader2, Users, PlusCircle, User, Phone, MapPin, Hash, Calendar as CalendarIcon, DollarSign, ClipboardPaste, Trash2, FileSpreadsheet } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { Loader2, Users, PlusCircle, User, Phone, MapPin, Hash, Calendar as CalendarIcon, DollarSign, ClipboardPaste, Trash2, FileSpreadsheet, FileText, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { getGrupoById, getCarteraById } from "@/services/loan-control-service";
@@ -21,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -116,6 +118,7 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
   
   const [startDate, setStartDate] = React.useState<Date | undefined>();
   const [endDate, setEndDate] = React.useState<Date | undefined>();
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   const fetchGrupoData = React.useCallback(async () => {
       try {
@@ -202,6 +205,11 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
   
   const filteredCustomers = React.useMemo(() => {
     return customers.filter(customer => {
+        // Filter by search term first
+        const searchMatch = searchTerm.trim() === '' || customer.name.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!searchMatch) return false;
+
+        // Then filter by date
         if (!startDate && !endDate) return true;
         if (!customer.fechaPrestamo) return false;
         
@@ -220,7 +228,7 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
         
         return true;
     });
-  }, [customers, startDate, endDate]);
+  }, [customers, startDate, endDate, searchTerm]);
 
   const summary = React.useMemo(() => {
     return filteredCustomers.reduce((acc, customer) => {
@@ -269,7 +277,6 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
         XLSX.utils.sheet_add_aoa(worksheet, header, { origin: "A1" });
         XLSX.utils.sheet_add_json(worksheet, customersData, { origin: "A10", skipHeader: false });
 
-        // Formatting columns
         worksheet["!cols"] = [
             { wch: 30 }, { wch: 30 }, { wch: 15 }, { wch: 8 }, { wch: 15 }, 
             { wch: 30 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 8 }, 
@@ -278,8 +285,54 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
 
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte de Grupo");
-
         XLSX.writeFile(workbook, `Reporte_Grupo_${grupo.name.replace(/\s/g, '_')}.xlsx`);
+    };
+
+    const exportToPDF = () => {
+        if (!grupo || !cartera || !plaza) {
+            toast({ variant: "destructive", title: "Error", description: "Faltan datos para exportar." });
+            return;
+        }
+
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(16);
+        doc.text(`Grupo: ${grupo.name}`, 14, 20);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Cartera: ${cartera.name} | Plaza: ${plaza.name}`, 14, 26);
+        
+        // Summary
+        autoTable(doc, {
+            body: [
+                ['Total Prestado', `$${summary.totalPrestado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+                ['Total Pendiente', `$${summary.totalPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+            ],
+            startY: 32,
+            theme: 'plain',
+            styles: { fontSize: 11, fontStyle: 'bold' },
+        });
+
+        // Customer table
+        autoTable(doc, {
+            head: [['Nombre', 'Teléfono', 'Préstamo', 'Saldo']],
+            body: filteredCustomers.map(c => [
+                c.name,
+                c.phone,
+                `$${c.loanAmount.toLocaleString('es-MX')}`,
+                `$${c.dueAmount.toLocaleString('es-MX')}`
+            ]),
+            startY: (doc as any).lastAutoTable.finalY + 2,
+            headStyles: { fillColor: [41, 128, 185] },
+            styles: { halign: 'left' },
+            columnStyles: { 
+                2: { halign: 'right' },
+                3: { halign: 'right' }
+            }
+        });
+
+        doc.save(`Reporte_Grupo_${grupo.name.replace(/\s/g, '_')}.pdf`);
     };
 
   const expectedConfirmationText = `${grupo?.name} eliminar`;
@@ -311,51 +364,63 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
             <StatCard title="Total Pendiente" value={summary.totalPendiente} isCurrency />
        </div>
 
-        <div className="flex flex-col md:flex-row gap-4 items-center p-4 border rounded-lg bg-card">
-            <h4 className="font-medium text-sm whitespace-nowrap">Filtrar por Fecha de Préstamo:</h4>
-            <div className="flex flex-col sm:flex-row gap-2 w-full">
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        id="date-start"
-                        variant={"outline"}
-                        className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de Inicio</span>}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        mode="single"
-                        selected={startDate}
-                        onSelect={setStartDate}
-                        initialFocus
+        <div className="space-y-4 p-4 border rounded-lg bg-card">
+            <h4 className="font-medium text-sm">Filtros</h4>
+            <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row gap-2 w-full flex-1">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            id="date-start"
+                            variant={"outline"}
+                            className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de Inicio</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            mode="single"
+                            selected={startDate}
+                            onSelect={setStartDate}
+                            initialFocus
+                        />
+                        </PopoverContent>
+                    </Popover>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            id="date-end"
+                            variant={"outline"}
+                            className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de Fin</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            mode="single"
+                            selected={endDate}
+                            onSelect={setEndDate}
+                            initialFocus
+                        />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar cliente por nombre..."
+                        className="pl-9"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    </PopoverContent>
-                </Popover>
-                 <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        id="date-end"
-                        variant={"outline"}
-                        className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de Fin</span>}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        mode="single"
-                        selected={endDate}
-                        onSelect={setEndDate}
-                        initialFocus
-                    />
-                    </PopoverContent>
-                </Popover>
+                </div>
             </div>
         </div>
+
 
       <Card>
         <CardHeader>
@@ -411,6 +476,7 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
                     </DialogContent>
                 </Dialog>
                 <Button variant="outline" onClick={exportToExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel</Button>
+                <Button variant="outline" onClick={exportToPDF}><FileText className="mr-2 h-4 w-4" /> Exportar PDF</Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="mr-2 h-4 w-4"/> Limpiar Grupo</Button></AlertDialogTrigger>
                      <AlertDialogContent>
@@ -438,7 +504,8 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
                 filteredCustomers.map(customer => <CustomerInfoCard key={customer.id} customer={customer} />)
             ) : (
                 <div className="text-center py-10 text-muted-foreground">
-                    No hay clientes que coincidan con los filtros seleccionados.
+                    <p>No hay clientes que coincidan con los filtros seleccionados.</p>
+                     {customers.length > 0 && searchTerm && <p className="text-sm mt-1">Intenta con otro término de búsqueda.</p>}
                 </div>
             )}
           </div>
@@ -447,4 +514,3 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
     </div>
   );
 }
-
