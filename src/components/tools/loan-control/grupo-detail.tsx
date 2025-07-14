@@ -299,5 +299,3 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
     </div>
   );
 }
-
-    
