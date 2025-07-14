@@ -130,7 +130,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const fetchCarterasWithStats = React.useCallback(async () => {
     try {
       const carterasData = await getCarterasByPlaza(plazaId);
-      const carterasWithStats = await Promise.all(carterasData.map(async (cartera) => {
+      const carterasWithStatsPromises = carterasData.map(async (cartera) => {
           const { groups, customers } = await getGroupsAndCustomersByCartera(cartera.id);
           
           const stats = customers.reduce((acc, customer) => {
@@ -147,7 +147,8 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                   groupCount: groups.length
               }
           };
-      }));
+      });
+      const carterasWithStats = await Promise.all(carterasWithStatsPromises);
       setCarteras(carterasWithStats);
     } catch (error) {
       console.error("Error fetching carteras with stats:", error);
@@ -171,7 +172,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     fetchInitialData();
   }, [plazaId, toast, fetchCarterasWithStats]);
   
-  const handleFormSubmit = async (values: Omit<LoanControlCartera, 'id' | 'plazaId' | 'prefix' | 'responsable'>) => {
+  const handleFormSubmit = async (values: Omit<LoanControlCartera, 'id' | 'plazaId' | 'prefix'>) => {
     if (!user?.prefix) return;
 
     try {
