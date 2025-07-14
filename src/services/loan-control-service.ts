@@ -5,7 +5,7 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, w
 import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo } from "@/lib/data";
 import { parseCustomers, type ParsedCustomer } from "@/ai/flows/customer-parser-flow";
-import { addMultipleCustomers } from "./customer-service";
+import { addMultipleCustomers, deleteCustomersByGroupId } from "./customer-service";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
@@ -98,6 +98,7 @@ interface ImportParams {
     prefix: string;
     responsable: string;
     pasteData: string;
+    mode: 'add' | 'replace';
 }
 
 interface ImportResult {
@@ -106,7 +107,7 @@ interface ImportResult {
 }
 
 export async function importGruposAndCustomersFromPaste(params: ImportParams): Promise<ImportResult> {
-    const { carteraId, plazaId, prefix, responsable, pasteData } = params;
+    const { carteraId, plazaId, prefix, responsable, pasteData, mode } = params;
 
     // 1. Parse data with AI
     const parsedCustomers = await parseCustomers({ inputText: pasteData });
@@ -140,6 +141,10 @@ export async function importGruposAndCustomersFromPaste(params: ImportParams): P
                 prefix,
             });
             newGroupsCount++;
+        }
+        
+        if (mode === 'replace') {
+            await deleteCustomersByGroupId(grupo.id);
         }
         
         // 4. Batch-add customers to the group

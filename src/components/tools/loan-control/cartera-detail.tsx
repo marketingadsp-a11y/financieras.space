@@ -3,7 +3,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight, ClipboardPaste } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight, ClipboardPaste, FileSpreadsheet, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo, importGruposAndCustomersFromPaste } from "@/services/loan-control-service";
@@ -18,6 +21,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useAuth } from "@/context/auth-context";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { getPlazaById } from "@/services/plaza-service";
 
 type GrupoWithStats = LoanControlGrupo & {
     customerCount: number;
@@ -39,6 +44,7 @@ const StatCard = ({ title, value, isCurrency = false }: { title: string; value: 
 export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: string, plazaId: string }) {
   const { user } = useAuth();
   const [cartera, setCartera] = React.useState<LoanControlCartera | null>(null);
+  const [plazaName, setPlazaName] = React.useState('');
   const [grupos, setGrupos] = React.useState<GrupoWithStats[]>([]);
   const [allCustomers, setAllCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -46,18 +52,21 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
   const [editingGrupo, setEditingGrupo] = React.useState<LoanControlGrupo | null>(null);
   const [isImportModalOpen, setImportModalOpen] = React.useState(false);
   const [importText, setImportText] = React.useState('');
+  const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [isProcessingImport, setIsProcessingImport] = React.useState(false);
   const { toast } = useToast();
 
   const fetchGruposAndCustomers = React.useCallback(async () => {
       try {
         setIsLoading(true);
-        const [carteraData, gruposData] = await Promise.all([
+        const [carteraData, gruposData, plazaData] = await Promise.all([
              getCarteraById(carteraId),
-             getGruposByCartera(carteraId)
+             getGruposByCartera(carteraId),
+             getPlazaById(plazaId),
         ]);
 
         setCartera(carteraData);
+        setPlazaName(plazaData?.name || '');
         
         const customerPromises = gruposData.map(grupo => getCustomersByLoanControlGroup(grupo.id));
         const customersByGroup = await Promise.all(customerPromises);
@@ -76,7 +85,7 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
       } finally {
           setIsLoading(false);
       }
-  }, [carteraId, toast]);
+  }, [carteraId, plazaId, toast]);
 
   React.useEffect(() => {
     fetchGruposAndCustomers();
@@ -125,6 +134,7 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
             prefix: user.prefix,
             responsable: cartera.responsable,
             pasteData: importText,
+            mode: importMode,
         });
 
         toast({
@@ -150,6 +160,68 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
         return acc;
     }, { totalPrestado: 0, totalPendiente: 0});
   }, [allCustomers]);
+  
+    const exportToExcel = () => {
+        if (!cartera) return;
+
+        const header = [
+            ["Cartera:", cartera.name],
+            ["Plaza:", plazaName],
+            ["Responsable:", cartera.responsable],
+            [],
+            ["Resumen de Cartera"],
+            ["Total Prestado", summary.totalPrestado],
+            ["Total Pendiente", summary.totalPendiente],
+            [],
+            ["Detalle de Grupos"]
+        ];
+
+        const groupsData = grupos.map(g => ({
+            "Nombre del Grupo": g.name,
+            "No. de Clientes": g.customerCount
+        }));
+        
+        const worksheet = XLSX.utils.json_to_sheet([]);
+        XLSX.utils.sheet_add_aoa(worksheet, header, { origin: "A1" });
+        XLSX.utils.sheet_add_json(worksheet, groupsData, { origin: "A10", skipHeader: false });
+
+        worksheet["!cols"] = [{ wch: 30 }, { wch: 20 }];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Resumen de Cartera");
+        XLSX.writeFile(workbook, `Resumen_Cartera_${cartera.name.replace(/\s/g, '_')}.xlsx`);
+    };
+
+    const exportToPDF = () => {
+        if (!cartera) return;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(16);
+        doc.text(`Cartera: ${cartera.name}`, 14, 20);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Plaza: ${plazaName} | Responsable: ${cartera.responsable}`, 14, 26);
+        
+        autoTable(doc, {
+            body: [
+                ['Total Prestado', `$${summary.totalPrestado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+                ['Total Pendiente', `$${summary.totalPendiente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+            ],
+            startY: 32,
+            theme: 'plain',
+            styles: { fontSize: 11, fontStyle: 'bold' },
+        });
+
+        autoTable(doc, {
+            head: [['Nombre del Grupo', 'No. de Clientes']],
+            body: grupos.map(g => [g.name, g.customerCount]),
+            startY: (doc as any).lastAutoTable.finalY + 2,
+            headStyles: { fillColor: [41, 128, 185] },
+        });
+
+        doc.save(`Resumen_Cartera_${cartera.name.replace(/\s/g, '_')}.pdf`);
+    };
+
 
   if (isLoading) {
     return (
@@ -200,6 +272,13 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
                             </DialogDescriptionComponent>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Modo de Importación</Label>
+                                <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as 'add' | 'replace')} className="flex items-center gap-6">
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="add" id="r-add" /><Label htmlFor="r-add">Agregar a existentes</Label></div>
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="replace" id="r-replace" /><Label htmlFor="r-replace">Reemplazar grupos importados</Label></div>
+                                </RadioGroup>
+                            </div>
                             <Label htmlFor="import-textarea">Datos de Clientes y Grupos</Label>
                             <Textarea 
                                 id="import-textarea"
@@ -218,6 +297,8 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                <Button variant="outline" onClick={exportToExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel</Button>
+                <Button variant="outline" onClick={exportToPDF}><FileText className="mr-2 h-4 w-4" /> Exportar PDF</Button>
                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingGrupo(null);}}>
                     <DialogTrigger asChild>
                         <Button>
