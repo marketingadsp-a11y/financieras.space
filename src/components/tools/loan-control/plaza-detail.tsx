@@ -5,20 +5,59 @@ import * as React from "react";
 import Link from "next/link";
 import { getPlazaById } from "@/services/plaza-service";
 import type { Plaza, LoanControlCartera } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight } from "lucide-react";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getCarterasByPlaza } from "@/services/loan-control-service";
+import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera } from "@/services/loan-control-service";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CarteraForm } from "./cartera-form";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/context/auth-context";
 
-
-const CarteraCard = ({ cartera }: { cartera: LoanControlCartera }) => (
+const CarteraCard = ({ cartera, onEdit, onDelete }: { cartera: LoanControlCartera, onEdit: (cartera: LoanControlCartera) => void, onDelete: (id: string) => void }) => (
     <Card>
         <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-                <FolderKanban className="h-5 w-5 text-muted-foreground" />
-                {cartera.name}
-            </CardTitle>
+            <div className="flex justify-between items-start">
+                 <CardTitle className="flex items-center gap-2 text-lg">
+                    <FolderKanban className="h-5 w-5 text-muted-foreground" />
+                    {cartera.name}
+                </CardTitle>
+                 <AlertDialog>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Alternar menú</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => onEdit(cartera)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Editar
+                            </DropdownMenuItem>
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                     <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            Esta acción eliminará la cartera y desvinculará a los grupos asociados. Esta acción no se puede deshacer.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(cartera.id)}>Eliminar</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
         </CardHeader>
         <CardContent>
            <p className="text-sm text-muted-foreground">
@@ -39,29 +78,73 @@ const CarteraCard = ({ cartera }: { cartera: LoanControlCartera }) => (
 );
 
 export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
+  const { user } = useAuth();
   const [plaza, setPlaza] = React.useState<Plaza | null>(null);
   const [carteras, setCarteras] = React.useState<LoanControlCartera[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
   const { toast } = useToast();
 
+  const fetchCarteras = React.useCallback(async () => {
+    try {
+      const carterasData = await getCarterasByPlaza(plazaId);
+      setCarteras(carterasData);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la lista de carteras." });
+    }
+  }, [plazaId, toast]);
+
   React.useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
         setIsLoading(true);
-        const [plazaData, carterasData] = await Promise.all([
-           getPlazaById(plazaId),
-           getCarterasByPlaza(plazaId)
-        ]);
+        const plazaData = await getPlazaById(plazaId);
         setPlaza(plazaData);
-        setCarteras(carterasData);
+        await fetchCarteras();
       } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información de la plaza." });
       } finally {
         setIsLoading(false);
       }
     };
-    fetchData();
-  }, [plazaId, toast]);
+    fetchInitialData();
+  }, [plazaId, toast, fetchCarteras]);
+  
+  const handleFormSubmit = async (values: Omit<LoanControlCartera, 'id' | 'plazaId' | 'prefix'>) => {
+    if (!user?.prefix) return;
+
+    try {
+        if (editingCartera) {
+            await updateCartera(editingCartera.id, { name: values.name });
+            toast({ title: "Éxito", description: "Cartera actualizada." });
+        } else {
+            await addCartera({ ...values, plazaId, prefix: user.prefix });
+            toast({ title: "Éxito", description: "Cartera creada." });
+        }
+        
+        setIsFormOpen(false);
+        setEditingCartera(null);
+        await fetchCarteras();
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la cartera." });
+    }
+  };
+  
+  const handleEditClick = (cartera: LoanControlCartera) => {
+    setEditingCartera(cartera);
+    setIsFormOpen(true);
+  };
+  
+  const handleDeleteClick = async (id: string) => {
+    try {
+        await deleteCartera(id);
+        toast({ title: "Éxito", description: "Cartera eliminada." });
+        await fetchCarteras();
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar la cartera." });
+    }
+  }
 
   if (isLoading) {
     return (
@@ -94,19 +177,34 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                         Organiza tus clientes en diferentes carteras.
                     </CardDescription>
                 </div>
-                {/* Add button for new cartera */}
+                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingCartera(null);}}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Agregar Cartera
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{editingCartera ? "Editar" : "Agregar"} Cartera</DialogTitle>
+                        </DialogHeader>
+                        <CarteraForm
+                            onSubmit={handleFormSubmit}
+                            cartera={editingCartera}
+                        />
+                    </DialogContent>
+                </Dialog>
             </div>
         </CardHeader>
         <CardContent>
             {carteras.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {carteras.map((cartera) => (
-                        <CarteraCard key={cartera.id} cartera={cartera} />
+                        <CarteraCard key={cartera.id} cartera={cartera} onEdit={handleEditClick} onDelete={handleDeleteClick} />
                     ))}
                 </div>
             ) : (
                 <p className="text-muted-foreground text-center py-8">
-                    No hay carteras registradas para esta plaza.
+                    No hay carteras registradas para esta plaza. Haz clic en "Agregar Cartera" para empezar.
                 </p>
             )}
         </CardContent>
@@ -114,5 +212,3 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     </div>
   );
 }
-
-    
