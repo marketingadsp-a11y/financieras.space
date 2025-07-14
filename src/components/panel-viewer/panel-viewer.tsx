@@ -131,9 +131,9 @@ export function PanelViewer() {
 
       {companyPrefixes.length > 0 ? (
         <Tabs defaultValue={companyPrefixes[0]} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 h-auto bg-transparent p-0 gap-2">
                 {companyPrefixes.map(prefix => (
-                    <TabsTrigger key={prefix} value={prefix}>
+                    <TabsTrigger key={prefix} value={prefix} className="h-auto data-[state=active]:shadow-lg data-[state=inactive]:bg-card data-[state=inactive]:border data-[state=inactive]:text-muted-foreground">
                          <Building className="mr-2 h-4 w-4"/>
                          {prefix}
                     </TabsTrigger>
