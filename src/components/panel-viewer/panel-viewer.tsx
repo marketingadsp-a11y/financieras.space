@@ -22,7 +22,7 @@ const AdminCard = ({ admin, onImpersonate, isImpersonating }: { admin: Admin, on
     };
 
     return (
-        <Card className="group flex flex-col text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary">
+        <Card className="group flex flex-col text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-4 border-transparent hover:border-primary">
             <CardHeader className="pt-6">
                  <Avatar className="h-24 w-24 mb-4 mx-auto border-4 border-muted transition-colors duration-300 group-hover:border-primary/20">
                     <AvatarFallback className="text-4xl bg-muted/50">
