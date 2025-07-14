@@ -88,6 +88,7 @@ const superAdminNavItems: NavItem[] = [
     superAdminOnly: true,
     children: [
         { href: "/settings", label: "Aplicación", icon: AppWindow, superAdminOnly: true },
+        { href: "/settings/company-profile", label: "Perfil de Empresa", icon: Briefcase, superAdminOnly: true },
         { href: "/settings/super-admins", label: "Super Admins", icon: UserCog, superAdminOnly: true },
         { href: "/settings/users", label: "Usuarios de Plaza", icon: Users2, superAdminOnly: true },
     ]
