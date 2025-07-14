@@ -385,8 +385,7 @@ export function DailyControlDashboard() {
   
   const plazaName = plazas.find(p => p.id === selectedPlaza)?.name || 'Desconocida';
   const entryDateLabel = entryDate ? format(entryDate, "PPP", { locale: es }) : 'la fecha seleccionada';
-  const canImport = user?.isSuperAdmin || user?.isToolAdmin || user?.accessibleTools?.includes('daily-control');
-
+  
 
   return (
     <div className="space-y-6">
@@ -471,7 +470,7 @@ export function DailyControlDashboard() {
             </div>
             
             <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                {canImport && (
+                {user?.isSuperAdmin && (
                    <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline" size="sm">
