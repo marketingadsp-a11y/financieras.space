@@ -178,10 +178,12 @@ function PlazaNavLinks() {
             <SidebarMenu>
                 {plazas.map((plaza) => (
                     <SidebarMenuItem key={plaza.id}>
-                        <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
-                            <SidebarMenuButton isActive={pathname === `/tools/overdue-portfolio/plaza/${plaza.id}`} tooltip={plaza.name}>
-                                <Building />
-                                <span>{plaza.name}</span>
+                        <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`} passHref legacyBehavior>
+                            <SidebarMenuButton asChild isActive={pathname === `/tools/overdue-portfolio/plaza/${plaza.id}`} tooltip={plaza.name}>
+                                <a>
+                                    <Building />
+                                    <span>{plaza.name}</span>
+                                </a>
                             </SidebarMenuButton>
                         </Link>
                     </SidebarMenuItem>
@@ -216,10 +218,12 @@ function NavLinks() {
                 <SidebarMenu>
                     {mainNavItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
-                            <Link href={item.href!}>
-                                <SidebarMenuButton isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
-                                    <item.icon />
-                                    <span>{item.label}</span>
+                            <Link href={item.href!} passHref legacyBehavior>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
+                                    <a>
+                                        <item.icon />
+                                        <span>{item.label}</span>
+                                    </a>
                                 </SidebarMenuButton>
                             </Link>
                         </SidebarMenuItem>
@@ -242,10 +246,12 @@ function NavLinks() {
                 <SidebarMenu>
                     {items.map((item) => (
                         <SidebarMenuItem key={item.href}>
-                        <Link href={item.href!}>
-                            <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
-                                <item.icon />
-                                <span>{item.label}</span>
+                        <Link href={item.href!} passHref legacyBehavior>
+                            <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                                <a>
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                </a>
                             </SidebarMenuButton>
                         </Link>
                         </SidebarMenuItem>
@@ -264,10 +270,12 @@ function NavLinks() {
           <SidebarMenu>
             {dailyControlNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href!}>
-                  <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
-                    <item.icon />
-                    <span>{item.label}</span>
+                <Link href={item.href!} passHref legacyBehavior>
+                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                    <a>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </a>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -279,10 +287,12 @@ function NavLinks() {
           <SidebarMenu>
             {dailyControlSettingsItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href!}>
-                  <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
-                    <item.icon />
-                    <span>{item.label}</span>
+                <Link href={item.href!} passHref legacyBehavior>
+                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                    <a>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </a>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -323,10 +333,12 @@ function NavLinks() {
                         <SidebarMenuSub>
                             {item.children.map(child => (
                                 <SidebarMenuSubItem key={child.href}>
-                                    <Link href={child.href!}>
-                                        <SidebarMenuSubButton isActive={pathname === child.href}>
-                                            <child.icon />
-                                            <span>{child.label}</span>
+                                    <Link href={child.href!} passHref legacyBehavior>
+                                        <SidebarMenuSubButton asChild isActive={pathname === child.href}>
+                                            <a>
+                                                <child.icon />
+                                                <span>{child.label}</span>
+                                            </a>
                                         </SidebarMenuSubButton>
                                     </Link>
                                 </SidebarMenuSubItem>
@@ -339,10 +351,12 @@ function NavLinks() {
         
         return (
             <SidebarMenuItem key={item.href}>
-                <Link href={item.href!}>
-                    <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
-                    <item.icon />
-                    <span>{item.label}</span>
+                <Link href={item.href!} passHref legacyBehavior>
+                    <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                        <a>
+                            <item.icon />
+                            <span>{item.label}</span>
+                        </a>
                 </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
@@ -436,10 +450,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <SidebarSeparator />
               <SidebarMenu>
                 <SidebarMenuItem>
-                   <Link href="/tools">
-                      <SidebarMenuButton tooltip="Volver a Herramientas">
-                        <ChevronLeft />
-                        <span>Todas las Herramientas</span>
+                   <Link href="/tools" passHref legacyBehavior>
+                      <SidebarMenuButton asChild tooltip="Volver a Herramientas">
+                        <a>
+                            <ChevronLeft />
+                            <span>Todas las Herramientas</span>
+                        </a>
                       </SidebarMenuButton>
                    </Link>
                 </SidebarMenuItem>
