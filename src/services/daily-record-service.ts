@@ -51,8 +51,10 @@ export async function addDailyRecordEntry(
     entryData: Omit<DailyRecordEntry, 'id' | 'date'>
 ): Promise<void> {
 
-    const entryDate = new Date(date);
-    entryDate.setHours(12,0,0,0); // Normalize time to avoid timezone issues
+    // Normalize date to UTC midday to avoid timezone shifts changing the date
+    const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
+    const entryDate = new Date(Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate(), 12, 0, 0));
+
 
     const recordDocRef = getDailyRecordDocRef(plazaId, entryDate);
     const newEntry: DailyRecordEntry = {
@@ -111,6 +113,7 @@ export async function addMultipleDailyRecords(
     // Group entries by date
     const groupedByDate: { [key: string]: Omit<DailyRecordEntry, 'id'>[] } = {};
     for (const entry of entries) {
+        // Normalize to local date string to group correctly
         const localDate = new Date(entry.date.getFullYear(), entry.date.getMonth(), entry.date.getDate());
         const dateString = localDate.toISOString().split('T')[0];
         if (!groupedByDate[dateString]) {
@@ -123,8 +126,8 @@ export async function addMultipleDailyRecords(
         const dateStrings = Object.keys(groupedByDate);
         const recordDocRefs = dateStrings.map(dateString => {
             const date = new Date(dateString);
-            date.setUTCHours(12, 0, 0, 0);
-            return getDailyRecordDocRef(plazaId, date);
+            const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0));
+            return getDailyRecordDocRef(plazaId, utcDate);
         });
 
         // 1. Perform all reads first
@@ -139,17 +142,20 @@ export async function addMultipleDailyRecords(
         // 2. Perform all writes second
         for (const dateString of dateStrings) {
             const date = new Date(dateString);
-            date.setUTCHours(12, 0, 0, 0);
+            const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0));
             
             const entriesForDate = groupedByDate[dateString];
-            const recordDocRef = getDailyRecordDocRef(plazaId, date);
+            const recordDocRef = getDailyRecordDocRef(plazaId, utcDate);
             const recordDoc = existingDocsMap.get(recordDocRef.id);
 
-            const newEntriesWithIds = entriesForDate.map(e => ({
-                ...e, 
-                id: uuidv4(), 
-                date: Timestamp.fromDate(e.date)
-            }));
+            const newEntriesWithIds = entriesForDate.map(e => {
+                const entryUtcDate = new Date(Date.UTC(e.date.getFullYear(), e.date.getMonth(), e.date.getDate(), 12, 0, 0));
+                return {
+                    ...e, 
+                    id: uuidv4(), 
+                    date: Timestamp.fromDate(entryUtcDate)
+                }
+            });
             
             const newTotals = {
                 collected: newEntriesWithIds.filter(e => e.type === 'collected').reduce((sum, e) => sum + e.amount, 0),
@@ -162,7 +168,7 @@ export async function addMultipleDailyRecords(
                     id: recordDocRef.id,
                     plazaId,
                     prefix,
-                    date: Timestamp.fromDate(date),
+                    date: Timestamp.fromDate(utcDate),
                     collected: newTotals.collected,
                     loaned: newTotals.loaned,
                     spent: newTotals.spent,

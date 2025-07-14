@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
 import { useAuth } from "@/context/auth-context";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, addMinutes } from "date-fns";
 import { es } from "date-fns/locale";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -42,6 +42,11 @@ const StatCard = ({ title, value, isCurrency = false }: { title: string; value: 
 );
 
 const CustomerInfoCard = ({ customer }: { customer: Customer }) => {
+    
+    const displayDate = customer.fechaPrestamo 
+        ? addMinutes(new Date(customer.fechaPrestamo), new Date(customer.fechaPrestamo).getTimezoneOffset())
+        : null;
+
     return (
         <Card>
             <CardHeader>
@@ -61,7 +66,7 @@ const CustomerInfoCard = ({ customer }: { customer: Customer }) => {
                     </div>
                      <div className="space-y-2">
                         <h4 className="font-semibold">Información del Préstamo</h4>
-                        <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground"/> <span>{customer.fechaPrestamo ? format(new Date(customer.fechaPrestamo), 'PPP', {locale: es}) : 'N/A'}</span></div>
+                        <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground"/> <span>{displayDate ? format(displayDate, 'PPP', {locale: es}) : 'N/A'}</span></div>
                         <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground"/> <span>Préstamo: ${customer.loanAmount.toLocaleString()}</span></div>
                         <div className="flex items-center gap-2 font-bold text-destructive"><DollarSign className="h-4 w-4"/> <span>Saldo: ${customer.dueAmount.toLocaleString()}</span></div>
                     </div>
@@ -190,15 +195,23 @@ export function LoanControlGrupoDetail({ grupoId, plazaId, carteraId }: { grupoI
   
   const filteredCustomers = React.useMemo(() => {
     return customers.filter(customer => {
-        if (!startDate || !endDate) return true;
+        if (!startDate && !endDate) return true;
         if (!customer.fechaPrestamo) return false;
         
         const customerDate = new Date(customer.fechaPrestamo);
-        // Normalize dates to avoid time issues
-        const start = new Date(startDate.setHours(0, 0, 0, 0));
-        const end = new Date(endDate.setHours(23, 59, 59, 999));
+
+        if (startDate && customerDate < startDate) {
+            return false;
+        }
+        if (endDate) {
+            const endOfDay = new Date(endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (customerDate > endOfDay) {
+                return false;
+            }
+        }
         
-        return customerDate >= start && customerDate <= end;
+        return true;
     });
   }, [customers, startDate, endDate]);
 
