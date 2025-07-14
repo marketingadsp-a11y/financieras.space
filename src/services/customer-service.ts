@@ -23,13 +23,20 @@ function customerFromDoc(doc: DocumentData): Customer {
         installmentsDue: data.installmentsDue || 0,
         dueAmount: data.dueAmount || 0,
         status: data.status || "Pendiente",
-        prefix: data.prefix || ""
+        prefix: data.prefix || "",
+        loanControlGroupId: data.loanControlGroupId || undefined,
     };
 }
 
 
 export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> {
     const q = query(customersCollectionRef, where("plazaId", "==", plazaId));
+    const data = await getDocs(q);
+    return data.docs.map(customerFromDoc);
+}
+
+export async function getCustomersByLoanControlGroup(groupId: string): Promise<Customer[]> {
+    const q = query(customersCollectionRef, where("loanControlGroupId", "==", groupId));
     const data = await getDocs(q);
     return data.docs.map(customerFromDoc);
 }

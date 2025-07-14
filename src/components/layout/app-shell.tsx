@@ -122,7 +122,7 @@ const dailyControlSettingsItems: NavItem[] = [
     { href: "/tools/daily-control/categories", label: "Gestionar Categorías", icon: ListTree },
 ]
 
-function PlazaNavLinks() {
+function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
     const { user } = useAuth();
     const pathname = usePathname();
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
@@ -179,8 +179,8 @@ function PlazaNavLinks() {
             <SidebarMenu>
                 {plazas.map((plaza) => (
                     <SidebarMenuItem key={plaza.id}>
-                        <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
-                            <SidebarMenuButton asChild isActive={pathname === `/tools/overdue-portfolio/plaza/${plaza.id}`} tooltip={plaza.name}>
+                        <Link href={`/${toolPrefix}/plaza/${plaza.id}`}>
+                            <SidebarMenuButton asChild isActive={pathname === `/${toolPrefix}/plaza/${plaza.id}`} tooltip={plaza.name}>
                                 <span>
                                     <Building />
                                     <span>{plaza.name}</span>
@@ -200,6 +200,7 @@ function NavLinks() {
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
+  const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -213,7 +214,7 @@ function NavLinks() {
 
       return (
         <>
-            {isCarteraVencidaPath && <PlazaNavLinks />}
+            {isCarteraVencidaPath && <PlazaNavLinks toolPrefix="tools/overdue-portfolio" />}
             <SidebarGroup>
                  <SidebarGroupLabel>HERRAMIENTAS</SidebarGroupLabel>
                 <SidebarMenu>
@@ -241,7 +242,7 @@ function NavLinks() {
     
     return (
         <>
-            {hasAccessToTool && <PlazaNavLinks />}
+            {hasAccessToTool && <PlazaNavLinks toolPrefix="tools/overdue-portfolio" />}
             <SidebarGroup>
                 <SidebarGroupLabel>GESTIÓN</SidebarGroupLabel>
                 <SidebarMenu>
@@ -301,6 +302,13 @@ function NavLinks() {
           </SidebarMenu>
         </SidebarGroup>
       </>
+    );
+  }
+
+  if (isLoanControlPath) {
+    // Basic navigation for now, will be expanded
+    return (
+        <PlazaNavLinks toolPrefix="tools/loan-control" />
     );
   }
 
@@ -408,10 +416,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
+  const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return allTools.find(tool => tool.id === 'cartera-vencida');
     if (isDailyControlPath) return allTools.find(tool => tool.id === 'daily-control');
+    if (isLoanControlPath) return allTools.find(tool => tool.id === 'loan-control');
     return null;
   }
 
@@ -424,7 +434,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
-  const showBackButton = (isCarteraVencidaPath || isDailyControlPath) && !user.isSuperAdmin && !user.isToolAdmin;
+  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath) && !user.isSuperAdmin && !user.isToolAdmin;
 
   return (
     <SidebarProvider>
