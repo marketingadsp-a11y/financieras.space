@@ -2,7 +2,6 @@
 "use client";
 
 import * as React from "react";
-import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
@@ -15,7 +14,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { importFullLoanData } from "@/services/loan-control-service";
+import { processAndImportLoanData } from "@/ai/flows/full-loan-data-parser-flow";
 
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
@@ -109,31 +108,32 @@ export function LoanControlDashboard() {
         try {
             const reader = new FileReader();
             reader.onload = async (e) => {
-                try {
-                    const data = e.target?.result;
-                    const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    const json = XLSX.utils.sheet_to_json(worksheet, {
-                        raw: false, // This will format dates
-                        defval: "", // default value for empty cells
-                    });
-                    
-                    await importFullLoanData(json as any, importMode, user.prefix!);
-                    
-                    toast({ title: "Éxito", description: `Se procesaron ${json.length} filas del archivo.` });
+                const fileContent = e.target?.result as string;
+                const base64Content = fileContent.split(',')[1];
+
+                const result = await processAndImportLoanData({
+                    fileContentBase64: base64Content,
+                    importMode,
+                    prefix: user.prefix!,
+                });
+
+                if (result.success) {
+                    toast({ title: "Éxito", description: result.message });
                     await fetchPlazasForUser();
                     setImportModalOpen(false);
-                } catch(readError) {
-                     toast({ variant: "destructive", title: "Error de Lectura", description: "No se pudo procesar el archivo Excel. Asegúrate que el formato sea correcto." });
-                } finally {
-                    setIsImporting(false);
+                } else {
+                    toast({ variant: "destructive", title: "Error de Importación", description: result.message });
                 }
+                 setIsImporting(false);
             };
-            reader.readAsBinaryString(selectedFile);
+            reader.onerror = () => {
+                toast({ variant: "destructive", title: "Error de Archivo", description: "No se pudo leer el archivo seleccionado." });
+                setIsImporting(false);
+            }
+            reader.readAsDataURL(selectedFile);
 
         } catch (error) {
-            toast({ variant: "destructive", title: "Error de Importación", description: "Ocurrió un error al importar los datos." });
+            toast({ variant: "destructive", title: "Error de Importación", description: "Ocurrió un error inesperado al iniciar la importación." });
             setIsImporting(false);
         }
     };
