@@ -4,7 +4,8 @@
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo, Customer, StructuredCustomerData } from "@/lib/data";
-import { getCustomersByLoanControlGroup, deleteCustomersByPlaza } from "./customer-service";
+import { getCustomersByPlaza, deleteCustomersByPlaza } from "./customer-service";
+import { customerFromDoc } from "./customer-service-helper";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
@@ -56,18 +57,16 @@ export async function deleteCartera(id: string) {
 export async function getPlazaStructure(plazaId: string): Promise<{ carteras: LoanControlCartera[], grupos: LoanControlGrupo[], customers: Customer[] }> {
     const carterasQuery = query(carterasCollectionRef, where("plazaId", "==", plazaId));
     const gruposQuery = query(gruposCollectionRef, where("plazaId", "==", plazaId));
-    const customersQuery = query(customersCollectionRef, where("plazaId", "==", plazaId));
     
-    const [carterasSnapshot, gruposSnapshot, customersSnapshot] = await Promise.all([
+    const [carterasSnapshot, gruposSnapshot, customers] = await Promise.all([
         getDocs(carterasQuery),
         getDocs(gruposQuery),
-        getDocs(customersQuery)
+        getCustomersByPlaza(plazaId) // Reuse the robust function from customer-service
     ]);
 
     const carteras = carterasSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlCartera[];
     const grupos = gruposSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlGrupo[];
-    const customers = customersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Customer[];
-
+    
     return { carteras, grupos, customers };
 }
 
