@@ -119,3 +119,26 @@ export async function deletePlaza(id: string) {
 
     await batch.commit();
 }
+
+export async function deleteAllPlazasByPrefix(prefix: string) {
+    const batch = writeBatch(db);
+    
+    // 1. Find all plazas with the given prefix
+    const plazasQuery = query(plazasCollectionRef, where("prefix", "==", prefix));
+    const plazasSnapshot = await getDocs(plazasQuery);
+    
+    // 2. For each plaza, find and delete its customers
+    for (const plazaDoc of plazasSnapshot.docs) {
+        const customersQuery = query(customersCollectionRef, where("plazaId", "==", plazaDoc.id));
+        const customersSnapshot = await getDocs(customersQuery);
+        customersSnapshot.forEach(customerDoc => {
+            batch.delete(customerDoc.ref);
+        });
+        
+        // 3. Delete the plaza itself
+        batch.delete(plazaDoc.ref);
+    }
+    
+    // 4. Commit all deletions at once
+    await batch.commit();
+}

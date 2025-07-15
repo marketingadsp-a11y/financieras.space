@@ -1,16 +1,20 @@
+
 "use client";
 
 import * as React from "react";
-import { PlusCircle, Loader2 } from "lucide-react";
+import { PlusCircle, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlazasTable } from "@/components/plazas/plazas-table";
 import { PlazaForm } from "@/components/plazas/plaza-form";
 import type { Plaza } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getPlazas, addPlaza, updatePlaza, deletePlaza } from "@/services/plaza-service";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { getPlazas, addPlaza, updatePlaza, deletePlaza, deleteAllPlazasByPrefix } from "@/services/plaza-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
+import { Input } from "@/components/ui/input";
 
 export function PlazasManagement() {
   const { user } = useAuth();
@@ -18,6 +22,7 @@ export function PlazasManagement() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingPlaza, setEditingPlaza] = React.useState<Plaza | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
   const { toast } = useToast();
 
   const fetchPlazas = React.useCallback(async () => {
@@ -44,7 +49,6 @@ export function PlazasManagement() {
 
   const handleAddPlaza = async (newPlaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate'>) => {
     try {
-      // Admins use their own prefix. SuperAdmins might create for others, but for now, let's stick to their prefix if they have one.
       const plazaData = { ...newPlaza, prefix: user?.prefix };
       await addPlaza(plazaData);
       await fetchPlazas();
@@ -97,6 +101,25 @@ export function PlazasManagement() {
       });
     }
   };
+
+  const handleDeleteAllPlazas = async () => {
+    if (!user?.prefix) return;
+    try {
+      await deleteAllPlazasByPrefix(user.prefix);
+      toast({
+        title: "Éxito",
+        description: "Todas las plazas y sus clientes asociados han sido eliminados.",
+      });
+      await fetchPlazas();
+      setDeleteConfirmationText('');
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron eliminar las plazas.",
+      });
+    }
+  };
   
   const handleEditClick = (plaza: Plaza) => {
       setEditingPlaza(plaza);
@@ -110,6 +133,8 @@ export function PlazasManagement() {
     }
   }
 
+  const expectedConfirmationText = "ELIMINAR TODO";
+
   return (
     <Card>
       <CardHeader>
@@ -120,23 +145,70 @@ export function PlazasManagement() {
               Crea, edita y elimina las plazas de la cartera vencida.
             </CardDescription>
           </div>
-          <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Agregar Plaza
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingPlaza ? 'Editar' : 'Agregar'} Plaza</DialogTitle>
-              </DialogHeader>
-              <PlazaForm
-                onSubmit={editingPlaza ? handleUpdatePlaza : handleAddPlaza}
-                plaza={editingPlaza}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center gap-2">
+            <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Agregar Plaza
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingPlaza ? 'Editar' : 'Agregar'} Plaza</DialogTitle>
+                </DialogHeader>
+                <PlazaForm
+                  onSubmit={editingPlaza ? handleUpdatePlaza : handleAddPlaza}
+                  plaza={editingPlaza}
+                />
+              </DialogContent>
+            </Dialog>
+            
+            <AlertDialog>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={e => e.preventDefault()}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Eliminar Todas las Plazas
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
+                  <AlertDialogDescription>
+                    Esta acción es irreversible y eliminará permanentemente <strong>TODAS</strong> las plazas y <strong>TODOS</strong> sus clientes asociados para el prefijo <strong>{user?.prefix}</strong>.
+                    Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Input
+                  value={deleteConfirmationText}
+                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                  placeholder={expectedConfirmationText}
+                  autoFocus
+                />
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteAllPlazas}
+                    disabled={deleteConfirmationText !== expectedConfirmationText}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    Sí, eliminar todo
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
