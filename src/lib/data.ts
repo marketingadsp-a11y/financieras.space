@@ -1,6 +1,6 @@
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files } from "lucide-react";
 
 export type Admin = {
   id: string;
@@ -20,7 +20,7 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control';
+  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control';
   prefix?: string;
   createdBy?: string;
 };
@@ -87,6 +87,7 @@ export type Customer = {
   fechaPrestamo?: Date;
   status: "Pendiente" | "Pagado" | "Atrasado";
   prefix?: string;
+  loanControlGroupId?: string; // Relation to Loan Control Group
 };
 
 
@@ -119,6 +120,13 @@ export const allTools: Tool[] = [
     description: "Registra y sigue el flujo financiero diario (cobrado, prestado, gastado) por plaza.",
     href: "/tools/daily-control",
     icon: BookCheck,
+  },
+  {
+    id: "loan-control",
+    name: "Control de Préstamo",
+    description: "Organiza clientes en Plazas, Carteras y Grupos para un seguimiento detallado.",
+    href: "/tools/loan-control",
+    icon: Files,
   }
 ];
 
@@ -172,3 +180,20 @@ export type CompanyProfile = {
   logoUrl?: string;
   loginBackgroundColor?: string;
 };
+
+// --- Loan Control Tool Models ---
+
+export type LoanControlCartera = {
+  id: string;
+  name: string;
+  plazaId: string;
+  prefix: string;
+}
+
+export type LoanControlGrupo = {
+  id: string;
+  name: string;
+  carteraId: string;
+  plazaId: string;
+  prefix: string;
+}
