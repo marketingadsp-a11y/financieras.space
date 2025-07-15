@@ -3,9 +3,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Building, Loader2, Upload, Download, FolderKanban, Banknote } from "lucide-react";
+import { ArrowRight, Building, Loader2, Upload, Download, FolderKanban, Banknote, DollarSign } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import type { Plaza } from "@/lib/data";
+import type { Plaza, StructuredCustomerData } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
 import { getPlazaStructure, importFullStructureFromData } from "@/services/loan-control-service";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
@@ -17,12 +17,42 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
-import type { StructuredCustomerData } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 type PlazaWithStats = Plaza & {
   carteraCount: number;
+  totalLoanAmount: number;
 };
+
+const StatCard = ({ title, value, icon: Icon, isCurrency = false, variant = 'default' }) => {
+    const cardClasses = {
+        default: "bg-card text-card-foreground",
+        destructive: "bg-destructive/90 text-destructive-foreground",
+    }
+    const textClasses = {
+        default: "text-primary",
+        destructive: "text-destructive-foreground",
+    }
+    const iconClasses = {
+        default: "text-muted-foreground",
+        destructive: "text-destructive-foreground/70",
+    }
+    
+    return (
+        <Card className={cardClasses[variant]}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                <Icon className={`h-4 w-4 ${iconClasses[variant]}`} />
+            </CardHeader>
+            <CardContent>
+                <div className={`text-3xl font-bold ${textClasses[variant]}`}>
+                    {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
     <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30">
@@ -84,6 +114,7 @@ export function LoanControlDashboard() {
                 return {
                     ...plaza,
                     carteraCount: structure.carteras.length,
+                    totalLoanAmount: plaza.totalLoanAmount || 0,
                 };
             })
         );
@@ -183,6 +214,14 @@ export function LoanControlDashboard() {
     }
   };
 
+  const globalTotals = React.useMemo(() => {
+    return plazas.reduce((acc, plaza) => {
+        acc.totalPrestado += plaza.totalLoanAmount;
+        acc.saldoPendiente += plaza.pendingDebt;
+        return acc;
+    }, { totalPrestado: 0, saldoPendiente: 0 });
+  }, [plazas]);
+
   return (
     <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -243,6 +282,11 @@ export function LoanControlDashboard() {
                     </DialogContent>
                 </Dialog>
             </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+            <StatCard title="Total Prestado" value={globalTotals.totalPrestado} icon={DollarSign} isCurrency />
+            <StatCard title="Saldo Pendiente" value={globalTotals.saldoPendiente} icon={Banknote} isCurrency variant="destructive" />
         </div>
 
         {isLoading ? (

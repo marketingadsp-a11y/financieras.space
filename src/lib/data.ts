@@ -38,6 +38,7 @@ export type Plaza = {
   pendingDebt: number;
   recoveryRate: number;
   prefix?: string;
+  totalLoanAmount?: number;
 };
 
 export const PERMISSIONS = {

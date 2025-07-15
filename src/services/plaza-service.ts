@@ -30,7 +30,7 @@ export async function getPlazas({ prefix, fetchAll = false }: GetPlazasOptions =
     const plazasSnapshot = await getDocs(q);
     
     const plazasWithCalculations = await Promise.all(plazasSnapshot.docs.map(async (doc) => {
-        const plazaData = doc.data() as Omit<Plaza, 'id'>;
+        const plazaData = doc.data() as Omit<Plaza, 'id' | 'totalLoanAmount'>;
         const plazaId = doc.id;
         
         const customersInPlaza = await getCustomersByPlaza(plazaId);
@@ -47,6 +47,7 @@ export async function getPlazas({ prefix, fetchAll = false }: GetPlazasOptions =
             pendingDebt,
             recoveryRate,
             prefix: plazaData.prefix,
+            totalLoanAmount: totalLoanAmount,
         };
     }));
 
@@ -63,7 +64,8 @@ export async function getPlazaById(id: string): Promise<Plaza | null> {
             id: plazaDoc.id, 
             ...plazaData,
             pendingDebt: plazaData.pendingDebt || 0,
-            recoveryRate: plazaData.recoveryRate || 0
+            recoveryRate: plazaData.recoveryRate || 0,
+            totalLoanAmount: plazaData.totalLoanAmount || 0,
         };
     } else {
         return null;
@@ -71,13 +73,13 @@ export async function getPlazaById(id: string): Promise<Plaza | null> {
 }
 
 
-export async function addPlaza(plaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate'>) : Promise<Plaza> {
+export async function addPlaza(plaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate' | 'totalLoanAmount'>) : Promise<Plaza> {
     const dataToSave = {
         name: plaza.name,
         prefix: plaza.prefix || "",
     }
     const docRef = await addDoc(plazasCollectionRef, dataToSave);
-    return { ...dataToSave, id: docRef.id, pendingDebt: 0, recoveryRate: 0 };
+    return { ...dataToSave, id: docRef.id, pendingDebt: 0, recoveryRate: 0, totalLoanAmount: 0 };
 }
 
 export async function updatePlaza(id: string, plaza: Partial<Omit<Plaza, 'id'>>) {
