@@ -6,7 +6,7 @@ import { getAssignedCustomersByGrupo, getGrupoById } from "@/services/loan-contr
 import { addMultipleCustomers } from "@/services/customer-service";
 import type { Customer, LoanControlGrupo } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste } from "lucide-react";
+import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -31,6 +31,9 @@ import { Label } from "@/components/ui/label";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 import { useAuth } from "@/context/auth-context";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 
 const StatCard = ({ title, value }: { title: string; value: number; }) => (
@@ -119,6 +122,8 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
     const [importText, setImportText] = React.useState('');
     const [isParsing, setIsParsing] = React.useState(false);
     const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
+    const [startDate, setStartDate] = React.useState<Date | undefined>();
+    const [endDate, setEndDate] = React.useState<Date | undefined>();
 
 
     const fetchData = React.useCallback(async () => {
@@ -188,6 +193,33 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         }
     };
     
+    const filteredCustomers = React.useMemo(() => {
+        return customers
+            .filter(c => 
+                c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                c.address.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+            .filter(c => {
+                if (!c.fechaPrestamo) return true; // Keep customers without a date
+                const loanDate = new Date(c.fechaPrestamo);
+                if (startDate && loanDate < startDate) return false;
+                if (endDate) {
+                    const endOfDay = new Date(endDate);
+                    endOfDay.setHours(23, 59, 59, 999);
+                    if (loanDate > endOfDay) return false;
+                }
+                return true;
+            });
+    }, [customers, searchTerm, startDate, endDate]);
+
+    const summary = React.useMemo(() => {
+        return filteredCustomers.reduce((acc, customer) => {
+            acc.totalLoaned += (customer.loanAmount || 0);
+            acc.totalDue += (customer.dueAmount || 0);
+            return acc;
+        }, { totalLoaned: 0, totalDue: 0 });
+    }, [filteredCustomers]);
+
     const exportToPDF = () => {
         if (!grupo || filteredCustomers.length === 0) return;
         const doc = new jsPDF();
@@ -232,19 +264,6 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
         XLSX.writeFile(workbook, `Resumen_Grupo_${grupo.name.replace(/\s/g, '_')}.xlsx`);
     };
-
-    const summary = React.useMemo(() => {
-        return customers.reduce((acc, customer) => {
-            acc.totalLoaned += (customer.loanAmount || 0);
-            acc.totalDue += (customer.dueAmount || 0);
-            return acc;
-        }, { totalLoaned: 0, totalDue: 0 });
-    }, [customers]);
-    
-    const filteredCustomers = customers.filter(c => 
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.address.toLowerCase().includes(searchTerm.toLowerCase())
-    );
 
     if (isLoading) {
         return (
@@ -324,18 +343,54 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Clientes del Grupo ({filteredCustomers.length})</CardTitle>
-                    <CardDescription>
-                        Visualiza y gestiona los clientes asignados a este grupo.
-                    </CardDescription>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
+                        <div className="flex-1">
+                            <CardTitle>Clientes del Grupo ({filteredCustomers.length})</CardTitle>
+                            <CardDescription>
+                                Visualiza y gestiona los clientes asignados a este grupo.
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                    id="date-start"
+                                    variant={"outline"}
+                                    className={cn("w-[240px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                                    >
+                                    <CalendarIconLucide className="mr-2 h-4 w-4" />
+                                    {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de inicio</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                    id="date-end"
+                                    variant={"outline"}
+                                    className={cn("w-[240px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                                    >
+                                    <CalendarIconLucide className="mr-2 h-4 w-4" />
+                                    {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de fin</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
                      <Input
                         placeholder="Buscar cliente por nombre o dirección..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="max-w-sm mt-2"
+                        className="max-w-sm mb-6"
                     />
-                </CardHeader>
-                <CardContent>
                     {filteredCustomers.length > 0 ? (
                         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                             {filteredCustomers.map(customer => (
@@ -352,7 +407,7 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                             <Users className="mx-auto h-12 w-12" />
                             <h3 className="mt-4 text-lg font-semibold">No se encontraron clientes</h3>
                             <p className="mt-1 text-sm">
-                                {searchTerm ? "Prueba con otro término de búsqueda." : "No hay clientes asignados a este grupo."}
+                                {searchTerm ? "Prueba con otro término de búsqueda o ajusta el rango de fechas." : "No hay clientes asignados a este grupo para el rango de fechas seleccionado."}
                             </p>
                         </div>
                     )}
