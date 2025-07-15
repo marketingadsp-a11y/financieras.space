@@ -66,7 +66,7 @@ const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => {
                     </span>
                     {plaza.name}
                 </CardTitle>
-                <Badge variant="outline">{plaza.prefix}</Badge>
+                {plaza.prefix && <Badge variant="outline">{plaza.prefix}</Badge>}
             </div>
         </CardHeader>
         <CardContent className="flex-grow space-y-4">
