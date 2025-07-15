@@ -25,7 +25,8 @@ import {
   Briefcase,
   Folder,
   Home,
-  ChevronRight
+  ChevronRight,
+  Folders
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -287,7 +288,7 @@ function LoanControlNav() {
                                         <Collapsible key={c.id} asChild defaultOpen={c.id === navState.activeCarteraId}>
                                             <SidebarMenuSubItem>
                                                 <CollapsibleTrigger asChild>
-                                                    <SidebarMenuSubButton asChild={false} isActive={c.id === navState.activeCarteraId} className="justify-between pr-1">
+                                                    <SidebarMenuSubButton asChild={true} isActive={c.id === navState.activeCarteraId} className="justify-between pr-1">
                                                         <Link href={`/tools/loan-control/cartera/${c.id}`} className="flex-1 flex items-center gap-2">
                                                             <Folder/><span>{c.name}</span>
                                                         </Link>
