@@ -1,11 +1,11 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc, runTransaction, DocumentSnapshot, DocumentData, WriteBatch } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
 import { parseCustomers, type ParsedCustomer } from "@/ai/flows/customer-parser-flow";
-import { addMultipleCustomers, deleteCustomersByGroupId, getCustomersByLoanControlGroup } from "./customer-service";
+import { getCustomersByLoanControlGroup } from "./customer-service";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
@@ -50,13 +50,10 @@ export async function updateCartera(id: string, cartera: Partial<Omit<LoanContro
 }
 
 export async function deleteCartera(id: string) {
-    // This is more complex in a real scenario, would need to handle nested groups and customers
-    // For now, simple delete
     const carteraDoc = doc(db, "loanControlCarteras", id);
     await deleteDoc(carteraDoc);
 }
 
-// New efficient function to get groups and all their customers for a cartera
 export async function getGroupsAndCustomersByCartera(carteraId: string): Promise<{ groups: LoanControlGrupo[], customers: Customer[] }> {
     const grupos = await getGruposByCartera(carteraId);
     if (grupos.length === 0) {
@@ -164,11 +161,6 @@ export async function importGruposAndCustomersFromPaste(params: ImportParams): P
             newGroupsCount++;
         }
         
-        if (mode === 'replace') {
-            await deleteCustomersByGroupId(grupo.id);
-        }
-        
-        // 4. Batch-add customers to the group
         const customersToAdd = customersByGroup[groupName].map(c => ({
             ...c,
             plazaId,
@@ -176,7 +168,19 @@ export async function importGruposAndCustomersFromPaste(params: ImportParams): P
             status: 'Pendiente' as const,
         }));
         
-        await addMultipleCustomers(customersToAdd, plazaId, 'add', prefix, grupo.id);
+        const batch = writeBatch(db);
+        if (mode === 'replace') {
+            const q = query(customersCollectionRef, where("loanControlGroupId", "==", grupo.id));
+            const snapshot = await getDocs(q);
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        }
+
+        customersToAdd.forEach(customerData => {
+            const newDocRef = doc(customersCollectionRef);
+            const { groupName, carteraName, responsable, ...rest } = customerData;
+            batch.set(newDocRef, { ...rest, prefix });
+        });
+        await batch.commit();
     }
 
     return {
@@ -226,66 +230,70 @@ export async function importPlazaStructureFromPaste(params: PlazaImportParams): 
         structure[carteraName][groupName].push(customer);
     }
 
-    // 3. Process structure sequentially to avoid transaction limits and complexity.
-    for (const carteraName in structure) {
-        // Find or Create Cartera
-        let cartera = await getCarteraByNameAndPlaza(carteraName, plazaId);
+    // 3. Get all existing carteras and groups for the plaza to avoid duplicates
+    const existingCarterasDocs = await getDocs(query(carterasCollectionRef, where("plazaId", "==", plazaId)));
+    const existingCarterasMap = new Map(existingCarterasDocs.docs.map(d => [d.data().name, { id: d.id, ...d.data() } as LoanControlCartera]));
+
+    const existingGruposDocs = await getDocs(query(gruposCollectionRef, where("plazaId", "==", plazaId)));
+    const existingGruposMap = new Map(existingGruposDocs.docs.map(d => [`${d.data().carteraId}_${d.data().name}`, { id: d.id, ...d.data() } as LoanControlGrupo]));
+    
+    const BATCH_LIMIT = 500;
+    let writeOperations: Promise<void>[] = [];
+    let batch = writeBatch(db);
+    let operationCount = 0;
+
+    const commitBatchIfNeeded = () => {
+        if (operationCount >= BATCH_LIMIT) {
+            writeOperations.push(batch.commit());
+            batch = writeBatch(db);
+            operationCount = 0;
+        }
+    };
+
+    // 4. Process structure
+    for (const carteraName of Object.keys(structure)) {
+        let cartera = existingCarterasMap.get(carteraName);
         if (!cartera) {
             const firstCustomerInCartera = structure[carteraName][Object.keys(structure[carteraName])[0]][0];
             const responsable = firstCustomerInCartera.responsable || "No especificado";
             cartera = await addCartera({ name: carteraName, plazaId, prefix, responsable });
+            existingCarterasMap.set(carteraName, cartera);
             newCarterasCount++;
         }
 
-        for (const groupName in structure[carteraName]) {
-            // Find or Create Grupo
-            let grupo = await getGrupoByNameAndCartera(groupName, cartera.id);
+        for (const groupName of Object.keys(structure[carteraName])) {
+            let grupo = existingGruposMap.get(`${cartera.id}_${groupName}`);
             if (!grupo) {
                 grupo = await addGrupo({ name: groupName, carteraId: cartera.id, plazaId, prefix });
+                existingGruposMap.set(`${cartera.id}_${groupName}`, grupo);
                 newGroupsCount++;
             }
 
-            // Batch-add customers to the group
-            const customersToAdd = structure[carteraName][groupName].map(c => {
-                const { carteraName, groupName, responsable, ...rest } = c;
-                return {
+            const customersToAdd = structure[carteraName][groupName];
+            for (const customerData of customersToAdd) {
+                const newCustomerRef = doc(customersCollectionRef);
+                const { carteraName: cn, groupName: gn, responsable: r, ...rest } = customerData;
+                const completeCustomerData = {
                     ...rest,
                     plazaId,
-                    loanControlGroupId: grupo!.id,
+                    prefix,
+                    loanControlGroupId: grupo.id,
                     status: 'Pendiente' as const,
-                    prefix: prefix,
+                    fechaPrestamo: customerData.fechaPrestamo ? new Date(customerData.fechaPrestamo) : new Date(),
                 };
-            });
-            
-            // Using a batched write for the customers within a group
-            const batch = writeBatch(db);
-            customersToAdd.forEach(customerData => {
-                const newCustomerRef = doc(customersCollectionRef);
-                const completeCustomerData = {
-                    ...customerData,
-                     // Ensure all fields have default values if not provided by AI
-                    name: customerData.name || '',
-                    address: customerData.address || '',
-                    phone: customerData.phone || '',
-                    guarantor: customerData.guarantor || '',
-                    guarantorPhone: customerData.guarantorPhone || '',
-                    loanAmount: customerData.loanAmount || 0,
-                    paymentAmount: customerData.paymentAmount || 0,
-                    installmentsDue: customerData.installmentsDue || 0,
-                    dueAmount: customerData.dueAmount || customerData.loanAmount || 0,
-                    colonia: customerData.colonia || '',
-                    cp: customerData.cp || '',
-                    direccionAval: customerData.direccionAval || '',
-                    coloniaAval: customerData.coloniaAval || '',
-                    cpAval: customerData.cpAval || '',
-                    fechaPrestamo: customerData.fechaPrestamo ? customerData.fechaPrestamo : new Date(), // Use parsed date or now
-                }
                 batch.set(newCustomerRef, completeCustomerData);
-            });
-            await batch.commit();
+                operationCount++;
+                commitBatchIfNeeded();
+            }
         }
     }
 
+    // Commit any remaining operations in the last batch
+    if (operationCount > 0) {
+        writeOperations.push(batch.commit());
+    }
+
+    await Promise.all(writeOperations);
 
     return {
         newCarteras: newCarterasCount,
