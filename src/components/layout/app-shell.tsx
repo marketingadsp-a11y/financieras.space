@@ -43,7 +43,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { allTools, type Tool, type Plaza, type LoanControlCartera, type LoanControlGrupo } from "@/lib/data";
-import { getPlazas } from "@/services/plaza-service";
+import { getPlazas, getPlazaById } from "@/services/plaza-service";
 import { getCarterasByPlaza, getGruposByCartera, getGrupoById, getCarteraById } from "@/services/loan-control-service";
 
 
@@ -203,12 +203,12 @@ function LoanControlNav() {
     const pathname = usePathname();
     const params = pathname.split('/').filter(Boolean);
     const { user } = useAuth();
-    const [navState, setNavState] = React.useState<{ plazas: Plaza[], carteras: LoanControlCartera[], grupos: LoanControlGrupo[] }>({ plazas: [], carteras: [], grupos: [] });
+    const [navState, setNavState] = React.useState<{ plazas: Plaza[], carteras: LoanControlCartera[], grupos: LoanControlGrupo[], activePlazaId: string | null, activeCarteraId: string | null }>({ plazas: [], carteras: [], grupos: [], activePlazaId: null, activeCarteraId: null });
     const [isLoading, setIsLoading] = React.useState(true);
 
-    const plazaId = params.length >= 4 && params[2] === 'plaza' ? params[3] : null;
-    const carteraId = params.length >= 4 && params[2] === 'cartera' ? params[3] : null;
-    const grupoId = params.length >= 4 && params[2] === 'grupo' ? params[3] : null;
+    const currentPlazaId = params.includes('plaza') ? params[params.indexOf('plaza') + 1] : null;
+    const currentCarteraId = params.includes('cartera') ? params[params.indexOf('cartera') + 1] : null;
+    const currentGrupoId = params.includes('grupo') ? params[params.indexOf('grupo') + 1] : null;
 
     React.useEffect(() => {
         const fetchNavData = async () => {
@@ -218,32 +218,39 @@ function LoanControlNav() {
                 const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
                 const plazas = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
                 
-                let carteras: LoanControlCartera[] = [];
-                if (plazaId) {
-                    carteras = await getCarterasByPlaza(plazaId);
-                } else if (carteraId) {
-                     const cartera = await getCarteraById(carteraId);
-                     if(cartera) carteras = await getCarterasByPlaza(cartera.plazaId);
-                } else if (grupoId) {
-                    const grupo = await getGrupoById(grupoId);
-                    if(grupo) {
-                        const cartera = await getCarteraById(grupo.carteraId);
-                        if(cartera) carteras = await getCarterasByPlaza(cartera.plazaId);
-                    }
-                }
+                let activePlazaId: string | null = currentPlazaId;
+                let activeCarteraId: string | null = currentCarteraId;
+                let fetchedCarteras: LoanControlCartera[] = [];
+                let fetchedGrupos: LoanControlGrupo[] = [];
 
-                let grupos: LoanControlGrupo[] = [];
-                if (carteraId) {
-                    grupos = await getGruposByCartera(carteraId);
-                } else if (grupoId) {
-                    const grupo = await getGrupoById(grupoId);
-                    if(grupo) grupos = await getGruposByCartera(grupo.carteraId);
+                if (currentGrupoId) {
+                    const grupo = await getGrupoById(currentGrupoId);
+                    if (grupo) {
+                        const cartera = await getCarteraById(grupo.carteraId);
+                        if (cartera) {
+                            activePlazaId = cartera.plazaId;
+                            activeCarteraId = cartera.id;
+                        }
+                    }
+                } else if (currentCarteraId) {
+                    const cartera = await getCarteraById(currentCarteraId);
+                    if (cartera) activePlazaId = cartera.plazaId;
+                }
+                
+                if (activePlazaId) {
+                    fetchedCarteras = await getCarterasByPlaza(activePlazaId);
+                }
+                
+                if (activeCarteraId) {
+                    fetchedGrupos = await getGruposByCartera(activeCarteraId);
                 }
 
                 setNavState({ 
                     plazas: plazas.sort((a,b) => a.name.localeCompare(b.name)), 
-                    carteras: carteras.sort((a,b) => a.name.localeCompare(b.name)), 
-                    grupos: grupos.sort((a,b) => a.name.localeCompare(b.name)) 
+                    carteras: fetchedCarteras.sort((a,b) => a.name.localeCompare(b.name)), 
+                    grupos: fetchedGrupos.sort((a,b) => a.name.localeCompare(b.name)),
+                    activePlazaId,
+                    activeCarteraId,
                 });
             } catch (error) {
                 console.error("Failed to fetch loan control nav", error);
@@ -252,25 +259,10 @@ function LoanControlNav() {
             }
         };
         fetchNavData();
-    }, [user, plazaId, carteraId, grupoId]);
-
+    }, [user, currentPlazaId, currentCarteraId, currentGrupoId]);
+    
     if (isLoading) {
         return <div className="p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/> Cargando...</div>
-    }
-    
-    let activePlazaId = plazaId;
-    if (carteraId) {
-        const cartera = navState.carteras.find(c => c.id === carteraId);
-        if(cartera) activePlazaId = cartera.plazaId;
-    } else if (grupoId) {
-         const grupo = navState.grupos.find(g => g.id === grupoId);
-         if(grupo) activePlazaId = grupo.plazaId;
-    }
-
-    let activeCarteraId = carteraId;
-    if (grupoId) {
-        const grupo = navState.grupos.find(g => g.id === grupoId);
-        if(grupo) activeCarteraId = grupo.carteraId;
     }
 
     return (
@@ -278,60 +270,56 @@ function LoanControlNav() {
             <SidebarGroupLabel>CONTROL DE PRÉSTAMO</SidebarGroupLabel>
             <SidebarMenu>
                 {navState.plazas.map(p => (
-                    <Collapsible key={p.id} defaultOpen={p.id === activePlazaId}>
-                        <SidebarMenuItem>
-                            <Link href={`/tools/loan-control/plaza/${p.id}`} className="flex-1">
-                                <SidebarMenuButton asChild isActive={p.id === activePlazaId} tooltip={p.name}>
-                                    <span><Building/><span>{p.name}</span></span>
-                                </SidebarMenuButton>
-                            </Link>
+                    <Collapsible key={p.id} asChild defaultOpen={p.id === navState.activePlazaId}>
+                         <SidebarMenuItem>
                             <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                                </Button>
+                                <SidebarMenuButton asChild={false} tooltip={p.name} isActive={p.id === navState.activePlazaId} className="justify-between pr-1">
+                                    <Link href={`/tools/loan-control/plaza/${p.id}`} className="flex-1 flex items-center gap-2">
+                                        <Building/><span>{p.name}</span>
+                                    </Link>
+                                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 data-[state=open]:rotate-180" />
+                                </SidebarMenuButton>
                             </CollapsibleTrigger>
+
+                            <CollapsibleContent>
+                                <SidebarMenuSub>
+                                    {(p.id === navState.activePlazaId && navState.carteras.length > 0) ? navState.carteras.map(c => (
+                                        <Collapsible key={c.id} asChild defaultOpen={c.id === navState.activeCarteraId}>
+                                            <SidebarMenuSubItem>
+                                                <CollapsibleTrigger asChild>
+                                                    <SidebarMenuSubButton asChild={false} isActive={c.id === navState.activeCarteraId} className="justify-between pr-1">
+                                                        <Link href={`/tools/loan-control/cartera/${c.id}`} className="flex-1 flex items-center gap-2">
+                                                            <Folder/><span>{c.name}</span>
+                                                        </Link>
+                                                        <ChevronDown className="h-3 w-3 shrink-0 transition-transform duration-200 data-[state=open]:rotate-180" />
+                                                    </SidebarMenuSubButton>
+                                                </CollapsibleTrigger>
+                                                <CollapsibleContent>
+                                                    <ul className="pl-4 border-l ml-[7px] my-1 py-1 space-y-1">
+                                                        {(c.id === navState.activeCarteraId && navState.grupos.length > 0) ? navState.grupos.map(g => (
+                                                            <li key={g.id}>
+                                                                <Link href={`/tools/loan-control/grupo/${g.id}`}>
+                                                                    <SidebarMenuSubButton size="sm" asChild isActive={g.id === currentGrupoId}>
+                                                                        <span><Users2/><span>{g.name}</span></span>
+                                                                    </SidebarMenuSubButton>
+                                                                </Link>
+                                                            </li>
+                                                        )) : (c.id === navState.activeCarteraId && <li className="px-2 py-1 text-xs text-muted-foreground">No hay grupos</li>)}
+                                                    </ul>
+                                                </CollapsibleContent>
+                                            </SidebarMenuSubItem>
+                                        </Collapsible>
+                                    )) : (p.id === navState.activePlazaId && <div className="px-4 py-2 text-xs text-muted-foreground">No hay carteras</div>)}
+                                </SidebarMenuSub>
+                            </CollapsibleContent>
                         </SidebarMenuItem>
-                        <CollapsibleContent>
-                            <SidebarMenuSub>
-                                {p.id === activePlazaId && navState.carteras.map(c => (
-                                     <Collapsible key={c.id} defaultOpen={c.id === activeCarteraId}>
-                                        <SidebarMenuSubItem>
-                                            <Link href={`/tools/loan-control/cartera/${c.id}`} className="flex-1">
-                                                <SidebarMenuSubButton asChild isActive={c.id === activeCarteraId}>
-                                                    <span><Folder/><span>{c.name}</span></span>
-                                                </SidebarMenuSubButton>
-                                            </Link>
-                                            <CollapsibleTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
-                                                    <ChevronDown className="h-3 w-3 transition-transform duration-200 data-[state=open]:rotate-180" />
-                                                </Button>
-                                            </CollapsibleTrigger>
-                                        </SidebarMenuSubItem>
-                                        <CollapsibleContent>
-                                             {c.id === activeCarteraId && (
-                                                <ul className="pl-6 border-l ml-5 my-1 py-1 space-y-1">
-                                                    {navState.grupos.map(g => (
-                                                        <li key={g.id}>
-                                                            <Link href={`/tools/loan-control/grupo/${g.id}`}>
-                                                                <SidebarMenuSubButton size="sm" asChild isActive={g.id === grupoId}>
-                                                                    <span><Users2/><span>{g.name}</span></span>
-                                                                </SidebarMenuSubButton>
-                                                            </Link>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                        </CollapsibleContent>
-                                     </Collapsible>
-                                ))}
-                            </SidebarMenuSub>
-                        </CollapsibleContent>
                     </Collapsible>
                 ))}
             </SidebarMenu>
         </SidebarGroup>
     );
 }
+
 
 
 function NavLinks() {
@@ -465,7 +453,7 @@ function NavLinks() {
         if (item.children && item.children.length > 0) {
             const isChildActive = item.children.some(child => child.href && pathname.startsWith(child.href));
             return (
-                <Collapsible key={`${item.label}-${index}`} defaultOpen={isChildActive}>
+                <Collapsible key={`${item.label}-${index}`} asChild defaultOpen={isChildActive}>
                     <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
                             <SidebarMenuButton tooltip={item.label} className="justify-between">
@@ -476,23 +464,23 @@ function NavLinks() {
                                 <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 data-[state=open]:rotate-180" />
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <SidebarMenuSub>
+                                {item.children.map(child => (
+                                    <SidebarMenuSubItem key={child.href}>
+                                        <Link href={child.href!}>
+                                            <SidebarMenuSubButton asChild isActive={pathname === child.href}>
+                                                <span>
+                                                    <child.icon />
+                                                    <span>{child.label}</span>
+                                                </span>
+                                            </SidebarMenuSubButton>
+                                        </Link>
+                                    </SidebarMenuSubItem>
+                                ))}
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
                     </SidebarMenuItem>
-                    <CollapsibleContent>
-                        <SidebarMenuSub>
-                            {item.children.map(child => (
-                                <SidebarMenuSubItem key={child.href}>
-                                    <Link href={child.href!}>
-                                        <SidebarMenuSubButton asChild isActive={pathname === child.href}>
-                                            <span>
-                                                <child.icon />
-                                                <span>{child.label}</span>
-                                            </span>
-                                        </SidebarMenuSubButton>
-                                    </Link>
-                                </SidebarMenuSubItem>
-                            ))}
-                        </SidebarMenuSub>
-                    </CollapsibleContent>
                 </Collapsible>
             )
         }
@@ -647,7 +635,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
-
-    
