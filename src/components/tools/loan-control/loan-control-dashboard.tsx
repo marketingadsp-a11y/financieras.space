@@ -376,5 +376,3 @@ export function LoanControlDashboard() {
     </div>
   );
 }
-
-    
