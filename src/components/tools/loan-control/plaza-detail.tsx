@@ -198,12 +198,13 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {carteras.map(cartera => (
                         <Card key={cartera.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
-                            <CardHeader>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-primary/10 rounded-lg">
-                                        <Briefcase className="h-6 w-6 text-primary" />
-                                    </div>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <CardHeader className="flex-row items-start gap-4">
+                                <div className="p-3 bg-primary/10 rounded-lg mt-1">
+                                    <Briefcase className="h-8 w-8 text-primary" />
+                                </div>
+                                <div className="flex-1">
+                                    <CardTitle className="text-xl">{cartera.name}</CardTitle>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(cartera)}><Edit className="h-4 w-4" /></Button>
                                         <AlertDialog open={!!carteraToDelete && carteraToDelete.id === cartera.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
                                             <AlertDialogTrigger asChild>
@@ -237,7 +238,6 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                         </AlertDialog>
                                     </div>
                                 </div>
-                                <CardTitle className="text-xl mt-4">{cartera.name}</CardTitle>
                             </CardHeader>
                             <CardContent className="flex-grow space-y-4">
                                <div className="border-t pt-4 grid grid-cols-3 gap-2 text-sm text-center">
