@@ -6,7 +6,7 @@ import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo,
 import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, DollarSign, Folder, Home, ChevronRight } from "lucide-react";
+import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, DollarSign, Folder, LayoutGrid, Building, Folders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,7 +15,37 @@ import { GrupoForm } from "./grupo-form";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { getPlazaById } from "@/services/plaza-service";
+import { usePathname } from "next/navigation";
 
+
+const NavPanel = ({ plazaId }: { plazaId: string }) => {
+    const pathname = usePathname();
+    const basePath = `/tools/loan-control`;
+    
+    const navItems = [
+        { href: basePath, label: 'Control General', icon: LayoutGrid, active: pathname === basePath },
+        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Plazas', icon: Building, active: pathname.startsWith(`${basePath}/plaza`) },
+        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Carteras', icon: Folders, active: pathname.startsWith(`${basePath}/cartera`) },
+        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Grupos', icon: Users, active: pathname.startsWith(`${basePath}/grupo`) },
+    ];
+
+    return (
+        <Card>
+            <CardContent className="p-2">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                    {navItems.map(item => (
+                         <Button key={item.label} variant={item.active ? 'default' : 'ghost'} asChild className="flex-1 min-w-[150px] transition-all duration-200">
+                             <Link href={item.href}>
+                                <item.icon className="mr-2 h-4 w-4" />
+                                {item.label}
+                            </Link>
+                         </Button>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 type GrupoWithStats = LoanControlGrupo & {
     customerCount: number;
@@ -170,41 +200,33 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
 
     return (
         <div className="space-y-6">
-            <div className="space-y-4">
-                 <div className="flex items-center gap-x-1 text-sm text-muted-foreground">
-                    <Link href="/tools/loan-control" className="hover:text-primary p-2 rounded-md hover:bg-muted transition-colors">Control de Préstamo</Link>
-                    <ChevronRight className="h-4 w-4" />
-                    <Link href={`/tools/loan-control/plaza/${plaza.id}`} className="hover:text-primary p-2 rounded-md hover:bg-muted transition-colors">{plaza.name}</Link>
-                    <ChevronRight className="h-4 w-4" />
-                    <span className="font-medium text-foreground bg-muted p-2 rounded-md">{cartera.name}</span>
+            <NavPanel plazaId={plaza.id} />
+            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Grupos de {cartera.name}</h1>
+                    <p className="text-muted-foreground">
+                        Gestiona los grupos de esta cartera de la plaza {plaza.name}.
+                    </p>
                 </div>
-                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Grupos de {cartera.name}</h1>
-                        <p className="text-muted-foreground">
-                            Gestiona los grupos de esta cartera de la plaza {plaza.name}.
-                        </p>
-                    </div>
-                    <div className="flex-shrink-0">
-                        <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Crear Grupo
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>{editingGrupo ? 'Editar' : 'Crear'} Grupo</DialogTitle>
-                                </DialogHeader>
-                                <GrupoForm 
-                                    onSubmit={handleFormSubmit}
-                                    grupo={editingGrupo}
-                                    isSubmitting={isSubmitting}
-                                />
-                            </DialogContent>
-                        </Dialog>
-                    </div>
+                <div className="flex-shrink-0">
+                    <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Crear Grupo
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{editingGrupo ? 'Editar' : 'Crear'} Grupo</DialogTitle>
+                            </DialogHeader>
+                            <GrupoForm 
+                                onSubmit={handleFormSubmit}
+                                grupo={editingGrupo}
+                                isSubmitting={isSubmitting}
+                            />
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
@@ -292,3 +314,5 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
         </div>
     );
 }
+
+    
