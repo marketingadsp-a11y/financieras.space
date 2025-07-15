@@ -2,11 +2,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { getAssignedCustomersByGrupo, getGrupoById } from "@/services/loan-control-service";
 import { addMultipleCustomers } from "@/services/customer-service";
 import type { Customer, LoanControlGrupo } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX } from "lucide-react";
+import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -286,14 +287,20 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-start gap-4">
                 <div>
+                    <Button variant="outline" size="sm" asChild className="mb-4">
+                        <Link href={`/tools/loan-control/cartera/${grupo.carteraId}`}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver a Cartera
+                        </Link>
+                    </Button>
                     <h1 className="text-3xl font-bold tracking-tight">Panel del Grupo: {grupo.name}</h1>
                     <p className="text-muted-foreground">
                         Resumen financiero y listado de clientes de este grupo.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                      <Button variant="outline" onClick={exportToExcel} disabled={filteredCustomers.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
                      <Button variant="outline" onClick={exportToPDF} disabled={filteredCustomers.length === 0}><FileText className="mr-2"/>Exportar PDF</Button>
                      <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>

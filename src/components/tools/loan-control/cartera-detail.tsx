@@ -6,7 +6,7 @@ import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo 
 import type { LoanControlCartera, LoanControlGrupo } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight } from "lucide-react";
+import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -117,31 +117,39 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                 <div>
+                     <Button variant="outline" size="sm" asChild className="mb-4">
+                        <Link href={`/tools/loan-control/plaza/${cartera.plazaId}`}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver a Plaza
+                        </Link>
+                    </Button>
                     <h1 className="text-3xl font-bold tracking-tight">Cartera: {cartera.name}</h1>
                     <p className="text-muted-foreground">
                         Gestiona los grupos de esta cartera.
                     </p>
                 </div>
-                <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Crear Grupo
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>{editingGrupo ? 'Editar' : 'Crear'} Grupo</DialogTitle>
-                        </DialogHeader>
-                        <GrupoForm 
-                            onSubmit={handleFormSubmit}
-                            grupo={editingGrupo}
-                            isSubmitting={isSubmitting}
-                        />
-                    </DialogContent>
-                </Dialog>
+                <div className="flex-shrink-0">
+                    <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Crear Grupo
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{editingGrupo ? 'Editar' : 'Crear'} Grupo</DialogTitle>
+                            </DialogHeader>
+                            <GrupoForm 
+                                onSubmit={handleFormSubmit}
+                                grupo={editingGrupo}
+                                isSubmitting={isSubmitting}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
             
             {grupos.length > 0 ? (
