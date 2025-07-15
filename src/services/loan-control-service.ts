@@ -226,10 +226,7 @@ export async function importPlazaStructureFromPaste(params: PlazaImportParams): 
         structure[carteraName][groupName].push(customer);
     }
 
-    // 3. Process structure using batched writes for performance.
-    // Note: We are no longer using a single giant transaction, as it hits Firestore limits.
-    // We will process cartera by cartera. This is less atomic but necessary for large datasets.
-
+    // 3. Process structure sequentially to avoid transaction limits and complexity.
     for (const carteraName in structure) {
         // Find or Create Cartera
         let cartera = await getCarteraByNameAndPlaza(carteraName, plazaId);
@@ -264,7 +261,26 @@ export async function importPlazaStructureFromPaste(params: PlazaImportParams): 
             const batch = writeBatch(db);
             customersToAdd.forEach(customerData => {
                 const newCustomerRef = doc(customersCollectionRef);
-                batch.set(newCustomerRef, customerData);
+                const completeCustomerData = {
+                    ...customerData,
+                     // Ensure all fields have default values if not provided by AI
+                    name: customerData.name || '',
+                    address: customerData.address || '',
+                    phone: customerData.phone || '',
+                    guarantor: customerData.guarantor || '',
+                    guarantorPhone: customerData.guarantorPhone || '',
+                    loanAmount: customerData.loanAmount || 0,
+                    paymentAmount: customerData.paymentAmount || 0,
+                    installmentsDue: customerData.installmentsDue || 0,
+                    dueAmount: customerData.dueAmount || customerData.loanAmount || 0,
+                    colonia: customerData.colonia || '',
+                    cp: customerData.cp || '',
+                    direccionAval: customerData.direccionAval || '',
+                    coloniaAval: customerData.coloniaAval || '',
+                    cpAval: customerData.cpAval || '',
+                    fechaPrestamo: customerData.fechaPrestamo ? customerData.fechaPrestamo : new Date(), // Use parsed date or now
+                }
+                batch.set(newCustomerRef, completeCustomerData);
             });
             await batch.commit();
         }
