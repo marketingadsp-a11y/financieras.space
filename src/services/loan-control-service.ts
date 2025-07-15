@@ -235,8 +235,15 @@ export async function importFullLoanData(
         const currentCarteraName = row.Cartera || lastCarteraName;
         const currentGroupName = row.Grupo || lastGroupName;
 
+        const customerName = row.Cliente || row.Nombre;
+        
         // A row is only valid if it has a customer name and we know its hierarchy
-        if (!row.Nombre || !currentPlazaName || !currentCarteraName || !currentGroupName) {
+        if (!customerName || !currentPlazaName || !currentCarteraName || !currentGroupName) {
+            if (Object.values(row).some(val => val !== null && val !== '')) {
+                lastPlazaName = currentPlazaName;
+                lastCarteraName = currentCarteraName;
+                lastGroupName = currentGroupName;
+            }
             continue;
         }
 
@@ -299,20 +306,20 @@ export async function importFullLoanData(
             loanControlGroupId: grupoId,
             status: dueAmount <= 0 ? 'Pagado' : 'Pendiente' as const,
             prefix: prefix,
-            name: row.Nombre || '',
+            name: customerName,
             address: row.Dirección || row.Direccion || '',
             phone: String(row.Telefonos || row.Telefono || ''),
+            colonia: row.Colonia || '',
+            cp: String(row.CP || row['C.P.'] || ''),
             guarantor: row.Aval || '',
+            direccionAval: row.DireccionAval || '',
             guarantorPhone: String(row.TelefonoAval || row.TelefonosAval || ''),
+            coloniaAval: row.ColoniaAval || '',
+            cpAval: String(row.CPAval || ''),
             loanAmount: loanAmount,
             paymentAmount: row.Pago || 0,
             installmentsDue: row.Vencidos || 0,
             dueAmount: dueAmount,
-            colonia: row.Colonia || '',
-            cp: String(row.CP || row['C.P.'] || ''),
-            direccionAval: row.DireccionAval || '',
-            coloniaAval: row.ColoniaAval || '',
-            cpAval: String(row.CPAval || ''),
             fechaPrestamo: fechaPrestamoDate ? Timestamp.fromDate(fechaPrestamoDate) : null,
         };
         
