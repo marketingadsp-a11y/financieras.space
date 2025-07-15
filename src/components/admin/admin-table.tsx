@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import type { Admin } from "@/lib/data";
+import type { Admin, CompanyProfile } from "@/lib/data";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,11 +37,24 @@ import { useAuth } from "@/context/auth-context";
 
 type AdminTableProps = {
     data: Admin[];
+    profiles: CompanyProfile[];
     onEdit: (admin: Admin) => void;
     onDelete: (id: string) => void;
 }
 
-export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
+// Helper to determine text color (black or white) based on background hex color
+const getTextColorForBackground = (hexColor: string): string => {
+  if (!hexColor) return '#18181b'; // Default dark text
+  const rgb = parseInt(hexColor.slice(1), 16);
+  const r = (rgb >> 16) & 0xff;
+  const g = (rgb >> 8) & 0xff;
+  const b = (rgb >> 0) & 0xff;
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luma < 128 ? '#ffffff' : '#18181b';
+};
+
+
+export function AdminTable({ data, profiles, onEdit, onDelete }: AdminTableProps) {
   const { user } = useAuth();
   const [filter, setFilter] = React.useState("");
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
@@ -59,6 +72,19 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
       case "Inactivo":
         return "destructive";
     }
+  };
+
+  const getPrefixBadgeStyle = (prefix: string | undefined): React.CSSProperties => {
+    if (!prefix || !user?.isSuperAdmin) return {};
+    const profile = profiles.find(p => p.id === prefix);
+    if (profile?.loginBackgroundColor) {
+      return {
+        backgroundColor: profile.loginBackgroundColor,
+        color: getTextColorForBackground(profile.loginBackgroundColor),
+        borderColor: 'transparent'
+      };
+    }
+    return {};
   };
 
   return (
@@ -95,7 +121,7 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
                   <TableCell>{admin.username}</TableCell>
                   {user?.isSuperAdmin && (
                     <TableCell>
-                      {admin.prefix ? <Badge variant="outline">{admin.prefix}</Badge> : <span className="text-muted-foreground">N/A</span>}
+                      {admin.prefix ? <Badge style={getPrefixBadgeStyle(admin.prefix)}>{admin.prefix}</Badge> : <span className="text-muted-foreground">N/A</span>}
                     </TableCell>
                   )}
                   <TableCell>
