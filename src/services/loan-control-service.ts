@@ -95,7 +95,7 @@ export async function addGrupo(grupo: Omit<LoanControlGrupo, 'id'>): Promise<Loa
 }
 
 export async function updateGrupo(id: string, grupo: Partial<Omit<LoanControlGrupo, 'id'>>) {
-    const grupoDoc = doc(db, "loanControlGrupos", id);
+    const grupoDoc = doc(db, "loanControlGrupos", grupoId);
     await updateDoc(grupoDoc, grupo);
 }
 
@@ -226,6 +226,7 @@ export async function importFullLoanData(
     
     let batch = writeBatch(db);
     let operationCount = 0;
+    
     let lastPlazaName = '';
     let lastCarteraName = '';
     let lastGroupName = '';
@@ -239,53 +240,60 @@ export async function importFullLoanData(
     };
     
     for (const row of data) {
-        // Skip empty rows completely
-        if (Object.values(row).every(val => val === null || String(val).trim() === '')) {
+        const currentPlazaName = String(row.Plaza || row.plaza || '').trim() || lastPlazaName;
+        const currentCarteraName = String(row.Cartera || row.cartera || '').trim() || lastCarteraName;
+        const currentGroupName = String(row.Grupo || row.grupo || '').trim() || lastGroupName;
+        
+        lastPlazaName = currentPlazaName;
+        lastCarteraName = currentCarteraName;
+        lastGroupName = currentGroupName;
+
+        const customerName = String(row.Cliente || row.Nombre || row.nombre || '').trim();
+
+        // Skip if we don't have basic hierarchy info
+        if (!currentPlazaName || !currentCarteraName || !currentGroupName) {
             continue;
         }
 
-        const currentPlazaName = String(row.Plaza || row.plaza || '').trim();
-        const currentCarteraName = String(row.Cartera || row.cartera || '').trim();
-        const currentGroupName = String(row.Grupo || row.grupo || '').trim();
-        const customerName = String(row.Cliente || row.Nombre || row.nombre || '').trim();
+        await commitBatchIfNeeded();
 
-        if (currentPlazaName) lastPlazaName = currentPlazaName;
-        if (currentCarteraName) lastCarteraName = currentCarteraName;
-        if (currentGroupName) lastGroupName = currentGroupName;
-
-        if (!lastPlazaName || !lastCarteraName || !lastGroupName) continue;
-        
-        let plazaId = plazaCache[lastPlazaName];
+        // Get or create Plaza
+        let plazaId = plazaCache[currentPlazaName];
         if (!plazaId) {
             const newDocRef = doc(plazasCollectionRef);
             plazaId = newDocRef.id;
-            batch.set(newDocRef, { name: lastPlazaName, prefix });
+            batch.set(newDocRef, { name: currentPlazaName, prefix });
             operationCount++;
-            plazaCache[lastPlazaName] = plazaId;
+            plazaCache[currentPlazaName] = plazaId;
         }
 
-        let carteraId = carteraCache[`${plazaId}_${lastCarteraName}`];
+        // Get or create Cartera
+        const carteraKey = `${plazaId}_${currentCarteraName}`;
+        let carteraId = carteraCache[carteraKey];
         if (!carteraId) {
             const newDocRef = doc(carterasCollectionRef);
             carteraId = newDocRef.id;
-            batch.set(newDocRef, { name: lastCarteraName, plazaId, prefix });
+            batch.set(newDocRef, { name: currentCarteraName, plazaId, prefix });
             operationCount++;
-            carteraCache[`${plazaId}_${lastCarteraName}`] = carteraId;
+            carteraCache[carteraKey] = carteraId;
         }
         
-        let grupoId = grupoCache[`${carteraId}_${lastGroupName}`];
+        // Get or create Grupo
+        const grupoKey = `${carteraId}_${currentGroupName}`;
+        let grupoId = grupoCache[grupoKey];
         if (!grupoId) {
             const newDocRef = doc(gruposCollectionRef);
             grupoId = newDocRef.id;
-            batch.set(newDocRef, { name: lastGroupName, plazaId, carteraId, prefix });
+            batch.set(newDocRef, { name: currentGroupName, plazaId, carteraId, prefix });
             operationCount++;
-            grupoCache[`${carteraId}_${lastGroupName}`] = grupoId;
+            grupoCache[grupoKey] = grupoId;
         }
 
-        if (!customerName) continue; // Only proceed if there's a customer to add
+        // If there's no customer name, we are done with this row (it was for hierarchy)
+        if (!customerName) {
+            continue;
+        }
         
-        await commitBatchIfNeeded();
-
         let fechaPrestamoDate;
         const fechaValue = row['F. Prestamo'] || row.FechaPrestamo || row.fechaPrestamo || row.fecha_prestamo;
         if (fechaValue) {
@@ -300,9 +308,15 @@ export async function importFullLoanData(
             }
         }
 
-        const loanAmount = parseFloat(String(row.Prestamo || 0).replace(/[^0-9.-]+/g,""));
-        const dueAmountRaw = row.Saldo || row.adeudo;
-        const dueAmount = dueAmountRaw === undefined || String(dueAmountRaw).trim() === "" ? loanAmount : parseFloat(String(dueAmountRaw).replace(/[^0-9.-]+/g,""));
+        const parseNumeric = (val: any) => {
+            if (val === null || val === undefined || String(val).trim() === '') return 0;
+            const num = parseFloat(String(val).replace(/[^0-9.-]+/g,""));
+            return isNaN(num) ? 0 : num;
+        };
+
+        const loanAmount = parseNumeric(row.Prestamo);
+        const dueAmountRaw = row.Saldo !== undefined ? row.Saldo : row.adeudo;
+        const dueAmount = dueAmountRaw !== undefined && String(dueAmountRaw).trim() !== "" ? parseNumeric(dueAmountRaw) : loanAmount;
 
         const completeCustomerData = {
             plazaId,
@@ -319,10 +333,10 @@ export async function importFullLoanData(
             guarantorPhone: String(row.TelefonoAval || row.TelefonosAval || ''),
             coloniaAval: String(row.ColoniaAval || ''),
             cpAval: String(row.CPAval || ''),
-            loanAmount: isNaN(loanAmount) ? 0 : loanAmount,
-            paymentAmount: parseFloat(String(row.Pago || 0).replace(/[^0-9.-]+/g,"")) || 0,
+            loanAmount: loanAmount,
+            paymentAmount: parseNumeric(row.Pago),
             installmentsDue: parseInt(String(row.Vencidos || 0), 10) || 0,
-            dueAmount: isNaN(dueAmount) ? 0 : dueAmount,
+            dueAmount: dueAmount,
             fechaPrestamo: fechaPrestamoDate ? Timestamp.fromDate(fechaPrestamoDate) : null,
         };
         
