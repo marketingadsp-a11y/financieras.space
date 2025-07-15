@@ -9,7 +9,6 @@ import type { Plaza, StructuredCustomerData } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
 import { getPlazaStructure, importFullStructureFromData } from "@/services/loan-control-service";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -22,10 +21,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 
 type PlazaWithStats = Plaza & {
   carteraCount: number;
-  totalLoanAmount: number;
 };
 
 const StatCard = ({ title, value, icon: Icon, isCurrency = false, variant = 'default' }: { title: string; value: number | string; icon: React.ElementType; isCurrency?: boolean; variant?: 'default' | 'destructive' }) => {
@@ -130,8 +129,6 @@ export function LoanControlDashboard() {
         
         const plazasWithStats = await Promise.all(
             plazasFromDb.map(async (plaza) => {
-                // The stats are now calculated in getPlazas, but we fetch cartera count separately if needed or handle it within plaza-detail.
-                // For now, let's get the cartera count as it was.
                 const structure = await getPlazaStructure(plaza.id);
                 return {
                     ...plaza,
