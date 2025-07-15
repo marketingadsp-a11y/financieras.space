@@ -3,13 +3,20 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Building, Loader2 } from "lucide-react";
+import { ArrowRight, Building, Loader2, Upload, Download } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { saveAs } from "file-saver";
+import * as XLSX from "xlsx";
+import { importFullStructureFromData } from "@/services/loan-control-service";
+import type { StructuredCustomerData } from "@/lib/data";
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
     <Card>
@@ -39,31 +46,171 @@ export function LoanControlDashboard() {
   const { toast } = useToast();
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isImporting, setIsImporting] = React.useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
+  const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const fetchUserPlazas = React.useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+        const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
+        const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+        setPlazas(plazasFromDb);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las plazas.' });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [user, toast]);
 
   React.useEffect(() => {
-    const fetchUserPlazas = async () => {
-        if (!user) return;
-        setIsLoading(true);
-        try {
-            const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-            const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
-            setPlazas(plazasFromDb);
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las plazas.' });
-        } finally {
-            setIsLoading(false);
-        }
-    };
     fetchUserPlazas();
-  }, [user, toast]);
+  }, [fetchUserPlazas]);
   
+  const handleDownloadTemplate = () => {
+    const headers = ["Plaza", "Cartera", "Grupo", "Cliente", "Dirección", "Telefonos", "Colonia", "C.P.", "Aval", "Dirección Aval", "Telefonos Aval", "Colonia Aval", "C.P. Aval", "F. Prestamo", "Prestamo", "Saldo"];
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "plantilla_importacion_completa.xlsx");
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !user?.prefix) {
+      if (!user?.prefix) toast({ variant: "destructive", title: "Error de autenticación", description: "No se pudo identificar tu prefijo de empresa." });
+      return;
+    }
+
+    setIsImporting(true);
+    let allFileContents: StructuredCustomerData[] = [];
+
+    for (const file of Array.from(files)) {
+      try {
+        const data = await new Promise<string | ArrayBuffer | null>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result || null);
+          reader.onerror = reject;
+          reader.readAsBinaryString(file);
+        });
+
+        if (!data) continue;
+
+        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        const headers = jsonData[0].map((h: any) => String(h || '').trim().toUpperCase().replace(/\s+/g, '_').replace('C.P.','CP').replace('F._PRESTAMO', 'FECHA_PRESTAMO').replace('TELEFONOS','TELEFONO'));
+        const structuredData: StructuredCustomerData[] = jsonData.slice(1).map((row: any[]) => {
+          const customer: any = {};
+          headers.forEach((header: string, index: number) => {
+            const keyMap: Record<string, string> = {
+                'PLAZA': 'plazaName', 'CARTERA': 'carteraName', 'RESPONSABLE': 'responsable', 'GRUPO': 'groupName',
+                'CLIENTE': 'name', 'NOMBRE': 'name', 'DIRECCION': 'address', 'COLONIA': 'colonia',
+                'CP': 'cp', 'TELEFONO': 'phone', 'AVAL': 'guarantor', 'TEL_AVAL': 'guarantorPhone',
+                'DIRECCION_AVAL': 'direccionAval', 'COLONIA_AVAL': 'coloniaAval', 'CP_AVAL': 'cpAval',
+                'PRESTAMO': 'loanAmount', 'PAGO': 'paymentAmount', 'VENCIDOS': 'installmentsDue',
+                'SALDO': 'dueAmount', 'ADEUDO': 'dueAmount', 'FECHA_PRESTAMO': 'fechaPrestamo'
+            };
+            const key = keyMap[header];
+            if (key) customer[key] = row[index];
+          });
+          return customer as StructuredCustomerData;
+        });
+        
+        allFileContents.push(...structuredData);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "No se pudo procesar el archivo.";
+        toast({ variant: "destructive", title: `Error en archivo ${file.name}`, description: errorMessage });
+        setIsImporting(false);
+        if (event.target) event.target.value = '';
+        return;
+      }
+    }
+
+    try {
+      const result = await importFullStructureFromData({ prefix: user.prefix, customers: allFileContents, mode: importMode });
+      toast({
+        title: "Importación Completada",
+        description: `Se procesaron ${files.length} archivo(s), creando ${result.newPlazas} plazas, ${result.newCarteras} carteras, ${result.newGroups} grupos y ${result.totalCustomers} clientes.`
+      });
+      
+      await fetchUserPlazas();
+      
+    } catch (importError) {
+       const errorMessage = importError instanceof Error ? importError.message : "Ocurrió un error desconocido durante la escritura en la base de datos.";
+       toast({ variant: "destructive", title: `Error de importación`, description: errorMessage });
+    } finally {
+      setIsImporting(false);
+      setIsImportDialogOpen(false);
+      if (event.target) event.target.value = '';
+    }
+  };
+
   return (
     <div className="space-y-6">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Control de Préstamo</h1>
-            <p className="text-muted-foreground">
-            Selecciona una plaza para comenzar a organizar tus carteras y grupos.
-            </p>
+        <div className="flex justify-between items-center">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Control de Préstamo</h1>
+                <p className="text-muted-foreground">
+                Selecciona una plaza o importa toda tu estructura desde un archivo de Excel.
+                </p>
+            </div>
+             <div className="flex items-center gap-2">
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept=".xlsx, .xls, .csv"
+                    multiple
+                />
+                 <Button variant="outline" onClick={handleDownloadTemplate}>
+                    <Download className="mr-2 h-4 w-4"/>
+                    Descargar Plantilla
+                </Button>
+                <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                    <DialogTrigger asChild>
+                         <Button variant="outline" disabled={isImporting}>
+                            {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
+                            {isImporting ? "Procesando..." : 'Importar Archivo'}
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Importar Estructura Completa</DialogTitle>
+                            <DialogDescription>
+                                Selecciona el modo de importación y luego elige los archivos. Las columnas Plaza, Cartera y Grupo se crearán si no existen.
+                            </DialogDescription>
+                        </DialogHeader>
+                         <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Modo de Importación</Label>
+                                <RadioGroup defaultValue="add" value={importMode} onValueChange={(value: 'add' | 'replace') => setImportMode(value)} className="flex items-center gap-6">
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="add" id="r-add" /><Label htmlFor="r-add">Añadir a existentes</Label></div>
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="replace" id="r-replace" /><Label htmlFor="r-replace" className="text-destructive">Reemplazar todo lo registrado</Label></div>
+                                </RadioGroup>
+                                {importMode === 'replace' && (
+                                    <p className="text-xs text-destructive/80">
+                                        ¡Cuidado! Esta opción borrará permanentemente todas las plazas, carteras, grupos y clientes de tu empresa ({user?.prefix}) antes de importar.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Cancelar</Button>
+                            <Button onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                                <Upload className="mr-2 h-4 w-4"/>
+                                Seleccionar Archivos
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
 
         {isLoading ? (
@@ -80,7 +227,7 @@ export function LoanControlDashboard() {
         ) : (
              <Card>
                 <CardContent className="pt-6">
-                    <p className="text-center text-muted-foreground">No hay plazas registradas. Comienza agregando una en la sección de "Gestionar Plazas".</p>
+                    <p className="text-center text-muted-foreground">No hay plazas registradas. Comienza agregando una en la sección de "Gestionar Plazas" o impórtalas desde un archivo.</p>
                 </CardContent>
             </Card>
         )}

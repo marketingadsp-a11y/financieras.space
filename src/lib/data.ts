@@ -91,6 +91,7 @@ export type Customer = {
 
 // Type for structured data parsed from Excel, before Firestore conversion
 export type StructuredCustomerData = {
+    plazaName?: string;
     carteraName?: string;
     responsable?: string;
     groupName?: string;

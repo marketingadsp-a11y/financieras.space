@@ -6,10 +6,13 @@ import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo, Customer, StructuredCustomerData } from "@/lib/data";
 import { getCustomersByPlaza, deleteCustomersByPlaza } from "./customer-service";
 import { customerFromDoc } from "./customer-service-helper";
+import { deletePlaza } from "./plaza-service";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
 const customersCollectionRef = collection(db, "customers");
+const plazasCollectionRef = collection(db, "plazas");
+
 
 // --- Cartera Functions ---
 
@@ -61,7 +64,7 @@ export async function getPlazaStructure(plazaId: string): Promise<{ carteras: Lo
     const [carterasSnapshot, gruposSnapshot, customers] = await Promise.all([
         getDocs(carterasQuery),
         getDocs(gruposQuery),
-        getCustomersByPlaza(plazaId) // Reuse the robust function from customer-service
+        getCustomersByPlaza(plazaId)
     ]);
 
     const carteras = carterasSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlCartera[];
@@ -153,26 +156,22 @@ export async function importStructuredData(params: StructuredImportParams): Prom
     const { plazaId, prefix, customers, mode } = params;
 
     if (mode === 'replace') {
-        // First, delete all customers for the given plaza.
         await deleteCustomersByPlaza(plazaId);
-        // Optionally, you might want to delete carteras and grupos as well if 'replace' should be a full reset.
-        // For now, we only delete customers.
     }
 
     let newCarterasCount = 0;
     let newGroupsCount = 0;
 
-    // --- Step 1: Group data and identify all unique carteras and groups ---
-    const carterasToCreate = new Map<string, string>(); // name -> responsable
-    const groupsToCreate = new Map<string, { carteraName: string }>(); // name -> { carteraName }
+    const carterasToCreate = new Map<string, string>(); 
+    const groupsToCreate = new Map<string, { carteraName: string }>(); 
     const customerDataByCarteraAndGroup: Record<string, Record<string, StructuredCustomerData[]>> = {};
 
     for (const customer of customers) {
-        const carteraName = (customer as any).carteraName?.trim() || "Cartera General";
-        const groupName = (customer as any).groupName?.trim() || "Sin Grupo Asignado";
+        const carteraName = customer.carteraName?.trim() || "Cartera General";
+        const groupName = customer.groupName?.trim() || "Sin Grupo Asignado";
 
         if (!carterasToCreate.has(carteraName)) {
-            carterasToCreate.set(carteraName, (customer as any).responsable || "No especificado");
+            carterasToCreate.set(carteraName, customer.responsable || "No especificado");
         }
         if (!groupsToCreate.has(groupName)) {
             groupsToCreate.set(groupName, { carteraName });
@@ -187,14 +186,12 @@ export async function importStructuredData(params: StructuredImportParams): Prom
         customerDataByCarteraAndGroup[carteraName][groupName].push(customer);
     }
     
-    // --- Step 2: Fetch existing carteras and groups to avoid duplicates ---
     const existingCarterasDocs = await getDocs(query(carterasCollectionRef, where("plazaId", "==", plazaId)));
     const existingCarteras = new Map(existingCarterasDocs.docs.map(d => [d.data().name, d.id]));
 
     const existingGruposDocs = await getDocs(query(gruposCollectionRef, where("plazaId", "==", plazaId)));
     const existingGrupos = new Map(existingGruposDocs.docs.map(d => [`${d.data().carteraId}_${d.data().name}`, d.id]));
 
-    // --- Step 3: Create any missing carteras ---
     for (const [name, responsable] of carterasToCreate.entries()) {
         if (!existingCarteras.has(name)) {
             const newCartera = await addCartera({ name, plazaId, prefix, responsable });
@@ -203,7 +200,6 @@ export async function importStructuredData(params: StructuredImportParams): Prom
         }
     }
 
-    // --- Step 4: Create any missing groups ---
     for (const [name, { carteraName }] of groupsToCreate.entries()) {
         const carteraId = existingCarteras.get(carteraName);
         if (carteraId && !existingGrupos.has(`${carteraId}_${name}`)) {
@@ -213,7 +209,6 @@ export async function importStructuredData(params: StructuredImportParams): Prom
         }
     }
 
-    // --- Step 5: Write all customers in batches ---
     const BATCH_LIMIT = 500;
     let writeBatcher = writeBatch(db);
     let operationCount = 0;
@@ -246,7 +241,6 @@ export async function importStructuredData(params: StructuredImportParams): Prom
         }
     }
 
-    // Commit any remaining operations
     if (operationCount > 0) {
         await writeBatcher.commit();
     }
@@ -257,3 +251,143 @@ export async function importStructuredData(params: StructuredImportParams): Prom
         totalCustomers: customers.length,
     };
 }
+
+
+// --- Full Structure Global Import ---
+interface FullStructureImportParams {
+    prefix: string;
+    customers: StructuredCustomerData[];
+    mode: 'add' | 'replace';
+}
+
+interface FullStructureImportResult {
+    newPlazas: number;
+    newCarteras: number;
+    newGroups: number;
+    totalCustomers: number;
+}
+
+async function deleteAllDataForPrefix(prefix: string): Promise<void> {
+    const batch = writeBatch(db);
+    const collectionsToWipe = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
+
+    for(const coll of collectionsToWipe) {
+        const q = query(coll, where("prefix", "==", prefix));
+        const snapshot = await getDocs(q);
+        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    }
+    
+    await batch.commit();
+}
+
+export async function importFullStructureFromData(params: FullStructureImportParams): Promise<FullStructureImportResult> {
+    const { prefix, customers, mode } = params;
+
+    if (mode === 'replace') {
+        await deleteAllDataForPrefix(prefix);
+    }
+    
+    let newPlazasCount = 0;
+    let newCarterasCount = 0;
+    let newGroupsCount = 0;
+
+    const existingPlazas = new Map((await getDocs(query(plazasCollectionRef, where("prefix", "==", prefix)))).docs.map(d => [d.data().name, d.id]));
+    const existingCarteras = new Map((await getDocs(query(carterasCollectionRef, where("prefix", "==", prefix)))).docs.map(d => [`${d.data().plazaId}_${d.data().name}`, d.id]));
+    const existingGrupos = new Map((await getDocs(query(gruposCollectionRef, where("prefix", "==", prefix)))).docs.map(d => [`${d.data().carteraId}_${d.data().name}`, d.id]));
+
+    // Group all data by plaza -> cartera -> group
+    const dataByPlaza: Record<string, Record<string, Record<string, StructuredCustomerData[]>>> = {};
+    const plazasToCreate = new Set<string>();
+    const carterasToCreate = new Map<string, { plazaName: string, responsable: string }>();
+    const groupsToCreate = new Map<string, { plazaName: string, carteraName: string }>();
+
+    for(const customer of customers) {
+        const plazaName = customer.plazaName?.trim() || "Plaza General";
+        const carteraName = customer.carteraName?.trim() || "Cartera General";
+        const groupName = customer.groupName?.trim() || "Sin Grupo Asignado";
+
+        plazasToCreate.add(plazaName);
+        carterasToCreate.set(`${plazaName}_${carteraName}`, { plazaName, responsable: customer.responsable || "No especificado" });
+        groupsToCreate.set(`${plazaName}_${carteraName}_${groupName}`, { plazaName, carteraName });
+
+        if (!dataByPlaza[plazaName]) dataByPlaza[plazaName] = {};
+        if (!dataByPlaza[plazaName][carteraName]) dataByPlaza[plazaName][carteraName] = {};
+        if (!dataByPlaza[plazaName][carteraName][groupName]) dataByPlaza[plazaName][carteraName][groupName] = [];
+        dataByPlaza[plazaName][carteraName][groupName].push(customer);
+    }
+
+    // Create Plazas
+    for (const name of plazasToCreate) {
+        if (!existingPlazas.has(name)) {
+            const newPlazaRef = doc(plazasCollectionRef);
+            await setDoc(newPlazaRef, { name, prefix });
+            existingPlazas.set(name, newPlazaRef.id);
+            newPlazasCount++;
+        }
+    }
+
+    // Create Carteras
+    for (const [key, { plazaName, responsable }] of carterasToCreate.entries()) {
+        const carteraName = key.split('_').slice(1).join('_');
+        const plazaId = existingPlazas.get(plazaName);
+        if (plazaId && !existingCarteras.has(`${plazaId}_${carteraName}`)) {
+            const newCarteraRef = doc(carterasCollectionRef);
+            await setDoc(newCarteraRef, { name: carteraName, plazaId, prefix, responsable });
+            existingCarteras.set(`${plazaId}_${carteraName}`, newCarteraRef.id);
+            newCarterasCount++;
+        }
+    }
+    
+    // Create Grupos
+    for (const [key, { plazaName, carteraName }] of groupsToCreate.entries()) {
+        const groupName = key.split('_').slice(2).join('_');
+        const plazaId = existingPlazas.get(plazaName);
+        const carteraId = existingCarteras.get(`${plazaId}_${carteraName}`);
+        if (carteraId && !existingGrupos.has(`${carteraId}_${groupName}`)) {
+             const newGrupoRef = doc(gruposCollectionRef);
+             await setDoc(newGrupoRef, { name: groupName, carteraId, plazaId, prefix });
+             existingGrupos.set(`${carteraId}_${groupName}`, newGrupoRef.id);
+             newGroupsCount++;
+        }
+    }
+    
+    // Write customers
+    const BATCH_LIMIT = 500;
+    let writeBatcher = writeBatch(db);
+    let operationCount = 0;
+
+    for (const plazaName of Object.keys(dataByPlaza)) {
+        for (const carteraName of Object.keys(dataByPlaza[plazaName])) {
+            for (const groupName of Object.keys(dataByPlaza[plazaName][carteraName])) {
+                
+                const plazaId = existingPlazas.get(plazaName)!;
+                const carteraId = existingCarteras.get(`${plazaId}_${carteraName}`)!;
+                const grupoId = existingGrupos.get(`${carteraId}_${groupName}`) || null;
+                
+                for (const customer of dataByPlaza[plazaName][carteraName][groupName]) {
+                    const newCustomerRef = doc(customersCollectionRef);
+                    const { plazaName: pn, carteraName: cn, groupName: gn, responsable: r, ...rest } = customer as any;
+                    const completeCustomerData = {
+                        ...rest, plazaId, prefix, loanControlGroupId: grupoId, status: 'Pendiente' as const,
+                        fechaPrestamo: customer.fechaPrestamo ? new Date(customer.fechaPrestamo) : new Date(),
+                    };
+                    writeBatcher.set(newCustomerRef, completeCustomerData);
+                    operationCount++;
+
+                    if (operationCount >= BATCH_LIMIT) {
+                        await writeBatcher.commit();
+                        writeBatcher = writeBatch(db);
+                        operationCount = 0;
+                    }
+                }
+            }
+        }
+    }
+    
+    if (operationCount > 0) {
+        await writeBatcher.commit();
+    }
+
+    return { newPlazas: newPlazasCount, newCarteras: newCarterasCount, newGroups: newGroupsCount, totalCustomers: customers.length };
+}
+
