@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo, Customer, StructuredCustomerData } from "@/lib/data";
 import { getCustomersByPlaza, deleteCustomersByPlaza } from "./customer-service";
@@ -390,4 +390,5 @@ export async function importFullStructureFromData(params: FullStructureImportPar
 
     return { newPlazas: newPlazasCount, newCarteras: newCarterasCount, newGroups: newGroupsCount, totalCustomers: customers.length };
 }
+
 
