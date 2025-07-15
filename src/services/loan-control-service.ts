@@ -53,15 +53,22 @@ export async function deleteCartera(id: string) {
     await deleteDoc(carteraDoc);
 }
 
-export async function getGroupsAndCustomersByCartera(carteraId: string): Promise<{ groups: LoanControlGrupo[], customers: Customer[] }> {
-    const grupos = await getGruposByCartera(carteraId);
-    if (grupos.length === 0) {
-        return { groups: [], customers: [] };
-    }
-    const customerPromises = grupos.map(g => getCustomersByLoanControlGroup(g.id));
-    const customersByGroup = await Promise.all(customerPromises);
-    const allCustomers = customersByGroup.flat();
-    return { groups: grupos, customers: allCustomers };
+export async function getPlazaStructure(plazaId: string): Promise<{ carteras: LoanControlCartera[], grupos: LoanControlGrupo[], customers: Customer[] }> {
+    const carterasQuery = query(carterasCollectionRef, where("plazaId", "==", plazaId));
+    const gruposQuery = query(gruposCollectionRef, where("plazaId", "==", plazaId));
+    const customersQuery = query(customersCollectionRef, where("plazaId", "==", plazaId));
+    
+    const [carterasSnapshot, gruposSnapshot, customersSnapshot] = await Promise.all([
+        getDocs(carterasQuery),
+        getDocs(gruposQuery),
+        getDocs(customersQuery)
+    ]);
+
+    const carteras = carterasSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlCartera[];
+    const grupos = gruposSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlGrupo[];
+    const customers = customersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Customer[];
+
+    return { carteras, grupos, customers };
 }
 
 
@@ -162,11 +169,11 @@ export async function importStructuredData(params: StructuredImportParams): Prom
     const customerDataByCarteraAndGroup: Record<string, Record<string, StructuredCustomerData[]>> = {};
 
     for (const customer of customers) {
-        const carteraName = customer.carteraName?.trim() || "Cartera General";
-        const groupName = customer.groupName?.trim() || "Sin Grupo Asignado";
+        const carteraName = (customer as any).carteraName?.trim() || "Cartera General";
+        const groupName = (customer as any).groupName?.trim() || "Sin Grupo Asignado";
 
         if (!carterasToCreate.has(carteraName)) {
-            carterasToCreate.set(carteraName, customer.responsable || "No especificado");
+            carterasToCreate.set(carteraName, (customer as any).responsable || "No especificado");
         }
         if (!groupsToCreate.has(groupName)) {
             groupsToCreate.set(groupName, { carteraName });
@@ -219,7 +226,7 @@ export async function importStructuredData(params: StructuredImportParams): Prom
 
             for (const customer of customerDataByCarteraAndGroup[carteraName][groupName]) {
                 const newCustomerRef = doc(customersCollectionRef);
-                const { carteraName: cn, groupName: gn, responsable: r, ...rest } = customer;
+                const { carteraName: cn, groupName: gn, responsable: r, ...rest } = customer as any;
                 const completeCustomerData = {
                     ...rest,
                     plazaId,

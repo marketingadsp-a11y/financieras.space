@@ -6,12 +6,12 @@ import Link from "next/link";
 import * as XLSX from "xlsx";
 import { saveAs } from 'file-saver';
 import { getPlazaById } from "@/services/plaza-service";
-import type { Plaza, LoanControlCartera, StructuredCustomerData } from "@/lib/data";
+import type { Plaza, LoanControlCartera, Customer } from "@/lib/data";
 import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Upload, Download, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getGroupsAndCustomersByCartera, importStructuredData } from "@/services/loan-control-service";
+import { addCartera, deleteCartera, updateCartera, importStructuredData, getPlazaStructure } from "@/services/loan-control-service";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog";
 import { CarteraForm } from "./cartera-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -143,51 +143,49 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const fetchCarterasWithStats = React.useCallback(async () => {
+  const fetchPlazaData = React.useCallback(async () => {
+    setIsLoading(true);
     try {
-      const carterasData = await getCarterasByPlaza(plazaId);
-      const carterasWithStatsPromises = carterasData.map(async (cartera) => {
-          const { groups, customers } = await getGroupsAndCustomersByCartera(cartera.id);
-          
-          const stats = customers.reduce((acc, customer) => {
-              acc.totalPrestado += customer.loanAmount;
-              acc.totalPendiente += customer.dueAmount;
-              return acc;
-          }, { totalPrestado: 0, totalPendiente: 0 });
-          
-          return {
-              ...cartera,
-              stats: {
-                  ...stats,
-                  customerCount: customers.length,
-                  groupCount: groups.length
-              }
-          };
-      });
-      const carterasWithStats = await Promise.all(carterasWithStatsPromises);
-      setCarteras(carterasWithStats);
+        const [plazaData, structureData] = await Promise.all([
+            getPlazaById(plazaId),
+            getPlazaStructure(plazaId)
+        ]);
+
+        setPlaza(plazaData);
+
+        const carterasWithStats: CarteraWithStats[] = structureData.carteras.map(cartera => {
+            const carteraGrupos = structureData.grupos.filter(g => g.carteraId === cartera.id);
+            const carteraGrupoIds = new Set(carteraGrupos.map(g => g.id));
+            const carteraCustomers = structureData.customers.filter(c => c.loanControlGroupId && carteraGrupoIds.has(c.loanControlGroupId));
+
+            const stats = carteraCustomers.reduce((acc, customer) => {
+                acc.totalPrestado += customer.loanAmount;
+                acc.totalPendiente += customer.dueAmount;
+                return acc;
+            }, { totalPrestado: 0, totalPendiente: 0 });
+
+            return {
+                ...cartera,
+                stats: {
+                    ...stats,
+                    customerCount: carteraCustomers.length,
+                    groupCount: carteraGrupos.length
+                }
+            };
+        });
+
+        setCarteras(carterasWithStats);
     } catch (error) {
-      console.error("Error fetching carteras with stats:", error);
-      toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la lista de carteras." });
+        console.error("Error fetching plaza data:", error);
+        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información de la plaza." });
+    } finally {
+        setIsLoading(false);
     }
   }, [plazaId, toast]);
 
-  const fetchInitialData = React.useCallback(async () => {
-      setIsLoading(true);
-      try {
-        const plazaData = await getPlazaById(plazaId);
-        setPlaza(plazaData);
-        await fetchCarterasWithStats();
-      } catch (error) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información de la plaza." });
-      } finally {
-        setIsLoading(false);
-      }
-    }, [plazaId, toast, fetchCarterasWithStats]);
-
   React.useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
+    fetchPlazaData();
+  }, [fetchPlazaData]);
   
   const handleFormSubmit = async (values: Omit<LoanControlCartera, 'id' | 'plazaId' | 'prefix'>) => {
     if (!user?.prefix) return;
@@ -207,7 +205,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
         
         setIsFormOpen(false);
         setEditingCartera(null);
-        await fetchCarterasWithStats();
+        await fetchPlazaData();
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la cartera." });
     }
@@ -222,7 +220,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     try {
         await deleteCartera(id);
         toast({ title: "Éxito", description: "Cartera eliminada." });
-        await fetchCarterasWithStats();
+        await fetchPlazaData();
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar la cartera." });
     }
@@ -240,6 +238,8 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     let totalCarterasCreated = 0;
     let totalGroupsCreated = 0;
     
+    const allFileContents: Customer[] = [];
+
     for (const file of Array.from(files)) {
         try {
             const data = await new Promise<string | ArrayBuffer | null>((resolve, reject) => {
@@ -256,8 +256,8 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
-            const headers = jsonData[0].map((h:any) => String(h).trim().toUpperCase().replace(/\s+/g, '_').replace('C.P.','CP').replace('F._PRESTAMO', 'FECHA_PRESTAMO').replace('TELEFONOS','TELEFONO'));
-            const structuredData: StructuredCustomerData[] = jsonData.slice(1).map(row => {
+            const headers = jsonData[0].map((h:any) => String(h || '').trim().toUpperCase().replace(/\s+/g, '_').replace('C.P.','CP').replace('F._PRESTAMO', 'FECHA_PRESTAMO').replace('TELEFONOS','TELEFONO'));
+            const structuredData: Customer[] = jsonData.slice(1).map((row: any[]) => {
                 const customer: any = {};
                 headers.forEach((header: string, index: number) => {
                     const keyMap: Record<string, string> = {
@@ -271,33 +271,41 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                     const key = keyMap[header];
                     if (key) customer[key] = row[index];
                 });
-                return customer as StructuredCustomerData;
+                return customer as Customer;
             });
-
-            const result = await importStructuredData({ plazaId, prefix: user.prefix, customers: structuredData, mode: importMode });
-            totalCustomersImported += result.totalCustomers;
-            totalCarterasCreated += result.newCarteras;
-            totalGroupsCreated += result.newGroups;
+            
+            allFileContents.push(...structuredData);
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "No se pudo procesar el archivo.";
             toast({ variant: "destructive", title: `Error en archivo ${file.name}`, description: errorMessage });
-            // Stop processing if one file fails
             setIsImporting(false);
             if (event.target) event.target.value = '';
             return;
         }
     }
-    
-    toast({
-        title: "Importación Completada",
-        description: `Se procesaron ${files.length} archivo(s), creando ${totalCarterasCreated} carteras, ${totalGroupsCreated} grupos y ${totalCustomersImported} clientes.`
-    });
-    
-    await fetchInitialData();
-    setIsImporting(false);
-    setIsImportDialogOpen(false);
-    if (event.target) event.target.value = '';
+
+    try {
+        const result = await importStructuredData({ plazaId, prefix: user.prefix, customers: allFileContents, mode: importMode });
+        totalCustomersImported = result.totalCustomers;
+        totalCarterasCreated = result.newCarteras;
+        totalGroupsCreated = result.newGroups;
+
+        toast({
+            title: "Importación Completada",
+            description: `Se procesaron ${files.length} archivo(s), creando ${totalCarterasCreated} carteras, ${totalGroupsCreated} grupos y ${totalCustomersImported} clientes.`
+        });
+        
+        await fetchPlazaData();
+        
+    } catch (importError) {
+         const errorMessage = importError instanceof Error ? importError.message : "Ocurrió un error desconocido durante la escritura en la base de datos.";
+         toast({ variant: "destructive", title: `Error de importación`, description: errorMessage });
+    } finally {
+        setIsImporting(false);
+        setIsImportDialogOpen(false);
+        if (event.target) event.target.value = '';
+    }
   };
 
   const handleDownloadTemplate = () => {
