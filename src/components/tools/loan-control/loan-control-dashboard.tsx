@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -26,7 +27,8 @@ type PlazaWithStats = Plaza & {
   carteraCount: number;
 };
 
-const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
+const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => {
+  return (
     <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30">
         <CardHeader>
             <div className="flex items-center justify-between">
@@ -59,7 +61,8 @@ const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
             </Button>
         </CardFooter>
     </Card>
-);
+  );
+};
 
 export function LoanControlDashboard() {
   const { user } = useAuth();
