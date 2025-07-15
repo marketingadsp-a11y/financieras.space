@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/context/auth-context";
 
 type AdminTableProps = {
     data: Admin[];
@@ -41,6 +42,7 @@ type AdminTableProps = {
 }
 
 export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
+  const { user } = useAuth();
   const [filter, setFilter] = React.useState("");
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
   
@@ -63,7 +65,7 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
     <>
       <div className="flex items-center pb-4">
         <Input
-          placeholder="Buscar administradores..."
+          placeholder="Buscar por nombre, usuario o empresa..."
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           className="max-w-sm"
@@ -75,6 +77,7 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Usuario</TableHead>
+              {user?.isSuperAdmin && <TableHead>Empresa (Prefijo)</TableHead>}
               <TableHead>Rol</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>
@@ -90,6 +93,11 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
                 <TableRow key={admin.id}>
                   <TableCell className="font-medium">{admin.name}</TableCell>
                   <TableCell>{admin.username}</TableCell>
+                  {user?.isSuperAdmin && (
+                    <TableCell>
+                      {admin.prefix ? <Badge variant="outline">{admin.prefix}</Badge> : <span className="text-muted-foreground">N/A</span>}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Badge variant="outline">{admin.role}</Badge>
                   </TableCell>
@@ -152,7 +160,7 @@ export function AdminTable({ data, onEdit, onDelete }: AdminTableProps) {
               )})
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={user?.isSuperAdmin ? 6 : 5} className="h-24 text-center">
                   No se encontraron resultados.
                 </TableCell>
               </TableRow>
