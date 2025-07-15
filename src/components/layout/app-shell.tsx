@@ -23,8 +23,6 @@ import {
   Contact,
   AppWindow,
   Briefcase,
-  Files,
-  FolderKanban,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -203,7 +201,6 @@ function NavLinks() {
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
-  const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -306,99 +303,6 @@ function NavLinks() {
         </SidebarGroup>
       </>
     );
-  }
-
-  if (isLoanControlPath) {
-    const plazaMatch = pathname.match(/\/tools\/loan-control\/plaza\/([^/]+)/);
-    const carteraMatch = pathname.match(/\/tools\/loan-control\/cartera\/([^/]+)/);
-    const grupoMatch = pathname.match(/\/tools\/loan-control\/grupo\/([^/]+)/);
-
-    if (grupoMatch) {
-       const carteraId = searchParams.get('carteraId') || '';
-       const plazaId = searchParams.get('plazaId') || '';
-       return (
-        <SidebarGroup>
-          <SidebarGroupLabel>GESTIÓN DE GRUPO</SidebarGroupLabel>
-           <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href={{pathname: `/tools/loan-control/grupo/${grupoMatch[1]}`, query: {plazaId, carteraId}}}>
-                    <SidebarMenuButton asChild isActive={true} tooltip="Clientes">
-                        <span><Users /><span>Clientes</span></span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-           </SidebarMenu>
-           <SidebarSeparator />
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <Link href={{pathname: `/tools/loan-control/cartera/${carteraId}`, query: {plazaId}}}>
-                        <SidebarMenuButton asChild tooltip="Volver a Grupos">
-                            <span><ChevronLeft /><span>Volver a Grupos</span></span>
-                        </SidebarMenuButton>
-                    </Link>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarGroup>
-       )
-    }
-
-    if (carteraMatch) {
-      const plazaId = searchParams.get('plazaId') || '';
-      return (
-        <SidebarGroup>
-          <SidebarGroupLabel>GESTIÓN DE CARTERA</SidebarGroupLabel>
-           <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href={{pathname: `/tools/loan-control/cartera/${carteraMatch[1]}`, query: {plazaId}}}>
-                    <SidebarMenuButton asChild isActive={true} tooltip="Grupos">
-                        <span><Users /><span>Grupos</span></span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-           </SidebarMenu>
-           <SidebarSeparator />
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <Link href={`/tools/loan-control/plaza/${plazaId}`}>
-                        <SidebarMenuButton asChild tooltip="Volver a Carteras">
-                            <span><ChevronLeft /><span>Volver a Carteras</span></span>
-                        </SidebarMenuButton>
-                    </Link>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarGroup>
-      );
-    }
-
-    if (plazaMatch) {
-      return (
-        <SidebarGroup>
-          <SidebarGroupLabel>GESTIÓN DE PLAZA</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-                <Link href={`/tools/loan-control/plaza/${plazaMatch[1]}`}>
-                    <SidebarMenuButton asChild isActive={true} tooltip="Carteras">
-                       <span><FolderKanban /><span>Carteras</span></span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-          </SidebarMenu>
-          <SidebarSeparator />
-          <SidebarMenu>
-            <SidebarMenuItem>
-                <Link href="/tools/loan-control">
-                    <SidebarMenuButton asChild tooltip="Volver a Plazas">
-                       <span><ChevronLeft /><span>Volver a Plazas</span></span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-      );
-    }
-    
-    // Default view for /tools/loan-control
-    return <PlazaNavLinks toolPrefix="tools/loan-control" />;
   }
 
   const getNavItems = () => {
@@ -505,12 +409,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
-  const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return allTools.find(tool => tool.id === 'cartera-vencida');
     if (isDailyControlPath) return allTools.find(tool => tool.id === 'daily-control');
-    if (isLoanControlPath) return allTools.find(tool => tool.id === 'loan-control');
     return null;
   }
 
@@ -523,7 +425,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
-  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath) && !user.isSuperAdmin && !user.isToolAdmin;
+  const showBackButton = (isCarteraVencidaPath || isDailyControlPath) && !user.isSuperAdmin && !user.isToolAdmin;
 
   return (
     <SidebarProvider>

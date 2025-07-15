@@ -1,6 +1,6 @@
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck } from "lucide-react";
 
 export type Admin = {
   id: string;
@@ -20,7 +20,7 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control';
+  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control';
   prefix?: string;
   createdBy?: string;
 };
@@ -87,30 +87,6 @@ export type Customer = {
   fechaPrestamo?: Date;
   status: "Pendiente" | "Pagado" | "Atrasado";
   prefix?: string;
-  loanControlGroupId?: string; // Relation to Loan Control Group
-};
-
-// Type for structured data parsed from Excel, before Firestore conversion
-export type StructuredCustomerData = {
-    plazaName?: string;
-    carteraName?: string;
-    responsable?: string;
-    groupName?: string;
-    name: string;
-    address: string;
-    colonia?: string;
-    cp?: string;
-    phone: string;
-    guarantor: string;
-    guarantorPhone: string;
-    direccionAval?: string;
-    coloniaAval?: string;
-    cpAval?: string;
-    loanAmount: number;
-    paymentAmount: number;
-    installmentsDue: number;
-    dueAmount: number;
-    fechaPrestamo?: Date | string;
 };
 
 
@@ -143,13 +119,6 @@ export const allTools: Tool[] = [
     description: "Registra y sigue el flujo financiero diario (cobrado, prestado, gastado) por plaza.",
     href: "/tools/daily-control",
     icon: BookCheck,
-  },
-  {
-    id: "loan-control",
-    name: "Control de Préstamo",
-    description: "Organiza clientes en Plazas, Carteras y Grupos para un seguimiento detallado.",
-    href: "/tools/loan-control",
-    icon: Files,
   }
 ];
 
@@ -203,21 +172,3 @@ export type CompanyProfile = {
   logoUrl?: string;
   loginBackgroundColor?: string;
 };
-
-// --- Loan Control Tool Models ---
-
-export type LoanControlCartera = {
-  id: string;
-  name: string;
-  responsable: string;
-  plazaId: string;
-  prefix: string;
-}
-
-export type LoanControlGrupo = {
-  id: string;
-  name: string;
-  carteraId: string;
-  plazaId: string;
-  prefix: string;
-}

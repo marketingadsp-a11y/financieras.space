@@ -46,6 +46,5 @@ export function customerFromDoc(doc: DocumentData): Customer {
         fechaPrestamo: toDate(data.fechaPrestamo),
         status: data.status || "Pendiente",
         prefix: data.prefix || "",
-        loanControlGroupId: data.loanControlGroupId || undefined,
     };
 }

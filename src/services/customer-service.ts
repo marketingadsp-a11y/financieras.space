@@ -15,12 +15,6 @@ export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> 
 }
 
 
-export async function getCustomersByLoanControlGroup(groupId: string): Promise<Customer[]> {
-    const q = query(customersCollectionRef, where("loanControlGroupId", "==", groupId));
-    const data = await getDocs(q);
-    return data.docs.map(customerFromDoc);
-}
-
 export async function addCustomer(customer: Omit<Customer, 'id'>) : Promise<Customer> {
      const customerDataWithTimestamp = {
         ...customer,
@@ -56,27 +50,11 @@ export async function deleteCustomersByPlaza(plazaId: string): Promise<void> {
     await batch.commit();
 }
 
-export async function deleteCustomersByGroupId(groupId: string): Promise<void> {
-    const batch = writeBatch(db);
-    const q = query(customersCollectionRef, where("loanControlGroupId", "==", groupId));
-    const snapshot = await getDocs(q);
-
-    snapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-    });
-
-    await batch.commit();
-}
-
-
-export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], plazaId: string, mode: 'add' | 'replace', prefix: string, loanControlGroupId?: string): Promise<void> {
+export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], plazaId: string, mode: 'add' | 'replace', prefix: string): Promise<void> {
     const batch = writeBatch(db);
 
     if (mode === 'replace') {
         const constraints = [where("plazaId", "==", plazaId)];
-        if (loanControlGroupId) {
-            constraints.push(where("loanControlGroupId", "==", loanControlGroupId));
-        }
         const q = query(customersCollectionRef, ...constraints);
         const snapshot = await getDocs(q);
         snapshot.docs.forEach(doc => {
@@ -106,7 +84,6 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], pl
             coloniaAval: customerData.coloniaAval || '',
             cpAval: customerData.cpAval || '',
             fechaPrestamo: customerData.fechaPrestamo ? Timestamp.fromDate(new Date(customerData.fechaPrestamo)) : Timestamp.now(),
-            loanControlGroupId: loanControlGroupId || null,
         };
         batch.set(newDocRef, completeCustomerData);
     });
