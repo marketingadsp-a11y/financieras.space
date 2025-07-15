@@ -288,11 +288,13 @@ function LoanControlNav() {
                                         <Collapsible key={c.id} asChild defaultOpen={c.id === navState.activeCarteraId}>
                                             <SidebarMenuSubItem>
                                                 <CollapsibleTrigger asChild>
-                                                    <SidebarMenuSubButton asChild={true} isActive={c.id === navState.activeCarteraId} className="justify-between pr-1">
-                                                        <Link href={`/tools/loan-control/cartera/${c.id}`} className="flex-1 flex items-center gap-2">
-                                                            <Folder/><span>{c.name}</span>
-                                                        </Link>
-                                                        <ChevronDown className="h-3 w-3 shrink-0 transition-transform duration-200 data-[state=open]:rotate-180" />
+                                                    <SidebarMenuSubButton asChild isActive={c.id === navState.activeCarteraId} className="justify-between pr-1">
+                                                        <>
+                                                            <Link href={`/tools/loan-control/cartera/${c.id}`} className="flex-1 flex items-center gap-2">
+                                                                <Folder/><span>{c.name}</span>
+                                                            </Link>
+                                                            <ChevronDown className="h-3 w-3 shrink-0 transition-transform duration-200 data-[state=open]:rotate-180" />
+                                                        </>
                                                     </SidebarMenuSubButton>
                                                 </CollapsibleTrigger>
                                                 <CollapsibleContent>
