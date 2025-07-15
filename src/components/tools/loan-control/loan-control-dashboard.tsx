@@ -6,7 +6,7 @@ import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -44,6 +44,21 @@ const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
         </CardFooter>
     </Card>
 );
+
+const StatCard = ({ title, value }: { title: string; value: number; }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <DollarSign className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">
+            ${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+      </CardContent>
+    </Card>
+);
+
 
 export function LoanControlDashboard() {
     const { user } = useAuth();
@@ -150,6 +165,14 @@ export function LoanControlDashboard() {
             setIsImporting(false);
         }
     };
+    
+    const summary = React.useMemo(() => {
+        return plazas.reduce((acc, plaza) => {
+            acc.totalLoaned += plaza.totalLoanAmount || 0;
+            acc.totalDue += plaza.pendingDebt || 0;
+            return acc;
+        }, { totalLoaned: 0, totalDue: 0 });
+    }, [plazas]);
 
 
     if (isLoading) {
@@ -217,6 +240,11 @@ export function LoanControlDashboard() {
                         </DialogFooter>
                     </DialogContent>
                   </Dialog>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <StatCard title="Total Prestado (Todas las Plazas)" value={summary.totalLoaned} />
+                <StatCard title="Total Pendiente (Todas las Plazas)" value={summary.totalDue} />
             </div>
 
             {plazas.length > 0 ? (
