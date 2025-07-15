@@ -184,7 +184,7 @@ async function clearDataByPrefix(prefix: string) {
         for (const d of snapshot.docs) {
             batch.delete(d.ref);
             count++;
-            if (count === 400) {
+            if (count >= 400) {
                 await batch.commit();
                 batch = writeBatch(db);
                 count = 0;
@@ -218,8 +218,11 @@ export async function importFullLoanData(
     let lastGroupName = '';
 
     for (const row of data) {
-        if (!row.Nombre) continue;
-        
+         // Skip fully empty rows silently
+        if (Object.values(row).every(val => val === null || val === '')) {
+            continue;
+        }
+
         const commitBatchIfNeeded = async () => {
             if (operationCount >= 400) {
                 await batch.commit();
@@ -232,7 +235,10 @@ export async function importFullLoanData(
         const currentCarteraName = row.Cartera || lastCarteraName;
         const currentGroupName = row.Grupo || lastGroupName;
 
-        if (!currentPlazaName || !currentCarteraName || !currentGroupName) continue;
+        // A row is only valid if it has a customer name and we know its hierarchy
+        if (!row.Nombre || !currentPlazaName || !currentCarteraName || !currentGroupName) {
+            continue;
+        }
 
         lastPlazaName = currentPlazaName;
         lastCarteraName = currentCarteraName;
