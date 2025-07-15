@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from 'file-saver';
 import { getPlazaById } from "@/services/plaza-service";
 import type { Plaza, LoanControlCartera, StructuredCustomerData } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Upload, Download } from "lucide-react";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Upload, Download, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,20 @@ type CarteraWithStats = LoanControlCartera & {
         groupCount: number;
     }
 };
+
+const StatCard = ({ title, value, isCurrency = false }: { title: string; value: number; isCurrency?: boolean }) => (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">
+            {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+        </div>
+      </CardContent>
+    </Card>
+);
+
 
 const CarteraCard = ({ cartera, onEdit, onDelete }: { cartera: CarteraWithStats, onEdit: (cartera: LoanControlCartera) => void, onDelete: (id: string) => void }) => (
     <Card className="flex flex-col">
@@ -288,6 +302,14 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     saveAs(new Blob([wbout], { type: "application/octet-stream" }), "plantilla_importacion.xlsx");
   };
 
+  const plazaTotals = React.useMemo(() => {
+    return carteras.reduce((acc, cartera) => {
+        acc.totalPrestado += cartera.stats.totalPrestado;
+        acc.totalPendiente += cartera.stats.totalPendiente;
+        return acc;
+    }, { totalPrestado: 0, totalPendiente: 0});
+  }, [carteras]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -308,6 +330,11 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
         <p className="text-muted-foreground">
           Gestiona las carteras de esta plaza. Cada cartera puede contener múltiples grupos de clientes.
         </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+            <StatCard title="Total Prestado en Plaza" value={plazaTotals.totalPrestado} isCurrency />
+            <StatCard title="Saldo Pendiente en Plaza" value={plazaTotals.totalPendiente} isCurrency />
       </div>
 
       <Card>
@@ -372,5 +399,3 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     </div>
   );
 }
-
-    
