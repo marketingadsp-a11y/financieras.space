@@ -124,7 +124,6 @@ interface ImportResult {
     totalCustomers: number;
 }
 
-// This function is now deprecated in favor of structured import, but kept for reference
 export async function importGruposAndCustomersFromPaste(params: ImportParams): Promise<ImportResult> {
     throw new Error("This AI-based import function is deprecated.");
 }
@@ -140,6 +139,7 @@ interface StructuredImportParams {
 interface StructuredImportResult {
     newCarteras: number;
     newGroups: number;
+
     totalCustomers: number;
 }
 
@@ -208,7 +208,7 @@ export async function importStructuredData(params: StructuredImportParams): Prom
     for (const carteraName of Object.keys(customerDataByCarteraAndGroup)) {
         for (const groupName of Object.keys(customerDataByCarteraAndGroup[carteraName])) {
             const carteraId = existingCarteras.get(carteraName)!;
-            const grupoId = existingGrupos.get(`${carteraId}_${groupName}`)!;
+            const grupoId = existingGrupos.get(`${carteraId}_${groupName}`) || null;
 
             for (const customer of customerDataByCarteraAndGroup[carteraName][groupName]) {
                 const newCustomerRef = doc(customersCollectionRef);

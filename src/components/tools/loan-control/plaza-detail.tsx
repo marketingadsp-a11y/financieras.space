@@ -4,9 +4,10 @@
 import * as React from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
+import { saveAs } from 'file-saver';
 import { getPlazaById } from "@/services/plaza-service";
 import type { Plaza, LoanControlCartera, StructuredCustomerData } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Upload } from "lucide-react";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Upload, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -291,6 +292,15 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     reader.readAsBinaryString(file);
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = ["CARTERA", "RESPONSABLE", "GRUPO", "NOMBRE", "DIRECCION", "COLONIA", "CP", "TELEFONO", "AVAL", "TEL_AVAL", "DIR_AVAL", "COL_AVAL", "CP_AVAL", "PRESTAMO", "PAGO", "VENCIDOS", "ADEUDO", "FECHA_PRESTAMO"];
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "plantilla_importacion.xlsx");
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -330,6 +340,10 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                         className="hidden"
                         accept=".xlsx, .xls, .csv"
                     />
+                     <Button variant="outline" onClick={handleDownloadTemplate}>
+                        <Download className="mr-2 h-4 w-4"/>
+                        Descargar Plantilla
+                    </Button>
                     <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isProcessingImport}>
                         {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
                         {isProcessingImport ? "Procesando..." : 'Importar Archivo'}
