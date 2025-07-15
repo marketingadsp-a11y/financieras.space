@@ -280,7 +280,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
             const worksheet = workbook.Sheets[sheetName];
             const textData = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
             
-            processImportInBatches(textData);
+            processImportInBatches(textData); // Correctly call with the file's text data
 
         } catch (error) {
             toast({ variant: "destructive", title: "Error al leer archivo", description: "El archivo no es un formato de Excel válido."})
@@ -291,6 +291,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     }
     reader.readAsArrayBuffer(file);
     
+    // Reset file input to allow re-uploading the same file
     if (event.target) {
       event.target.value = '';
     }
