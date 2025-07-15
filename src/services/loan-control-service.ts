@@ -12,10 +12,11 @@ import {
     where, 
     writeBatch,
     getDoc,
-    collectionGroup
+    runTransaction,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
+import { customerFromDoc } from "./customer-service-helper";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
@@ -113,18 +114,18 @@ export async function deleteGrupo(grupoId: string) {
 }
 
 
-// --- Customer Assignment ---
+// --- Customer Assignment and Management ---
 
 export async function getAssignedCustomersByGrupo(grupoId: string): Promise<Customer[]> {
     const q = query(customersCollectionRef, where("loanControlGroupId", "==", grupoId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Customer[];
+    return snapshot.docs.map(customerFromDoc);
 }
 
 export async function getUnassignedCustomersByPlaza(plazaId: string): Promise<Customer[]> {
     const q = query(customersCollectionRef, where("plazaId", "==", plazaId), where("loanControlGroupId", "in", ["", null]));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({...doc.data(), id: doc.id})) as Customer[];
+    return snapshot.docs.map(customerFromDoc);
 }
 
 export async function assignCustomersToGrupo(customerIds: string[], grupoId: string) {
@@ -140,3 +141,36 @@ export async function unassignCustomerFromGrupo(customerId: string) {
     const customerRef = doc(db, "customers", customerId);
     await updateDoc(customerRef, { loanControlGroupId: "" });
 }
+
+export async function updateCustomer(id: string, customerData: Partial<Omit<Customer, 'id'>>) {
+    const customerDoc = doc(db, "customers", id);
+    await updateDoc(customerDoc, customerData);
+}
+
+export async function addPayment(customerId: string, paymentAmount: number): Promise<void> {
+    const customerRef = doc(db, "customers", customerId);
+    
+    await runTransaction(db, async (transaction) => {
+        const customerDoc = await transaction.get(customerRef);
+        if (!customerDoc.exists()) {
+            throw new Error("El cliente no existe.");
+        }
+
+        const customerData = customerFromDoc(customerDoc);
+        const previousDueAmount = customerData.dueAmount;
+        const newDueAmount = previousDueAmount - paymentAmount;
+        
+        const updatedCustomerData: Partial<Pick<Customer, 'dueAmount' | 'status'>> = {
+            dueAmount: newDueAmount,
+        };
+
+        if (newDueAmount <= 0) {
+            updatedCustomerData.status = 'Pagado';
+            updatedCustomerData.dueAmount = 0;
+        }
+
+        transaction.update(customerRef, updatedCustomerData);
+    });
+}
+
+    
