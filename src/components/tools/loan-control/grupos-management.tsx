@@ -20,7 +20,7 @@ export function GruposManagement({ plazaId }: { plazaId: string }) {
     const { toast } = useToast();
     const [grupos, setGrupos] = React.useState<GrupoWithCartera[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
-    const [isSubmitting, setIsSubmitting = React.useState(false);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [isFormOpen, setFormOpen] = React.useState(false);
     const [editingGrupo, setEditingGrupo] = React.useState<LoanControlGrupo | null>(null);
     const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
@@ -195,5 +195,3 @@ export function GruposManagement({ plazaId }: { plazaId: string }) {
         </Card>
     );
 }
-
-    
