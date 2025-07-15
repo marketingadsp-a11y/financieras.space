@@ -198,7 +198,6 @@ export async function importFullLoanData(
 ): Promise<void> {
     const batch = writeBatch(db);
 
-    // If 'replace', first delete all existing data for this prefix
     if (mode === 'replace') {
         const collectionsToDelete = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
         for (const coll of collectionsToDelete) {
@@ -212,41 +211,49 @@ export async function importFullLoanData(
     const carteraCache: Record<string, string> = {};
     const grupoCache: Record<string, string> = {};
 
-    let currentPlazaId = '';
-    let currentCarteraId = '';
-    let currentGrupoId = '';
-    
+    let lastPlazaName = '';
+    let lastCarteraName = '';
+    let lastGroupName = '';
+
     for (const row of data) {
-        // --- Hierarchy Management ---
-        const plazaName = row.plazaName || (Object.keys(plazaCache).length > 0 ? Object.keys(plazaCache)[Object.keys(plazaCache).length - 1] : '');
-        if (plazaName && !plazaCache[plazaName]) {
+        if (!row.name) continue;
+
+        const currentPlazaName = row.plazaName || lastPlazaName;
+        const currentCarteraName = row.carteraName || lastCarteraName;
+        const currentGroupName = row.groupName || lastGroupName;
+
+        if (!currentPlazaName || !currentCarteraName || !currentGroupName) continue;
+
+        lastPlazaName = currentPlazaName;
+        lastCarteraName = currentCarteraName;
+        lastGroupName = currentGroupName;
+
+        let plazaId = plazaCache[currentPlazaName];
+        if (!plazaId) {
             const plazaRef = doc(plazasCollectionRef);
-            batch.set(plazaRef, { name: plazaName, prefix });
-            plazaCache[plazaName] = plazaRef.id;
+            batch.set(plazaRef, { name: currentPlazaName, prefix });
+            plazaId = plazaRef.id;
+            plazaCache[currentPlazaName] = plazaId;
         }
-        currentPlazaId = plazaCache[plazaName];
 
-        const carteraName = row.carteraName || (Object.keys(carteraCache).length > 0 ? Object.keys(carteraCache)[Object.keys(carteraCache).length - 1] : '');
-        const carteraKey = `${currentPlazaId}_${carteraName}`;
-        if (carteraName && !carteraCache[carteraKey]) {
+        const carteraKey = `${plazaId}_${currentCarteraName}`;
+        let carteraId = carteraCache[carteraKey];
+        if (!carteraId) {
             const carteraRef = doc(carterasCollectionRef);
-            batch.set(carteraRef, { name: carteraName, plazaId: currentPlazaId, prefix });
-            carteraCache[carteraKey] = carteraRef.id;
+            batch.set(carteraRef, { name: currentCarteraName, plazaId, prefix });
+            carteraId = carteraRef.id;
+            carteraCache[carteraKey] = carteraId;
         }
-        currentCarteraId = carteraCache[carteraKey];
 
-        const groupName = row.groupName || (Object.keys(grupoCache).length > 0 ? Object.keys(grupoCache)[Object.keys(grupoCache).length - 1] : '');
-        const grupoKey = `${currentCarteraId}_${groupName}`;
-        if (groupName && !grupoCache[grupoKey]) {
+        const grupoKey = `${carteraId}_${currentGroupName}`;
+        let grupoId = grupoCache[grupoKey];
+        if (!grupoId) {
             const grupoRef = doc(gruposCollectionRef);
-            batch.set(grupoRef, { name: groupName, carteraId: currentCarteraId, plazaId: currentPlazaId, prefix });
-            grupoCache[grupoKey] = grupoRef.id;
+            batch.set(grupoRef, { name: currentGroupName, carteraId, plazaId, prefix });
+            grupoId = grupoRef.id;
+            grupoCache[grupoKey] = grupoId;
         }
-        currentGrupoId = grupoCache[grupoKey];
-        
-        // --- Customer Data ---
-        if (!row.name || !currentPlazaId || !currentCarteraId || !currentGrupoId) continue;
-        
+
         const customerRef = doc(customersCollectionRef);
         let fechaPrestamoDate;
         if (typeof row.fechaPrestamo === 'number') {
@@ -258,11 +265,11 @@ export async function importFullLoanData(
         }
 
         const loanAmount = row.loanAmount || 0;
-        const dueAmount = row.dueAmount === "" ? loanAmount : (row.dueAmount || loanAmount);
+        const dueAmount = row.dueAmount === "" || row.dueAmount === undefined ? loanAmount : (row.dueAmount || 0);
 
         const completeCustomerData = {
-            plazaId: currentPlazaId,
-            loanControlGroupId: currentGrupoId,
+            plazaId: plazaId,
+            loanControlGroupId: grupoId,
             status: dueAmount <= 0 ? 'Pagado' : 'Pendiente' as const,
             prefix: prefix,
             name: row.name || '',
@@ -291,4 +298,3 @@ export async function importFullLoanData(
 
     await batch.commit();
 }
-
