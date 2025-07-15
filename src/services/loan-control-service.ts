@@ -172,26 +172,43 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
 
 
 // --- Full Data Import ---
+async function clearDataByPrefix(prefix: string) {
+    const collectionsToDelete = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
+    for (const coll of collectionsToDelete) {
+        const q = query(coll, where("prefix", "==", prefix));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) continue;
+
+        let batch = writeBatch(db);
+        let count = 0;
+        for (const d of snapshot.docs) {
+            batch.delete(d.ref);
+            count++;
+            if (count === 400) {
+                await batch.commit();
+                batch = writeBatch(db);
+                count = 0;
+            }
+        }
+        if (count > 0) {
+            await batch.commit();
+        }
+    }
+}
+
+
 export async function importFullLoanData(
     data: any[],
     mode: 'add' | 'replace',
     prefix: string
 ): Promise<void> {
     
-    // Step 1: Delete old data if mode is 'replace'
     if (mode === 'replace') {
-        const deleteBatch = writeBatch(db);
-        const collectionsToDelete = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
-        for (const coll of collectionsToDelete) {
-            const q = query(coll, where("prefix", "==", prefix));
-            const snapshot = await getDocs(q);
-            snapshot.docs.forEach(d => deleteBatch.delete(d.ref));
-        }
-        await deleteBatch.commit();
+        await clearDataByPrefix(prefix);
     }
     
-    // Step 2: Add new data
-    const addBatch = writeBatch(db);
+    let batch = writeBatch(db);
+    let operationCount = 0;
     const plazaCache: Record<string, string> = {};
     const carteraCache: Record<string, string> = {};
     const grupoCache: Record<string, string> = {};
@@ -202,6 +219,14 @@ export async function importFullLoanData(
 
     for (const row of data) {
         if (!row.Nombre) continue;
+        
+        const commitBatchIfNeeded = async () => {
+            if (operationCount >= 400) {
+                await batch.commit();
+                batch = writeBatch(db);
+                operationCount = 0;
+            }
+        };
 
         const currentPlazaName = row.Plaza || lastPlazaName;
         const currentCarteraName = row.Cartera || lastCarteraName;
@@ -216,30 +241,34 @@ export async function importFullLoanData(
         let plazaId = plazaCache[currentPlazaName];
         if (!plazaId) {
             const plazaRef = doc(plazasCollectionRef);
-            addBatch.set(plazaRef, { name: currentPlazaName, prefix });
+            batch.set(plazaRef, { name: currentPlazaName, prefix });
             plazaId = plazaRef.id;
             plazaCache[currentPlazaName] = plazaId;
+            operationCount++;
+            await commitBatchIfNeeded();
         }
 
         const carteraKey = `${plazaId}_${currentCarteraName}`;
         let carteraId = carteraCache[carteraKey];
         if (!carteraId) {
             const carteraRef = doc(carterasCollectionRef);
-            addBatch.set(carteraRef, { name: currentCarteraName, plazaId, prefix });
+            batch.set(carteraRef, { name: currentCarteraName, plazaId, prefix });
             carteraId = carteraRef.id;
             carteraCache[carteraKey] = carteraId;
+            operationCount++;
+            await commitBatchIfNeeded();
         }
 
         const grupoKey = `${carteraId}_${currentGroupName}`;
         let grupoId = grupoCache[grupoKey];
         if (!grupoId) {
             const grupoRef = doc(gruposCollectionRef);
-            addBatch.set(grupoRef, { name: currentGroupName, carteraId, plazaId, prefix });
+            batch.set(grupoRef, { name: currentGroupName, carteraId, plazaId, prefix });
             grupoId = grupoRef.id;
             grupoCache[grupoKey] = grupoId;
+            operationCount++;
+            await commitBatchIfNeeded();
         }
-
-        const customerRef = doc(customersCollectionRef);
         
         let fechaPrestamoDate;
         const fechaValue = row['F. Prestamo'] || row.FechaPrestamo || row.fechaPrestamo || row.fecha_prestamo;
@@ -249,7 +278,7 @@ export async function importFullLoanData(
             } else if (typeof fechaValue === 'string') {
                 const parsed = Date.parse(fechaValue);
                 fechaPrestamoDate = isNaN(parsed) ? undefined : new Date(parsed);
-            } else if (typeof fechaValue === 'number') { // Handle Excel date serial numbers
+            } else if (typeof fechaValue === 'number') { 
                  const excelEpoch = new Date(1899, 11, 30);
                  fechaPrestamoDate = new Date(excelEpoch.getTime() + fechaValue * 86400000);
             }
@@ -281,8 +310,13 @@ export async function importFullLoanData(
             fechaPrestamo: fechaPrestamoDate ? Timestamp.fromDate(fechaPrestamoDate) : null,
         };
         
-        addBatch.set(customerRef, completeCustomerData);
+        const customerRef = doc(customersCollectionRef);
+        batch.set(customerRef, completeCustomerData);
+        operationCount++;
+        await commitBatchIfNeeded();
     }
 
-    await addBatch.commit();
+    if (operationCount > 0) {
+        await batch.commit();
+    }
 }
