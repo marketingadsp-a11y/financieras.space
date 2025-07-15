@@ -6,7 +6,7 @@ import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
 import { clearDataByPrefix } from "@/services/loan-control-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2 } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -99,6 +99,7 @@ export function LoanControlDashboard() {
     const [isImporting, setIsImporting] = React.useState(false);
     const [startDate, setStartDate] = React.useState<Date | undefined>();
     const [endDate, setEndDate] = React.useState<Date | undefined>();
+    const [searchTerm, setSearchTerm] = React.useState("");
     const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
 
     const fetchPlazasForUser = React.useCallback(async () => {
@@ -188,17 +189,24 @@ export function LoanControlDashboard() {
         }
     };
 
+    const filteredPlazas = React.useMemo(() => {
+        return plazas.filter(plaza => 
+            plaza.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [plazas, searchTerm]);
+
     const summary = React.useMemo(() => {
-        return plazas.reduce((acc, plaza) => {
+        return filteredPlazas.reduce((acc, plaza) => {
             acc.totalLoaned += plaza.totalLoanAmount || 0;
             acc.totalDue += plaza.pendingDebt || 0;
             return acc;
         }, { totalLoaned: 0, totalDue: 0 });
-    }, [plazas]);
+    }, [filteredPlazas]);
     
     const clearFilters = () => {
         setStartDate(undefined);
         setEndDate(undefined);
+        setSearchTerm("");
     }
 
     if (isLoading) {
@@ -325,51 +333,62 @@ export function LoanControlDashboard() {
                 <CardHeader>
                     <CardTitle>Filtros</CardTitle>
                     <CardDescription>
-                        Filtra la información de todas las plazas por un rango de fechas de préstamo.
+                        Filtra la información por nombre de plaza y/o rango de fechas de préstamo.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col md:flex-row gap-2 items-center">
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                            id="date-start"
-                            variant={"outline"}
-                            className={cn("w-full md:w-auto justify-start text-left font-normal", !startDate && "text-muted-foreground")}
-                            >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de inicio</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                        </PopoverContent>
-                    </Popover>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                            id="date-end"
-                            variant={"outline"}
-                            className={cn("w-full md:w-auto justify-start text-left font-normal", !endDate && "text-muted-foreground")}
-                            >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de fin</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                        </PopoverContent>
-                    </Popover>
-                    <Button variant="ghost" onClick={clearFilters}>
-                        <FilterX className="mr-2 h-4 w-4" />
-                        Limpiar Filtros
-                    </Button>
+                    <div className="relative flex-grow w-full">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar por nombre de plaza..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 w-full"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                id="date-start"
+                                variant={"outline"}
+                                className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de inicio</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                id="date-end"
+                                variant={"outline"}
+                                className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de fin</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                        <Button variant="ghost" onClick={clearFilters}>
+                            <FilterX className="mr-2 h-4 w-4" />
+                            Limpiar
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
 
 
-            {plazas.length > 0 ? (
+            {filteredPlazas.length > 0 ? (
                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {plazas.map(plaza => (
+                    {filteredPlazas.map(plaza => (
                         <PlazaCard key={plaza.id} plaza={plaza} />
                     ))}
                 </div>
@@ -377,7 +396,7 @@ export function LoanControlDashboard() {
                 <Card>
                     <CardContent className="pt-6">
                         <p className="text-center text-muted-foreground">
-                            {startDate || endDate ? "No se encontraron plazas con préstamos en el rango de fechas seleccionado." : "No hay plazas disponibles. Un administrador debe crear una primero o puedes importarlas masivamente."}
+                            {plazas.length > 0 ? "No se encontraron plazas que coincidan con los filtros." : "No hay plazas disponibles. Un administrador debe crear una primero o puedes importarlas masivamente."}
                         </p>
                     </CardContent>
                 </Card>
