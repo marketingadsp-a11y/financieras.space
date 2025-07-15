@@ -6,7 +6,7 @@ import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo,
 import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, DollarSign, Folder, LayoutGrid, Building, Folders } from "lucide-react";
+import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, DollarSign, Folder, LayoutGrid, Building, Folders, FileSpreadsheet, FileText, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -16,6 +16,9 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { getPlazaById } from "@/services/plaza-service";
 import { usePathname } from "next/navigation";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 
 const NavPanel = ({ plazaId }: { plazaId: string }) => {
@@ -25,8 +28,6 @@ const NavPanel = ({ plazaId }: { plazaId: string }) => {
     const navItems = [
         { href: basePath, label: 'Control General', icon: LayoutGrid, active: pathname === basePath },
         { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Plazas', icon: Building, active: pathname.startsWith(`${basePath}/plaza`) },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Carteras', icon: Folders, active: pathname.startsWith(`${basePath}/cartera`) },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Grupos', icon: Users, active: pathname.startsWith(`${basePath}/grupo`) },
     ];
 
     return (
@@ -79,6 +80,7 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
     const [editingGrupo, setEditingGrupo] = React.useState<LoanControlGrupo | null>(null);
     const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
     const [grupoToDelete, setGrupoToDelete] = React.useState<LoanControlGrupo | null>(null);
+    const [searchTerm, setSearchTerm] = React.useState("");
 
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
@@ -121,6 +123,10 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
     React.useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    const filteredGrupos = React.useMemo(() => {
+        return grupos.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [grupos, searchTerm]);
 
     const handleFormSubmit = async (values: Omit<LoanControlGrupo, 'id' | 'carteraId' | 'plazaId' | 'prefix'>) => {
         if (!user?.prefix || !cartera) return;
@@ -176,12 +182,44 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
     };
 
     const carteraSummary = React.useMemo(() => {
-        return grupos.reduce((acc, grupo) => {
+        return filteredGrupos.reduce((acc, grupo) => {
             acc.totalLoaned += grupo.totalLoaned;
             acc.totalDue += grupo.totalDue;
             return acc;
         }, { totalLoaned: 0, totalDue: 0 });
-    }, [grupos]);
+    }, [filteredGrupos]);
+
+    const exportToPDF = () => {
+        if (!cartera || filteredGrupos.length === 0) return;
+        const doc = new jsPDF();
+        doc.text(`Resumen de Grupos en Cartera: ${cartera.name}`, 14, 16);
+        doc.text(`Plaza: ${plaza?.name}`, 14, 22);
+        autoTable(doc, {
+            startY: 30,
+            head: [['Grupo', 'Clientes', 'Total Prestado', 'Total Pendiente']],
+            body: filteredGrupos.map(g => [
+                g.name,
+                g.customerCount,
+                `$${g.totalLoaned.toLocaleString('es-MX')}`,
+                `$${g.totalDue.toLocaleString('es-MX')}`
+            ]),
+        });
+        doc.save(`Resumen_Grupos_${cartera.name.replace(/\s/g, '_')}.pdf`);
+    };
+
+    const exportToExcel = () => {
+        if (!cartera || filteredGrupos.length === 0) return;
+        const dataToExport = filteredGrupos.map(g => ({
+            'Grupo': g.name,
+            'Clientes': g.customerCount,
+            'Total Prestado': g.totalLoaned,
+            'Total Pendiente': g.totalDue,
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Grupos");
+        XLSX.writeFile(workbook, `Resumen_Grupos_${cartera.name.replace(/\s/g, '_')}.xlsx`);
+    };
 
     if (isLoading) {
         return (
@@ -208,7 +246,7 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                         Gestiona los grupos de esta cartera de la plaza {plaza.name}.
                     </p>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex items-center gap-2">
                     <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
                         <DialogTrigger asChild>
                             <Button>
@@ -227,92 +265,111 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                             />
                         </DialogContent>
                     </Dialog>
+                    <Button variant="outline" size="sm" onClick={exportToExcel} disabled={filteredGrupos.length === 0}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportToPDF} disabled={filteredGrupos.length === 0}>
+                        <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+                    </Button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard title="Total Prestado en Cartera" value={carteraSummary.totalLoaned} />
-                <StatCard title="Total Pendiente en Cartera" value={carteraSummary.totalDue} />
+                <StatCard title="Total Prestado (Filtrado)" value={carteraSummary.totalLoaned} />
+                <StatCard title="Total Pendiente (Filtrado)" value={carteraSummary.totalDue} />
             </div>
-            
-            {grupos.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {grupos.map(grupo => (
-                        <Card key={grupo.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
-                             <CardHeader>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-primary/10 rounded-lg">
-                                        <Users className="h-6 w-6 text-primary" />
-                                    </div>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(grupo)}><Edit className="h-4 w-4" /></Button>
-                                        <AlertDialog open={!!grupoToDelete && grupoToDelete.id === grupo.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => openDeleteDialog(grupo)}><Trash2 className="h-4 w-4" /></Button>
-                                            </AlertDialogTrigger>
-                                             <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        Esta acción es irreversible y eliminará el grupo y desasignará a sus clientes.
-                                                        Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <Input
-                                                  value={deleteConfirmationText}
-                                                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                                                  placeholder={expectedConfirmationText}
-                                                  autoFocus
-                                                />
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction
-                                                        disabled={deleteConfirmationText !== expectedConfirmationText}
-                                                        onClick={handleDeleteGrupo}
-                                                        className="bg-destructive hover:bg-destructive/90"
-                                                    >
-                                                        Eliminar
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </div>
-                                <CardTitle className="text-xl mt-4">{grupo.name}</CardTitle>
-                                <CardDescription>{grupo.customerCount} cliente(s)</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex-grow space-y-4">
-                                <div className="border-t pt-4 space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Prestado</span>
-                                        <span className="font-medium">${grupo.totalLoaned.toLocaleString('es-MX')}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Pendiente</span>
-                                        <span className="font-medium text-destructive">${grupo.totalDue.toLocaleString('es-MX')}</span>
-                                    </div>
-                                </div>
+
+            <Card>
+                <CardHeader>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar grupo por nombre..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 w-full md:w-1/3"
+                        />
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {filteredGrupos.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredGrupos.map(grupo => (
+                                <Card key={grupo.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
+                                     <CardHeader>
+                                        <div className="flex justify-between items-start">
+                                            <div className="p-3 bg-primary/10 rounded-lg">
+                                                <Users className="h-6 w-6 text-primary" />
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(grupo)}><Edit className="h-4 w-4" /></Button>
+                                                <AlertDialog open={!!grupoToDelete && grupoToDelete.id === grupo.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => openDeleteDialog(grupo)}><Trash2 className="h-4 w-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                     <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Esta acción es irreversible y eliminará el grupo y desasignará a sus clientes.
+                                                                Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <Input
+                                                          value={deleteConfirmationText}
+                                                          onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                                                          placeholder={expectedConfirmationText}
+                                                          autoFocus
+                                                        />
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                disabled={deleteConfirmationText !== expectedConfirmationText}
+                                                                onClick={handleDeleteGrupo}
+                                                                className="bg-destructive hover:bg-destructive/90"
+                                                            >
+                                                                Eliminar
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </div>
+                                        <CardTitle className="text-xl mt-4">{grupo.name}</CardTitle>
+                                        <CardDescription>{grupo.customerCount} cliente(s)</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex-grow space-y-4">
+                                        <div className="border-t pt-4 space-y-2 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Prestado</span>
+                                                <span className="font-medium">${grupo.totalLoaned.toLocaleString('es-MX')}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Pendiente</span>
+                                                <span className="font-medium text-destructive">${grupo.totalDue.toLocaleString('es-MX')}</span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button asChild className="w-full">
+                                            <Link href={`/tools/loan-control/grupo/${grupo.id}`}>
+                                                Administrar Grupo
+                                                <ArrowRight className="ml-2 h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <Card>
+                            <CardContent className="pt-6 text-center text-muted-foreground">
+                                No hay grupos {searchTerm ? 'que coincidan con la búsqueda' : 'en esta cartera. ¡Crea el primero!'}.
                             </CardContent>
-                            <CardFooter>
-                                <Button asChild className="w-full">
-                                    <Link href={`/tools/loan-control/grupo/${grupo.id}`}>
-                                        Administrar Grupo
-                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Link>
-                                </Button>
-                            </CardFooter>
                         </Card>
-                    ))}
-                </div>
-            ) : (
-                <Card>
-                    <CardContent className="pt-6 text-center text-muted-foreground">
-                        No hay grupos en esta cartera. ¡Crea el primero!
-                    </CardContent>
-                </Card>
-            )}
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 }
-
-    

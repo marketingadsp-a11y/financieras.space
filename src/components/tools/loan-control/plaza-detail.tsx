@@ -2,12 +2,15 @@
 "use client";
 
 import * as React from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import { getPlazaById } from "@/services/plaza-service";
 import type { LoanControlCartera, Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { addCartera, deleteCartera, getCarterasByPlaza, getGruposByCartera, updateCartera, getAssignedCustomersByGrupo } from "@/services/loan-control-service";
-import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase, LayoutGrid, Building, Folders } from "lucide-react";
+import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase, LayoutGrid, Building, Folders, FileSpreadsheet, FileText, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -26,8 +29,6 @@ const NavPanel = ({ plazaId }: { plazaId: string }) => {
     const navItems = [
         { href: basePath, label: 'Control General', icon: LayoutGrid, active: pathname === basePath },
         { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Plazas', icon: Building, active: pathname.startsWith(`${basePath}/plaza`) },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Carteras', icon: Folders, active: pathname.startsWith(`${basePath}/cartera`) },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Grupos', icon: Users, active: pathname.startsWith(`${basePath}/grupo`) },
     ];
 
     return (
@@ -65,6 +66,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
     const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
     const [carteraToDelete, setCarteraToDelete] = React.useState<LoanControlCartera | null>(null);
+    const [searchTerm, setSearchTerm] = React.useState("");
+
 
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
@@ -104,6 +107,10 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     React.useEffect(() => {
         fetchData();
     }, [fetchData]);
+    
+    const filteredCarteras = React.useMemo(() => {
+        return carteras.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [carteras, searchTerm]);
 
     const handleFormSubmit = async (values: Omit<LoanControlCartera, 'id' | 'plazaId' | 'prefix'>) => {
         if (!user?.prefix) return;
@@ -158,6 +165,37 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         setDeleteConfirmationText('');
     };
 
+    const exportToPDF = () => {
+        if (!plaza || filteredCarteras.length === 0) return;
+        const doc = new jsPDF();
+        doc.text(`Resumen de Carteras: ${plaza.name}`, 14, 16);
+        autoTable(doc, {
+            startY: 25,
+            head: [['Cartera', 'Grupos', 'Total Prestado', 'Total Pendiente']],
+            body: filteredCarteras.map(c => [
+                c.name,
+                c.grupoCount,
+                `$${c.totalLoaned.toLocaleString('es-MX')}`,
+                `$${c.totalDue.toLocaleString('es-MX')}`
+            ]),
+        });
+        doc.save(`Resumen_Carteras_${plaza.name.replace(/\s/g, '_')}.pdf`);
+    };
+
+    const exportToExcel = () => {
+        if (!plaza || filteredCarteras.length === 0) return;
+        const dataToExport = filteredCarteras.map(c => ({
+            'Cartera': c.name,
+            'Grupos': c.grupoCount,
+            'Total Prestado': c.totalLoaned,
+            'Total Pendiente': c.totalDue
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Carteras");
+        XLSX.writeFile(workbook, `Resumen_Carteras_${plaza.name.replace(/\s/g, '_')}.xlsx`);
+    };
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-full">
@@ -183,107 +221,128 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                         Gestiona las carteras de esta plaza.
                     </p>
                 </div>
-                <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Crear Cartera
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>{editingCartera ? 'Editar' : 'Crear'} Cartera</DialogTitle>
-                        </DialogHeader>
-                        <CarteraForm 
-                            onSubmit={handleFormSubmit}
-                            cartera={editingCartera}
-                            isSubmitting={isSubmitting}
-                        />
-                    </DialogContent>
-                </Dialog>
-            </div>
-            
-            {carteras.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {carteras.map(cartera => (
-                        <Card key={cartera.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
-                            <CardHeader>
-                                <div className="flex justify-between items-start">
-                                    <div className="p-3 bg-primary/10 rounded-lg w-fit">
-                                        <Briefcase className="h-6 w-6 text-primary" />
-                                    </div>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(cartera)}><Edit className="h-4 w-4" /></Button>
-                                        <AlertDialog open={!!carteraToDelete && carteraToDelete.id === cartera.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => openDeleteDialog(cartera)}><Trash2 className="h-4 w-4" /></Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        Esta acción es irreversible y eliminará la cartera, sus grupos y desasignará a sus clientes.
-                                                        Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <Input
-                                                  value={deleteConfirmationText}
-                                                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                                                  placeholder={expectedConfirmationText}
-                                                  autoFocus
-                                                />
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction
-                                                        disabled={deleteConfirmationText !== expectedConfirmationText}
-                                                        onClick={handleDeleteCartera}
-                                                        className="bg-destructive hover:bg-destructive/90"
-                                                    >
-                                                        Eliminar
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </div>
-                                 <CardTitle className="text-xl mt-4">{cartera.name}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex-grow space-y-4">
-                               <div className="border-t pt-4 space-y-3">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">Grupos</span>
-                                        <span className="font-bold text-lg">{cartera.grupoCount}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">Prestado</span>
-                                        <span className="font-medium">${cartera.totalLoaned.toLocaleString('es-MX')}</span>
-                                    </div>
-                                     <div className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">Pendiente</span>
-                                        <span className="font-medium text-destructive">${cartera.totalDue.toLocaleString('es-MX')}</span>
-                                    </div>
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                <Button asChild className="w-full">
-                                    <Link href={`/tools/loan-control/cartera/${cartera.id}`}>
-                                        Administrar Cartera
-                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Link>
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    ))}
+                <div className="flex items-center gap-2">
+                    <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Crear Cartera
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{editingCartera ? 'Editar' : 'Crear'} Cartera</DialogTitle>
+                            </DialogHeader>
+                            <CarteraForm 
+                                onSubmit={handleFormSubmit}
+                                cartera={editingCartera}
+                                isSubmitting={isSubmitting}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" size="sm" onClick={exportToExcel} disabled={filteredCarteras.length === 0}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportToPDF} disabled={filteredCarteras.length === 0}>
+                        <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+                    </Button>
                 </div>
-            ) : (
-                <Card>
-                    <CardContent className="pt-6 text-center text-muted-foreground">
-                        No hay carteras en esta plaza. ¡Crea la primera!
-                    </CardContent>
-                </Card>
-            )}
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar cartera por nombre..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 w-full md:w-1/3"
+                        />
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {filteredCarteras.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredCarteras.map(cartera => (
+                                <Card key={cartera.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
+                                    <CardHeader>
+                                        <div className="flex justify-between items-start">
+                                            <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                                                <Briefcase className="h-6 w-6 text-primary" />
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(cartera)}><Edit className="h-4 w-4" /></Button>
+                                                <AlertDialog open={!!carteraToDelete && carteraToDelete.id === cartera.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => openDeleteDialog(cartera)}><Trash2 className="h-4 w-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Esta acción es irreversible y eliminará la cartera, sus grupos y desasignará a sus clientes.
+                                                                Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <Input
+                                                          value={deleteConfirmationText}
+                                                          onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                                                          placeholder={expectedConfirmationText}
+                                                          autoFocus
+                                                        />
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                disabled={deleteConfirmationText !== expectedConfirmationText}
+                                                                onClick={handleDeleteCartera}
+                                                                className="bg-destructive hover:bg-destructive/90"
+                                                            >
+                                                                Eliminar
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </div>
+                                         <CardTitle className="text-xl mt-4">{cartera.name}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="flex-grow space-y-4">
+                                       <div className="border-t pt-4 space-y-3">
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-muted-foreground">Grupos</span>
+                                                <span className="font-bold text-lg">{cartera.grupoCount}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-muted-foreground">Prestado</span>
+                                                <span className="font-medium">${cartera.totalLoaned.toLocaleString('es-MX')}</span>
+                                            </div>
+                                             <div className="flex justify-between items-center text-sm">
+                                                <span className="text-muted-foreground">Pendiente</span>
+                                                <span className="font-medium text-destructive">${cartera.totalDue.toLocaleString('es-MX')}</span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button asChild className="w-full">
+                                            <Link href={`/tools/loan-control/cartera/${cartera.id}`}>
+                                                Administrar Cartera
+                                                <ArrowRight className="ml-2 h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <Card>
+                            <CardContent className="pt-6 text-center text-muted-foreground">
+                                No hay carteras {searchTerm ? 'que coincidan con la búsqueda' : 'en esta plaza. ¡Crea la primera!'}.
+                            </CardContent>
+                        </Card>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 }
-
-    
