@@ -2,11 +2,14 @@
 "use client";
 
 import * as React from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
 import { clearDataByPrefix } from "@/services/loan-control-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search, FileSpreadsheet, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -28,7 +31,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => {
     return (
-        <Card className="flex flex-col group transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2">
+        <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2">
             <CardHeader className="p-1">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
@@ -206,6 +209,43 @@ export function LoanControlDashboard() {
         setEndDate(undefined);
         setSearchTerm("");
     }
+    
+    const exportToPDF = () => {
+        if (filteredPlazas.length === 0) return;
+        const doc = new jsPDF();
+        doc.text("Resumen de Plazas", 14, 16);
+        doc.text(`Total Prestado (Filtrado): $${summary.totalLoaned.toLocaleString('es-MX')}`, 14, 22);
+        doc.text(`Total Pendiente (Filtrado): $${summary.totalDue.toLocaleString('es-MX')}`, 14, 28);
+
+        autoTable(doc, {
+            startY: 35,
+            head: [['Plaza', 'Prefijo', 'Total Prestado', 'Deuda Pendiente', 'Recuperación (%)']],
+            body: filteredPlazas.map(p => [
+                p.name,
+                p.prefix || 'N/A',
+                `$${(p.totalLoanAmount || 0).toLocaleString('es-MX')}`,
+                `$${(p.pendingDebt || 0).toLocaleString('es-MX')}`,
+                `${p.recoveryRate.toFixed(1)}%`
+            ]),
+        });
+        doc.save("Resumen_Plazas_Control_Prestamo.pdf");
+    };
+
+    const exportToExcel = () => {
+        if (filteredPlazas.length === 0) return;
+        const dataToExport = filteredPlazas.map(p => ({
+            'Plaza': p.name,
+            'Prefijo': p.prefix,
+            'Total Prestado': p.totalLoanAmount,
+            'Deuda Pendiente': p.pendingDebt,
+            'Tasa de Recuperación (%)': p.recoveryRate,
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Resumen de Plazas");
+        XLSX.writeFile(workbook, "Resumen_Plazas_Control_Prestamo.xlsx");
+    };
+
 
     if (isLoading) {
         return (
@@ -275,6 +315,12 @@ export function LoanControlDashboard() {
                             </DialogFooter>
                         </DialogContent>
                       </Dialog>
+                    <Button variant="outline" size="sm" onClick={exportToExcel} disabled={filteredPlazas.length === 0}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportToPDF} disabled={filteredPlazas.length === 0}>
+                        <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+                    </Button>
                      <AlertDialog>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -385,7 +431,7 @@ export function LoanControlDashboard() {
 
 
             {filteredPlazas.length > 0 ? (
-                 <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                 <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                     {filteredPlazas.map(plaza => (
                         <PlazaCard key={plaza.id} plaza={plaza} />
                     ))}
