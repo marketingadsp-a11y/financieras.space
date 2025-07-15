@@ -267,15 +267,23 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         setEndDate(undefined);
     };
 
+    const getDateRangeString = () => {
+        if (startDate && endDate) return `Del ${format(startDate, 'dd/MM/yyyy')} al ${format(endDate, 'dd/MM/yyyy')}`;
+        if (startDate) return `Desde ${format(startDate, 'dd/MM/yyyy')}`;
+        if (endDate) return `Hasta ${format(endDate, 'dd/MM/yyyy')}`;
+        return 'Todas las fechas';
+    }
+
     const exportToPDF = () => {
         if (!grupo || filteredCustomers.length === 0) return;
         const doc = new jsPDF();
         doc.text(`Resumen del Grupo: ${grupo.name}`, 14, 16);
-        doc.text(`Total Prestado: $${summary.totalLoaned.toLocaleString('es-MX')}`, 14, 22);
-        doc.text(`Total Pendiente: $${summary.totalDue.toLocaleString('es-MX')}`, 14, 28);
+        doc.text(`Rango de Fechas: ${getDateRangeString()}`, 14, 22);
+        doc.text(`Total Prestado: $${summary.totalLoaned.toLocaleString('es-MX')}`, 14, 28);
+        doc.text(`Total Pendiente: $${summary.totalDue.toLocaleString('es-MX')}`, 14, 34);
 
         autoTable(doc, {
-            startY: 35,
+            startY: 40,
             head: [['Nombre', 'Dirección', 'Teléfono', 'Aval', 'Préstamo', 'Saldo']],
             body: filteredCustomers.map(c => [
                 c.name,
@@ -286,7 +294,8 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                 `$${(c.dueAmount || 0).toLocaleString('es-MX')}`
             ]),
         });
-        doc.save(`Resumen_Grupo_${grupo.name.replace(/\s/g, '_')}.pdf`);
+        const fileName = `Resumen_Grupo_${grupo.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+        doc.save(fileName);
     };
 
     const exportToExcel = () => {
@@ -306,10 +315,18 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
             'Monto Prestado': c.loanAmount,
             'Saldo Pendiente': c.dueAmount
         }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        
+        const worksheet = XLSX.utils.json_to_sheet([]);
+        XLSX.utils.sheet_add_aoa(worksheet, [['Resumen de Clientes del Grupo']], { origin: 'A1' });
+        XLSX.utils.sheet_add_aoa(worksheet, [[`Grupo: ${grupo.name}`]], { origin: 'A2' });
+        XLSX.utils.sheet_add_aoa(worksheet, [[`Rango de Fechas: ${getDateRangeString()}`]], { origin: 'A3' });
+
+        XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: 'A5' });
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
-        XLSX.writeFile(workbook, `Resumen_Grupo_${grupo.name.replace(/\s/g, '_')}.xlsx`);
+        const fileName = `Resumen_Grupo_${grupo.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
     };
 
     if (isLoading) {
@@ -481,4 +498,3 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         </div>
     );
 }
-

@@ -210,15 +210,23 @@ export function LoanControlDashboard() {
         setSearchTerm("");
     }
     
+    const getDateRangeString = () => {
+        if (startDate && endDate) return `Del ${format(startDate, 'dd/MM/yyyy')} al ${format(endDate, 'dd/MM/yyyy')}`;
+        if (startDate) return `Desde ${format(startDate, 'dd/MM/yyyy')}`;
+        if (endDate) return `Hasta ${format(endDate, 'dd/MM/yyyy')}`;
+        return 'Todas las fechas';
+    }
+
     const exportToPDF = () => {
         if (filteredPlazas.length === 0) return;
         const doc = new jsPDF();
-        doc.text("Resumen de Plazas", 14, 16);
-        doc.text(`Total Prestado (Filtrado): $${summary.totalLoaned.toLocaleString('es-MX')}`, 14, 22);
-        doc.text(`Total Pendiente (Filtrado): $${summary.totalDue.toLocaleString('es-MX')}`, 14, 28);
+        doc.text("Resumen de Plazas - Control de Préstamo", 14, 16);
+        doc.text(`Rango de Fechas: ${getDateRangeString()}`, 14, 22);
+        doc.text(`Total Prestado (Filtrado): $${summary.totalLoaned.toLocaleString('es-MX')}`, 14, 28);
+        doc.text(`Total Pendiente (Filtrado): $${summary.totalDue.toLocaleString('es-MX')}`, 14, 34);
 
         autoTable(doc, {
-            startY: 35,
+            startY: 40,
             head: [['Plaza', 'Prefijo', 'Total Prestado', 'Deuda Pendiente', 'Recuperación (%)']],
             body: filteredPlazas.map(p => [
                 p.name,
@@ -228,7 +236,8 @@ export function LoanControlDashboard() {
                 `${p.recoveryRate.toFixed(1)}%`
             ]),
         });
-        doc.save("Resumen_Plazas_Control_Prestamo.pdf");
+        const fileName = `Resumen_Plazas_Control_Prestamo_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+        doc.save(fileName);
     };
 
     const exportToExcel = () => {
@@ -240,10 +249,17 @@ export function LoanControlDashboard() {
             'Deuda Pendiente': p.pendingDebt,
             'Tasa de Recuperación (%)': p.recoveryRate,
         }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        
+        const worksheet = XLSX.utils.json_to_sheet([]);
+        XLSX.utils.sheet_add_aoa(worksheet, [['Resumen de Plazas - Control de Préstamo']], { origin: 'A1' });
+        XLSX.utils.sheet_add_aoa(worksheet, [[`Rango de Fechas: ${getDateRangeString()}`]], { origin: 'A2' });
+
+        XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: 'A4' });
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Resumen de Plazas");
-        XLSX.writeFile(workbook, "Resumen_Plazas_Control_Prestamo.xlsx");
+        const fileName = `Resumen_Plazas_Control_Prestamo_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
     };
 
 

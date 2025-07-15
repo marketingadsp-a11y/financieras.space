@@ -19,7 +19,8 @@ import { usePathname } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const NavPanel = ({ plazaId }: { plazaId: string }) => {
     const pathname = usePathname();
@@ -192,10 +193,12 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
     const exportToPDF = () => {
         if (!cartera || filteredGrupos.length === 0) return;
         const doc = new jsPDF();
+        const dateString = format(new Date(), 'dd/MM/yyyy');
         doc.text(`Resumen de Grupos en Cartera: ${cartera.name}`, 14, 16);
         doc.text(`Plaza: ${plaza?.name}`, 14, 22);
+        doc.text(`Fecha de Exportación: ${dateString}`, 14, 28);
         autoTable(doc, {
-            startY: 30,
+            startY: 35,
             head: [['Grupo', 'Clientes', 'Total Prestado', 'Total Pendiente']],
             body: filteredGrupos.map(g => [
                 g.name,
@@ -204,7 +207,8 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                 `$${g.totalDue.toLocaleString('es-MX')}`
             ]),
         });
-        doc.save(`Resumen_Grupos_${cartera.name.replace(/\s/g, '_')}.pdf`);
+        const fileName = `Resumen_Grupos_${cartera.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+        doc.save(fileName);
     };
 
     const exportToExcel = () => {
@@ -215,10 +219,20 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
             'Total Prestado': g.totalLoaned,
             'Total Pendiente': g.totalDue,
         }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        
+        const dateString = format(new Date(), 'PPP', { locale: es });
+        const worksheet = XLSX.utils.json_to_sheet([]);
+        XLSX.utils.sheet_add_aoa(worksheet, [['Resumen de Grupos']], { origin: 'A1' });
+        XLSX.utils.sheet_add_aoa(worksheet, [[`Cartera: ${cartera.name}`]], { origin: 'A2' });
+        XLSX.utils.sheet_add_aoa(worksheet, [[`Plaza: ${plaza?.name}`]], { origin: 'A3' });
+        XLSX.utils.sheet_add_aoa(worksheet, [[`Fecha de Exportación: ${dateString}`]], { origin: 'A4' });
+
+        XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: 'A6' });
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Grupos");
-        XLSX.writeFile(workbook, `Resumen_Grupos_${cartera.name.replace(/\s/g, '_')}.xlsx`);
+        const fileName = `Resumen_Grupos_${cartera.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
     };
 
     if (isLoading) {

@@ -243,6 +243,8 @@ export function DailyControlDashboard() {
       toast({ variant: "destructive", title: "No hay datos para exportar", description: "Selecciona una fecha con movimientos para generar el Excel." });
       return;
     }
+    
+    const formattedDate = format(date, "PPP", { locale: es });
 
     const dataToExport = entries.map(e => {
         const config = typeConfig[e.type];
@@ -255,9 +257,13 @@ export function DailyControlDashboard() {
         }
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Movimientos");
+    const worksheet = XLSX.utils.json_to_sheet([]);
+    XLSX.utils.sheet_add_aoa(worksheet, [['Reporte de Movimientos']], {origin: 'A1'});
+    XLSX.utils.sheet_add_aoa(worksheet, [[`Plaza: ${plazaName}`]], {origin: 'A2'});
+    XLSX.utils.sheet_add_aoa(worksheet, [[`Fecha: ${formattedDate}`]], {origin: 'A3'});
+    
+    XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: 'A5' });
+
 
     // Add totals
     XLSX.utils.sheet_add_aoa(worksheet, [[]], {origin: -1}); // Add a blank row
@@ -266,6 +272,8 @@ export function DailyControlDashboard() {
     XLSX.utils.sheet_add_aoa(worksheet, [['Total Prestado', totals.loaned]], {origin: -1});
     XLSX.utils.sheet_add_aoa(worksheet, [['Total Gastado', totals.spent]], {origin: -1});
 
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Movimientos");
     XLSX.writeFile(workbook, `control_diario_${plazaName.replace(/\s/g, '_')}_${format(date, 'yyyy-MM-dd')}.xlsx`);
   }
 
@@ -294,10 +302,15 @@ export function DailyControlDashboard() {
               Monto: e.amount
           }
       });
-      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const worksheet = XLSX.utils.json_to_sheet([]);
+      XLSX.utils.sheet_add_aoa(worksheet, [['Historial Completo de Movimientos']], {origin: 'A1'});
+      XLSX.utils.sheet_add_aoa(worksheet, [[`Plaza: ${plazaName}`]], {origin: 'A2'});
+      
+      XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: 'A4' });
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Historial Completo");
-      XLSX.writeFile(workbook, `historial_completo_${plazaName.replace(/\s/g, '_')}.xlsx`);
+      XLSX.writeFile(workbook, `historial_completo_${plazaName.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
 
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo exportar el historial." });
@@ -497,5 +510,3 @@ export function DailyControlDashboard() {
     </div>
   );
 }
-
-    

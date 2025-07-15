@@ -62,7 +62,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/auth-context";
-
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }) => {
     const cardClasses = {
@@ -203,7 +204,9 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
   const exportToPDF = () => {
     const doc = new jsPDF();
+    const dateString = format(new Date(), 'dd/MM/yyyy');
     doc.text(`Clientes de la Plaza: ${plaza?.name}`, 14, 16);
+    doc.text(`Fecha de Exportación: ${dateString}`, 14, 22);
     autoTable(doc, {
       head: [['Nombre', 'Dirección', 'Teléfono', 'Aval', 'Préstamo', 'Adeudo']],
       body: sortedCustomers.map(c => [
@@ -214,13 +217,15 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         `$${c.loanAmount.toLocaleString('es-MX')}`,
         `$${c.dueAmount.toLocaleString('es-MX')}`
       ]),
-      startY: 20,
+      startY: 30,
     });
-    doc.save(`clientes_${plaza?.name?.replace(/\s/g, '_')}.pdf`);
+    const fileName = `clientes_${plaza?.name?.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    doc.save(fileName);
   };
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(sortedCustomers.map(c => ({
+    const dateString = format(new Date(), 'PPP', { locale: es });
+    const dataToExport = sortedCustomers.map(c => ({
       Nombre: c.name,
       Dirección: c.address,
       Teléfono: c.phone,
@@ -228,10 +233,19 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
       'Monto Préstamo': c.loanAmount,
       'Monto Adeudo': c.dueAmount,
       Estado: c.status,
-    })));
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet([]);
+    XLSX.utils.sheet_add_aoa(worksheet, [['Reporte de Clientes']], { origin: 'A1' });
+    XLSX.utils.sheet_add_aoa(worksheet, [[`Plaza: ${plaza?.name}`]], { origin: 'A2' });
+    XLSX.utils.sheet_add_aoa(worksheet, [[`Fecha de Exportación: ${dateString}`]], { origin: 'A3' });
+
+    XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: 'A5' });
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
-    XLSX.writeFile(workbook, `clientes_${plaza?.name?.replace(/\s/g, '_')}.xlsx`);
+    const fileName = `clientes_${plaza?.name?.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
   };
 
 

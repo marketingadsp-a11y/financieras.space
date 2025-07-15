@@ -20,7 +20,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
-
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const NavPanel = ({ plazaId }: { plazaId: string }) => {
     const pathname = usePathname();
@@ -168,9 +169,11 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     const exportToPDF = () => {
         if (!plaza || filteredCarteras.length === 0) return;
         const doc = new jsPDF();
+        const dateString = format(new Date(), 'dd/MM/yyyy');
         doc.text(`Resumen de Carteras: ${plaza.name}`, 14, 16);
+        doc.text(`Fecha de Exportación: ${dateString}`, 14, 22);
         autoTable(doc, {
-            startY: 25,
+            startY: 30,
             head: [['Cartera', 'Grupos', 'Total Prestado', 'Total Pendiente']],
             body: filteredCarteras.map(c => [
                 c.name,
@@ -179,7 +182,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                 `$${c.totalDue.toLocaleString('es-MX')}`
             ]),
         });
-        doc.save(`Resumen_Carteras_${plaza.name.replace(/\s/g, '_')}.pdf`);
+        const fileName = `Resumen_Carteras_${plaza.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+        doc.save(fileName);
     };
 
     const exportToExcel = () => {
@@ -190,10 +194,19 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
             'Total Prestado': c.totalLoaned,
             'Total Pendiente': c.totalDue
         }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        
+        const dateString = format(new Date(), 'PPP', { locale: es });
+        const worksheet = XLSX.utils.json_to_sheet([]);
+        XLSX.utils.sheet_add_aoa(worksheet, [['Resumen de Carteras']], { origin: 'A1' });
+        XLSX.utils.sheet_add_aoa(worksheet, [[`Plaza: ${plaza.name}`]], { origin: 'A2' });
+        XLSX.utils.sheet_add_aoa(worksheet, [[`Fecha de Exportación: ${dateString}`]], { origin: 'A3' });
+
+        XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: 'A5' });
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Carteras");
-        XLSX.writeFile(workbook, `Resumen_Carteras_${plaza.name.replace(/\s/g, '_')}.xlsx`);
+        const fileName = `Resumen_Carteras_${plaza.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
     };
 
     if (isLoading) {
