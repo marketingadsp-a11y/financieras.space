@@ -8,6 +8,7 @@ import { getAdminByUsername, getAdminById } from '@/services/admin-service';
 import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-admin-service';
 import { getToolAdminByUsername } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
+import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import type { PlazaAccess, Admin } from '@/lib/data';
 
 interface User {
@@ -42,6 +43,24 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const updateTitle = async (prefix?: string) => {
+    if (prefix) {
+        try {
+            const profile = await getCompanyProfileByPrefix(prefix);
+            if (profile?.companyName) {
+                document.title = profile.companyName;
+                return;
+            }
+        } catch (error) {
+            console.error("Could not fetch company profile for title", error);
+        }
+    }
+    // Fallback to app name from localStorage or default
+    const storedAppName = localStorage.getItem('appName');
+    document.title = storedAppName || "Panel de Administración";
+};
+
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [impersonation, setImpersonation] = useState<ImpersonationInfo | null>(null);
@@ -56,6 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (currentUser) {
       const parsedUser = JSON.parse(currentUser);
       setUser(parsedUser);
+      updateTitle(parsedUser.prefix); // Update title on initial load
 
       if (originalUser) {
         const parsedOriginalUser = JSON.parse(originalUser);
@@ -98,19 +118,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         usernamePart = parts.slice(1).join('.');
       }
 
+      const handleSuccessfulLogin = (userData: User) => {
+          localStorage.setItem('appUser', JSON.stringify(userData));
+          setUser(userData);
+          updateTitle(userData.prefix);
+      };
+
       const superAdmin = await getSuperAdminByUsername(emailOrUsername);
       if (superAdmin && superAdmin.password === pass) {
           const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false, prefix: superAdmin.prefix };
-          localStorage.setItem('appUser', JSON.stringify(userData));
-          setUser(userData);
+          handleSuccessfulLogin(userData);
           return true;
       }
       
       const admin = await getAdminByUsername(usernamePart, prefix);
       if (admin && admin.password === pass && admin.status === "Activo") {
          const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy };
-         localStorage.setItem('appUser', JSON.stringify(userData));
-         setUser(userData);
+         handleSuccessfulLogin(userData);
          return true;
       } else if (admin && admin.status === "Inactivo") {
           throw new Error('Este usuario se encuentra inactivo.');
@@ -119,8 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const toolAdmin = await getToolAdminByUsername(usernamePart, prefix);
       if (toolAdmin && toolAdmin.password === pass && toolAdmin.status === "Activo") {
          const userData: User = { id: toolAdmin.id, username: toolAdmin.username, name: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId], prefix: toolAdmin.prefix, createdBy: toolAdmin.createdBy };
-         localStorage.setItem('appUser', JSON.stringify(userData));
-         setUser(userData);
+         handleSuccessfulLogin(userData);
          return true;
       } else if (toolAdmin && toolAdmin.status === "Inactivo") {
           throw new Error('Este usuario se encuentra inactivo.');
@@ -129,8 +152,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const plazaUser = await getPlazaUserByUsername(usernamePart, prefix);
       if (plazaUser && plazaUser.password === pass && plazaUser.status === "Activo") {
          const userData: User = { id: plazaUser.id, username: plazaUser.username, name: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, accessibleTools: plazaUser.accessibleTools, prefix: plazaUser.prefix };
-         localStorage.setItem('appUser', JSON.stringify(userData));
-         setUser(userData);
+         handleSuccessfulLogin(userData);
          return true;
       } else if (plazaUser && plazaUser.status === "Inactivo") {
           throw new Error('Este usuario se encuentra inactivo.');
@@ -170,6 +192,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('originalAppUser', JSON.stringify(user));
         localStorage.setItem('appUser', JSON.stringify(impersonatedUserData));
         setUser(impersonatedUserData);
+        updateTitle(impersonatedUserData.prefix);
         setImpersonation({ 
             username: impersonatedAdmin.name, 
             role: 'Admin',
@@ -186,6 +209,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('appUser', JSON.stringify(originalUser));
         localStorage.removeItem('originalAppUser');
         setUser(originalUser);
+        updateTitle(originalUser.prefix);
         setImpersonation(null);
         router.push('/panel-viewer');
     }
