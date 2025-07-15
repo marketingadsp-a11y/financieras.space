@@ -7,7 +7,7 @@ import type { LoanControlCartera, Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { addCartera, deleteCartera, getCarterasByPlaza, getGruposByCartera, updateCartera, getAssignedCustomersByGrupo } from "@/services/loan-control-service";
-import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase, Home, ChevronRight } from "lucide-react";
+import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase, Home, ChevronRight, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -143,36 +143,37 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
     return (
         <div className="space-y-6">
-             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                <div>
-                     <div className="flex items-center text-sm text-muted-foreground mb-2">
-                        <Link href="/tools/loan-control" className="hover:underline">Control de Préstamo</Link>
-                        <ChevronRight className="h-4 w-4" />
-                        <span className="font-medium text-foreground">{plaza.name}</span>
-                    </div>
-                    <h1 className="text-3xl font-bold tracking-tight">Carteras de {plaza.name}</h1>
-                    <p className="text-muted-foreground">
-                        Gestiona las carteras de esta plaza.
-                    </p>
+            <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                     <Button variant="ghost" asChild><Link href="/tools/loan-control">Ir a Control de Préstamos</Link></Button>
+                     <Button variant="ghost" asChild><Link href="/tools/loan-control">Ir a Plazas</Link></Button>
                 </div>
-                <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Crear Cartera
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>{editingCartera ? 'Editar' : 'Crear'} Cartera</DialogTitle>
-                        </DialogHeader>
-                        <CarteraForm 
-                            onSubmit={handleFormSubmit}
-                            cartera={editingCartera}
-                            isSubmitting={isSubmitting}
-                        />
-                    </DialogContent>
-                </Dialog>
+                <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Carteras de {plaza.name}</h1>
+                        <p className="text-muted-foreground">
+                            Gestiona las carteras de esta plaza.
+                        </p>
+                    </div>
+                    <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Crear Cartera
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{editingCartera ? 'Editar' : 'Crear'} Cartera</DialogTitle>
+                            </DialogHeader>
+                            <CarteraForm 
+                                onSubmit={handleFormSubmit}
+                                cartera={editingCartera}
+                                isSubmitting={isSubmitting}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
             
             {carteras.length > 0 ? (
@@ -181,8 +182,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                         <Card key={cartera.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
                             <CardHeader>
                                 <div className="flex justify-between items-start">
-                                    <div className="p-4 bg-primary/10 rounded-full mb-4">
-                                        <Briefcase className="h-8 w-8 text-primary" />
+                                    <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                                        <Briefcase className="h-6 w-6 text-primary" />
                                     </div>
                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(cartera)}><Edit className="h-4 w-4" /></Button>
@@ -218,7 +219,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                         </AlertDialog>
                                     </div>
                                 </div>
-                                 <CardTitle className="text-xl">{cartera.name}</CardTitle>
+                                 <CardTitle className="text-xl mt-4">{cartera.name}</CardTitle>
                             </CardHeader>
                             <CardContent className="flex-grow space-y-4">
                                <div className="border-t pt-4 space-y-3">
@@ -257,5 +258,3 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         </div>
     );
 }
-
-    

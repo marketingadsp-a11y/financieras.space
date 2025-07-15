@@ -297,68 +297,67 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-start gap-4">
-                <div>
-                    <div className="flex items-center text-sm text-muted-foreground mb-2">
-                        <Link href="/tools/loan-control" className="hover:underline">Control de Préstamo</Link>
-                        <ChevronRight className="h-4 w-4" />
-                        <Link href={`/tools/loan-control/plaza/${plaza.id}`} className="hover:underline">{plaza.name}</Link>
-                        <ChevronRight className="h-4 w-4" />
-                        <Link href={`/tools/loan-control/cartera/${cartera.id}`} className="hover:underline">{cartera.name}</Link>
-                        <ChevronRight className="h-4 w-4" />
-                        <span className="font-medium text-foreground">{grupo.name}</span>
-                    </div>
-                    <h1 className="text-3xl font-bold tracking-tight">Panel del Grupo: {grupo.name}</h1>
-                    <p className="text-muted-foreground">
-                        Resumen financiero y listado de clientes de este grupo.
-                    </p>
+            <div className="space-y-4">
+                 <div className="flex flex-wrap items-center gap-2">
+                     <Button variant="ghost" asChild><Link href="/tools/loan-control">Ir a Control de Préstamos</Link></Button>
+                     <Button variant="ghost" asChild><Link href={`/tools/loan-control/plaza/${plaza.id}`}>Ir a Plazas</Link></Button>
+                     <Button variant="ghost" asChild><Link href={`/tools/loan-control/cartera/${cartera.id}`}>Ir a Carteras</Link></Button>
+                     <Button variant="ghost" asChild><Link href={`/tools/loan-control/plaza/${plaza.id}/grupos`}>Ir a Grupos</Link></Button>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                     <Button variant="outline" onClick={exportToExcel} disabled={filteredCustomers.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
-                     <Button variant="outline" onClick={exportToPDF} disabled={filteredCustomers.length === 0}><FileText className="mr-2"/>Exportar PDF</Button>
-                     <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
-                        <DialogTrigger asChild>
-                            <Button><ClipboardPaste className="mr-2"/>Importar Clientes</Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-xl">
-                            <DialogHeader>
-                                <DialogTitle>Importar Clientes a "{grupo.name}"</DialogTitle>
-                                <DialogDescriptionComponent>
-                                  Pega datos desde una hoja de cálculo. La IA los procesará y agregará a este grupo.
-                                </DialogDescriptionComponent>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                               <div className="space-y-2">
-                                  <Label>Modo de Importación</Label>
-                                  <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="add" id="r-add" />
-                                      <Label htmlFor="r-add">Añadir a existentes</Label>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-start gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Panel del Grupo: {grupo.name}</h1>
+                        <p className="text-muted-foreground">
+                            Resumen financiero y listado de clientes del grupo en la cartera {cartera.name} / plaza {plaza.name}.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button variant="outline" onClick={exportToExcel} disabled={filteredCustomers.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
+                        <Button variant="outline" onClick={exportToPDF} disabled={filteredCustomers.length === 0}><FileText className="mr-2"/>Exportar PDF</Button>
+                        <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
+                            <DialogTrigger asChild>
+                                <Button><ClipboardPaste className="mr-2"/>Importar Clientes</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-xl">
+                                <DialogHeader>
+                                    <DialogTitle>Importar Clientes a "{grupo.name}"</DialogTitle>
+                                    <DialogDescriptionComponent>
+                                    Pega datos desde una hoja de cálculo. La IA los procesará y agregará a este grupo.
+                                    </DialogDescriptionComponent>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                    <Label>Modo de Importación</Label>
+                                    <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
+                                        <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="add" id="r-add" />
+                                        <Label htmlFor="r-add">Añadir a existentes</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="replace" id="r-replace" />
+                                        <Label htmlFor="r-replace">Reemplazar clientes de este grupo</Label>
+                                        </div>
+                                    </RadioGroup>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="replace" id="r-replace" />
-                                      <Label htmlFor="r-replace">Reemplazar clientes de este grupo</Label>
-                                    </div>
-                                  </RadioGroup>
+                                    <Label htmlFor="import-textarea">Datos de Clientes</Label>
+                                    <Textarea 
+                                    id="import-textarea"
+                                    placeholder="Pega aquí los datos de tu hoja de cálculo..." 
+                                    className="min-h-[200px]"
+                                    value={importText}
+                                    onChange={(e) => setImportText(e.target.value)}
+                                    />
                                 </div>
-                                <Label htmlFor="import-textarea">Datos de Clientes</Label>
-                                <Textarea 
-                                  id="import-textarea"
-                                  placeholder="Pega aquí los datos de tu hoja de cálculo..." 
-                                  className="min-h-[200px]"
-                                  value={importText}
-                                  onChange={(e) => setImportText(e.target.value)}
-                                />
-                            </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                                <Button onClick={handleImport} disabled={isParsing}>
-                                    {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
-                                    {isParsing ? 'Procesando...' : 'Importar'}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                     </Dialog>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+                                    <Button onClick={handleImport} disabled={isParsing}>
+                                        {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
+                                        {isParsing ? 'Procesando...' : 'Importar'}
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                 </div>
             </div>
 
@@ -459,5 +458,3 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         </div>
     );
 }
-
-    

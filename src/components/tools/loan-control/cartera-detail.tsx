@@ -170,39 +170,39 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
 
     return (
         <div className="space-y-6">
-             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                <div>
-                    <div className="flex items-center text-sm text-muted-foreground mb-2">
-                        <Link href="/tools/loan-control" className="hover:underline">Control de Préstamo</Link>
-                        <ChevronRight className="h-4 w-4" />
-                        <Link href={`/tools/loan-control/plaza/${plaza.id}`} className="hover:underline">{plaza.name}</Link>
-                        <ChevronRight className="h-4 w-4" />
-                        <span className="font-medium text-foreground">{cartera.name}</span>
-                    </div>
-                    <h1 className="text-3xl font-bold tracking-tight">Grupos de {cartera.name}</h1>
-                    <p className="text-muted-foreground">
-                        Gestiona los grupos de esta cartera.
-                    </p>
+            <div className="space-y-4">
+                 <div className="flex flex-wrap items-center gap-2">
+                     <Button variant="ghost" asChild><Link href="/tools/loan-control">Ir a Control de Préstamos</Link></Button>
+                     <Button variant="ghost" asChild><Link href={`/tools/loan-control/plaza/${plaza.id}`}>Ir a Plazas</Link></Button>
+                     <Button variant="ghost" asChild><Link href={`/tools/loan-control/plaza/${plaza.id}`}>Ir a Carteras</Link></Button>
                 </div>
-                <div className="flex-shrink-0">
-                    <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Crear Grupo
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>{editingGrupo ? 'Editar' : 'Crear'} Grupo</DialogTitle>
-                            </DialogHeader>
-                            <GrupoForm 
-                                onSubmit={handleFormSubmit}
-                                grupo={editingGrupo}
-                                isSubmitting={isSubmitting}
-                            />
-                        </DialogContent>
-                    </Dialog>
+                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Grupos de {cartera.name}</h1>
+                        <p className="text-muted-foreground">
+                            Gestiona los grupos de esta cartera de la plaza {plaza.name}.
+                        </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                        <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Crear Grupo
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>{editingGrupo ? 'Editar' : 'Crear'} Grupo</DialogTitle>
+                                </DialogHeader>
+                                <GrupoForm 
+                                    onSubmit={handleFormSubmit}
+                                    grupo={editingGrupo}
+                                    isSubmitting={isSubmitting}
+                                />
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                 </div>
             </div>
 
@@ -290,5 +290,3 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
         </div>
     );
 }
-
-    
