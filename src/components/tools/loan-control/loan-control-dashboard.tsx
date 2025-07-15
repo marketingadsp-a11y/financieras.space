@@ -28,8 +28,8 @@ import { Calendar } from "@/components/ui/calendar";
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => {
     return (
-        <Card className="flex flex-col group hover:border-primary transition-all">
-            <CardHeader className="p-3">
+        <Card className="flex flex-col group transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2">
+            <CardHeader className="p-1">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                         <div className="p-2 bg-primary/10 rounded-lg w-fit">
