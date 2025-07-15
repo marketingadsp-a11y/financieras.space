@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -56,8 +55,8 @@ const StatCard = ({ title, value, icon: Icon, isCurrency = false, variant = 'def
     );
 };
 
-
-const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
+const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => {
+    return (
     <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30">
         <CardHeader>
             <div className="flex items-center justify-between">
@@ -71,17 +70,15 @@ const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
             </div>
         </CardHeader>
         <CardContent className="flex-grow space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="text-left">
-                    <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
-                    <p className="text-xl font-bold text-destructive">
-                        ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                    </p>
-                </div>
-                 <div>
-                    <p className="text-sm font-medium text-muted-foreground">Carteras</p>
-                    <p className="text-xl font-bold text-center">{plaza.carteraCount}</p>
-                </div>
+             <div className="text-left">
+                <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+                <p className="text-xl font-bold text-destructive">
+                    ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </p>
+            </div>
+             <div>
+                <p className="text-sm font-medium text-muted-foreground">Carteras</p>
+                <p className="text-xl font-bold text-center">{plaza.carteraCount}</p>
             </div>
         </CardContent>
         <CardFooter>
@@ -92,7 +89,8 @@ const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
             </Button>
         </CardFooter>
     </Card>
-);
+    );
+};
 
 export function LoanControlDashboard() {
   const { user } = useAuth();
