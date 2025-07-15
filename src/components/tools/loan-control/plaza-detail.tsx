@@ -123,6 +123,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const [isImportModalOpen, setImportModalOpen] = React.useState(false);
   const [importText, setImportText] = React.useState('');
   const [isProcessingImport, setIsProcessingImport] = React.useState(false);
+  const [importProgress, setImportProgress] = React.useState('');
   const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -211,37 +212,61 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     }
   }
 
-  const handleImportSubmit = async (textToImport: string) => {
-    if (!textToImport.trim() || !user?.prefix) {
-        toast({ variant: "destructive", title: "Error", description: "No hay datos para importar o falta el prefijo de usuario."});
+  const processImportInBatches = async (textData: string) => {
+    if (!user?.prefix) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudo determinar el prefijo para la importación." });
         return;
     }
-    
+
     setIsProcessingImport(true);
+    setImportProgress('Dividiendo archivo...');
+    
+    // Split text data into rows and then into batches
+    const rows = textData.trim().split('\n');
+    const header = rows.shift() || ''; // Assume first row is header
+    const BATCH_SIZE = 100;
+    const batches: string[] = [];
+
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batchRows = rows.slice(i, i + BATCH_SIZE);
+        // Add header to each batch for context
+        batches.push([header, ...batchRows].join('\n'));
+    }
+
+    let totalNewCarteras = 0;
+    let totalNewGroups = 0;
+    let totalCustomers = 0;
     
     try {
-        const result = await importPlazaStructureFromPaste({
-            plazaId,
-            prefix: user.prefix,
-            pasteData: textToImport
-        });
+        for (let i = 0; i < batches.length; i++) {
+            setImportProgress(`Procesando lote ${i + 1} de ${batches.length}...`);
+            const result = await importPlazaStructureFromPaste({
+                plazaId,
+                prefix: user.prefix,
+                pasteData: batches[i]
+            });
+            totalNewCarteras += result.newCarteras;
+            totalNewGroups += result.newGroups;
+            totalCustomers += result.totalCustomers;
+        }
 
         toast({
             title: "Importación Completa",
-            description: `Procesado: ${result.newCarteras} carteras nuevas, ${result.newGroups} grupos nuevos, ${result.totalCustomers} clientes.`
+            description: `Se procesaron ${totalCustomers} clientes. Carteras nuevas: ${totalNewCarteras}. Grupos nuevos: ${totalNewGroups}.`
         });
 
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Error desconocido";
-        toast({ variant: "destructive", title: `Error de Importación`, description: errorMessage });
+        const errorMessage = error instanceof Error ? error.message : "Error desconocido durante la importación.";
+        toast({ variant: "destructive", title: `Error en lote ${batches.length}`, description: errorMessage });
     } finally {
         setIsProcessingImport(false);
+        setImportProgress('');
         setImportModalOpen(false);
         setImportText('');
         await fetchCarterasWithStats(); // Refresh all data at the end
     }
   };
-  
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -254,11 +279,10 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
+            // Use tab as separator for better AI parsing
             const textData = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
             
-            // Set text in dialog and process it
-            setImportText(textData);
-            handleImportSubmit(textData);
+            processImportInBatches(textData);
 
         } catch (error) {
             toast({ variant: "destructive", title: "Error al leer archivo", description: "El archivo no es un formato de Excel válido."})
@@ -269,7 +293,6 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     }
     reader.readAsArrayBuffer(file);
     
-    // Reset file input to allow re-uploading the same file
     if (event.target) {
       event.target.value = '';
     }
@@ -316,7 +339,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                     />
                     <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isProcessingImport}>
                         {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
-                        {isProcessingImport ? 'Procesando...' : 'Importar Archivo'}
+                        {isProcessingImport ? importProgress : 'Importar Archivo'}
                     </Button>
                     <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                         <DialogTrigger asChild>
@@ -341,9 +364,9 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                                <Button onClick={() => handleImportSubmit(importText)} disabled={isProcessingImport}>
+                                <Button onClick={() => processImportInBatches(importText)} disabled={isProcessingImport}>
                                     {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
-                                    {isProcessingImport ? 'Procesando...' : 'Importar'}
+                                    {isProcessingImport ? importProgress : 'Importar'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

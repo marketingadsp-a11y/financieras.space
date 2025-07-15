@@ -200,6 +200,7 @@ interface PlazaImportParams {
 interface PlazaImportResult {
     newCarteras: number;
     newGroups: number;
+
     totalCustomers: number;
 }
 
@@ -237,20 +238,7 @@ export async function importPlazaStructureFromPaste(params: PlazaImportParams): 
     const existingGruposDocs = await getDocs(query(gruposCollectionRef, where("plazaId", "==", plazaId)));
     const existingGruposMap = new Map(existingGruposDocs.docs.map(d => [`${d.data().carteraId}_${d.data().name}`, { id: d.id, ...d.data() } as LoanControlGrupo]));
     
-    const BATCH_LIMIT = 500;
-    let writeOperations: Promise<void>[] = [];
-    let batch = writeBatch(db);
-    let operationCount = 0;
-
-    const commitBatchIfNeeded = () => {
-        if (operationCount >= BATCH_LIMIT) {
-            writeOperations.push(batch.commit());
-            batch = writeBatch(db);
-            operationCount = 0;
-        }
-    };
-
-    // 4. Process structure
+    // 4. Process structure sequentially to avoid race conditions
     for (const carteraName of Object.keys(structure)) {
         let cartera = existingCarterasMap.get(carteraName);
         if (!cartera) {
@@ -268,9 +256,11 @@ export async function importPlazaStructureFromPaste(params: PlazaImportParams): 
                 existingGruposMap.set(`${cartera.id}_${groupName}`, grupo);
                 newGroupsCount++;
             }
-
+            
+            // Use batch for customer creation within each group
+            const batch = writeBatch(db);
             const customersToAdd = structure[carteraName][groupName];
-            for (const customerData of customersToAdd) {
+            customersToAdd.forEach(customerData => {
                 const newCustomerRef = doc(customersCollectionRef);
                 const { carteraName: cn, groupName: gn, responsable: r, ...rest } = customerData;
                 const completeCustomerData = {
@@ -282,19 +272,11 @@ export async function importPlazaStructureFromPaste(params: PlazaImportParams): 
                     fechaPrestamo: customerData.fechaPrestamo ? new Date(customerData.fechaPrestamo) : new Date(),
                 };
                 batch.set(newCustomerRef, completeCustomerData);
-                operationCount++;
-                commitBatchIfNeeded();
-            }
+            });
+            await batch.commit();
         }
     }
-
-    // Commit any remaining operations in the last batch
-    if (operationCount > 0) {
-        writeOperations.push(batch.commit());
-    }
-
-    await Promise.all(writeOperations);
-
+    
     return {
         newCarteras: newCarterasCount,
         newGroups: newGroupsCount,
