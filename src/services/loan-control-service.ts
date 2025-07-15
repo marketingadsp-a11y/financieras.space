@@ -57,15 +57,31 @@ export async function deleteCartera(id: string) {
     await deleteDoc(carteraDoc);
 }
 
-export async function getPlazaStructure(plazaId: string): Promise<{ carteras: LoanControlCartera[], grupos: LoanControlGrupo[], customers: Customer[] }> {
+export async function getPlazaStructure(plazaId: string, options?: { startDate?: Date, endDate?: Date }): Promise<{ carteras: LoanControlCartera[], grupos: LoanControlGrupo[], customers: Customer[] }> {
     const carterasQuery = query(carterasCollectionRef, where("plazaId", "==", plazaId));
     const gruposQuery = query(gruposCollectionRef, where("plazaId", "==", plazaId));
     
-    const [carterasSnapshot, gruposSnapshot, customers] = await Promise.all([
+    const [carterasSnapshot, gruposSnapshot, allCustomers] = await Promise.all([
         getDocs(carterasQuery),
         getDocs(gruposQuery),
-        getCustomersByPlaza(plazaId)
+        getCustomersByPlaza(plazaId) // Fetch all first
     ]);
+
+    // Filter customers by date in application code
+    const customers = allCustomers.filter(customer => {
+        if (!options?.startDate && !options?.endDate) return true;
+        if (!customer.fechaPrestamo) return false;
+        
+        const customerDate = new Date(customer.fechaPrestamo);
+
+        if (options.startDate && customerDate < options.startDate) return false;
+        if (options.endDate) {
+            const endOfDay = new Date(options.endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (customerDate > endOfDay) return false;
+        }
+        return true;
+    });
 
     const carteras = carterasSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlCartera[];
     const grupos = gruposSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlGrupo[];
@@ -390,5 +406,3 @@ export async function importFullStructureFromData(params: FullStructureImportPar
 
     return { newPlazas: newPlazasCount, newCarteras: newCarterasCount, newGroups: newGroupsCount, totalCustomers: customers.length };
 }
-
-

@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from 'file-saver';
 import { getPlazaById } from "@/services/plaza-service";
 import type { Plaza, LoanControlCartera, Customer } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Upload, Download, DollarSign } from "lucide-react";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Upload, Download, DollarSign, Calendar as CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,10 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 
 type CarteraWithStats = LoanControlCartera & {
@@ -142,13 +146,15 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [startDate, setStartDate] = React.useState<Date | undefined>();
+  const [endDate, setEndDate] = React.useState<Date | undefined>();
 
   const fetchPlazaData = React.useCallback(async () => {
     setIsLoading(true);
     try {
         const [plazaData, structureData] = await Promise.all([
             getPlazaById(plazaId),
-            getPlazaStructure(plazaId)
+            getPlazaStructure(plazaId, { startDate, endDate })
         ]);
 
         setPlaza(plazaData);
@@ -181,7 +187,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [plazaId, toast]);
+  }, [plazaId, toast, startDate, endDate]);
 
   React.useEffect(() => {
     fetchPlazaData();
@@ -348,9 +354,56 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-            <StatCard title="Total Prestado en Plaza" value={plazaTotals.totalPrestado} isCurrency />
-            <StatCard title="Saldo Pendiente en Plaza" value={plazaTotals.totalPendiente} isCurrency />
+            <StatCard title="Total Prestado" value={plazaTotals.totalPrestado} isCurrency />
+            <StatCard title="Saldo Pendiente" value={plazaTotals.totalPendiente} isCurrency />
       </div>
+
+       <div className="space-y-4 p-4 border rounded-lg bg-card">
+            <h4 className="font-medium text-sm">Filtrar por Fecha de Otorgamiento</h4>
+            <div className="flex flex-col sm:flex-row gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date-start"
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de Inicio</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date-end"
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de Fin</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                 <Button onClick={() => {setStartDate(undefined); setEndDate(undefined);}} variant="ghost">Limpiar</Button>
+            </div>
+        </div>
 
       <Card>
         <CardHeader>
