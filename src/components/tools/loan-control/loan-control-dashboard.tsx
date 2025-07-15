@@ -26,71 +26,40 @@ type PlazaWithStats = Plaza & {
   carteraCount: number;
 };
 
-const StatCard = ({ title, value, icon: Icon, isCurrency = false, variant = 'default' }: { title: string; value: number | string; icon: React.ElementType; isCurrency?: boolean; variant?: 'default' | 'destructive' }) => {
-    const cardClasses = {
-        default: "bg-card text-card-foreground",
-        destructive: "bg-destructive/90 text-destructive-foreground",
-    }
-    const textClasses = {
-        default: "text-primary",
-        destructive: "text-destructive-foreground",
-    }
-    const iconClasses = {
-        default: "text-muted-foreground",
-        destructive: "text-destructive-foreground/70",
-    }
-    
-    return (
-        <Card className={cardClasses[variant]}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                <Icon className={`h-4 w-4 ${iconClasses[variant]}`} />
-            </CardHeader>
-            <CardContent>
-                <div className={`text-3xl font-bold ${textClasses[variant]}`}>
-                    {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
-
-const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => {
-    return (
-        <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30">
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-3 text-lg">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <Building className="h-6 w-6" />
-                        </span>
-                        {plaza.name}
-                    </CardTitle>
-                    {plaza.prefix && <Badge variant="outline">{plaza.prefix}</Badge>}
-                </div>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-4">
-                 <div className="text-left">
-                    <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
-                    <p className="text-xl font-bold text-destructive">
-                        ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                    </p>
-                </div>
-                 <div>
-                    <p className="text-sm font-medium text-muted-foreground">Carteras</p>
-                    <p className="text-xl font-bold text-center">{plaza.carteraCount}</p>
-                </div>
-            </CardContent>
-            <CardFooter>
-                <Button asChild className="w-full">
-                   <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
-                        Administrar Plaza <ArrowRight className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
-                    </Link>
-                </Button>
-            </CardFooter>
-        </Card>
-    );
-};
+const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
+    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30">
+        <CardHeader>
+            <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Building className="h-6 w-6" />
+                    </span>
+                    {plaza.name}
+                </CardTitle>
+                {plaza.prefix && <Badge variant="outline">{plaza.prefix}</Badge>}
+            </div>
+        </CardHeader>
+        <CardContent className="flex-grow space-y-4">
+             <div className="text-left">
+                <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+                <p className="text-xl font-bold text-destructive">
+                    ${(plaza.pendingDebt || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </p>
+            </div>
+             <div>
+                <p className="text-sm font-medium text-muted-foreground">Carteras</p>
+                <p className="text-xl font-bold text-center">{plaza.carteraCount}</p>
+            </div>
+        </CardContent>
+        <CardFooter>
+            <Button asChild className="w-full">
+               <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
+                    Administrar Plaza <ArrowRight className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
+            </Button>
+        </CardFooter>
+    </Card>
+);
 
 export function LoanControlDashboard() {
   const { user } = useAuth();
@@ -222,13 +191,6 @@ export function LoanControlDashboard() {
     }
   };
 
-  const globalTotals = React.useMemo(() => {
-    return plazas.reduce((acc, plaza) => {
-      acc.saldoPendiente += plaza.pendingDebt;
-      return acc;
-    }, { saldoPendiente: 0 });
-  }, [plazas]);
-
   return (
     <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -289,10 +251,6 @@ export function LoanControlDashboard() {
                     </DialogContent>
                 </Dialog>
             </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-            <StatCard title="Saldo Pendiente Global" value={globalTotals.saldoPendiente} icon={Banknote} isCurrency variant="destructive" />
         </div>
 
         <div className="space-y-4 p-4 border rounded-lg bg-card">
