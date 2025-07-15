@@ -29,29 +29,27 @@ import { Calendar } from "@/components/ui/calendar";
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => {
     return (
         <Card className="flex flex-col group hover:border-primary transition-all">
-            <CardHeader>
-                <div className="flex items-center gap-3">
-                     <div className="p-2 bg-primary/10 rounded-lg w-fit">
-                        <Building className="h-5 w-5 text-primary transition-transform duration-300 group-hover:scale-110" />
-                    </div>
-                    <div>
-                        <CardTitle className="text-lg">{plaza.name}</CardTitle>
-                        <CardDescription className="text-xs">Prefijo: {plaza.prefix}</CardDescription>
+            <CardHeader className="p-4">
+                <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg w-fit">
+                            <Building className="h-5 w-5 text-primary transition-transform duration-300 group-hover:scale-110" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-base">{plaza.name}</CardTitle>
+                            <CardDescription className="text-xs">Prefijo: {plaza.prefix}</CardDescription>
+                        </div>
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="flex-grow space-y-3">
+            <CardContent className="flex-grow space-y-2 px-4 pb-4">
                 <div className="space-y-1">
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-green-500"/> PRESTADO</span>
-                    </div>
-                    <p className="text-xl font-bold">${(plaza.totalLoanAmount || 0).toLocaleString('es-MX')}</p>
+                     <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-green-500"/> PRESTADO</span>
+                    <p className="text-lg font-bold">${(plaza.totalLoanAmount || 0).toLocaleString('es-MX')}</p>
                 </div>
                  <div className="space-y-1">
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingDown className="h-3 w-3 text-red-500"/> PENDIENTE</span>
-                    </div>
-                    <p className="text-xl font-bold text-destructive">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
+                     <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingDown className="h-3 w-3 text-red-500"/> PENDIENTE</span>
+                    <p className="text-lg font-bold text-destructive">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
                 </div>
                 <div className="space-y-1">
                     <div className="flex justify-between items-baseline">
@@ -61,8 +59,8 @@ const PlazaCard = ({ plaza }: { plaza: Plaza }) => {
                     <Progress value={plaza.recoveryRate} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-blue-400 [&>div]:to-blue-600" />
                 </div>
             </CardContent>
-            <CardFooter>
-                <Button asChild className="w-full" size="sm">
+            <CardFooter className="p-2 border-t">
+                <Button asChild className="w-full" variant="ghost" size="sm">
                     <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
                         Administrar
                         <ArrowRight className="ml-2 h-4 w-4" />
@@ -387,7 +385,7 @@ export function LoanControlDashboard() {
 
 
             {filteredPlazas.length > 0 ? (
-                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                 <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {filteredPlazas.map(plaza => (
                         <PlazaCard key={plaza.id} plaza={plaza} />
                     ))}
