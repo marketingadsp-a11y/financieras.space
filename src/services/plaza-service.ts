@@ -12,9 +12,11 @@ const customersCollectionRef = collection(db, "customers");
 type GetPlazasOptions = {
     prefix?: string;
     fetchAll?: boolean;
+    startDate?: Date;
+    endDate?: Date;
 }
 
-export async function getPlazas({ prefix, fetchAll = false }: GetPlazasOptions = {}): Promise<Plaza[]> {
+export async function getPlazas({ prefix, fetchAll = false, startDate, endDate }: GetPlazasOptions = {}): Promise<Plaza[]> {
     let q;
     if (fetchAll) {
         // SuperAdmins or ToolAdmins can see everything
@@ -33,7 +35,7 @@ export async function getPlazas({ prefix, fetchAll = false }: GetPlazasOptions =
         const plazaData = doc.data() as Omit<Plaza, 'id' | 'totalLoanAmount'>;
         const plazaId = doc.id;
         
-        const customersInPlaza = await getCustomersByPlaza(plazaId);
+        const customersInPlaza = await getCustomersByPlaza(plazaId, { startDate, endDate });
         
         const pendingDebt = customersInPlaza.reduce((acc, customer) => acc + (customer.dueAmount || 0), 0);
         

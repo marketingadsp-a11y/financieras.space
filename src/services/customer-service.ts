@@ -1,18 +1,35 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData, Timestamp, Query, collectionGroup } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer } from "@/lib/data";
 import { customerFromDoc } from "./customer-service-helper";
 
 const customersCollectionRef = collection(db, "customers");
 
-export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> {
-    const q = query(customersCollectionRef, where("plazaId", "==", plazaId));
+type GetCustomersOptions = {
+    startDate?: Date;
+    endDate?: Date;
+}
+
+export async function getCustomersByPlaza(plazaId: string, options?: GetCustomersOptions): Promise<Customer[]> {
+    let q: Query = query(customersCollectionRef, where("plazaId", "==", plazaId));
+
+    if (options?.startDate) {
+        q = query(q, where("fechaPrestamo", ">=", Timestamp.fromDate(options.startDate)));
+    }
+    if (options?.endDate) {
+        // To include the whole end day, we set the time to the end of the day.
+        const endOfDay = new Date(options.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        q = query(q, where("fechaPrestamo", "<=", Timestamp.fromDate(endOfDay)));
+    }
+
     const data = await getDocs(q);
     return data.docs.map(customerFromDoc);
 }
+
 
 export async function getCustomersByLoanControlGroup(groupId: string): Promise<Customer[]> {
     const q = query(customersCollectionRef, where("loanControlGroupId", "==", groupId));

@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Building, Loader2, Upload, Download, FolderKanban, Banknote, DollarSign } from "lucide-react";
+import { ArrowRight, Building, Loader2, Upload, Download, FolderKanban, Banknote, DollarSign, Calendar as CalendarIcon } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza, StructuredCustomerData } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
@@ -18,6 +18,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 type PlazaWithStats = Plaza & {
   carteraCount: number;
@@ -100,21 +104,30 @@ export function LoanControlDashboard() {
   const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [startDate, setStartDate] = React.useState<Date | undefined>();
+  const [endDate, setEndDate] = React.useState<Date | undefined>();
+
 
   const fetchUserPlazas = React.useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
     try {
         const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-        const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+        const plazasFromDb = await getPlazas({ 
+            prefix: user.prefix, 
+            fetchAll: shouldFetchAll,
+            startDate,
+            endDate
+        });
         
         const plazasWithStats = await Promise.all(
             plazasFromDb.map(async (plaza) => {
+                // The stats are now calculated in getPlazas, but we fetch cartera count separately if needed or handle it within plaza-detail.
+                // For now, let's get the cartera count as it was.
                 const structure = await getPlazaStructure(plaza.id);
                 return {
                     ...plaza,
                     carteraCount: structure.carteras.length,
-                    totalLoanAmount: plaza.totalLoanAmount || 0,
                 };
             })
         );
@@ -126,7 +139,7 @@ export function LoanControlDashboard() {
     } finally {
         setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, startDate, endDate]);
 
   React.useEffect(() => {
     fetchUserPlazas();
@@ -216,7 +229,7 @@ export function LoanControlDashboard() {
 
   const globalTotals = React.useMemo(() => {
     return plazas.reduce((acc, plaza) => {
-        acc.totalPrestado += plaza.totalLoanAmount;
+        acc.totalPrestado += plaza.totalLoanAmount || 0;
         acc.saldoPendiente += plaza.pendingDebt;
         return acc;
     }, { totalPrestado: 0, saldoPendiente: 0 });
@@ -287,6 +300,53 @@ export function LoanControlDashboard() {
         <div className="grid gap-4 md:grid-cols-2">
             <StatCard title="Total Prestado" value={globalTotals.totalPrestado} icon={DollarSign} isCurrency />
             <StatCard title="Saldo Pendiente" value={globalTotals.saldoPendiente} icon={Banknote} isCurrency variant="destructive" />
+        </div>
+
+        <div className="space-y-4 p-4 border rounded-lg bg-card">
+            <h4 className="font-medium text-sm">Filtrar Préstamos por Fecha de Otorgamiento</h4>
+            <div className="flex flex-col sm:flex-row gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date-start"
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de Inicio</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date-end"
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de Fin</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                 <Button onClick={() => {setStartDate(undefined); setEndDate(undefined);}} variant="ghost">Limpiar</Button>
+            </div>
         </div>
 
         {isLoading ? (
