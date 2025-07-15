@@ -5,7 +5,7 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -15,34 +15,58 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { processAndImportLoanData } from "@/ai/flows/full-loan-data-parser-flow";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 
-const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
-    <Card className="flex flex-col group hover:border-primary transition-all">
-        <CardHeader>
-            <div className="flex items-center gap-4">
-                 <div className="p-3 bg-primary/10 rounded-lg w-fit">
-                    <Building className="h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
+const PlazaCard = ({ plaza }: { plaza: Plaza }) => {
+    const recoveryRateColor = plaza.recoveryRate >= 75 ? 'bg-green-500' : plaza.recoveryRate >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+
+    return (
+        <Card className="flex flex-col group hover:border-primary transition-all">
+            <CardHeader>
+                <div className="flex items-center gap-4">
+                     <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                        <Building className="h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
+                    </div>
+                    <div>
+                        <CardTitle>{plaza.name}</CardTitle>
+                        <CardDescription>Prefijo: {plaza.prefix}</CardDescription>
+                    </div>
                 </div>
-                <div>
-                    <CardTitle>{plaza.name}</CardTitle>
-                    <CardDescription>Prefijo: {plaza.prefix}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-grow space-y-4">
+                <div className="space-y-1">
+                    <div className="flex justify-between items-baseline">
+                        <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-green-500"/> TOTAL PRESTADO</span>
+                    </div>
+                    <p className="text-2xl font-bold">${(plaza.totalLoanAmount || 0).toLocaleString('es-MX')}</p>
                 </div>
-            </div>
-        </CardHeader>
-        <CardContent className="flex-grow">
-            <p className="text-sm text-muted-foreground">Gestiona carteras, grupos y asigna clientes a esta plaza.</p>
-        </CardContent>
-        <CardFooter>
-            <Button asChild className="w-full">
-                <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
-                    Administrar Plaza
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-            </Button>
-        </CardFooter>
-    </Card>
-);
+                 <div className="space-y-1">
+                    <div className="flex justify-between items-baseline">
+                        <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingDown className="h-4 w-4 text-red-500"/> DEUDA PENDIENTE</span>
+                    </div>
+                    <p className="text-2xl font-bold text-destructive">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
+                </div>
+                <div className="space-y-1">
+                    <div className="flex justify-between items-baseline">
+                         <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Target className="h-4 w-4 text-blue-500"/> TASA DE RECUPERACIÓN</span>
+                        <span className="text-sm font-bold">{plaza.recoveryRate.toFixed(1)}%</span>
+                    </div>
+                    <Progress value={plaza.recoveryRate} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-blue-400 [&>div]:to-blue-600" />
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button asChild className="w-full">
+                    <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
+                        Administrar Plaza
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </CardFooter>
+        </Card>
+    )
+};
 
 const StatCard = ({ title, value }: { title: string; value: number; }) => (
     <Card>
