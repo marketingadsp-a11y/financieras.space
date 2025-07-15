@@ -15,6 +15,7 @@ import { CarteraForm } from "./cartera-form";
 import Link from "next/link";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type CarteraWithStats = LoanControlCartera & {
     grupoCount: number;
@@ -144,9 +145,10 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     return (
         <div className="space-y-6">
             <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                     <Button variant="ghost" asChild><Link href="/tools/loan-control">Ir a Control de Préstamos</Link></Button>
-                     <Button variant="ghost" asChild><Link href="/tools/loan-control">Ir a Plazas</Link></Button>
+                <div className="flex items-center gap-x-1 text-sm text-muted-foreground">
+                    <Link href="/tools/loan-control" className="hover:text-primary p-2 rounded-md hover:bg-muted transition-colors">Control de Préstamo</Link>
+                    <ChevronRight className="h-4 w-4" />
+                    <span className="font-medium text-foreground bg-muted p-2 rounded-md">{plaza.name}</span>
                 </div>
                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                     <div>
