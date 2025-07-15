@@ -208,99 +208,75 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     }
   }
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user?.prefix) {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !user?.prefix) {
       if (!user?.prefix) toast({ variant: "destructive", title: "Error de autenticación", description: "No se pudo identificar tu prefijo de empresa." });
       return;
     }
 
     setIsProcessingImport(true);
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const data = e.target?.result;
-        if (!data) {
-            setIsProcessingImport(false);
-            return;
-        };
+    let totalCustomersImported = 0;
+    let totalCarterasCreated = 0;
+    let totalGroupsCreated = 0;
+    
+    for (const file of Array.from(files)) {
         try {
+            const data = await new Promise<string | ArrayBuffer | null>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result || null);
+                reader.onerror = reject;
+                reader.readAsBinaryString(file);
+            });
+
+            if (!data) continue;
+
             const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
-            // Map headers to a more reliable format
-            const headers = jsonData[0].map((h:any) => {
-              // Normalize headers to a consistent key format
-              const headerStr = String(h).trim().toUpperCase();
-              if (headerStr === 'CLIENTE') return 'NOMBRE';
-              if (headerStr === 'TELEFONOS') return 'TELEFONO';
-              if (headerStr === 'TELEFONOS AVAL') return 'TEL_AVAL';
-              if (headerStr === 'F. PRESTAMO') return 'FECHA_PRESTAMO';
-              if (headerStr === 'C.P.') return 'CP';
-              if (headerStr === 'C.P. AVAL') return 'CP_AVAL';
-              if (headerStr === 'SALDO') return 'ADEUDO';
-              return headerStr.replace(/\s+/g, '_');
-            });
+            const headers = jsonData[0].map((h:any) => String(h).trim().toUpperCase().replace(/\s+/g, '_').replace('C.P.','CP').replace('F._PRESTAMO', 'FECHA_PRESTAMO').replace('TELEFONOS','TELEFONO'));
             const structuredData: StructuredCustomerData[] = jsonData.slice(1).map(row => {
                 const customer: any = {};
                 headers.forEach((header: string, index: number) => {
                     const keyMap: Record<string, string> = {
-                        'CARTERA': 'carteraName',
-                        'RESPONSABLE': 'responsable',
-                        'GRUPO': 'groupName',
-                        'NOMBRE': 'name',
-                        'DIRECCION': 'address',
-                        'COLONIA': 'colonia',
-                        'CP': 'cp',
-                        'TELEFONO': 'phone',
-                        'AVAL': 'guarantor',
-                        'TEL_AVAL': 'guarantorPhone',
-                        'DIR_AVAL': 'direccionAval',
-                        'COL_AVAL': 'coloniaAval',
-                        'CP_AVAL': 'cpAval',
-                        'PRESTAMO': 'loanAmount',
-                        'PAGO': 'paymentAmount',
-                        'VENCIDOS': 'installmentsDue',
-                        'ADEUDO': 'dueAmount',
-                        'FECHA_PRESTAMO': 'fechaPrestamo'
+                        'CARTERA': 'carteraName', 'RESPONSABLE': 'responsable', 'GRUPO': 'groupName',
+                        'CLIENTE': 'name', 'NOMBRE': 'name', 'DIRECCION': 'address', 'COLONIA': 'colonia',
+                        'CP': 'cp', 'TELEFONO': 'phone', 'AVAL': 'guarantor', 'TEL_AVAL': 'guarantorPhone',
+                        'DIRECCION_AVAL': 'direccionAval', 'COLONIA_AVAL': 'coloniaAval', 'CP_AVAL': 'cpAval',
+                        'PRESTAMO': 'loanAmount', 'PAGO': 'paymentAmount', 'VENCIDOS': 'installmentsDue',
+                        'SALDO': 'dueAmount', 'ADEUDO': 'dueAmount', 'FECHA_PRESTAMO': 'fechaPrestamo'
                     };
                     const key = keyMap[header];
-                    if (key) {
-                        customer[key] = row[index];
-                    }
+                    if (key) customer[key] = row[index];
                 });
                 return customer as StructuredCustomerData;
             });
 
-            const result = await importStructuredData({
-              plazaId,
-              prefix: user.prefix,
-              customers: structuredData
-            });
-
-            toast({
-              title: "Importación Exitosa",
-              description: `Se procesaron ${result.totalCustomers} clientes, creando ${result.newCarteras} carteras y ${result.newGroups} grupos.`
-            })
-
-            await fetchCarterasWithStats();
+            const result = await importStructuredData({ plazaId, prefix: user.prefix, customers: structuredData });
+            totalCustomersImported += result.totalCustomers;
+            totalCarterasCreated += result.newCarteras;
+            totalGroupsCreated += result.newGroups;
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "No se pudo procesar el archivo.";
-            toast({ variant: "destructive", title: "Error de Importación", description: errorMessage });
-        } finally {
+            toast({ variant: "destructive", title: `Error en archivo ${file.name}`, description: errorMessage });
+            // Stop processing if one file fails
             setIsProcessingImport(false);
-            // Reset file input
             if (event.target) event.target.value = '';
+            return;
         }
-    };
-    reader.onerror = () => {
-        setIsProcessingImport(false);
-        toast({ variant: "destructive", title: "Error", description: "No se pudo leer el archivo."})
     }
-    reader.readAsBinaryString(file);
+    
+    toast({
+        title: "Importación Completada",
+        description: `Se procesaron ${files.length} archivo(s), creando ${totalCarterasCreated} carteras, ${totalGroupsCreated} grupos y ${totalCustomersImported} clientes.`
+    });
+    
+    await fetchCarterasWithStats();
+    setIsProcessingImport(false);
+    if (event.target) event.target.value = '';
   };
 
   const handleDownloadTemplate = () => {
@@ -350,6 +326,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                         onChange={handleFileChange}
                         className="hidden"
                         accept=".xlsx, .xls, .csv"
+                        multiple
                     />
                      <Button variant="outline" onClick={handleDownloadTemplate}>
                         <Download className="mr-2 h-4 w-4"/>
@@ -395,3 +372,5 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     </div>
   );
 }
+
+    

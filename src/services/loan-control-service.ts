@@ -139,7 +139,6 @@ interface StructuredImportParams {
 interface StructuredImportResult {
     newCarteras: number;
     newGroups: number;
-
     totalCustomers: number;
 }
 
@@ -217,7 +216,7 @@ export async function importStructuredData(params: StructuredImportParams): Prom
                     ...rest,
                     plazaId,
                     prefix,
-                    loanControlGroupId: grupoId, // Use null if grupoId is not found
+                    loanControlGroupId: grupoId,
                     status: 'Pendiente' as const,
                     fechaPrestamo: customer.fechaPrestamo ? new Date(customer.fechaPrestamo) : new Date(),
                 };
@@ -244,3 +243,5 @@ export async function importStructuredData(params: StructuredImportParams): Prom
         totalCustomers: customers.length,
     };
 }
+
+    
