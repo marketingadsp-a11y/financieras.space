@@ -13,13 +13,16 @@ import {
     writeBatch,
     getDoc,
     runTransaction,
+    Timestamp
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
+import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza } from "@/lib/data";
 import { customerFromDoc } from "./customer-service-helper";
+import type { FullLoanDataParserOutput } from "@/ai/flows/full-loan-data-parser-flow";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
+const plazasCollectionRef = collection(db, "plazas");
 const customersCollectionRef = collection(db, "customers");
 
 // --- Cartera Functions ---
@@ -142,11 +145,6 @@ export async function unassignCustomerFromGrupo(customerId: string) {
     await updateDoc(customerRef, { loanControlGroupId: "" });
 }
 
-export async function updateCustomer(id: string, customerData: Partial<Omit<Customer, 'id'>>) {
-    const customerDoc = doc(db, "customers", id);
-    await updateDoc(customerDoc, customerData);
-}
-
 export async function addPayment(customerId: string, paymentAmount: number): Promise<void> {
     const customerRef = doc(db, "customers", customerId);
     
@@ -173,4 +171,74 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
     });
 }
 
-    
+
+// --- Full Data Import ---
+export async function importFullLoanData(
+    data: FullLoanDataParserOutput,
+    mode: 'add' | 'replace',
+    prefix: string
+): Promise<void> {
+    const batch = writeBatch(db);
+
+    // If 'replace', first delete all existing data for this prefix
+    if (mode === 'replace') {
+        const collectionsToDelete = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
+        for (const coll of collectionsToDelete) {
+            const q = query(coll, where("prefix", "==", prefix));
+            const snapshot = await getDocs(q);
+            snapshot.docs.forEach(d => batch.delete(d.ref));
+        }
+    }
+
+    // Now, add the new data
+    for (const plazaData of data) {
+        // Create or get Plaza
+        const plazaRef = doc(plazasCollectionRef);
+        batch.set(plazaRef, { name: plazaData.plazaName, prefix });
+        
+        for (const carteraData of plazaData.carteras) {
+            // Create or get Cartera
+            const carteraRef = doc(carterasCollectionRef);
+            batch.set(carteraRef, { name: carteraData.carteraName, plazaId: plazaRef.id, prefix });
+
+            for (const grupoData of carteraData.grupos) {
+                // Create or get Grupo
+                const grupoRef = doc(gruposCollectionRef);
+                batch.set(grupoRef, { name: grupoData.groupName, carteraId: carteraRef.id, plazaId: plazaRef.id, prefix });
+
+                for (const customerData of grupoData.customers) {
+                    const customerRef = doc(customersCollectionRef);
+                    const completeCustomerData: Omit<Customer, 'id'> = {
+                        plazaId: plazaRef.id,
+                        loanControlGroupId: grupoRef.id,
+                        status: 'Pendiente' as const,
+                        prefix: prefix,
+                        name: customerData.name || '',
+                        address: customerData.address || '',
+                        phone: customerData.phone || '',
+                        guarantor: customerData.guarantor || '',
+                        guarantorPhone: customerData.guarantorPhone || '',
+                        loanAmount: customerData.loanAmount || 0,
+                        paymentAmount: customerData.paymentAmount || 0,
+                        installmentsDue: customerData.installmentsDue || 0,
+                        dueAmount: customerData.dueAmount || customerData.loanAmount || 0,
+                        colonia: customerData.colonia || '',
+                        cp: customerData.cp || '',
+                        direccionAval: customerData.direccionAval || '',
+                        coloniaAval: customerData.coloniaAval || '',
+                        cpAval: customerData.cpAval || '',
+                        fechaPrestamo: customerData.fechaPrestamo ? new Date(customerData.fechaPrestamo) : new Date(),
+                    };
+
+                    const { fechaPrestamo, ...restOfData } = completeCustomerData;
+                    batch.set(customerRef, {
+                        ...restOfData,
+                        fechaPrestamo: fechaPrestamo ? Timestamp.fromDate(fechaPrestamo) : Timestamp.now()
+                    });
+                }
+            }
+        }
+    }
+
+    await batch.commit();
+}
