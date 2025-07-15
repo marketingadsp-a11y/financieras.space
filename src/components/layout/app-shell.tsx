@@ -24,6 +24,8 @@ import {
   AppWindow,
   Briefcase,
   Folder,
+  Home,
+  ChevronRight
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -40,8 +42,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { allTools, type Tool, type Plaza } from "@/lib/data";
+import { allTools, type Tool, type Plaza, type LoanControlCartera, type LoanControlGrupo } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
+import { getCarterasByPlaza, getGruposByCartera, getGrupoById, getCarteraById } from "@/services/loan-control-service";
+
 
 import {
   Sidebar,
@@ -195,11 +199,145 @@ function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
     );
 }
 
+function LoanControlNav() {
+    const pathname = usePathname();
+    const params = pathname.split('/').filter(Boolean);
+    const { user } = useAuth();
+    const [navState, setNavState] = React.useState<{ plazas: Plaza[], carteras: LoanControlCartera[], grupos: LoanControlGrupo[] }>({ plazas: [], carteras: [], grupos: [] });
+    const [isLoading, setIsLoading] = React.useState(true);
+
+    const plazaId = params.length >= 4 && params[2] === 'plaza' ? params[3] : null;
+    const carteraId = params.length >= 4 && params[2] === 'cartera' ? params[3] : null;
+    const grupoId = params.length >= 4 && params[2] === 'grupo' ? params[3] : null;
+
+    React.useEffect(() => {
+        const fetchNavData = async () => {
+            if (!user) return;
+            setIsLoading(true);
+            try {
+                const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
+                const plazas = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+                
+                let carteras: LoanControlCartera[] = [];
+                if (plazaId) {
+                    carteras = await getCarterasByPlaza(plazaId);
+                } else if (carteraId) {
+                     const cartera = await getCarteraById(carteraId);
+                     if(cartera) carteras = await getCarterasByPlaza(cartera.plazaId);
+                } else if (grupoId) {
+                    const grupo = await getGrupoById(grupoId);
+                    if(grupo) {
+                        const cartera = await getCarteraById(grupo.carteraId);
+                        if(cartera) carteras = await getCarterasByPlaza(cartera.plazaId);
+                    }
+                }
+
+                let grupos: LoanControlGrupo[] = [];
+                if (carteraId) {
+                    grupos = await getGruposByCartera(carteraId);
+                } else if (grupoId) {
+                    const grupo = await getGrupoById(grupoId);
+                    if(grupo) grupos = await getGruposByCartera(grupo.carteraId);
+                }
+
+                setNavState({ 
+                    plazas: plazas.sort((a,b) => a.name.localeCompare(b.name)), 
+                    carteras: carteras.sort((a,b) => a.name.localeCompare(b.name)), 
+                    grupos: grupos.sort((a,b) => a.name.localeCompare(b.name)) 
+                });
+            } catch (error) {
+                console.error("Failed to fetch loan control nav", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchNavData();
+    }, [user, plazaId, carteraId, grupoId]);
+
+    if (isLoading) {
+        return <div className="p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/> Cargando...</div>
+    }
+    
+    let activePlazaId = plazaId;
+    if (carteraId) {
+        const cartera = navState.carteras.find(c => c.id === carteraId);
+        if(cartera) activePlazaId = cartera.plazaId;
+    } else if (grupoId) {
+         const grupo = navState.grupos.find(g => g.id === grupoId);
+         if(grupo) activePlazaId = grupo.plazaId;
+    }
+
+    let activeCarteraId = carteraId;
+    if (grupoId) {
+        const grupo = navState.grupos.find(g => g.id === grupoId);
+        if(grupo) activeCarteraId = grupo.carteraId;
+    }
+
+    return (
+        <SidebarGroup>
+            <SidebarGroupLabel>CONTROL DE PRÉSTAMO</SidebarGroupLabel>
+            <SidebarMenu>
+                {navState.plazas.map(p => (
+                    <Collapsible key={p.id} defaultOpen={p.id === activePlazaId}>
+                        <SidebarMenuItem>
+                            <Link href={`/tools/loan-control/plaza/${p.id}`} className="flex-1">
+                                <SidebarMenuButton asChild isActive={p.id === activePlazaId} tooltip={p.name}>
+                                    <span><Building/><span>{p.name}</span></span>
+                                </SidebarMenuButton>
+                            </Link>
+                            <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                                </Button>
+                            </CollapsibleTrigger>
+                        </SidebarMenuItem>
+                        <CollapsibleContent>
+                            <SidebarMenuSub>
+                                {p.id === activePlazaId && navState.carteras.map(c => (
+                                     <Collapsible key={c.id} defaultOpen={c.id === activeCarteraId}>
+                                        <SidebarMenuSubItem>
+                                            <Link href={`/tools/loan-control/cartera/${c.id}`} className="flex-1">
+                                                <SidebarMenuSubButton asChild isActive={c.id === activeCarteraId}>
+                                                    <span><Folder/><span>{c.name}</span></span>
+                                                </SidebarMenuSubButton>
+                                            </Link>
+                                            <CollapsibleTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                                                    <ChevronDown className="h-3 w-3 transition-transform duration-200 data-[state=open]:rotate-180" />
+                                                </Button>
+                                            </CollapsibleTrigger>
+                                        </SidebarMenuSubItem>
+                                        <CollapsibleContent>
+                                             {c.id === activeCarteraId && (
+                                                <ul className="pl-6 border-l ml-5 my-1 py-1 space-y-1">
+                                                    {navState.grupos.map(g => (
+                                                        <li key={g.id}>
+                                                            <Link href={`/tools/loan-control/grupo/${g.id}`}>
+                                                                <SidebarMenuSubButton size="sm" asChild isActive={g.id === grupoId}>
+                                                                    <span><Users2/><span>{g.name}</span></span>
+                                                                </SidebarMenuSubButton>
+                                                            </Link>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </CollapsibleContent>
+                                     </Collapsible>
+                                ))}
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
+                    </Collapsible>
+                ))}
+            </SidebarMenu>
+        </SidebarGroup>
+    );
+}
+
+
 function NavLinks() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const params = usePathname().split('/').filter(Boolean);
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
@@ -309,38 +447,7 @@ function NavLinks() {
   }
   
     if (isLoanControlPath) {
-        const plazaId = params.length >= 4 && params[2] === 'plaza' ? params[3] : null;
-        const isPlazaContext = !!plazaId;
-
-        return (
-            <>
-                <PlazaNavLinks toolPrefix="tools/loan-control" />
-                {isPlazaContext && (
-                    <>
-                        <SidebarSeparator />
-                        <SidebarGroup>
-                            <SidebarGroupLabel>GESTIÓN DE PLAZA</SidebarGroupLabel>
-                            <SidebarMenu>
-                                <SidebarMenuItem>
-                                    <Link href={`/tools/loan-control/plaza/${plazaId}`}>
-                                        <SidebarMenuButton asChild isActive={pathname.endsWith(plazaId)} tooltip="Gestionar Carteras">
-                                            <span><Folder /><span>Gestionar Carteras</span></span>
-                                        </SidebarMenuButton>
-                                    </Link>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <Link href={`/tools/loan-control/plaza/${plazaId}/grupos`}>
-                                        <SidebarMenuButton asChild isActive={pathname.endsWith('grupos')} tooltip="Gestionar Grupos">
-                                            <span><Users2 /><span>Gestionar Grupos</span></span>
-                                        </SidebarMenuButton>
-                                    </Link>
-                                </SidebarMenuItem>
-                            </SidebarMenu>
-                        </SidebarGroup>
-                    </>
-                )}
-            </>
-        );
+        return <LoanControlNav />;
     }
 
 
@@ -473,17 +580,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-3 p-2">
-            <UserCog className="h-8 w-8 text-primary" />
-             <div className="flex flex-col">
-              <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">
-                {getUserRoleLabel()}
-              </span>
-              {currentTool && (
-                <span className="text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
-                  {currentTool.name}
+            <Link href="/tools" className="flex items-center gap-3">
+              <UserCog className="h-8 w-8 text-primary" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">
+                  {getUserRoleLabel()}
                 </span>
-              )}
-            </div>
+                {currentTool && (
+                  <span className="text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
+                    {currentTool.name}
+                  </span>
+                )}
+              </div>
+            </Link>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -538,5 +647,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    
 
     

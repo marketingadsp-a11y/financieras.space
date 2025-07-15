@@ -3,10 +3,10 @@
 
 import * as React from "react";
 import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo, getAssignedCustomersByGrupo } from "@/services/loan-control-service";
-import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
+import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, ArrowLeft, DollarSign, Folder } from "lucide-react";
+import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, DollarSign, Folder, Home, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { GrupoForm } from "./grupo-form";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { getPlazaById } from "@/services/plaza-service";
+
 
 type GrupoWithStats = LoanControlGrupo & {
     customerCount: number;
@@ -39,6 +41,7 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [cartera, setCartera] = React.useState<LoanControlCartera | null>(null);
+    const [plaza, setPlaza] = React.useState<Plaza | null>(null);
     const [grupos, setGrupos] = React.useState<GrupoWithStats[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -54,8 +57,12 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
             setCartera(carteraData);
             
             if (carteraData) {
-                const gruposData = await getGruposByCartera(carteraId);
-                
+                const [plazaData, gruposData] = await Promise.all([
+                    getPlazaById(carteraData.plazaId),
+                    getGruposByCartera(carteraId)
+                ]);
+                setPlaza(plazaData);
+
                 const gruposWithStats = await Promise.all(gruposData.map(async (grupo) => {
                     const customers = await getAssignedCustomersByGrupo(grupo.id);
                     const stats = customers.reduce((acc, customer) => {
@@ -155,23 +162,24 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
         );
     }
     
-    if (!cartera) {
-        return <p>Cartera no encontrada.</p>
+    if (!cartera || !plaza) {
+        return <p>Cartera o plaza no encontrada.</p>
     }
     
     const expectedConfirmationText = grupoToDelete ? `${grupoToDelete.name} eliminar` : '';
 
     return (
         <div className="space-y-6">
-             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                 <div>
-                     <Button variant="outline" size="sm" asChild className="mb-4">
-                        <Link href={`/tools/loan-control/plaza/${cartera.plazaId}`}>
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Volver a Plaza
-                        </Link>
-                    </Button>
-                    <h1 className="text-3xl font-bold tracking-tight">Cartera: {cartera.name}</h1>
+                    <div className="flex items-center text-sm text-muted-foreground mb-2">
+                        <Link href="/tools/loan-control" className="hover:underline">Control de Préstamo</Link>
+                        <ChevronRight className="h-4 w-4" />
+                        <Link href={`/tools/loan-control/plaza/${plaza.id}`} className="hover:underline">{plaza.name}</Link>
+                        <ChevronRight className="h-4 w-4" />
+                        <span className="font-medium text-foreground">{cartera.name}</span>
+                    </div>
+                    <h1 className="text-3xl font-bold tracking-tight">Grupos de {cartera.name}</h1>
                     <p className="text-muted-foreground">
                         Gestiona los grupos de esta cartera.
                     </p>
@@ -282,3 +290,5 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
         </div>
     );
 }
+
+    

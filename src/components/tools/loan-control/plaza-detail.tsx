@@ -7,7 +7,7 @@ import type { LoanControlCartera, Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { addCartera, deleteCartera, getCarterasByPlaza, getGruposByCartera, updateCartera, getAssignedCustomersByGrupo } from "@/services/loan-control-service";
-import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase } from "lucide-react";
+import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase, Home, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,20 +21,6 @@ type CarteraWithStats = LoanControlCartera & {
     totalLoaned: number;
     totalDue: number;
 };
-
-const StatCard = ({ title, value }: { title: string; value: number; }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <DollarSign className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
-            ${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-      </CardContent>
-    </Card>
-);
 
 export function PlazaDetail({ plazaId }: { plazaId: string }) {
     const { user } = useAuth();
@@ -154,17 +140,17 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     }
 
     const expectedConfirmationText = carteraToDelete ? `${carteraToDelete.name} eliminar` : '';
-    const plazaSummary = carteras.reduce((acc, cartera) => {
-        acc.totalLoaned += cartera.totalLoaned;
-        acc.totalDue += cartera.totalDue;
-        return acc;
-    }, { totalLoaned: 0, totalDue: 0 });
 
     return (
         <div className="space-y-6">
-             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Plaza: {plaza.name}</h1>
+                     <div className="flex items-center text-sm text-muted-foreground mb-2">
+                        <Link href="/tools/loan-control" className="hover:underline">Control de Préstamo</Link>
+                        <ChevronRight className="h-4 w-4" />
+                        <span className="font-medium text-foreground">{plaza.name}</span>
+                    </div>
+                    <h1 className="text-3xl font-bold tracking-tight">Carteras de {plaza.name}</h1>
                     <p className="text-muted-foreground">
                         Gestiona las carteras de esta plaza.
                     </p>
@@ -189,22 +175,14 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                 </Dialog>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard title="Total Prestado en Plaza" value={plazaSummary.totalLoaned} />
-                <StatCard title="Total Pendiente en Plaza" value={plazaSummary.totalDue} />
-            </div>
-
             {carteras.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {carteras.map(cartera => (
                         <Card key={cartera.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
                             <CardHeader>
                                 <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-primary/10 rounded-lg">
-                                            <Briefcase className="h-8 w-8 text-primary" />
-                                        </div>
-                                        <CardTitle className="text-xl">{cartera.name}</CardTitle>
+                                    <div className="p-4 bg-primary/10 rounded-full mb-4">
+                                        <Briefcase className="h-8 w-8 text-primary" />
                                     </div>
                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(cartera)}><Edit className="h-4 w-4" /></Button>
@@ -240,18 +218,19 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                         </AlertDialog>
                                     </div>
                                 </div>
+                                 <CardTitle className="text-xl">{cartera.name}</CardTitle>
                             </CardHeader>
                             <CardContent className="flex-grow space-y-4">
-                               <div className="border-t pt-4 space-y-2 text-sm">
-                                    <div className="flex justify-between items-center">
+                               <div className="border-t pt-4 space-y-3">
+                                    <div className="flex justify-between items-center text-sm">
                                         <span className="text-muted-foreground">Grupos</span>
                                         <span className="font-bold text-lg">{cartera.grupoCount}</span>
                                     </div>
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex justify-between items-center text-sm">
                                         <span className="text-muted-foreground">Prestado</span>
                                         <span className="font-medium">${cartera.totalLoaned.toLocaleString('es-MX')}</span>
                                     </div>
-                                     <div className="flex justify-between items-center">
+                                     <div className="flex justify-between items-center text-sm">
                                         <span className="text-muted-foreground">Pendiente</span>
                                         <span className="font-medium text-destructive">${cartera.totalDue.toLocaleString('es-MX')}</span>
                                     </div>
@@ -278,3 +257,5 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         </div>
     );
 }
+
+    

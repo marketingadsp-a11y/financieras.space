@@ -3,11 +3,11 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { getAssignedCustomersByGrupo, getGrupoById } from "@/services/loan-control-service";
+import { getAssignedCustomersByGrupo, getGrupoById, getCarteraById } from "@/services/loan-control-service";
 import { addMultipleCustomers } from "@/services/customer-service";
-import type { Customer, LoanControlGrupo } from "@/lib/data";
+import type { Customer, LoanControlGrupo, LoanControlCartera, Plaza } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, ArrowLeft, BadgeInfo } from "lucide-react";
+import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, ChevronRight, BadgeInfo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -35,6 +35,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { getPlazaById } from "@/services/plaza-service";
 
 
 const StatCard = ({ title, value }: { title: string; value: number; }) => (
@@ -111,6 +112,8 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [grupo, setGrupo] = React.useState<LoanControlGrupo | null>(null);
+    const [cartera, setCartera] = React.useState<LoanControlCartera | null>(null);
+    const [plaza, setPlaza] = React.useState<Plaza | null>(null);
     const [customers, setCustomers] = React.useState<Customer[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
@@ -127,12 +130,22 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
         try {
-            const [grupoData, customersData] = await Promise.all([
-                getGrupoById(grupoId),
-                getAssignedCustomersByGrupo(grupoId)
-            ]);
+            const grupoData = await getGrupoById(grupoId);
             setGrupo(grupoData);
-            setCustomers(customersData);
+
+            if (grupoData) {
+                const [carteraData, customersData] = await Promise.all([
+                    getCarteraById(grupoData.carteraId),
+                    getAssignedCustomersByGrupo(grupoId)
+                ]);
+                setCartera(carteraData);
+                setCustomers(customersData);
+
+                if (carteraData) {
+                    const plazaData = await getPlazaById(carteraData.plazaId);
+                    setPlaza(plazaData);
+                }
+            }
         } catch (error) {
             toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información del grupo." });
         } finally {
@@ -278,20 +291,23 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         );
     }
 
-    if (!grupo) {
-        return <p>Grupo no encontrado.</p>
+    if (!grupo || !cartera || !plaza) {
+        return <p>Información no encontrada.</p>
     }
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-start gap-4">
                 <div>
-                    <Button variant="outline" size="sm" asChild className="mb-4">
-                        <Link href={`/tools/loan-control/cartera/${grupo.carteraId}`}>
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Volver a Cartera
-                        </Link>
-                    </Button>
+                    <div className="flex items-center text-sm text-muted-foreground mb-2">
+                        <Link href="/tools/loan-control" className="hover:underline">Control de Préstamo</Link>
+                        <ChevronRight className="h-4 w-4" />
+                        <Link href={`/tools/loan-control/plaza/${plaza.id}`} className="hover:underline">{plaza.name}</Link>
+                        <ChevronRight className="h-4 w-4" />
+                        <Link href={`/tools/loan-control/cartera/${cartera.id}`} className="hover:underline">{cartera.name}</Link>
+                        <ChevronRight className="h-4 w-4" />
+                        <span className="font-medium text-foreground">{grupo.name}</span>
+                    </div>
                     <h1 className="text-3xl font-bold tracking-tight">Panel del Grupo: {grupo.name}</h1>
                     <p className="text-muted-foreground">
                         Resumen financiero y listado de clientes de este grupo.
@@ -443,3 +459,5 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         </div>
     );
 }
+
+    
