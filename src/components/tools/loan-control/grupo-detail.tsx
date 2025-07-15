@@ -6,7 +6,7 @@ import { getAssignedCustomersByGrupo, getGrupoById } from "@/services/loan-contr
 import { addMultipleCustomers } from "@/services/customer-service";
 import type { Customer, LoanControlGrupo } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide } from "lucide-react";
+import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -219,6 +219,12 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
             return acc;
         }, { totalLoaned: 0, totalDue: 0 });
     }, [filteredCustomers]);
+    
+    const clearFilters = () => {
+        setSearchTerm("");
+        setStartDate(undefined);
+        setEndDate(undefined);
+    };
 
     const exportToPDF = () => {
         if (!grupo || filteredCustomers.length === 0) return;
@@ -350,13 +356,23 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                                 Visualiza y gestiona los clientes asignados a este grupo.
                             </CardDescription>
                         </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col md:flex-row gap-2 mb-6">
+                        <Input
+                            placeholder="Buscar cliente por nombre o dirección..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="flex-grow"
+                        />
                         <div className="flex items-center gap-2">
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
                                     id="date-start"
                                     variant={"outline"}
-                                    className={cn("w-[240px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                                    className={cn("w-full md:w-[240px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}
                                     >
                                     <CalendarIconLucide className="mr-2 h-4 w-4" />
                                     {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de inicio</span>}
@@ -371,7 +387,7 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                                     <Button
                                     id="date-end"
                                     variant={"outline"}
-                                    className={cn("w-[240px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                                    className={cn("w-full md:w-[240px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}
                                     >
                                     <CalendarIconLucide className="mr-2 h-4 w-4" />
                                     {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de fin</span>}
@@ -381,16 +397,13 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                                     <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
                                 </PopoverContent>
                             </Popover>
+                             <Button variant="ghost" onClick={clearFilters}>
+                                <FilterX className="mr-2 h-4 w-4" />
+                                Limpiar
+                            </Button>
                         </div>
                     </div>
-                </CardHeader>
-                <CardContent>
-                     <Input
-                        placeholder="Buscar cliente por nombre o dirección..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="max-w-sm mb-6"
-                    />
+
                     {filteredCustomers.length > 0 ? (
                         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                             {filteredCustomers.map(customer => (
@@ -407,7 +420,7 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                             <Users className="mx-auto h-12 w-12" />
                             <h3 className="mt-4 text-lg font-semibold">No se encontraron clientes</h3>
                             <p className="mt-1 text-sm">
-                                {searchTerm ? "Prueba con otro término de búsqueda o ajusta el rango de fechas." : "No hay clientes asignados a este grupo para el rango de fechas seleccionado."}
+                                {searchTerm || startDate || endDate ? "Prueba con otro término de búsqueda o ajusta el rango de fechas." : "No hay clientes asignados a este grupo."}
                             </p>
                         </div>
                     )}
@@ -424,3 +437,5 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         </div>
     );
 }
+
+    
