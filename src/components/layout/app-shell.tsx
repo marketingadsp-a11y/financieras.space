@@ -23,6 +23,7 @@ import {
   Contact,
   AppWindow,
   Briefcase,
+  Folder,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -120,7 +121,7 @@ const dailyControlNavItems: NavItem[] = [
 
 const dailyControlSettingsItems: NavItem[] = [
     { href: "/tools/daily-control/categories", label: "Gestionar Categorías", icon: ListTree },
-]
+];
 
 function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
     const { user } = useAuth();
@@ -198,9 +199,11 @@ function NavLinks() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const params = usePathname().split('/').filter(Boolean);
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
+  const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -304,6 +307,42 @@ function NavLinks() {
       </>
     );
   }
+  
+    if (isLoanControlPath) {
+        const plazaId = params.length >= 4 && params[2] === 'plaza' ? params[3] : null;
+        const isPlazaContext = !!plazaId;
+
+        return (
+            <>
+                <PlazaNavLinks toolPrefix="tools/loan-control" />
+                {isPlazaContext && (
+                    <>
+                        <SidebarSeparator />
+                        <SidebarGroup>
+                            <SidebarGroupLabel>GESTIÓN DE PLAZA</SidebarGroupLabel>
+                            <SidebarMenu>
+                                <SidebarMenuItem>
+                                    <Link href={`/tools/loan-control/plaza/${plazaId}`}>
+                                        <SidebarMenuButton asChild isActive={pathname.endsWith(plazaId)} tooltip="Gestionar Carteras">
+                                            <span><Folder /><span>Gestionar Carteras</span></span>
+                                        </SidebarMenuButton>
+                                    </Link>
+                                </SidebarMenuItem>
+                                <SidebarMenuItem>
+                                    <Link href={`/tools/loan-control/plaza/${plazaId}/grupos`}>
+                                        <SidebarMenuButton asChild isActive={pathname.endsWith('grupos')} tooltip="Gestionar Grupos">
+                                            <span><Users2 /><span>Gestionar Grupos</span></span>
+                                        </SidebarMenuButton>
+                                    </Link>
+                                </SidebarMenuItem>
+                            </SidebarMenu>
+                        </SidebarGroup>
+                    </>
+                )}
+            </>
+        );
+    }
+
 
   const getNavItems = () => {
     if (user?.isSuperAdmin) {
@@ -409,10 +448,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
+  const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return allTools.find(tool => tool.id === 'cartera-vencida');
     if (isDailyControlPath) return allTools.find(tool => tool.id === 'daily-control');
+    if (isLoanControlPath) return allTools.find(tool => tool.id === 'loan-control');
     return null;
   }
 
@@ -425,7 +466,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
-  const showBackButton = (isCarteraVencidaPath || isDailyControlPath) && !user.isSuperAdmin && !user.isToolAdmin;
+  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath) && !user.isSuperAdmin && !user.isToolAdmin;
 
   return (
     <SidebarProvider>
@@ -497,3 +538,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    
