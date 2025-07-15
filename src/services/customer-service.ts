@@ -50,11 +50,14 @@ export async function deleteCustomersByPlaza(plazaId: string): Promise<void> {
     await batch.commit();
 }
 
-export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], plazaId: string, mode: 'add' | 'replace', prefix: string): Promise<void> {
+export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], mode: 'add' | 'replace', prefix: string, plazaId: string, grupoId?: string): Promise<void> {
     const batch = writeBatch(db);
 
     if (mode === 'replace') {
-        const constraints = [where("plazaId", "==", plazaId)];
+        const constraints = [
+            where("plazaId", "==", plazaId),
+            ...(grupoId ? [where("loanControlGroupId", "==", grupoId)] : [])
+        ];
         const q = query(customersCollectionRef, ...constraints);
         const snapshot = await getDocs(q);
         snapshot.docs.forEach(doc => {
@@ -117,4 +120,3 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
         transaction.update(customerRef, updatedCustomerData);
     });
 }
-

@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { getAssignedCustomersByGrupo, getGrupoById, updateCustomer, addPayment, assignCustomersToGrupo } from "@/services/loan-control-service";
+import { getAssignedCustomersByGrupo, getGrupoById } from "@/services/loan-control-service";
 import { addMultipleCustomers } from "@/services/customer-service";
 import type { Customer, LoanControlGrupo } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
 import { useAuth } from "@/context/auth-context";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 const StatCard = ({ title, value }: { title: string; value: number; }) => (
@@ -117,6 +118,7 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
     const [isImportModalOpen, setImportModalOpen] = React.useState(false);
     const [importText, setImportText] = React.useState('');
     const [isParsing, setIsParsing] = React.useState(false);
+    const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
 
 
     const fetchData = React.useCallback(async () => {
@@ -171,7 +173,7 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
 
             const customersToAdd = parsedData.map(c => ({...c, plazaId: grupo.plazaId, status: 'Pendiente' as const, loanControlGroupId: grupoId}));
             
-            await addMultipleCustomers(customersToAdd, grupo.plazaId, 'add', user.prefix);
+            await addMultipleCustomers(customersToAdd, importMode, user.prefix, grupo.plazaId, grupoId);
 
             toast({ title: "Éxito", description: `${customersToAdd.length} clientes importados y asignados a este grupo.` });
             await fetchData();
@@ -281,6 +283,19 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                                 </DialogDescriptionComponent>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
+                               <div className="space-y-2">
+                                  <Label>Modo de Importación</Label>
+                                  <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="add" id="r-add" />
+                                      <Label htmlFor="r-add">Añadir a existentes</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="replace" id="r-replace" />
+                                      <Label htmlFor="r-replace">Reemplazar clientes de este grupo</Label>
+                                    </div>
+                                  </RadioGroup>
+                                </div>
                                 <Label htmlFor="import-textarea">Datos de Clientes</Label>
                                 <Textarea 
                                   id="import-textarea"
@@ -354,5 +369,3 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         </div>
     );
 }
-
-    
