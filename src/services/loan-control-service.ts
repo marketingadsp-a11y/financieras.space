@@ -18,7 +18,6 @@ import {
 import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza } from "@/lib/data";
 import { customerFromDoc } from "./customer-service-helper";
-import type { FullLoanDataParserOutput } from "@/ai/flows/full-loan-data-parser-flow";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
@@ -171,10 +170,29 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
     });
 }
 
+function excelSerialToDate(serial: number): Date {
+  const utc_days = Math.floor(serial - 25569);
+  const utc_value = utc_days * 86400;                                        
+  const date_info = new Date(utc_value * 1000);
+
+  const fractional_day = serial - Math.floor(serial) + 0.0000001;
+
+  let total_seconds = Math.floor(86400 * fractional_day);
+
+  const seconds = total_seconds % 60;
+
+  total_seconds -= seconds;
+
+  const hours = Math.floor(total_seconds / (60 * 60));
+  const minutes = Math.floor(total_seconds / 60) % 60;
+
+  return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+}
+
 
 // --- Full Data Import ---
 export async function importFullLoanData(
-    data: FullLoanDataParserOutput,
+    data: any[],
     mode: 'add' | 'replace',
     prefix: string
 ): Promise<void> {
@@ -190,54 +208,85 @@ export async function importFullLoanData(
         }
     }
 
-    // Now, add the new data
-    for (const plazaData of data) {
-        // Create or get Plaza
-        const plazaRef = doc(plazasCollectionRef);
-        batch.set(plazaRef, { name: plazaData.plazaName, prefix });
-        
-        for (const carteraData of plazaData.carteras) {
-            // Create or get Cartera
-            const carteraRef = doc(carterasCollectionRef);
-            batch.set(carteraRef, { name: carteraData.carteraName, plazaId: plazaRef.id, prefix });
+    const plazaCache: Record<string, string> = {};
+    const carteraCache: Record<string, string> = {};
+    const grupoCache: Record<string, string> = {};
 
-            for (const grupoData of carteraData.grupos) {
-                // Create or get Grupo
-                const grupoRef = doc(gruposCollectionRef);
-                batch.set(grupoRef, { name: grupoData.groupName, carteraId: carteraRef.id, plazaId: plazaRef.id, prefix });
-
-                for (const customerData of grupoData.customers) {
-                    const customerRef = doc(customersCollectionRef);
-                    const completeCustomerData: Omit<Customer, 'id'> = {
-                        plazaId: plazaRef.id,
-                        loanControlGroupId: grupoRef.id,
-                        status: 'Pendiente' as const,
-                        prefix: prefix,
-                        name: customerData.name || '',
-                        address: customerData.address || '',
-                        phone: customerData.phone || '',
-                        guarantor: customerData.guarantor || '',
-                        guarantorPhone: customerData.guarantorPhone || '',
-                        loanAmount: customerData.loanAmount || 0,
-                        paymentAmount: customerData.paymentAmount || 0,
-                        installmentsDue: customerData.installmentsDue || 0,
-                        dueAmount: customerData.dueAmount || customerData.loanAmount || 0,
-                        colonia: customerData.colonia || '',
-                        cp: customerData.cp || '',
-                        direccionAval: customerData.direccionAval || '',
-                        coloniaAval: customerData.coloniaAval || '',
-                        cpAval: customerData.cpAval || '',
-                        fechaPrestamo: customerData.fechaPrestamo ? new Date(customerData.fechaPrestamo) : new Date(),
-                    };
-
-                    const { fechaPrestamo, ...restOfData } = completeCustomerData;
-                    batch.set(customerRef, {
-                        ...restOfData,
-                        fechaPrestamo: fechaPrestamo ? Timestamp.fromDate(fechaPrestamo) : Timestamp.now()
-                    });
-                }
-            }
+    let currentPlazaId = '';
+    let currentCarteraId = '';
+    let currentGrupoId = '';
+    
+    for (const row of data) {
+        // --- Hierarchy Management ---
+        const plazaName = row.plazaName || (Object.keys(plazaCache).length > 0 ? Object.keys(plazaCache)[Object.keys(plazaCache).length - 1] : '');
+        if (plazaName && !plazaCache[plazaName]) {
+            const plazaRef = doc(plazasCollectionRef);
+            batch.set(plazaRef, { name: plazaName, prefix });
+            plazaCache[plazaName] = plazaRef.id;
         }
+        currentPlazaId = plazaCache[plazaName];
+
+        const carteraName = row.carteraName || (Object.keys(carteraCache).length > 0 ? Object.keys(carteraCache)[Object.keys(carteraCache).length - 1] : '');
+        const carteraKey = `${currentPlazaId}_${carteraName}`;
+        if (carteraName && !carteraCache[carteraKey]) {
+            const carteraRef = doc(carterasCollectionRef);
+            batch.set(carteraRef, { name: carteraName, plazaId: currentPlazaId, prefix });
+            carteraCache[carteraKey] = carteraRef.id;
+        }
+        currentCarteraId = carteraCache[carteraKey];
+
+        const groupName = row.groupName || (Object.keys(grupoCache).length > 0 ? Object.keys(grupoCache)[Object.keys(grupoCache).length - 1] : '');
+        const grupoKey = `${currentCarteraId}_${groupName}`;
+        if (groupName && !grupoCache[grupoKey]) {
+            const grupoRef = doc(gruposCollectionRef);
+            batch.set(grupoRef, { name: groupName, carteraId: currentCarteraId, plazaId: currentPlazaId, prefix });
+            grupoCache[grupoKey] = grupoRef.id;
+        }
+        currentGrupoId = grupoCache[grupoKey];
+        
+        // --- Customer Data ---
+        if (!row.name || !currentPlazaId || !currentCarteraId || !currentGrupoId) continue;
+        
+        const customerRef = doc(customersCollectionRef);
+        let fechaPrestamoDate;
+        if (typeof row.fechaPrestamo === 'number') {
+            fechaPrestamoDate = excelSerialToDate(row.fechaPrestamo);
+        } else if (row.fechaPrestamo) {
+            fechaPrestamoDate = new Date(row.fechaPrestamo);
+        } else {
+            fechaPrestamoDate = new Date();
+        }
+
+        const loanAmount = row.loanAmount || 0;
+        const dueAmount = row.dueAmount === "" ? loanAmount : (row.dueAmount || loanAmount);
+
+        const completeCustomerData = {
+            plazaId: currentPlazaId,
+            loanControlGroupId: currentGrupoId,
+            status: dueAmount <= 0 ? 'Pagado' : 'Pendiente' as const,
+            prefix: prefix,
+            name: row.name || '',
+            address: row.address || '',
+            phone: row.phone || '',
+            guarantor: row.guarantor || '',
+            guarantorPhone: row.guarantorPhone || '',
+            loanAmount: loanAmount,
+            paymentAmount: row.paymentAmount || 0,
+            installmentsDue: row.installmentsDue || 0,
+            dueAmount: dueAmount,
+            colonia: row.colonia || '',
+            cp: row.cp || '',
+            direccionAval: row.direccionAval || '',
+            coloniaAval: row.coloniaAval || '',
+            cpAval: row.cpAval || '',
+            fechaPrestamo: fechaPrestamoDate,
+        };
+        
+        const { fechaPrestamo, ...restOfData } = completeCustomerData;
+         batch.set(customerRef, {
+            ...restOfData,
+            fechaPrestamo: fechaPrestamo ? Timestamp.fromDate(fechaPrestamo) : Timestamp.now()
+        });
     }
 
     await batch.commit();

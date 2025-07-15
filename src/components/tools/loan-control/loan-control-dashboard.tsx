@@ -2,19 +2,19 @@
 "use client";
 
 import * as React from "react";
+import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
-import { Loader2, Building, ArrowRight, Upload, ClipboardPaste } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { parseFullLoanData } from "@/ai/flows/full-loan-data-parser-flow";
+import { Input } from "@/components/ui/input";
 import { importFullLoanData } from "@/services/loan-control-service";
 
 
@@ -51,9 +51,9 @@ export function LoanControlDashboard() {
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isImportModalOpen, setImportModalOpen] = React.useState(false);
-    const [importText, setImportText] = React.useState('');
+    const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
     const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
-    const [isParsing, setIsParsing] = React.useState(false);
+    const [isImporting, setIsImporting] = React.useState(false);
 
 
     const fetchPlazasForUser = React.useCallback(async () => {
@@ -75,36 +75,79 @@ export function LoanControlDashboard() {
         fetchPlazasForUser();
     }, [fetchPlazasForUser]);
     
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setSelectedFile(event.target.files[0]);
+        }
+    };
+
     const handleImport = async () => {
-        if (!importText.trim()) {
-            toast({ variant: "destructive", title: "Error", description: "El área de texto no puede estar vacía." });
+        if (!selectedFile) {
+            toast({ variant: "destructive", title: "Error", description: "Por favor, selecciona un archivo de Excel." });
             return;
         }
         if (!user?.prefix) {
             toast({ variant: "destructive", title: "Error", description: "No tienes un prefijo asignado para importar datos." });
             return;
         }
-        setIsParsing(true);
+        setIsImporting(true);
         try {
-            const parsedData = await parseFullLoanData({ inputText: importText });
-            if (!parsedData || parsedData.length === 0) {
-                toast({ variant: "destructive", title: "Error de IA", description: "La IA no pudo procesar el texto. Verifica el formato." });
-                setIsParsing(false);
-                return;
-            }
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = e.target?.result;
+                    const workbook = XLSX.read(data, { type: 'binary' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, {
+                        raw: false, // This will format dates
+                        defval: "", // default value for empty cells
+                    });
 
-            await importFullLoanData(parsedData, importMode, user.prefix);
-
-            toast({ title: "Éxito", description: `Se procesaron ${parsedData.length} plaza(s) y sus datos.` });
-            await fetchPlazasForUser();
-            setImportModalOpen(false);
-            setImportText('');
+                    // Map excel headers to our expected keys (case-insensitive)
+                    const mappedData = json.map((row: any) => {
+                        const newRow: any = {};
+                        for (const key in row) {
+                            const lowerKey = key.toLowerCase().trim();
+                            if (lowerKey.includes('plaza')) newRow.plazaName = row[key];
+                            else if (lowerKey.includes('cartera')) newRow.carteraName = row[key];
+                            else if (lowerKey.includes('responsable')) newRow.responsable = row[key];
+                            else if (lowerKey.includes('grupo')) newRow.groupName = row[key];
+                            else if (lowerKey.includes('nombre')) newRow.name = row[key];
+                            else if (lowerKey.includes('dirección') || lowerKey.includes('direccion')) newRow.address = row[key];
+                            else if (lowerKey.includes('colonia')) newRow.colonia = row[key];
+                            else if (lowerKey.includes('cp') || lowerKey.includes('c.p')) newRow.cp = String(row[key]);
+                            else if (lowerKey.includes('teléfono') || lowerKey.includes('telefono')) newRow.phone = String(row[key]);
+                            else if (lowerKey.includes('aval') && !lowerKey.includes('dir') && !lowerKey.includes('tel')) newRow.guarantor = row[key];
+                            else if (lowerKey.includes('tel aval')) newRow.guarantorPhone = String(row[key]);
+                            else if (lowerKey.includes('dir aval')) newRow.direccionAval = row[key];
+                            else if (lowerKey.includes('col aval')) newRow.coloniaAval = row[key];
+                            else if (lowerKey.includes('cp aval')) newRow.cpAval = String(row[key]);
+                            else if (lowerKey.includes('prestamo')) newRow.loanAmount = parseFloat(String(row[key]).replace(/[^0-9.-]+/g,""));
+                            else if (lowerKey.includes('pago')) newRow.paymentAmount = parseFloat(String(row[key]).replace(/[^0-9.-]+/g,""));
+                            else if (lowerKey.includes('vencidos')) newRow.installmentsDue = parseInt(row[key], 10);
+                            else if (lowerKey.includes('adeudo')) newRow.dueAmount = parseFloat(String(row[key]).replace(/[^0-9.-]+/g,""));
+                            else if (lowerKey.includes('fecha')) newRow.fechaPrestamo = row[key];
+                        }
+                        return newRow;
+                    });
+                    
+                    await importFullLoanData(mappedData as any, importMode, user.prefix);
+                    
+                    toast({ title: "Éxito", description: `Se procesaron ${json.length} filas del archivo.` });
+                    await fetchPlazasForUser();
+                    setImportModalOpen(false);
+                } catch(readError) {
+                     toast({ variant: "destructive", title: "Error de Lectura", description: "No se pudo procesar el archivo Excel. Asegúrate que el formato sea correcto." });
+                } finally {
+                    setIsImporting(false);
+                }
+            };
+            reader.readAsBinaryString(selectedFile);
 
         } catch (error) {
             toast({ variant: "destructive", title: "Error de Importación", description: "Ocurrió un error al importar los datos." });
-            console.error(error);
-        } finally {
-            setIsParsing(false);
+            setIsImporting(false);
         }
     };
 
@@ -130,15 +173,15 @@ export function LoanControlDashboard() {
                  <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                     <DialogTrigger asChild>
                         <Button>
-                            <Upload className="mr-2 h-4 w-4" /> Importar Todo
+                            <Upload className="mr-2 h-4 w-4" /> Importar desde Excel
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl">
+                    <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
                             <DialogTitle>Importación Masiva (Plaza {'>'} Cartera {'>'} Grupo {'>'} Cliente)</DialogTitle>
                             <DialogDescriptionComponent>
-                              Pega texto de una hoja de cálculo. La IA identificará Plazas, Carteras, Grupos y Clientes para una importación completa.
-                              Asegúrate de que las columnas PLAZA, CARTERA y GRUPO estén bien definidas.
+                              Selecciona un archivo de Excel (`.xlsx`, `.xls`) para una importación completa.
+                              Las columnas deben tener encabezados como: Plaza, Cartera, Grupo, Nombre, Prestamo, etc.
                             </DialogDescriptionComponent>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
@@ -155,18 +198,21 @@ export function LoanControlDashboard() {
                                 </div>
                               </RadioGroup>
                             </div>
-                            <Textarea 
-                              placeholder="Pega aquí los datos de tu hoja de cálculo..." 
-                              className="min-h-[200px]"
-                              value={importText}
-                              onChange={(e) => setImportText(e.target.value)}
-                            />
+                            <div className="space-y-2">
+                                <Label htmlFor="excel-file">Archivo de Excel</Label>
+                                <Input 
+                                    id="excel-file"
+                                    type="file"
+                                    accept=".xlsx, .xls"
+                                    onChange={handleFileChange}
+                                />
+                            </div>
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                            <Button onClick={handleImport} disabled={isParsing}>
-                                {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
-                                {isParsing ? 'Procesando...' : 'Importar desde Texto'}
+                            <Button onClick={handleImport} disabled={isImporting || !selectedFile}>
+                                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4"/>}
+                                {isImporting ? 'Importando...' : 'Importar Archivo'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
