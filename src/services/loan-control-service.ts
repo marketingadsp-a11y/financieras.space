@@ -196,104 +196,119 @@ export async function clearDataByPrefix(prefix: string) {
     }
 }
 
-
 export async function importFullLoanData(
     data: any[],
     mode: 'add' | 'replace',
     prefix: string
 ): Promise<void> {
-    
     if (mode === 'replace') {
         await clearDataByPrefix(prefix);
     }
-    
-    let batch = writeBatch(db);
-    let operationCount = 0;
+
     const plazaCache: Record<string, string> = {};
     const carteraCache: Record<string, string> = {};
     const grupoCache: Record<string, string> = {};
 
+    // First pass to populate caches from existing data if in 'add' mode
+    if (mode === 'add') {
+        const plazaQuery = query(plazasCollectionRef, where("prefix", "==", prefix));
+        const plazaSnapshot = await getDocs(plazaQuery);
+        for (const doc of plazaSnapshot.docs) {
+            plazaCache[doc.data().name] = doc.id;
+        }
+        const carteraQuery = query(carterasCollectionRef, where("prefix", "==", prefix));
+        const carteraSnapshot = await getDocs(carteraQuery);
+        for (const doc of carteraSnapshot.docs) {
+            carteraCache[`${doc.data().plazaId}_${doc.data().name}`] = doc.id;
+        }
+        const grupoQuery = query(gruposCollectionRef, where("prefix", "==", prefix));
+        const grupoSnapshot = await getDocs(grupoQuery);
+        for (const doc of grupoSnapshot.docs) {
+            grupoCache[`${doc.data().carteraId}_${doc.data().name}`] = doc.id;
+        }
+    }
+    
+    let batch = writeBatch(db);
+    let operationCount = 0;
     let lastPlazaName = '';
     let lastCarteraName = '';
     let lastGroupName = '';
 
+    const commitBatchIfNeeded = async () => {
+        if (operationCount >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            operationCount = 0;
+        }
+    };
+    
     for (const row of data) {
-         // Skip fully empty rows silently
-        if (Object.values(row).every(val => val === null || val === '')) {
+        if (Object.values(row).every(val => val === null || String(val).trim() === '')) {
             continue;
         }
-
-        const commitBatchIfNeeded = async () => {
-            if (operationCount >= 400) {
-                await batch.commit();
-                batch = writeBatch(db);
-                operationCount = 0;
-            }
+        
+        const getOrCreatePlaza = async (name: string) => {
+            if (plazaCache[name]) return plazaCache[name];
+            const newDocRef = doc(collection(db, "plazas"));
+            batch.set(newDocRef, { name, prefix });
+            operationCount++;
+            plazaCache[name] = newDocRef.id;
+            return newDocRef.id;
         };
 
-        const currentPlazaName = (row.Plaza || row.plaza || '').toString().trim() || lastPlazaName;
-        const currentCarteraName = (row.Cartera || row.cartera || '').toString().trim() || lastCarteraName;
-        const currentGroupName = (row.Grupo || row.grupo || '').toString().trim() || lastGroupName;
+        const getOrCreateCartera = async (plazaId: string, name: string) => {
+            const key = `${plazaId}_${name}`;
+            if (carteraCache[key]) return carteraCache[key];
+            const newDocRef = doc(collection(db, "loanControlCarteras"));
+            batch.set(newDocRef, { name, plazaId, prefix });
+            operationCount++;
+            carteraCache[key] = newDocRef.id;
+            return newDocRef.id;
+        };
+
+        const getOrCreateGrupo = async (plazaId: string, carteraId: string, name: string) => {
+            const key = `${carteraId}_${name}`;
+            if (grupoCache[key]) return grupoCache[key];
+            const newDocRef = doc(collection(db, "loanControlGrupos"));
+            batch.set(newDocRef, { name, plazaId, carteraId, prefix });
+            operationCount++;
+            grupoCache[key] = newDocRef.id;
+            return newDocRef.id;
+        };
+
+        const currentPlazaName = (row.Plaza || row.plaza || '').toString().trim();
+        const currentCarteraName = (row.Cartera || row.cartera || '').toString().trim();
+        const currentGroupName = (row.Grupo || row.grupo || '').toString().trim();
         const customerName = (row.Cliente || row.Nombre || row.nombre || '').toString().trim();
 
-        // First, update hierarchy if present. This allows for rows that only define groups/carteras.
         if (currentPlazaName) lastPlazaName = currentPlazaName;
         if (currentCarteraName) lastCarteraName = currentCarteraName;
         if (currentGroupName) lastGroupName = currentGroupName;
-        
-        // Now, if there's no customer name, we can skip to the next row after updating hierarchy.
-        if (!customerName) {
+
+        if (!customerName || !lastPlazaName || !lastCarteraName || !lastGroupName) {
             continue;
         }
 
-        // A customer row is only valid if its full hierarchy is known.
-        if (!lastPlazaName || !lastCarteraName || !lastGroupName) {
-            continue;
-        }
+        const plazaId = await getOrCreatePlaza(lastPlazaName);
+        await commitBatchIfNeeded(); 
 
-        let plazaId = plazaCache[lastPlazaName];
-        if (!plazaId) {
-            const plazaRef = doc(plazasCollectionRef);
-            batch.set(plazaRef, { name: lastPlazaName, prefix });
-            plazaId = plazaRef.id;
-            plazaCache[lastPlazaName] = plazaId;
-            operationCount++;
-            await commitBatchIfNeeded();
-        }
+        const carteraId = await getOrCreateCartera(plazaId, lastCarteraName);
+        await commitBatchIfNeeded();
 
-        const carteraKey = `${plazaId}_${lastCarteraName}`;
-        let carteraId = carteraCache[carteraKey];
-        if (!carteraId) {
-            const carteraRef = doc(carterasCollectionRef);
-            batch.set(carteraRef, { name: lastCarteraName, plazaId, prefix });
-            carteraId = carteraRef.id;
-            carteraCache[carteraKey] = carteraId;
-            operationCount++;
-            await commitBatchIfNeeded();
-        }
+        const grupoId = await getOrCreateGrupo(plazaId, carteraId, lastGroupName);
+        await commitBatchIfNeeded();
 
-        const grupoKey = `${carteraId}_${lastGroupName}`;
-        let grupoId = grupoCache[grupoKey];
-        if (!grupoId) {
-            const grupoRef = doc(gruposCollectionRef);
-            batch.set(grupoRef, { name: lastGroupName, carteraId, plazaId, prefix });
-            grupoId = grupoRef.id;
-            grupoCache[grupoKey] = grupoId;
-            operationCount++;
-            await commitBatchIfNeeded();
-        }
-        
         let fechaPrestamoDate;
         const fechaValue = row['F. Prestamo'] || row.FechaPrestamo || row.fechaPrestamo || row.fecha_prestamo;
         if (fechaValue) {
             if (fechaValue instanceof Date) {
                 fechaPrestamoDate = fechaValue;
             } else if (typeof fechaValue === 'string') {
-                const parsed = Date.parse(fechaValue);
+                const parsed = Date.parse(fechaValue.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$2/$1/$3')); // Handle DD/MM/YYYY
                 fechaPrestamoDate = isNaN(parsed) ? undefined : new Date(parsed);
             } else if (typeof fechaValue === 'number') { 
                  const excelEpoch = new Date(1899, 11, 30);
-                 fechaPrestamoDate = new Date(excelEpoch.getTime() + fechaValue * 86400000);
+                 fechaPrestamoDate = new Date(excelEpoch.getTime() + (fechaValue * 86400000));
             }
         }
 
