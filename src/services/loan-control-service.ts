@@ -13,7 +13,8 @@ import {
     writeBatch,
     getDoc,
     runTransaction,
-    Timestamp
+    Timestamp,
+    WriteBatch
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza } from "@/lib/data";
@@ -209,23 +210,18 @@ export async function importFullLoanData(
     const carteraCache: Record<string, string> = {};
     const grupoCache: Record<string, string> = {};
 
-    // First pass to populate caches from existing data if in 'add' mode
     if (mode === 'add') {
         const plazaQuery = query(plazasCollectionRef, where("prefix", "==", prefix));
         const plazaSnapshot = await getDocs(plazaQuery);
-        for (const doc of plazaSnapshot.docs) {
-            plazaCache[doc.data().name] = doc.id;
-        }
+        plazaSnapshot.forEach(doc => { plazaCache[doc.data().name] = doc.id; });
+
         const carteraQuery = query(carterasCollectionRef, where("prefix", "==", prefix));
         const carteraSnapshot = await getDocs(carteraQuery);
-        for (const doc of carteraSnapshot.docs) {
-            carteraCache[`${doc.data().plazaId}_${doc.data().name}`] = doc.id;
-        }
+        carteraSnapshot.forEach(doc => { carteraCache[`${doc.data().plazaId}_${doc.data().name}`] = doc.id; });
+        
         const grupoQuery = query(gruposCollectionRef, where("prefix", "==", prefix));
         const grupoSnapshot = await getDocs(grupoQuery);
-        for (const doc of grupoSnapshot.docs) {
-            grupoCache[`${doc.data().carteraId}_${doc.data().name}`] = doc.id;
-        }
+        grupoSnapshot.forEach(doc => { grupoCache[`${doc.data().carteraId}_${doc.data().name}`] = doc.id; });
     }
     
     let batch = writeBatch(db);
@@ -243,59 +239,51 @@ export async function importFullLoanData(
     };
     
     for (const row of data) {
+        // Skip empty rows completely
         if (Object.values(row).every(val => val === null || String(val).trim() === '')) {
             continue;
         }
-        
-        const getOrCreatePlaza = async (name: string) => {
-            if (plazaCache[name]) return plazaCache[name];
-            const newDocRef = doc(collection(db, "plazas"));
-            batch.set(newDocRef, { name, prefix });
-            operationCount++;
-            plazaCache[name] = newDocRef.id;
-            return newDocRef.id;
-        };
 
-        const getOrCreateCartera = async (plazaId: string, name: string) => {
-            const key = `${plazaId}_${name}`;
-            if (carteraCache[key]) return carteraCache[key];
-            const newDocRef = doc(collection(db, "loanControlCarteras"));
-            batch.set(newDocRef, { name, plazaId, prefix });
-            operationCount++;
-            carteraCache[key] = newDocRef.id;
-            return newDocRef.id;
-        };
-
-        const getOrCreateGrupo = async (plazaId: string, carteraId: string, name: string) => {
-            const key = `${carteraId}_${name}`;
-            if (grupoCache[key]) return grupoCache[key];
-            const newDocRef = doc(collection(db, "loanControlGrupos"));
-            batch.set(newDocRef, { name, plazaId, carteraId, prefix });
-            operationCount++;
-            grupoCache[key] = newDocRef.id;
-            return newDocRef.id;
-        };
-
-        const currentPlazaName = (row.Plaza || row.plaza || '').toString().trim();
-        const currentCarteraName = (row.Cartera || row.cartera || '').toString().trim();
-        const currentGroupName = (row.Grupo || row.grupo || '').toString().trim();
-        const customerName = (row.Cliente || row.Nombre || row.nombre || '').toString().trim();
+        const currentPlazaName = String(row.Plaza || row.plaza || '').trim();
+        const currentCarteraName = String(row.Cartera || row.cartera || '').trim();
+        const currentGroupName = String(row.Grupo || row.grupo || '').trim();
+        const customerName = String(row.Cliente || row.Nombre || row.nombre || '').trim();
 
         if (currentPlazaName) lastPlazaName = currentPlazaName;
         if (currentCarteraName) lastCarteraName = currentCarteraName;
         if (currentGroupName) lastGroupName = currentGroupName;
 
-        if (!customerName || !lastPlazaName || !lastCarteraName || !lastGroupName) {
-            continue;
+        if (!lastPlazaName || !lastCarteraName || !lastGroupName) continue;
+        
+        let plazaId = plazaCache[lastPlazaName];
+        if (!plazaId) {
+            const newDocRef = doc(plazasCollectionRef);
+            plazaId = newDocRef.id;
+            batch.set(newDocRef, { name: lastPlazaName, prefix });
+            operationCount++;
+            plazaCache[lastPlazaName] = plazaId;
         }
 
-        const plazaId = await getOrCreatePlaza(lastPlazaName);
-        await commitBatchIfNeeded(); 
+        let carteraId = carteraCache[`${plazaId}_${lastCarteraName}`];
+        if (!carteraId) {
+            const newDocRef = doc(carterasCollectionRef);
+            carteraId = newDocRef.id;
+            batch.set(newDocRef, { name: lastCarteraName, plazaId, prefix });
+            operationCount++;
+            carteraCache[`${plazaId}_${lastCarteraName}`] = carteraId;
+        }
+        
+        let grupoId = grupoCache[`${carteraId}_${lastGroupName}`];
+        if (!grupoId) {
+            const newDocRef = doc(gruposCollectionRef);
+            grupoId = newDocRef.id;
+            batch.set(newDocRef, { name: lastGroupName, plazaId, carteraId, prefix });
+            operationCount++;
+            grupoCache[`${carteraId}_${lastGroupName}`] = grupoId;
+        }
 
-        const carteraId = await getOrCreateCartera(plazaId, lastCarteraName);
-        await commitBatchIfNeeded();
-
-        const grupoId = await getOrCreateGrupo(plazaId, carteraId, lastGroupName);
+        if (!customerName) continue; // Only proceed if there's a customer to add
+        
         await commitBatchIfNeeded();
 
         let fechaPrestamoDate;
@@ -304,11 +292,11 @@ export async function importFullLoanData(
             if (fechaValue instanceof Date) {
                 fechaPrestamoDate = fechaValue;
             } else if (typeof fechaValue === 'string') {
-                const parsed = Date.parse(fechaValue.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$2/$1/$3')); // Handle DD/MM/YYYY
+                const parsed = Date.parse(fechaValue.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$2/$1/$3'));
                 fechaPrestamoDate = isNaN(parsed) ? undefined : new Date(parsed);
             } else if (typeof fechaValue === 'number') { 
-                 const excelEpoch = new Date(1899, 11, 30);
-                 fechaPrestamoDate = new Date(excelEpoch.getTime() + (fechaValue * 86400000));
+                const excelEpoch = new Date(1899, 11, 30);
+                fechaPrestamoDate = new Date(excelEpoch.getTime() + (fechaValue * 86400000));
             }
         }
 
@@ -317,31 +305,30 @@ export async function importFullLoanData(
         const dueAmount = dueAmountRaw === undefined || String(dueAmountRaw).trim() === "" ? loanAmount : parseFloat(String(dueAmountRaw).replace(/[^0-9.-]+/g,""));
 
         const completeCustomerData = {
-            plazaId: plazaId,
+            plazaId,
             loanControlGroupId: grupoId,
             status: dueAmount <= 0 ? 'Pagado' : 'Pendiente' as const,
-            prefix: prefix,
+            prefix,
             name: customerName,
-            address: row.Dirección || row.Direccion || '',
+            address: String(row.Dirección || row.Direccion || ''),
             phone: String(row.Telefonos || row.Telefono || ''),
-            colonia: row.Colonia || '',
+            colonia: String(row.Colonia || ''),
             cp: String(row.CP || row['C.P.'] || ''),
-            guarantor: row.Aval || '',
-            direccionAval: row.DireccionAval || '',
+            guarantor: String(row.Aval || ''),
+            direccionAval: String(row.DireccionAval || ''),
             guarantorPhone: String(row.TelefonoAval || row.TelefonosAval || ''),
-            coloniaAval: row.ColoniaAval || '',
+            coloniaAval: String(row.ColoniaAval || ''),
             cpAval: String(row.CPAval || ''),
-            loanAmount: loanAmount,
-            paymentAmount: row.Pago || 0,
-            installmentsDue: row.Vencidos || 0,
-            dueAmount: dueAmount,
+            loanAmount: isNaN(loanAmount) ? 0 : loanAmount,
+            paymentAmount: parseFloat(String(row.Pago || 0).replace(/[^0-9.-]+/g,"")) || 0,
+            installmentsDue: parseInt(String(row.Vencidos || 0), 10) || 0,
+            dueAmount: isNaN(dueAmount) ? 0 : dueAmount,
             fechaPrestamo: fechaPrestamoDate ? Timestamp.fromDate(fechaPrestamoDate) : null,
         };
         
         const customerRef = doc(customersCollectionRef);
         batch.set(customerRef, completeCustomerData);
         operationCount++;
-        await commitBatchIfNeeded();
     }
 
     if (operationCount > 0) {
