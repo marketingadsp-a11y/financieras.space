@@ -5,12 +5,15 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX } from "lucide-react";
+import { clearDataByPrefix } from "@/services/loan-control-service";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -96,7 +99,7 @@ export function LoanControlDashboard() {
     const [isImporting, setIsImporting] = React.useState(false);
     const [startDate, setStartDate] = React.useState<Date | undefined>();
     const [endDate, setEndDate] = React.useState<Date | undefined>();
-
+    const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
 
     const fetchPlazasForUser = React.useCallback(async () => {
         if (!user) return;
@@ -166,6 +169,25 @@ export function LoanControlDashboard() {
         }
     };
     
+    const handleDeleteAllData = async () => {
+        if (!user?.prefix) return;
+        try {
+            await clearDataByPrefix(user.prefix);
+            toast({
+                title: "Éxito",
+                description: "Todos los datos de Control de Préstamo han sido eliminados.",
+            });
+            await fetchPlazasForUser();
+            setDeleteConfirmationText('');
+        } catch (error) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "No se pudieron eliminar los datos.",
+            });
+        }
+    };
+
     const summary = React.useMemo(() => {
         return plazas.reduce((acc, plaza) => {
             acc.totalLoaned += plaza.totalLoanAmount || 0;
@@ -187,6 +209,8 @@ export function LoanControlDashboard() {
             </div>
         );
     }
+    
+    const expectedConfirmationText = "ELIMINAR TODO";
   
     return (
         <div className="space-y-6">
@@ -197,53 +221,99 @@ export function LoanControlDashboard() {
                         Selecciona una plaza para organizar clientes en carteras y grupos.
                     </p>
                 </div>
-                 <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Upload className="mr-2 h-4 w-4" /> Importar desde Excel
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-xl">
-                        <DialogHeader>
-                            <DialogTitle>Importación Masiva (Plaza {'>'} Cartera {'>'} Grupo {'>'} Cliente)</DialogTitle>
-                            <DialogDescriptionComponent>
-                              Selecciona un archivo de Excel (`.xlsx`, `.xls`) para una importación completa.
-                              Las columnas deben tener encabezados como: Plaza, Cartera, Grupo, Nombre, Prestamo, etc.
-                            </DialogDescriptionComponent>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="space-y-2">
-                              <Label>Modo de Importación</Label>
-                              <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="add" id="r1" />
-                                  <Label htmlFor="r1">Añadir a existentes</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="replace" id="r2" />
-                                  <Label htmlFor="r2">Reemplazar todos los datos de este prefijo</Label>
-                                </div>
-                              </RadioGroup>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="excel-file">Archivo de Excel</Label>
-                                <Input 
-                                    id="excel-file"
-                                    type="file"
-                                    accept=".xlsx, .xls"
-                                    onChange={handleFileChange}
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                            <Button onClick={handleImport} disabled={isImporting || !selectedFile}>
-                                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4"/>}
-                                {isImporting ? 'Importando...' : 'Importar Archivo'}
+                <div className="flex items-center gap-2">
+                     <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <Upload className="mr-2 h-4 w-4" /> Importar desde Excel
                             </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-xl">
+                            <DialogHeader>
+                                <DialogTitle>Importación Masiva (Plaza {'>'} Cartera {'>'} Grupo {'>'} Cliente)</DialogTitle>
+                                <DialogDescriptionComponent>
+                                  Selecciona un archivo de Excel (`.xlsx`, `.xls`) para una importación completa.
+                                  Las columnas deben tener encabezados como: Plaza, Cartera, Grupo, Nombre, Prestamo, etc.
+                                </DialogDescriptionComponent>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                  <Label>Modo de Importación</Label>
+                                  <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="add" id="r1" />
+                                      <Label htmlFor="r1">Añadir a existentes</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="replace" id="r2" />
+                                      <Label htmlFor="r2">Reemplazar todos los datos de este prefijo</Label>
+                                    </div>
+                                  </RadioGroup>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="excel-file">Archivo de Excel</Label>
+                                    <Input 
+                                        id="excel-file"
+                                        type="file"
+                                        accept=".xlsx, .xls"
+                                        onChange={handleFileChange}
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+                                <Button onClick={handleImport} disabled={isImporting || !selectedFile}>
+                                    {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4"/>}
+                                    {isImporting ? 'Importando...' : 'Importar Archivo'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                     <AlertDialog>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={e => e.preventDefault()}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Eliminar Todos los Datos
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
+                            <AlertDialogDescription>
+                                Esta acción es irreversible y eliminará permanentemente <strong>TODAS</strong> las plazas, carteras, grupos y clientes de Control de Préstamo para el prefijo <strong>{user?.prefix}</strong>.
+                                Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <Input
+                            value={deleteConfirmationText}
+                            onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                            placeholder={expectedConfirmationText}
+                            autoFocus
+                            />
+                            <AlertDialogFooterComponent>
+                            <AlertDialogCancel onClick={() => setDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDeleteAllData}
+                                disabled={deleteConfirmationText !== expectedConfirmationText}
+                                className="bg-destructive hover:bg-destructive/90"
+                            >
+                                Sí, eliminar todo
+                            </AlertDialogAction>
+                            </AlertDialogFooterComponent>
+                        </AlertDialogContent>
+                        </AlertDialog>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

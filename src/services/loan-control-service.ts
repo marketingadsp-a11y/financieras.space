@@ -172,7 +172,7 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
 
 
 // --- Full Data Import ---
-async function clearDataByPrefix(prefix: string) {
+export async function clearDataByPrefix(prefix: string) {
     const collectionsToDelete = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
     for (const coll of collectionsToDelete) {
         const q = query(coll, where("prefix", "==", prefix));
