@@ -3,38 +3,57 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Building, Loader2, Upload, Download } from "lucide-react";
+import { ArrowRight, Building, Loader2, Upload, Download, FolderKanban, Banknote } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { getPlazaStructure, importFullStructureFromData } from "@/services/loan-control-service";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
-import { importFullStructureFromData } from "@/services/loan-control-service";
 import type { StructuredCustomerData } from "@/lib/data";
+import { cn } from "@/lib/utils";
 
-const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
-    <Card>
+type PlazaWithStats = Plaza & {
+  carteraCount: number;
+};
+
+const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
+    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30">
         <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-                <Building className="h-5 w-5 text-muted-foreground" />
-                {plaza.name}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Building className="h-6 w-6" />
+                    </span>
+                    {plaza.name}
+                </CardTitle>
+                <Badge variant="outline">{plaza.prefix}</Badge>
+            </div>
         </CardHeader>
-        <CardContent>
-           <p className="text-sm text-muted-foreground">
-                Selecciona esta plaza para administrar sus carteras y grupos de clientes.
-           </p>
+        <CardContent className="flex-grow space-y-4">
+             <div className="flex justify-between items-baseline rounded-lg border bg-muted/50 p-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Saldo Pendiente</p>
+                  <p className="text-3xl font-bold text-destructive">
+                      ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="text-right">
+                    <p className="text-sm font-medium text-muted-foreground">Carteras</p>
+                    <p className="text-3xl font-bold">{plaza.carteraCount}</p>
+                </div>
+            </div>
         </CardContent>
         <CardFooter>
             <Button asChild className="w-full">
                <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
-                    Administrar Carteras <ArrowRight className="ml-2" />
+                    Administrar Plaza <ArrowRight className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
                 </Link>
             </Button>
         </CardFooter>
@@ -44,7 +63,7 @@ const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
 export function LoanControlDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [plazas, setPlazas] = React.useState<Plaza[]>([]);
+  const [plazas, setPlazas] = React.useState<PlazaWithStats[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isImporting, setIsImporting] = React.useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
@@ -57,7 +76,19 @@ export function LoanControlDashboard() {
     try {
         const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
         const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
-        setPlazas(plazasFromDb);
+        
+        const plazasWithStats = await Promise.all(
+            plazasFromDb.map(async (plaza) => {
+                const structure = await getPlazaStructure(plaza.id);
+                return {
+                    ...plaza,
+                    carteraCount: structure.carteras.length,
+                };
+            })
+        );
+        
+        setPlazas(plazasWithStats);
+
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las plazas.' });
     } finally {
@@ -153,7 +184,7 @@ export function LoanControlDashboard() {
 
   return (
     <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Control de Préstamo</h1>
                 <p className="text-muted-foreground">
@@ -183,9 +214,9 @@ export function LoanControlDashboard() {
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Importar Estructura Completa</DialogTitle>
-                            <DialogDescription>
+                            <DialogDescriptionComponent>
                                 Selecciona el modo de importación y luego elige los archivos. Las columnas Plaza, Cartera y Grupo se crearán si no existen.
-                            </DialogDescription>
+                            </DialogDescriptionComponent>
                         </DialogHeader>
                          <div className="grid gap-4 py-4">
                             <div className="space-y-2">
@@ -221,13 +252,14 @@ export function LoanControlDashboard() {
         ) : plazas.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {plazas.map((plaza) => (
-                    <PlazaCard key={plaza.id} plaza={plaza} />
+                    <PlazaStatsCard key={plaza.id} plaza={plaza} />
                 ))}
             </div>
         ) : (
              <Card>
-                <CardContent className="pt-6">
-                    <p className="text-center text-muted-foreground">No hay plazas registradas. Comienza agregando una en la sección de "Gestionar Plazas" o impórtalas desde un archivo.</p>
+                <CardContent className="py-10 text-center text-muted-foreground">
+                    <p>No hay plazas registradas.</p>
+                    <p className="text-sm mt-1">Comienza agregando una en la sección de "Gestionar Plazas" o impórtalas desde un archivo.</p>
                 </CardContent>
             </Card>
         )}
