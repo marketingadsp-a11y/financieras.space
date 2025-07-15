@@ -6,7 +6,7 @@ import Link from "next/link";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight, ClipboardPaste, FileSpreadsheet, FileText } from "lucide-react";
+import { Loader2, Users, PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowRight, ClipboardPaste, FileSpreadsheet, FileText, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo, importGruposAndCustomersFromPaste } from "@/services/loan-control-service";
@@ -50,10 +50,6 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingGrupo, setEditingGrupo] = React.useState<LoanControlGrupo | null>(null);
-  const [isImportModalOpen, setImportModalOpen] = React.useState(false);
-  const [importText, setImportText] = React.useState('');
-  const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
-  const [isProcessingImport, setIsProcessingImport] = React.useState(false);
   const { toast } = useToast();
 
 
@@ -124,34 +120,6 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
         toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el grupo." });
     }
   }
-
-  const handleImportSubmit = async (textToImport: string) => {
-      if (!textToImport.trim() || !user?.prefix || !cartera) return;
-      setIsProcessingImport(true);
-      try {
-        const result = await importGruposAndCustomersFromPaste({
-            carteraId: cartera.id,
-            plazaId: cartera.plazaId,
-            prefix: user.prefix,
-            pasteData: textToImport,
-            mode: importMode,
-        });
-
-        toast({
-            title: "Importación Completa",
-            description: `Se crearon ${result.newGroups} grupos nuevos y se importaron ${result.totalCustomers} clientes.`,
-        });
-
-        await fetchGruposAndCustomers();
-        setImportModalOpen(false);
-        setImportText('');
-
-      } catch (error) {
-        toast({ variant: "destructive", title: "Error de Importación", description: `Ocurrió un error: ${error instanceof Error ? error.message : 'Error desconocido'}` });
-      } finally {
-          setIsProcessingImport(false);
-      }
-  };
   
   const summary = React.useMemo(() => {
     return allCustomers.reduce((acc, customer) => {
@@ -260,43 +228,6 @@ export function LoanControlCarteraDetail({ carteraId, plazaId }: { carteraId: st
                 </CardDescription>
             </div>
              <div className="flex items-center gap-2">
-                <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline"><ClipboardPaste className="mr-2 h-4 w-4"/> Importar por Texto</Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-xl">
-                        <DialogHeader>
-                            <DialogTitle>Importar Grupos y Clientes</DialogTitle>
-                            <DialogDescriptionComponent>
-                                Pega los datos de Excel aquí. La IA identificará clientes y grupos. Si un grupo no existe, se creará automáticamente.
-                            </DialogDescriptionComponent>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="space-y-2">
-                                <Label>Modo de Importación</Label>
-                                <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as 'add' | 'replace')} className="flex items-center gap-6">
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="add" id="r-add" /><Label htmlFor="r-add">Agregar a existentes</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="replace" id="r-replace" /><Label htmlFor="r-replace">Reemplazar grupos importados</Label></div>
-                                </RadioGroup>
-                            </div>
-                            <Label htmlFor="import-textarea">Datos de Clientes y Grupos</Label>
-                            <Textarea 
-                                id="import-textarea"
-                                placeholder="Pega aquí los datos..." 
-                                className="min-h-[250px] font-mono text-xs" 
-                                value={importText} 
-                                onChange={(e) => setImportText(e.target.value)}
-                            />
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                            <Button onClick={() => handleImportSubmit(importText)} disabled={isProcessingImport}>
-                                {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
-                                {isProcessingImport ? 'Procesando...' : 'Importar'}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
                 <Button variant="outline" onClick={exportToExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Excel</Button>
                 <Button variant="outline" onClick={exportToPDF}><FileText className="mr-2 h-4 w-4" /> PDF</Button>
                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingGrupo(null);}}>

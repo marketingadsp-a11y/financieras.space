@@ -5,20 +5,18 @@ import * as React from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import { getPlazaById } from "@/services/plaza-service";
-import type { Plaza, LoanControlCartera } from "@/lib/data";
-import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, ClipboardPaste, Upload } from "lucide-react";
+import type { Plaza, LoanControlCartera, StructuredCustomerData } from "@/lib/data";
+import { Loader2, FolderKanban, ArrowRight, PlusCircle, MoreHorizontal, Pencil, Trash2, User, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getGroupsAndCustomersByCartera, importPlazaStructureFromPaste } from "@/services/loan-control-service";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription as DialogDescriptionComponent, DialogFooter } from "@/components/ui/dialog";
+import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getGroupsAndCustomersByCartera, importStructuredData } from "@/services/loan-control-service";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CarteraForm } from "./cartera-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 
 type CarteraWithStats = LoanControlCartera & {
@@ -120,10 +118,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const [carteras, setCarteras] = React.useState<CarteraWithStats[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [isImportModalOpen, setImportModalOpen] = React.useState(false);
-  const [importText, setImportText] = React.useState('');
   const [isProcessingImport, setIsProcessingImport] = React.useState(false);
-  const [importProgress, setImportProgress] = React.useState('');
   const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -212,90 +207,88 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     }
   }
 
-  const processImportInBatches = async (textData: string) => {
-    if (!user?.prefix) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo determinar el prefijo para la importación." });
-        return;
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.prefix) {
+      if (!user?.prefix) toast({ variant: "destructive", title: "Error de autenticación", description: "No se pudo identificar tu prefijo de empresa." });
+      return;
     }
 
     setIsProcessingImport(true);
-    setImportProgress('Dividiendo archivo...');
-    
-    // Split text data into rows and then into batches
-    const rows = textData.trim().split('\n');
-    const header = rows.shift() || ''; // Assume first row is header
-    const BATCH_SIZE = 100;
-    const batches: string[] = [];
-
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-        const batchRows = rows.slice(i, i + BATCH_SIZE);
-        // Add header to each batch for context
-        batches.push([header, ...batchRows].join('\n'));
-    }
-
-    let totalNewCarteras = 0;
-    let totalNewGroups = 0;
-    let totalCustomers = 0;
-    
-    try {
-        for (let i = 0; i < batches.length; i++) {
-            setImportProgress(`Procesando lote ${i + 1} de ${batches.length}...`);
-            const result = await importPlazaStructureFromPaste({
-                plazaId,
-                prefix: user.prefix,
-                pasteData: batches[i]
-            });
-            totalNewCarteras += result.newCarteras;
-            totalNewGroups += result.newGroups;
-            totalCustomers += result.totalCustomers;
-        }
-
-        toast({
-            title: "Importación Completa",
-            description: `Se procesaron ${totalCustomers} clientes. Carteras nuevas: ${totalNewCarteras}. Grupos nuevos: ${totalNewGroups}.`
-        });
-
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Error desconocido durante la importación.";
-        toast({ variant: "destructive", title: `Error en lote ${batches.length}`, description: errorMessage });
-    } finally {
-        setIsProcessingImport(false);
-        setImportProgress('');
-        setImportModalOpen(false);
-        setImportText('');
-        await fetchCarterasWithStats(); // Refresh all data at the end
-    }
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         const data = e.target?.result;
-        if (!data) return;
+        if (!data) {
+            setIsProcessingImport(false);
+            return;
+        };
         try {
-            const workbook = XLSX.read(data, { type: 'array' });
+            const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            // Use tab as separator for better AI parsing
-            const textData = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
+            const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
-            processImportInBatches(textData);
+            // Map headers to a more reliable format
+            const headers = jsonData[0].map((h:any) => String(h).trim().toUpperCase().replace(/\s+/g, '_'));
+            const structuredData: StructuredCustomerData[] = jsonData.slice(1).map(row => {
+                const customer: any = {};
+                headers.forEach((header: string, index: number) => {
+                    const keyMap: Record<string, string> = {
+                        'CARTERA': 'carteraName',
+                        'RESPONSABLE': 'responsable',
+                        'GRUPO': 'groupName',
+                        'NOMBRE': 'name',
+                        'DIRECCION': 'address',
+                        'COLONIA': 'colonia',
+                        'CP': 'cp',
+                        'TELEFONO': 'phone',
+                        'AVAL': 'guarantor',
+                        'TEL_AVAL': 'guarantorPhone',
+                        'DIR_AVAL': 'direccionAval',
+                        'COL_AVAL': 'coloniaAval',
+                        'CP_AVAL': 'cpAval',
+                        'PRESTAMO': 'loanAmount',
+                        'PAGO': 'paymentAmount',
+                        'VENCIDOS': 'installmentsDue',
+                        'ADEUDO': 'dueAmount',
+                        'FECHA_PRESTAMO': 'fechaPrestamo'
+                    };
+                    const key = keyMap[header];
+                    if (key) {
+                        customer[key] = row[index];
+                    }
+                });
+                return customer as StructuredCustomerData;
+            });
+
+            const result = await importStructuredData({
+              plazaId,
+              prefix: user.prefix,
+              customers: structuredData
+            });
+
+            toast({
+              title: "Importación Exitosa",
+              description: `Se procesaron ${result.totalCustomers} clientes, creando ${result.newCarteras} carteras y ${result.newGroups} grupos.`
+            })
+
+            await fetchCarterasWithStats();
 
         } catch (error) {
-            toast({ variant: "destructive", title: "Error al leer archivo", description: "El archivo no es un formato de Excel válido."})
+            const errorMessage = error instanceof Error ? error.message : "No se pudo procesar el archivo.";
+            toast({ variant: "destructive", title: "Error de Importación", description: errorMessage });
+        } finally {
+            setIsProcessingImport(false);
+            // Reset file input
+            if (event.target) event.target.value = '';
         }
     };
     reader.onerror = () => {
+        setIsProcessingImport(false);
         toast({ variant: "destructive", title: "Error", description: "No se pudo leer el archivo."})
     }
-    reader.readAsArrayBuffer(file);
-    
-    if (event.target) {
-      event.target.value = '';
-    }
+    reader.readAsBinaryString(file);
   };
 
   if (isLoading) {
@@ -339,38 +332,8 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                     />
                     <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isProcessingImport}>
                         {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
-                        {isProcessingImport ? importProgress : 'Importar Archivo'}
+                        {isProcessingImport ? "Procesando..." : 'Importar Archivo'}
                     </Button>
-                    <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="outline"><ClipboardPaste className="mr-2 h-4 w-4"/> Importar por Texto</Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-xl">
-                            <DialogHeader>
-                                <DialogTitle>Importar Estructura Completa de la Plaza</DialogTitle>
-                                <DialogDescriptionComponent>
-                                    Pega los datos de Excel. El sistema identificará clientes, grupos y carteras. Si no existen, se crearán automáticamente.
-                                </DialogDescriptionComponent>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <Label htmlFor="import-textarea">Datos de Cartera, Grupos y Clientes</Label>
-                                <Textarea 
-                                    id="import-textarea"
-                                    placeholder="Pega aquí los datos..." 
-                                    className="min-h-[250px] font-mono text-xs" 
-                                    value={importText} 
-                                    onChange={(e) => setImportText(e.target.value)}
-                                />
-                            </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                                <Button onClick={() => processImportInBatches(importText)} disabled={isProcessingImport}>
-                                    {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardPaste className="mr-2 h-4 w-4"/>}
-                                    {isProcessingImport ? importProgress : 'Importar'}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
                     <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingCartera(null);}}>
                         <DialogTrigger asChild>
                             <Button>

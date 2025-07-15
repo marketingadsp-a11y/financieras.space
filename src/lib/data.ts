@@ -89,6 +89,29 @@ export type Customer = {
   loanControlGroupId?: string; // Relation to Loan Control Group
 };
 
+// Type for structured data parsed from Excel, before Firestore conversion
+export type StructuredCustomerData = {
+    carteraName?: string;
+    responsable?: string;
+    groupName?: string;
+    name: string;
+    address: string;
+    colonia?: string;
+    cp?: string;
+    phone: string;
+    guarantor: string;
+    guarantorPhone: string;
+    direccionAval?: string;
+    coloniaAval?: string;
+    cpAval?: string;
+    loanAmount: number;
+    paymentAmount: number;
+    installmentsDue: number;
+    dueAmount: number;
+    fechaPrestamo?: Date | string;
+};
+
+
 export type Tool = {
   id: string;
   name: string;
