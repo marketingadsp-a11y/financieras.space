@@ -18,7 +18,7 @@ export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> 
 export async function addCustomer(customer: Omit<Customer, 'id'>) : Promise<Customer> {
      const customerDataWithTimestamp = {
         ...customer,
-        fechaPrestamo: customer.fechaPrestamo ? Timestamp.fromDate(customer.fechaPrestamo) : Timestamp.now()
+        fechaPrestamo: customer.fechaPrestamo ? Timestamp.fromDate(new Date(customer.fechaPrestamo)) : Timestamp.now()
     };
     const docRef = await addDoc(customersCollectionRef, customerDataWithTimestamp);
     return { ...customer, id: docRef.id };
@@ -84,6 +84,7 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], pl
             coloniaAval: customerData.coloniaAval || '',
             cpAval: customerData.cpAval || '',
             fechaPrestamo: customerData.fechaPrestamo ? Timestamp.fromDate(new Date(customerData.fechaPrestamo)) : Timestamp.now(),
+            loanControlGroupId: customerData.loanControlGroupId || '',
         };
         batch.set(newDocRef, completeCustomerData);
     });
@@ -101,7 +102,7 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
         }
 
         const customerData = customerFromDoc(customerDoc);
-        const previousDueAmount = customerData.dueAmount;
+        const previousDueAmount = customerData.dueAmount || 0;
         const newDueAmount = previousDueAmount - paymentAmount;
         
         const updatedCustomerData: Partial<Pick<Customer, 'dueAmount' | 'status'>> = {
@@ -116,3 +117,4 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
         transaction.update(customerRef, updatedCustomerData);
     });
 }
+

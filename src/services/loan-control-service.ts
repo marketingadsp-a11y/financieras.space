@@ -154,7 +154,7 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
         }
 
         const customerData = customerFromDoc(customerDoc);
-        const previousDueAmount = customerData.dueAmount;
+        const previousDueAmount = customerData.dueAmount || 0;
         const newDueAmount = previousDueAmount - paymentAmount;
         
         const updatedCustomerData: Partial<Pick<Customer, 'dueAmount' | 'status'>> = {
@@ -291,3 +291,4 @@ export async function importFullLoanData(
 
     await batch.commit();
 }
+

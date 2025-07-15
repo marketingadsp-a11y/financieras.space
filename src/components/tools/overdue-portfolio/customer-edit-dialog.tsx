@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment } from "@/lib/data";
-import { addPayment, updateCustomer } from "@/services/customer-service";
+import { addPayment as addPaymentService, updateCustomer } from "@/services/customer-service";
+import { addPayment as addLoanPayment } from "@/services/loan-control-service";
 import { Loader2, DollarSign } from "lucide-react";
 
 type CustomerEditDialogProps = {
@@ -42,9 +43,14 @@ type CustomerEditDialogProps = {
 const customerFormSchema = z.object({
   name: z.string().min(3, "El nombre es requerido."),
   address: z.string().min(5, "La dirección es requerida."),
+  colonia: z.string().optional(),
+  cp: z.string().optional(),
   phone: z.string().optional(),
   guarantor: z.string().optional(),
   guarantorPhone: z.string().optional(),
+  direccionAval: z.string().optional(),
+  coloniaAval: z.string().optional(),
+  cpAval: z.string().optional(),
   loanAmount: z.coerce.number().positive("El monto debe ser positivo."),
   paymentAmount: z.coerce.number().min(0, "El monto de pago debe ser positivo."),
   installmentsDue: z.coerce.number().min(0, "Debe ser un número positivo."),
@@ -74,9 +80,14 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
       customerForm.reset({
         name: customer.name,
         address: customer.address,
+        colonia: customer.colonia || "",
+        cp: customer.cp || "",
         phone: customer.phone || "",
         guarantor: customer.guarantor || "",
         guarantorPhone: customer.guarantorPhone || "",
+        direccionAval: customer.direccionAval || "",
+        coloniaAval: customer.coloniaAval || "",
+        cpAval: customer.cpAval || "",
         loanAmount: customer.loanAmount,
         paymentAmount: customer.paymentAmount,
         installmentsDue: customer.installmentsDue,
@@ -106,7 +117,8 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
     if (!customer) return;
     setIsSubmitting(true);
     try {
-      await addPayment(customer.id, values.amount);
+      const paymentFunction = customer.loanControlGroupId ? addLoanPayment : addPaymentService;
+      await paymentFunction(customer.id, values.amount);
       toast({ title: "Éxito", description: "Abono registrado." });
       onSuccess();
       onClose();
@@ -119,11 +131,11 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
   };
   
   if (!customer) return null;
-  const isPaid = customer.status === 'Pagado';
+  const isPaid = (customer.dueAmount || 0) <= 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Editar Cliente' : 'Registrar Abono'}</DialogTitle>
           <DialogDescription>
@@ -134,12 +146,17 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
         <div>
           {mode === 'edit' ? (
             <Form {...customerForm}>
-              <form onSubmit={customerForm.handleSubmit(handleCustomerUpdate)} className="space-y-4 py-4">
+              <form onSubmit={customerForm.handleSubmit(handleCustomerUpdate)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={customerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="colonia" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="cp" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel>Nombre del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="direccionAval" render={({ field }) => (<FormItem><FormLabel>Dirección del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="coloniaAval" render={({ field }) => (<FormItem><FormLabel>Colonia del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="cpAval" render={({ field }) => (<FormItem><FormLabel>C.P. del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Teléfono del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -147,7 +164,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                     <FormField control={customerForm.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel>Adeudo Actual</FormLabel><FormControl><Input type="number" step="0.01" {...field} disabled /></FormControl><FormMessage /></FormItem>)} />
                 </div>
 
-                <DialogFooter className="pt-4">
+                <DialogFooter className="pt-4 sticky bottom-0 bg-background">
                   <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
                   <Button type="submit" disabled={isSubmitting}>
                       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -159,8 +176,8 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
           ) : (
             <div className="space-y-6 py-4">
                 <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
-                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Monto Préstamo:</span><span className="font-medium">${customer.loanAmount.toLocaleString('es-MX')}</span></div>
-                    <div className="flex justify-between text-lg"><span className="text-muted-foreground">Adeudo Actual:</span><span className="font-bold text-destructive">${customer.dueAmount.toLocaleString('es-MX')}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Monto Préstamo:</span><span className="font-medium">${(customer.loanAmount || 0).toLocaleString('es-MX')}</span></div>
+                    <div className="flex justify-between text-lg"><span className="text-muted-foreground">Adeudo Actual:</span><span className="font-bold text-destructive">${(customer.dueAmount || 0).toLocaleString('es-MX')}</span></div>
                 </div>
                 <Form {...paymentForm}>
                   <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
