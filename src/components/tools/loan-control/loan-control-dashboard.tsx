@@ -111,43 +111,15 @@ export function LoanControlDashboard() {
             reader.onload = async (e) => {
                 try {
                     const data = e.target?.result;
-                    const workbook = XLSX.read(data, { type: 'binary' });
+                    const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     const json = XLSX.utils.sheet_to_json(worksheet, {
                         raw: false, // This will format dates
                         defval: "", // default value for empty cells
                     });
-
-                    // Map excel headers to our expected keys (case-insensitive)
-                    const mappedData = json.map((row: any) => {
-                        const newRow: any = {};
-                        for (const key in row) {
-                            const lowerKey = key.toLowerCase().trim();
-                            if (lowerKey.includes('plaza')) newRow.plazaName = row[key];
-                            else if (lowerKey.includes('cartera')) newRow.carteraName = row[key];
-                            else if (lowerKey.includes('responsable')) newRow.responsable = row[key];
-                            else if (lowerKey.includes('grupo')) newRow.groupName = row[key];
-                            else if (lowerKey.includes('nombre')) newRow.name = row[key];
-                            else if (lowerKey.includes('dirección') || lowerKey.includes('direccion')) newRow.address = row[key];
-                            else if (lowerKey.includes('colonia')) newRow.colonia = row[key];
-                            else if (lowerKey.includes('cp') || lowerKey.includes('c.p')) newRow.cp = String(row[key]);
-                            else if (lowerKey.includes('teléfono') || lowerKey.includes('telefono')) newRow.phone = String(row[key]);
-                            else if (lowerKey.includes('aval') && !lowerKey.includes('dir') && !lowerKey.includes('tel')) newRow.guarantor = row[key];
-                            else if (lowerKey.includes('tel aval')) newRow.guarantorPhone = String(row[key]);
-                            else if (lowerKey.includes('dir aval')) newRow.direccionAval = row[key];
-                            else if (lowerKey.includes('col aval')) newRow.coloniaAval = row[key];
-                            else if (lowerKey.includes('cp aval')) newRow.cpAval = String(row[key]);
-                            else if (lowerKey.includes('prestamo')) newRow.loanAmount = parseFloat(String(row[key]).replace(/[^0-9.-]+/g,""));
-                            else if (lowerKey.includes('pago')) newRow.paymentAmount = parseFloat(String(row[key]).replace(/[^0-9.-]+/g,""));
-                            else if (lowerKey.includes('vencidos')) newRow.installmentsDue = parseInt(row[key], 10);
-                            else if (lowerKey.includes('adeudo')) newRow.dueAmount = parseFloat(String(row[key]).replace(/[^0-9.-]+/g,""));
-                            else if (lowerKey.includes('fecha')) newRow.fechaPrestamo = row[key];
-                        }
-                        return newRow;
-                    });
                     
-                    await importFullLoanData(mappedData as any, importMode, user.prefix);
+                    await importFullLoanData(json as any, importMode, user.prefix!);
                     
                     toast({ title: "Éxito", description: `Se procesaron ${json.length} filas del archivo.` });
                     await fetchPlazasForUser();

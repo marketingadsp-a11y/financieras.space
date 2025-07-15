@@ -170,25 +170,6 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
     });
 }
 
-function excelSerialToDate(serial: number): Date {
-  const utc_days = Math.floor(serial - 25569);
-  const utc_value = utc_days * 86400;                                        
-  const date_info = new Date(utc_value * 1000);
-
-  const fractional_day = serial - Math.floor(serial) + 0.0000001;
-
-  let total_seconds = Math.floor(86400 * fractional_day);
-
-  const seconds = total_seconds % 60;
-
-  total_seconds -= seconds;
-
-  const hours = Math.floor(total_seconds / (60 * 60));
-  const minutes = Math.floor(total_seconds / 60) % 60;
-
-  return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
-}
-
 
 // --- Full Data Import ---
 export async function importFullLoanData(
@@ -218,11 +199,11 @@ export async function importFullLoanData(
     let lastGroupName = '';
 
     for (const row of data) {
-        if (!row.name) continue;
+        if (!row.Nombre) continue;
 
-        const currentPlazaName = row.plazaName || lastPlazaName;
-        const currentCarteraName = row.carteraName || lastCarteraName;
-        const currentGroupName = row.groupName || lastGroupName;
+        const currentPlazaName = row.Plaza || lastPlazaName;
+        const currentCarteraName = row.Cartera || lastCarteraName;
+        const currentGroupName = row.Grupo || lastGroupName;
 
         if (!currentPlazaName || !currentCarteraName || !currentGroupName) continue;
 
@@ -257,37 +238,41 @@ export async function importFullLoanData(
         }
 
         const customerRef = doc(customersCollectionRef);
+        
         let fechaPrestamoDate;
-        if (typeof row.fechaPrestamo === 'number') {
-            fechaPrestamoDate = excelSerialToDate(row.fechaPrestamo);
-        } else if (row.fechaPrestamo) {
-            fechaPrestamoDate = new Date(row.fechaPrestamo);
+        const fechaValue = row['F. Prestamo'] || row.FechaPrestamo || row.fechaPrestamo || row.fecha_prestamo;
+        if (fechaValue instanceof Date) {
+            fechaPrestamoDate = fechaValue;
+        } else if (typeof fechaValue === 'string') {
+            const parsed = Date.parse(fechaValue);
+            fechaPrestamoDate = isNaN(parsed) ? new Date() : new Date(parsed);
         } else {
             fechaPrestamoDate = new Date();
         }
 
-        const loanAmount = row.loanAmount || 0;
-        const dueAmount = row.dueAmount === "" || row.dueAmount === undefined ? loanAmount : (row.dueAmount || 0);
+        const loanAmount = parseFloat(String(row.Prestamo || 0).replace(/[^0-9.-]+/g,""));
+        const dueAmountRaw = row.Saldo || row.adeudo;
+        const dueAmount = dueAmountRaw === undefined || dueAmountRaw === "" ? loanAmount : parseFloat(String(dueAmountRaw).replace(/[^0-9.-]+/g,""));
 
         const completeCustomerData = {
             plazaId: plazaId,
             loanControlGroupId: grupoId,
             status: dueAmount <= 0 ? 'Pagado' : 'Pendiente' as const,
             prefix: prefix,
-            name: row.name || '',
-            address: row.address || '',
-            phone: row.phone || '',
-            guarantor: row.guarantor || '',
-            guarantorPhone: row.guarantorPhone || '',
+            name: row.Nombre || '',
+            address: row.Dirección || row.Direccion || '',
+            phone: String(row.Telefonos || row.Telefono || ''),
+            guarantor: row.Aval || '',
+            guarantorPhone: String(row.TelefonoAval || row.TelefonosAval || ''),
             loanAmount: loanAmount,
-            paymentAmount: row.paymentAmount || 0,
-            installmentsDue: row.installmentsDue || 0,
+            paymentAmount: row.Pago || 0,
+            installmentsDue: row.Vencidos || 0,
             dueAmount: dueAmount,
-            colonia: row.colonia || '',
-            cp: row.cp || '',
-            direccionAval: row.direccionAval || '',
-            coloniaAval: row.coloniaAval || '',
-            cpAval: row.cpAval || '',
+            colonia: row.Colonia || '',
+            cp: String(row.CP || row['C.P.'] || ''),
+            direccionAval: row.DireccionAval || '',
+            coloniaAval: row.ColoniaAval || '',
+            cpAval: String(row.CPAval || ''),
             fechaPrestamo: fechaPrestamoDate,
         };
         
