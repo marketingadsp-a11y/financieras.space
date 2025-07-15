@@ -5,7 +5,7 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -16,7 +16,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { processAndImportLoanData } from "@/ai/flows/full-loan-data-parser-flow";
 import { Progress } from "@/components/ui/progress";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
 
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => {
@@ -90,6 +94,8 @@ export function LoanControlDashboard() {
     const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
     const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
     const [isImporting, setIsImporting] = React.useState(false);
+    const [startDate, setStartDate] = React.useState<Date | undefined>();
+    const [endDate, setEndDate] = React.useState<Date | undefined>();
 
 
     const fetchPlazasForUser = React.useCallback(async () => {
@@ -97,7 +103,7 @@ export function LoanControlDashboard() {
         setIsLoading(true);
         try {
             const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-            const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+            const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, startDate, endDate });
             setPlazas(plazasFromDb);
         } catch (error) {
             console.error("Failed to fetch plazas", error);
@@ -105,7 +111,7 @@ export function LoanControlDashboard() {
         } finally {
             setIsLoading(false);
         }
-    }, [user, toast]);
+    }, [user, toast, startDate, endDate]);
 
     React.useEffect(() => {
         fetchPlazasForUser();
@@ -167,7 +173,11 @@ export function LoanControlDashboard() {
             return acc;
         }, { totalLoaned: 0, totalDue: 0 });
     }, [plazas]);
-
+    
+    const clearFilters = () => {
+        setStartDate(undefined);
+        setEndDate(undefined);
+    }
 
     if (isLoading) {
         return (
@@ -237,9 +247,55 @@ export function LoanControlDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard title="Total Prestado (Todas las Plazas)" value={summary.totalLoaned} />
-                <StatCard title="Total Pendiente (Todas las Plazas)" value={summary.totalDue} />
+                <StatCard title="Total Prestado (Filtrado)" value={summary.totalLoaned} />
+                <StatCard title="Total Pendiente (Filtrado)" value={summary.totalDue} />
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Filtros</CardTitle>
+                    <CardDescription>
+                        Filtra la información de todas las plazas por un rango de fechas de préstamo.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col md:flex-row gap-2 items-center">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                            id="date-start"
+                            variant={"outline"}
+                            className={cn("w-full md:w-auto justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                            >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de inicio</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                        </PopoverContent>
+                    </Popover>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                            id="date-end"
+                            variant={"outline"}
+                            className={cn("w-full md:w-auto justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                            >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de fin</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                        </PopoverContent>
+                    </Popover>
+                    <Button variant="ghost" onClick={clearFilters}>
+                        <FilterX className="mr-2 h-4 w-4" />
+                        Limpiar Filtros
+                    </Button>
+                </CardContent>
+            </Card>
+
 
             {plazas.length > 0 ? (
                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -250,7 +306,9 @@ export function LoanControlDashboard() {
             ) : (
                 <Card>
                     <CardContent className="pt-6">
-                        <p className="text-center text-muted-foreground">No hay plazas disponibles. Un administrador debe crear una primero o puedes importarlas masivamente.</p>
+                        <p className="text-center text-muted-foreground">
+                            {startDate || endDate ? "No se encontraron plazas con préstamos en el rango de fechas seleccionado." : "No hay plazas disponibles. Un administrador debe crear una primero o puedes importarlas masivamente."}
+                        </p>
                     </CardContent>
                 </Card>
             )}
