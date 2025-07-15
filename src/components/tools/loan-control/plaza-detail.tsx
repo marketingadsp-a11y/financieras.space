@@ -198,13 +198,15 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {carteras.map(cartera => (
                         <Card key={cartera.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
-                            <CardHeader className="flex-row items-start gap-4">
-                                <div className="p-3 bg-primary/10 rounded-lg mt-1">
-                                    <Briefcase className="h-8 w-8 text-primary" />
-                                </div>
-                                <div className="flex-1">
-                                    <CardTitle className="text-xl">{cartera.name}</CardTitle>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4">
+                            <CardHeader>
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-primary/10 rounded-lg">
+                                            <Briefcase className="h-8 w-8 text-primary" />
+                                        </div>
+                                        <CardTitle className="text-xl">{cartera.name}</CardTitle>
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(cartera)}><Edit className="h-4 w-4" /></Button>
                                         <AlertDialog open={!!carteraToDelete && carteraToDelete.id === cartera.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
                                             <AlertDialogTrigger asChild>
@@ -239,19 +241,19 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="flex-grow space-y-4">
-                               <div className="border-t pt-4 grid grid-cols-3 gap-2 text-sm text-center">
-                                    <div>
+                            <CardContent className="flex-grow">
+                               <div className="border-t pt-4 grid grid-cols-3 gap-2 text-center">
+                                    <div className="space-y-1">
                                         <p className="font-bold text-lg">{cartera.grupoCount}</p>
-                                        <p className="text-muted-foreground">Grupos</p>
+                                        <p className="text-xs text-muted-foreground">Grupos</p>
                                     </div>
-                                    <div>
+                                    <div className="space-y-1">
                                         <p className="font-bold text-lg">${cartera.totalLoaned.toLocaleString('es-MX')}</p>
-                                        <p className="text-muted-foreground">Prestado</p>
+                                        <p className="text-xs text-muted-foreground">Prestado</p>
                                     </div>
-                                     <div>
+                                     <div className="space-y-1">
                                         <p className="font-bold text-lg text-destructive">${cartera.totalDue.toLocaleString('es-MX')}</p>
-                                        <p className="text-muted-foreground">Pendiente</p>
+                                        <p className="text-xs text-muted-foreground">Pendiente</p>
                                     </div>
                                 </div>
                             </CardContent>
