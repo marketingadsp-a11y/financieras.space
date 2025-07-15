@@ -231,52 +231,52 @@ export async function importFullLoanData(
             }
         };
 
-        const currentPlazaName = row.Plaza || lastPlazaName;
-        const currentCarteraName = row.Cartera || lastCarteraName;
-        const currentGroupName = row.Grupo || lastGroupName;
+        const currentPlazaName = (row.Plaza || row.plaza || '').toString().trim() || lastPlazaName;
+        const currentCarteraName = (row.Cartera || row.cartera || '').toString().trim() || lastCarteraName;
+        const currentGroupName = (row.Grupo || row.grupo || '').toString().trim() || lastGroupName;
+        const customerName = (row.Cliente || row.Nombre || row.nombre || '').toString().trim();
 
-        const customerName = row.Cliente || row.Nombre;
+        // First, update hierarchy if present. This allows for rows that only define groups/carteras.
+        if (currentPlazaName) lastPlazaName = currentPlazaName;
+        if (currentCarteraName) lastCarteraName = currentCarteraName;
+        if (currentGroupName) lastGroupName = currentGroupName;
         
-        // A row is only valid if it has a customer name and we know its hierarchy
-        if (!customerName || !currentPlazaName || !currentCarteraName || !currentGroupName) {
-            if (Object.values(row).some(val => val !== null && val !== '')) {
-                lastPlazaName = currentPlazaName;
-                lastCarteraName = currentCarteraName;
-                lastGroupName = currentGroupName;
-            }
+        // Now, if there's no customer name, we can skip to the next row after updating hierarchy.
+        if (!customerName) {
             continue;
         }
 
-        lastPlazaName = currentPlazaName;
-        lastCarteraName = currentCarteraName;
-        lastGroupName = currentGroupName;
+        // A customer row is only valid if its full hierarchy is known.
+        if (!lastPlazaName || !lastCarteraName || !lastGroupName) {
+            continue;
+        }
 
-        let plazaId = plazaCache[currentPlazaName];
+        let plazaId = plazaCache[lastPlazaName];
         if (!plazaId) {
             const plazaRef = doc(plazasCollectionRef);
-            batch.set(plazaRef, { name: currentPlazaName, prefix });
+            batch.set(plazaRef, { name: lastPlazaName, prefix });
             plazaId = plazaRef.id;
-            plazaCache[currentPlazaName] = plazaId;
+            plazaCache[lastPlazaName] = plazaId;
             operationCount++;
             await commitBatchIfNeeded();
         }
 
-        const carteraKey = `${plazaId}_${currentCarteraName}`;
+        const carteraKey = `${plazaId}_${lastCarteraName}`;
         let carteraId = carteraCache[carteraKey];
         if (!carteraId) {
             const carteraRef = doc(carterasCollectionRef);
-            batch.set(carteraRef, { name: currentCarteraName, plazaId, prefix });
+            batch.set(carteraRef, { name: lastCarteraName, plazaId, prefix });
             carteraId = carteraRef.id;
             carteraCache[carteraKey] = carteraId;
             operationCount++;
             await commitBatchIfNeeded();
         }
 
-        const grupoKey = `${carteraId}_${currentGroupName}`;
+        const grupoKey = `${carteraId}_${lastGroupName}`;
         let grupoId = grupoCache[grupoKey];
         if (!grupoId) {
             const grupoRef = doc(gruposCollectionRef);
-            batch.set(grupoRef, { name: currentGroupName, carteraId, plazaId, prefix });
+            batch.set(grupoRef, { name: lastGroupName, carteraId, plazaId, prefix });
             grupoId = grupoRef.id;
             grupoCache[grupoKey] = grupoId;
             operationCount++;
@@ -333,5 +333,3 @@ export async function importFullLoanData(
         await batch.commit();
     }
 }
-
-    
