@@ -482,4 +482,3 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
     );
 }
 
-    
