@@ -217,7 +217,7 @@ export async function importStructuredData(params: StructuredImportParams): Prom
                     ...rest,
                     plazaId,
                     prefix,
-                    loanControlGroupId: grupoId,
+                    loanControlGroupId: grupoId, // Use null if grupoId is not found
                     status: 'Pendiente' as const,
                     fechaPrestamo: customer.fechaPrestamo ? new Date(customer.fechaPrestamo) : new Date(),
                 };

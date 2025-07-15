@@ -231,7 +231,18 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
             const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
             // Map headers to a more reliable format
-            const headers = jsonData[0].map((h:any) => String(h).trim().toUpperCase().replace(/\s+/g, '_'));
+            const headers = jsonData[0].map((h:any) => {
+              // Normalize headers to a consistent key format
+              const headerStr = String(h).trim().toUpperCase();
+              if (headerStr === 'CLIENTE') return 'NOMBRE';
+              if (headerStr === 'TELEFONOS') return 'TELEFONO';
+              if (headerStr === 'TELEFONOS AVAL') return 'TEL_AVAL';
+              if (headerStr === 'F. PRESTAMO') return 'FECHA_PRESTAMO';
+              if (headerStr === 'C.P.') return 'CP';
+              if (headerStr === 'C.P. AVAL') return 'CP_AVAL';
+              if (headerStr === 'SALDO') return 'ADEUDO';
+              return headerStr.replace(/\s+/g, '_');
+            });
             const structuredData: StructuredCustomerData[] = jsonData.slice(1).map(row => {
                 const customer: any = {};
                 headers.forEach((header: string, index: number) => {
@@ -293,7 +304,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ["CARTERA", "RESPONSABLE", "GRUPO", "NOMBRE", "DIRECCION", "COLONIA", "CP", "TELEFONO", "AVAL", "TEL_AVAL", "DIR_AVAL", "COL_AVAL", "CP_AVAL", "PRESTAMO", "PAGO", "VENCIDOS", "ADEUDO", "FECHA_PRESTAMO"];
+    const headers = ["Cartera", "Grupo", "Cliente", "Dirección", "Telefonos", "Colonia", "C.P.", "Aval", "Dirección Aval", "Telefonos Aval", "Colonia Aval", "C.P. Aval", "F. Prestamo", "Prestamo", "Saldo"];
     const ws = XLSX.utils.aoa_to_sheet([headers]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
