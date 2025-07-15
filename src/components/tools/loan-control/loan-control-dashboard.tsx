@@ -57,38 +57,38 @@ const StatCard = ({ title, value, icon: Icon, isCurrency = false, variant = 'def
 
 const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => {
     return (
-    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30">
-        <CardHeader>
-            <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-3 text-lg">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Building className="h-6 w-6" />
-                    </span>
-                    {plaza.name}
-                </CardTitle>
-                {plaza.prefix && <Badge variant="outline">{plaza.prefix}</Badge>}
-            </div>
-        </CardHeader>
-        <CardContent className="flex-grow space-y-4">
-             <div className="text-left">
-                <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
-                <p className="text-xl font-bold text-destructive">
-                    ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                </p>
-            </div>
-             <div>
-                <p className="text-sm font-medium text-muted-foreground">Carteras</p>
-                <p className="text-xl font-bold text-center">{plaza.carteraCount}</p>
-            </div>
-        </CardContent>
-        <CardFooter>
-            <Button asChild className="w-full">
-               <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
-                    Administrar Plaza <ArrowRight className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
-                </Link>
-            </Button>
-        </CardFooter>
-    </Card>
+        <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30">
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-3 text-lg">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Building className="h-6 w-6" />
+                        </span>
+                        {plaza.name}
+                    </CardTitle>
+                    {plaza.prefix && <Badge variant="outline">{plaza.prefix}</Badge>}
+                </div>
+            </CardHeader>
+            <CardContent className="flex-grow space-y-4">
+                 <div className="text-left">
+                    <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+                    <p className="text-xl font-bold text-destructive">
+                        ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </p>
+                </div>
+                 <div>
+                    <p className="text-sm font-medium text-muted-foreground">Carteras</p>
+                    <p className="text-xl font-bold text-center">{plaza.carteraCount}</p>
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button asChild className="w-full">
+                   <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
+                        Administrar Plaza <ArrowRight className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+                    </Link>
+                </Button>
+            </CardFooter>
+        </Card>
     );
 };
 
@@ -224,8 +224,8 @@ export function LoanControlDashboard() {
 
   const globalTotals = React.useMemo(() => {
     return plazas.reduce((acc, plaza) => {
-        acc.saldoPendiente += plaza.pendingDebt;
-        return acc;
+      acc.saldoPendiente += plaza.pendingDebt;
+      return acc;
     }, { saldoPendiente: 0 });
   }, [plazas]);
 
