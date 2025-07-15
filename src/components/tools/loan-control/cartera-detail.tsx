@@ -6,7 +6,7 @@ import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo,
 import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, ArrowLeft, DollarSign, User } from "lucide-react";
+import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, ArrowLeft, DollarSign, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -163,7 +163,7 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
 
     return (
         <div className="space-y-6">
-             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
                      <Button variant="outline" size="sm" asChild className="mb-4">
                         <Link href={`/tools/loan-control/plaza/${cartera.plazaId}`}>
@@ -206,14 +206,13 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
             {grupos.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {grupos.map(grupo => (
-                        <Card key={grupo.id} className="flex flex-col group">
+                        <Card key={grupo.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
                              <CardHeader>
                                 <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-primary/10 rounded-lg">
                                         <Users className="h-6 w-6 text-primary" />
-                                        <CardTitle className="text-xl">{grupo.name}</CardTitle>
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(grupo)}><Edit className="h-4 w-4" /></Button>
                                         <AlertDialog open={!!grupoToDelete && grupoToDelete.id === grupo.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
                                             <AlertDialogTrigger asChild>
@@ -247,20 +246,18 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                                         </AlertDialog>
                                     </div>
                                 </div>
+                                <CardTitle className="text-xl mt-4">{grupo.name}</CardTitle>
+                                <CardDescription>{grupo.customerCount} cliente(s)</CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow space-y-4">
-                                <div className="border-t pt-4 grid grid-cols-3 gap-2 text-sm text-center">
-                                    <div>
-                                        <p className="font-bold text-lg">{grupo.customerCount}</p>
-                                        <p className="text-muted-foreground">Clientes</p>
+                                <div className="border-t pt-4 space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Prestado</span>
+                                        <span className="font-medium">${grupo.totalLoaned.toLocaleString('es-MX')}</span>
                                     </div>
-                                    <div>
-                                        <p className="font-bold text-lg">${grupo.totalLoaned.toLocaleString('es-MX')}</p>
-                                        <p className="text-muted-foreground">Prestado</p>
-                                    </div>
-                                     <div>
-                                        <p className="font-bold text-lg text-destructive">${grupo.totalDue.toLocaleString('es-MX')}</p>
-                                        <p className="text-muted-foreground">Pendiente</p>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Pendiente</span>
+                                        <span className="font-medium text-destructive">${grupo.totalDue.toLocaleString('es-MX')}</span>
                                     </div>
                                 </div>
                             </CardContent>
@@ -285,4 +282,3 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
         </div>
     );
 }
-

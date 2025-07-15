@@ -3,11 +3,11 @@
 
 import * as React from "react";
 import { getPlazaById } from "@/services/plaza-service";
-import type { LoanControlCartera, LoanControlGrupo, Plaza } from "@/lib/data";
+import type { LoanControlCartera, Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { addCartera, deleteCartera, getCarterasByPlaza, getGruposByCartera, updateCartera, getAssignedCustomersByGrupo } from "@/services/loan-control-service";
-import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users } from "lucide-react";
+import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -162,7 +162,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Plaza: {plaza.name}</h1>
                     <p className="text-muted-foreground">
@@ -197,14 +197,13 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
             {carteras.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {carteras.map(cartera => (
-                        <Card key={cartera.id} className="flex flex-col group">
-                             <CardHeader>
+                        <Card key={cartera.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
+                            <CardHeader>
                                 <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-3">
-                                        <Folder className="h-6 w-6 text-primary" />
-                                        <CardTitle className="text-xl">{cartera.name}</CardTitle>
+                                    <div className="p-3 bg-primary/10 rounded-lg">
+                                        <Briefcase className="h-6 w-6 text-primary" />
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(cartera)}><Edit className="h-4 w-4" /></Button>
                                         <AlertDialog open={!!carteraToDelete && carteraToDelete.id === cartera.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
                                             <AlertDialogTrigger asChild>
@@ -238,6 +237,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                         </AlertDialog>
                                     </div>
                                 </div>
+                                <CardTitle className="text-xl mt-4">{cartera.name}</CardTitle>
                             </CardHeader>
                             <CardContent className="flex-grow space-y-4">
                                <div className="border-t pt-4 grid grid-cols-3 gap-2 text-sm text-center">
@@ -276,5 +276,3 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         </div>
     );
 }
-
-    

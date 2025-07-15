@@ -7,7 +7,7 @@ import { getAssignedCustomersByGrupo, getGrupoById } from "@/services/loan-contr
 import { addMultipleCustomers } from "@/services/customer-service";
 import type { Customer, LoanControlGrupo } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, ArrowLeft } from "lucide-react";
+import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, ArrowLeft, BadgeInfo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -53,30 +53,27 @@ const StatCard = ({ title, value }: { title: string; value: number; }) => (
 
 const CustomerInfoCard = ({ customer, onEdit, onPayment }: { customer: Customer; onEdit: (c: Customer) => void; onPayment: (c: Customer) => void; }) => {
     return (
-        <Card className="flex flex-col">
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{customer.name}</CardTitle>
-                     <Badge variant={customer.dueAmount > 0 ? "destructive" : "secondary"}>
-                        {customer.dueAmount > 0 ? "Pendiente" : "Pagado"}
-                    </Badge>
+        <Card className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
+            <CardHeader className="flex-row gap-4 items-start">
+                 <div className="p-3 bg-primary/10 rounded-lg mt-1">
+                    <User className="h-6 w-6 text-primary" />
                 </div>
-                 <div className="space-y-1 text-sm text-muted-foreground pt-2">
-                    <p className="flex items-start gap-2"><Home className="h-4 w-4 mt-1 shrink-0"/> <span>{customer.address}, {customer.colonia}, C.P. {customer.cp}</span></p>
-                    <p className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0"/> {customer.phone}</p>
-                 </div>
+                <div>
+                    <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg">{customer.name}</CardTitle>
+                        <Badge variant={customer.dueAmount > 0 ? "destructive" : "secondary"} className="ml-2 shrink-0">
+                            {customer.dueAmount > 0 ? "Pendiente" : "Pagado"}
+                        </Badge>
+                    </div>
+                    <div className="space-y-1 text-sm text-muted-foreground pt-2">
+                        <p className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0"/> {customer.phone || 'N/A'}</p>
+                        <p className="flex items-start gap-2"><Home className="h-4 w-4 mt-0.5 shrink-0"/> <span>{customer.address}, {customer.colonia}, C.P. {customer.cp}</span></p>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
                  <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold mb-2">Información del Aval</h4>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                         <p className="flex items-center gap-2"><User className="h-4 w-4 shrink-0"/> <strong>Nombre:</strong> {customer.guarantor || 'N/A'}</p>
-                         <p className="flex items-start gap-2"><Home className="h-4 w-4 mt-1 shrink-0"/> <span><strong>Dirección:</strong> {customer.direccionAval || 'N/A'}, {customer.coloniaAval || ''}, C.P. {customer.cpAval || ''}</span></p>
-                         <p className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0"/> <strong>Teléfono:</strong> {customer.guarantorPhone || 'N/A'}</p>
-                    </div>
-                </div>
-                <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold mb-2">Información del Préstamo</h4>
+                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-muted-foreground"><BadgeInfo className="h-4 w-4"/>Información del Préstamo</h4>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div className="flex items-center gap-2 col-span-2">
                             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -350,23 +347,19 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard title="Total Prestado" value={summary.totalLoaned} />
-                <StatCard title="Total Pendiente" value={summary.totalDue} />
+                <StatCard title="Total Prestado (Filtro)" value={summary.totalLoaned} />
+                <StatCard title="Total Pendiente (Filtro)" value={summary.totalDue} />
             </div>
 
-            <Card>
+             <Card>
                 <CardHeader>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
-                        <div className="flex-1">
-                            <CardTitle>Clientes del Grupo ({filteredCustomers.length})</CardTitle>
-                            <CardDescription>
-                                Visualiza y gestiona los clientes asignados a este grupo.
-                            </CardDescription>
-                        </div>
-                    </div>
+                    <CardTitle>Filtrar Clientes ({filteredCustomers.length})</CardTitle>
+                    <CardDescription>
+                        Busca por nombre, dirección o filtra por fecha de préstamo.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex flex-col md:flex-row gap-2 mb-6">
+                    <div className="flex flex-col md:flex-row gap-2">
                         <Input
                             placeholder="Buscar cliente por nombre o dirección..."
                             value={searchTerm}
@@ -379,7 +372,7 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                                     <Button
                                     id="date-start"
                                     variant={"outline"}
-                                    className={cn("w-full md:w-[240px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                                    className={cn("w-full md:w-auto justify-start text-left font-normal", !startDate && "text-muted-foreground")}
                                     >
                                     <CalendarIconLucide className="mr-2 h-4 w-4" />
                                     {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de inicio</span>}
@@ -394,7 +387,7 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                                     <Button
                                     id="date-end"
                                     variant={"outline"}
-                                    className={cn("w-full md:w-[240px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                                    className={cn("w-full md:w-auto justify-start text-left font-normal", !endDate && "text-muted-foreground")}
                                     >
                                     <CalendarIconLucide className="mr-2 h-4 w-4" />
                                     {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de fin</span>}
@@ -410,29 +403,35 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
                             </Button>
                         </div>
                     </div>
-
-                    {filteredCustomers.length > 0 ? (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {filteredCustomers.map(customer => (
-                                <CustomerInfoCard 
-                                    key={customer.id} 
-                                    customer={customer} 
-                                    onEdit={(c) => handleOpenDialog(c, 'edit')} 
-                                    onPayment={(c) => handleOpenDialog(c, 'payment')} 
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-10 text-muted-foreground">
-                            <Users className="mx-auto h-12 w-12" />
-                            <h3 className="mt-4 text-lg font-semibold">No se encontraron clientes</h3>
-                            <p className="mt-1 text-sm">
-                                {searchTerm || startDate || endDate ? "Prueba con otro término de búsqueda o ajusta el rango de fechas." : "No hay clientes asignados a este grupo."}
-                            </p>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
+
+            <div>
+                {filteredCustomers.length > 0 ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {filteredCustomers.map(customer => (
+                            <CustomerInfoCard 
+                                key={customer.id} 
+                                customer={customer} 
+                                onEdit={(c) => handleOpenDialog(c, 'edit')} 
+                                onPayment={(c) => handleOpenDialog(c, 'payment')} 
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="text-center py-10 text-muted-foreground">
+                                <Users className="mx-auto h-12 w-12" />
+                                <h3 className="mt-4 text-lg font-semibold">No se encontraron clientes</h3>
+                                <p className="mt-1 text-sm">
+                                    {searchTerm || startDate || endDate ? "Prueba con otro término de búsqueda o ajusta el rango de fechas." : "No hay clientes asignados a este grupo."}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
             
             <CustomerEditDialog
                 isOpen={!!selectedCustomer}
@@ -444,5 +443,3 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         </div>
     );
 }
-
-    
