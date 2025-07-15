@@ -193,7 +193,7 @@ export function LoanControlDashboard() {
       if (event.target) event.target.value = '';
     }
   };
-
+  
   return (
     <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -325,3 +325,5 @@ export function LoanControlDashboard() {
     </div>
   );
 }
+
+    
