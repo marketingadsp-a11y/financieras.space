@@ -241,19 +241,19 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="flex-grow">
-                               <div className="border-t pt-4 grid grid-cols-3 gap-2 text-center">
-                                    <div className="space-y-1">
-                                        <p className="font-bold text-lg">{cartera.grupoCount}</p>
-                                        <p className="text-xs text-muted-foreground">Grupos</p>
+                            <CardContent className="flex-grow space-y-4">
+                               <div className="border-t pt-4 space-y-2 text-sm">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Grupos</span>
+                                        <span className="font-bold text-lg">{cartera.grupoCount}</span>
                                     </div>
-                                    <div className="space-y-1">
-                                        <p className="font-bold text-lg">${cartera.totalLoaned.toLocaleString('es-MX')}</p>
-                                        <p className="text-xs text-muted-foreground">Prestado</p>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Prestado</span>
+                                        <span className="font-medium">${cartera.totalLoaned.toLocaleString('es-MX')}</span>
                                     </div>
-                                     <div className="space-y-1">
-                                        <p className="font-bold text-lg text-destructive">${cartera.totalDue.toLocaleString('es-MX')}</p>
-                                        <p className="text-xs text-muted-foreground">Pendiente</p>
+                                     <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Pendiente</span>
+                                        <span className="font-medium text-destructive">${cartera.totalDue.toLocaleString('es-MX')}</span>
                                     </div>
                                 </div>
                             </CardContent>
