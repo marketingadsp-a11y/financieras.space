@@ -35,11 +35,26 @@ export async function getPlazas({ prefix, fetchAll = false, startDate, endDate }
         const plazaData = doc.data() as Omit<Plaza, 'id' | 'totalLoanAmount'>;
         const plazaId = doc.id;
         
-        const customersInPlaza = await getCustomersByPlaza(plazaId, { startDate, endDate });
+        const allCustomersInPlaza = await getCustomersByPlaza(plazaId);
         
-        const pendingDebt = customersInPlaza.reduce((acc, customer) => acc + (customer.dueAmount || 0), 0);
-        
-        const totalLoanAmount = customersInPlaza.reduce((acc, customer) => acc + (customer.loanAmount || 0), 0);
+        // Filter customers by date range in the application code
+        const filteredCustomers = allCustomersInPlaza.filter(customer => {
+            if (!startDate && !endDate) return true;
+            if (!customer.fechaPrestamo) return false;
+            
+            const customerDate = new Date(customer.fechaPrestamo);
+
+            if (startDate && customerDate < startDate) return false;
+            if (endDate) {
+                 const endOfDay = new Date(endDate);
+                 endOfDay.setHours(23, 59, 59, 999);
+                 if (customerDate > endOfDay) return false;
+            }
+            return true;
+        });
+
+        const pendingDebt = filteredCustomers.reduce((acc, customer) => acc + (customer.dueAmount || 0), 0);
+        const totalLoanAmount = filteredCustomers.reduce((acc, customer) => acc + (customer.loanAmount || 0), 0);
         const totalPaidAmount = totalLoanAmount - pendingDebt;
         const recoveryRate = totalLoanAmount > 0 ? (totalPaidAmount / totalLoanAmount) * 100 : 0;
 

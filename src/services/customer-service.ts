@@ -8,24 +8,8 @@ import { customerFromDoc } from "./customer-service-helper";
 
 const customersCollectionRef = collection(db, "customers");
 
-type GetCustomersOptions = {
-    startDate?: Date;
-    endDate?: Date;
-}
-
-export async function getCustomersByPlaza(plazaId: string, options?: GetCustomersOptions): Promise<Customer[]> {
-    let q: Query = query(customersCollectionRef, where("plazaId", "==", plazaId));
-
-    if (options?.startDate) {
-        q = query(q, where("fechaPrestamo", ">=", Timestamp.fromDate(options.startDate)));
-    }
-    if (options?.endDate) {
-        // To include the whole end day, we set the time to the end of the day.
-        const endOfDay = new Date(options.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        q = query(q, where("fechaPrestamo", "<=", Timestamp.fromDate(endOfDay)));
-    }
-
+export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> {
+    const q = query(customersCollectionRef, where("plazaId", "==", plazaId));
     const data = await getDocs(q);
     return data.docs.map(customerFromDoc);
 }
