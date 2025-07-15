@@ -72,23 +72,15 @@ const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
         </CardHeader>
         <CardContent className="flex-grow space-y-4">
             <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <p className="text-xs text-muted-foreground">Total Prestado</p>
-                    <p className="text-xl font-bold">
-                        ${(plaza.totalLoanAmount ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                    </p>
-                </div>
-                <div className="text-right">
+                <div className="text-left">
                     <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
                     <p className="text-xl font-bold text-destructive">
                         ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </p>
                 </div>
-            </div>
-            <div className="flex justify-between items-baseline rounded-lg border bg-muted/50 p-2 text-center">
                  <div>
                     <p className="text-sm font-medium text-muted-foreground">Carteras</p>
-                    <p className="text-xl font-bold">{plaza.carteraCount}</p>
+                    <p className="text-xl font-bold text-center">{plaza.carteraCount}</p>
                 </div>
             </div>
         </CardContent>
@@ -234,10 +226,9 @@ export function LoanControlDashboard() {
 
   const globalTotals = React.useMemo(() => {
     return plazas.reduce((acc, plaza) => {
-        acc.totalPrestado += plaza.totalLoanAmount || 0;
         acc.saldoPendiente += plaza.pendingDebt;
         return acc;
-    }, { totalPrestado: 0, saldoPendiente: 0 });
+    }, { saldoPendiente: 0 });
   }, [plazas]);
 
   return (
@@ -303,8 +294,7 @@ export function LoanControlDashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-            <StatCard title="Total Prestado" value={globalTotals.totalPrestado} icon={DollarSign} isCurrency />
-            <StatCard title="Saldo Pendiente" value={globalTotals.saldoPendiente} icon={Banknote} isCurrency variant="destructive" />
+            <StatCard title="Saldo Pendiente Global" value={globalTotals.saldoPendiente} icon={Banknote} isCurrency variant="destructive" />
         </div>
 
         <div className="space-y-4 p-4 border rounded-lg bg-card">
