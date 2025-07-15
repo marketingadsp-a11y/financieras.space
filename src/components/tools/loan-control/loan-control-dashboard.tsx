@@ -71,12 +71,12 @@ const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
             </div>
         </CardHeader>
         <CardContent className="flex-grow space-y-4">
-             <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Prestado</p>
-                  <p className="text-xl font-bold">
-                      ${(plaza.totalLoanAmount ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </p>
+                    <p className="text-xs text-muted-foreground">Total Prestado</p>
+                    <p className="text-xl font-bold">
+                        ${(plaza.totalLoanAmount ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </p>
                 </div>
                 <div className="text-right">
                     <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
