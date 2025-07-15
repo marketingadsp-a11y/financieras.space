@@ -2,11 +2,11 @@
 "use client";
 
 import * as React from "react";
-import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo } from "@/services/loan-control-service";
-import type { LoanControlCartera, LoanControlGrupo } from "@/lib/data";
+import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo, getAssignedCustomersByGrupo } from "@/services/loan-control-service";
+import type { LoanControlCartera, LoanControlGrupo, Customer } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, ArrowLeft } from "lucide-react";
+import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, ArrowLeft, DollarSign, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,11 +15,31 @@ import { GrupoForm } from "./grupo-form";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 
+type GrupoWithStats = LoanControlGrupo & {
+    customerCount: number;
+    totalLoaned: number;
+    totalDue: number;
+};
+
+const StatCard = ({ title, value }: { title: string; value: number; }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <DollarSign className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">
+            ${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+      </CardContent>
+    </Card>
+);
+
 export function CarteraDetail({ carteraId }: { carteraId: string }) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [cartera, setCartera] = React.useState<LoanControlCartera | null>(null);
-    const [grupos, setGrupos] = React.useState<LoanControlGrupo[]>([]);
+    const [grupos, setGrupos] = React.useState<GrupoWithStats[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [isFormOpen, setFormOpen] = React.useState(false);
@@ -30,12 +50,30 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
         try {
-            const [carteraData, gruposData] = await Promise.all([
-                getCarteraById(carteraId),
-                getGruposByCartera(carteraId)
-            ]);
+            const carteraData = await getCarteraById(carteraId);
             setCartera(carteraData);
-            setGrupos(gruposData);
+            
+            if (carteraData) {
+                const gruposData = await getGruposByCartera(carteraId);
+                
+                const gruposWithStats = await Promise.all(gruposData.map(async (grupo) => {
+                    const customers = await getAssignedCustomersByGrupo(grupo.id);
+                    const stats = customers.reduce((acc, customer) => {
+                        acc.totalLoaned += customer.loanAmount || 0;
+                        acc.totalDue += customer.dueAmount || 0;
+                        return acc;
+                    }, { totalLoaned: 0, totalDue: 0 });
+
+                    return {
+                        ...grupo,
+                        customerCount: customers.length,
+                        totalLoaned: stats.totalLoaned,
+                        totalDue: stats.totalDue
+                    };
+                }));
+                setGrupos(gruposWithStats);
+            }
+
         } catch (error) {
             toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la información de la cartera." });
         } finally {
@@ -100,6 +138,14 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
         setDeleteConfirmationText('');
     };
 
+    const carteraSummary = React.useMemo(() => {
+        return grupos.reduce((acc, grupo) => {
+            acc.totalLoaned += grupo.totalLoaned;
+            acc.totalDue += grupo.totalDue;
+            return acc;
+        }, { totalLoaned: 0, totalDue: 0 });
+    }, [grupos]);
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-full">
@@ -151,6 +197,11 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                     </Dialog>
                 </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <StatCard title="Total Prestado en Cartera" value={carteraSummary.totalLoaned} />
+                <StatCard title="Total Pendiente en Cartera" value={carteraSummary.totalDue} />
+            </div>
             
             {grupos.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -197,8 +248,21 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="flex-grow">
-                                <p className="text-sm text-muted-foreground">Asigna clientes a este grupo y gestiona sus préstamos.</p>
+                            <CardContent className="flex-grow space-y-4">
+                                <div className="border-t pt-4 grid grid-cols-3 gap-2 text-sm text-center">
+                                    <div>
+                                        <p className="font-bold text-lg">{grupo.customerCount}</p>
+                                        <p className="text-muted-foreground">Clientes</p>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-lg">${grupo.totalLoaned.toLocaleString('es-MX')}</p>
+                                        <p className="text-muted-foreground">Prestado</p>
+                                    </div>
+                                     <div>
+                                        <p className="font-bold text-lg text-destructive">${grupo.totalDue.toLocaleString('es-MX')}</p>
+                                        <p className="text-muted-foreground">Pendiente</p>
+                                    </div>
+                                </div>
                             </CardContent>
                             <CardFooter>
                                 <Button asChild className="w-full">
@@ -221,3 +285,4 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
         </div>
     );
 }
+
