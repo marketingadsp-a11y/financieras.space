@@ -196,17 +196,19 @@ export async function importFullLoanData(
     mode: 'add' | 'replace',
     prefix: string
 ): Promise<void> {
-    const batch = writeBatch(db);
-
+    
     if (mode === 'replace') {
+        const deleteBatch = writeBatch(db);
         const collectionsToDelete = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
         for (const coll of collectionsToDelete) {
             const q = query(coll, where("prefix", "==", prefix));
             const snapshot = await getDocs(q);
-            snapshot.docs.forEach(d => batch.delete(d.ref));
+            snapshot.docs.forEach(d => deleteBatch.delete(d.ref));
         }
+        await deleteBatch.commit();
     }
 
+    const addBatch = writeBatch(db);
     const plazaCache: Record<string, string> = {};
     const carteraCache: Record<string, string> = {};
     const grupoCache: Record<string, string> = {};
@@ -231,7 +233,7 @@ export async function importFullLoanData(
         let plazaId = plazaCache[currentPlazaName];
         if (!plazaId) {
             const plazaRef = doc(plazasCollectionRef);
-            batch.set(plazaRef, { name: currentPlazaName, prefix });
+            addBatch.set(plazaRef, { name: currentPlazaName, prefix });
             plazaId = plazaRef.id;
             plazaCache[currentPlazaName] = plazaId;
         }
@@ -240,7 +242,7 @@ export async function importFullLoanData(
         let carteraId = carteraCache[carteraKey];
         if (!carteraId) {
             const carteraRef = doc(carterasCollectionRef);
-            batch.set(carteraRef, { name: currentCarteraName, plazaId, prefix });
+            addBatch.set(carteraRef, { name: currentCarteraName, plazaId, prefix });
             carteraId = carteraRef.id;
             carteraCache[carteraKey] = carteraId;
         }
@@ -249,7 +251,7 @@ export async function importFullLoanData(
         let grupoId = grupoCache[grupoKey];
         if (!grupoId) {
             const grupoRef = doc(gruposCollectionRef);
-            batch.set(grupoRef, { name: currentGroupName, carteraId, plazaId, prefix });
+            addBatch.set(grupoRef, { name: currentGroupName, carteraId, plazaId, prefix });
             grupoId = grupoRef.id;
             grupoCache[grupoKey] = grupoId;
         }
@@ -290,11 +292,11 @@ export async function importFullLoanData(
         };
         
         const { fechaPrestamo, ...restOfData } = completeCustomerData;
-         batch.set(customerRef, {
+         addBatch.set(customerRef, {
             ...restOfData,
             fechaPrestamo: fechaPrestamo ? Timestamp.fromDate(fechaPrestamo) : Timestamp.now()
         });
     }
 
-    await batch.commit();
+    await addBatch.commit();
 }
