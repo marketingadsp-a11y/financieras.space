@@ -4,7 +4,7 @@
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { LoanControlCartera, LoanControlGrupo, Customer, StructuredCustomerData } from "@/lib/data";
-import { getCustomersByLoanControlGroup } from "./customer-service";
+import { getCustomersByLoanControlGroup, deleteCustomersByPlaza } from "./customer-service";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
@@ -134,6 +134,7 @@ interface StructuredImportParams {
     plazaId: string;
     prefix: string;
     customers: StructuredCustomerData[];
+    mode: 'add' | 'replace';
 }
 
 interface StructuredImportResult {
@@ -143,7 +144,14 @@ interface StructuredImportResult {
 }
 
 export async function importStructuredData(params: StructuredImportParams): Promise<StructuredImportResult> {
-    const { plazaId, prefix, customers } = params;
+    const { plazaId, prefix, customers, mode } = params;
+
+    if (mode === 'replace') {
+        // First, delete all customers for the given plaza.
+        await deleteCustomersByPlaza(plazaId);
+        // Optionally, you might want to delete carteras and grupos as well if 'replace' should be a full reset.
+        // For now, we only delete customers.
+    }
 
     let newCarterasCount = 0;
     let newGroupsCount = 0;
@@ -243,5 +251,3 @@ export async function importStructuredData(params: StructuredImportParams): Prom
         totalCustomers: customers.length,
     };
 }
-
-    

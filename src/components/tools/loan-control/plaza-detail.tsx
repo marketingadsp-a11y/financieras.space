@@ -12,12 +12,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getCarterasByPlaza, addCartera, deleteCartera, updateCartera, getGroupsAndCustomersByCartera, importStructuredData } from "@/services/loan-control-service";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog";
 import { CarteraForm } from "./cartera-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
+import { Label } from "../ui/label";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Input } from "../ui/input";
 
 
 type CarteraWithStats = LoanControlCartera & {
@@ -133,7 +136,9 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
   const [carteras, setCarteras] = React.useState<CarteraWithStats[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [isProcessingImport, setIsProcessingImport] = React.useState(false);
+  const [isImporting, setIsImporting] = React.useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
+  const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [editingCartera, setEditingCartera] = React.useState<LoanControlCartera | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -167,8 +172,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
     }
   }, [plazaId, toast]);
 
-  React.useEffect(() => {
-    const fetchInitialData = async () => {
+  const fetchInitialData = React.useCallback(async () => {
       setIsLoading(true);
       try {
         const plazaData = await getPlazaById(plazaId);
@@ -179,9 +183,11 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
       } finally {
         setIsLoading(false);
       }
-    };
+    }, [plazaId, toast, fetchCarterasWithStats]);
+
+  React.useEffect(() => {
     fetchInitialData();
-  }, [plazaId, toast, fetchCarterasWithStats]);
+  }, [fetchInitialData]);
   
   const handleFormSubmit = async (values: Omit<LoanControlCartera, 'id' | 'plazaId' | 'prefix'>) => {
     if (!user?.prefix) return;
@@ -229,7 +235,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
       return;
     }
 
-    setIsProcessingImport(true);
+    setIsImporting(true);
     let totalCustomersImported = 0;
     let totalCarterasCreated = 0;
     let totalGroupsCreated = 0;
@@ -268,7 +274,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                 return customer as StructuredCustomerData;
             });
 
-            const result = await importStructuredData({ plazaId, prefix: user.prefix, customers: structuredData });
+            const result = await importStructuredData({ plazaId, prefix: user.prefix, customers: structuredData, mode: importMode });
             totalCustomersImported += result.totalCustomers;
             totalCarterasCreated += result.newCarteras;
             totalGroupsCreated += result.newGroups;
@@ -277,7 +283,7 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
             const errorMessage = error instanceof Error ? error.message : "No se pudo procesar el archivo.";
             toast({ variant: "destructive", title: `Error en archivo ${file.name}`, description: errorMessage });
             // Stop processing if one file fails
-            setIsProcessingImport(false);
+            setIsImporting(false);
             if (event.target) event.target.value = '';
             return;
         }
@@ -288,8 +294,9 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
         description: `Se procesaron ${files.length} archivo(s), creando ${totalCarterasCreated} carteras, ${totalGroupsCreated} grupos y ${totalCustomersImported} clientes.`
     });
     
-    await fetchCarterasWithStats();
-    setIsProcessingImport(false);
+    await fetchInitialData();
+    setIsImporting(false);
+    setIsImportDialogOpen(false);
     if (event.target) event.target.value = '';
   };
 
@@ -359,10 +366,43 @@ export function LoanControlPlazaDetail({ plazaId }: { plazaId: string }) {
                         <Download className="mr-2 h-4 w-4"/>
                         Descargar Plantilla
                     </Button>
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isProcessingImport}>
-                        {isProcessingImport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
-                        {isProcessingImport ? "Procesando..." : 'Importar Archivo'}
-                    </Button>
+                    <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                        <DialogTrigger asChild>
+                             <Button variant="outline" disabled={isImporting}>
+                                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
+                                {isImporting ? "Procesando..." : 'Importar Archivo'}
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Importar Clientes desde Archivo</DialogTitle>
+                                <DialogDescriptionComponent>
+                                    Selecciona el modo de importación y luego elige los archivos.
+                                </DialogDescriptionComponent>
+                            </DialogHeader>
+                             <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                    <Label>Modo de Importación</Label>
+                                    <RadioGroup defaultValue="add" value={importMode} onValueChange={(value: 'add' | 'replace') => setImportMode(value)} className="flex items-center gap-6">
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="add" id="r-add" /><Label htmlFor="r-add">Añadir a existentes</Label></div>
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="replace" id="r-replace" /><Label htmlFor="r-replace" className="text-destructive">Reemplazar clientes de la plaza</Label></div>
+                                    </RadioGroup>
+                                    {importMode === 'replace' && (
+                                        <p className="text-xs text-destructive/80">
+                                            ¡Cuidado! Esta opción borrará permanentemente todos los clientes de esta plaza antes de importar.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Cancelar</Button>
+                                <Button onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                                    <Upload className="mr-2 h-4 w-4"/>
+                                    Seleccionar Archivos
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                     <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingCartera(null);}}>
                         <DialogTrigger asChild>
                             <Button>
