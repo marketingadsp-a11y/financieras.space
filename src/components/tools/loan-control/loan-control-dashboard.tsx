@@ -28,7 +28,7 @@ type PlazaWithStats = Plaza & {
   totalLoanAmount: number;
 };
 
-const StatCard = ({ title, value, icon: Icon, isCurrency = false, variant = 'default' }) => {
+const StatCard = ({ title, value, icon: Icon, isCurrency = false, variant = 'default' }: { title: string; value: number | string; icon: React.ElementType; isCurrency?: boolean; variant?: 'default' | 'destructive' }) => {
     const cardClasses = {
         default: "bg-card text-card-foreground",
         destructive: "bg-destructive/90 text-destructive-foreground",
@@ -50,7 +50,7 @@ const StatCard = ({ title, value, icon: Icon, isCurrency = false, variant = 'def
             </CardHeader>
             <CardContent>
                 <div className={`text-3xl font-bold ${textClasses[variant]}`}>
-                    {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+                    {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
                 </div>
             </CardContent>
         </Card>
@@ -72,16 +72,24 @@ const PlazaStatsCard = ({ plaza }: { plaza: PlazaWithStats }) => (
             </div>
         </CardHeader>
         <CardContent className="flex-grow space-y-4">
-             <div className="flex justify-between items-baseline rounded-lg border bg-muted/50 p-4">
+             <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Saldo Pendiente</p>
-                  <p className="text-3xl font-bold text-destructive">
-                      ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  <p className="text-xs text-muted-foreground">Total Prestado</p>
+                  <p className="text-xl font-bold">
+                      ${(plaza.totalLoanAmount ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+                    <p className="text-xl font-bold text-destructive">
+                        ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </p>
+                </div>
+            </div>
+            <div className="flex justify-between items-baseline rounded-lg border bg-muted/50 p-2 text-center">
+                 <div>
                     <p className="text-sm font-medium text-muted-foreground">Carteras</p>
-                    <p className="text-3xl font-bold">{plaza.carteraCount}</p>
+                    <p className="text-xl font-bold">{plaza.carteraCount}</p>
                 </div>
             </div>
         </CardContent>
@@ -276,7 +284,7 @@ export function LoanControlDashboard() {
                                 <Label>Modo de Importación</Label>
                                 <RadioGroup defaultValue="add" value={importMode} onValueChange={(value: 'add' | 'replace') => setImportMode(value)} className="flex items-center gap-6">
                                     <div className="flex items-center space-x-2"><RadioGroupItem value="add" id="r-add" /><Label htmlFor="r-add">Añadir a existentes</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="replace" id="r-replace" /><Label htmlFor="r-replace" className="text-destructive">Reemplazar todo lo registrado</Label></div>
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="replace" id="r-replace" className="text-destructive">Reemplazar todo lo registrado</Label></div>
                                 </RadioGroup>
                                 {importMode === 'replace' && (
                                     <p className="text-xs text-destructive/80">
