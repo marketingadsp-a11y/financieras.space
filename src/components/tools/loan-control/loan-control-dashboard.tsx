@@ -9,6 +9,7 @@ import type { Plaza } from "@/lib/data";
 import { getPlazas } from "@/services/plaza-service";
 import { getPlazaStructure, importFullStructureFromData } from "@/services/loan-control-service";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
