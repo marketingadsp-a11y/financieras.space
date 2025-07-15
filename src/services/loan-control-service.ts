@@ -178,6 +178,7 @@ export async function importFullLoanData(
     prefix: string
 ): Promise<void> {
     
+    // Step 1: Delete old data if mode is 'replace'
     if (mode === 'replace') {
         const deleteBatch = writeBatch(db);
         const collectionsToDelete = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
@@ -188,7 +189,8 @@ export async function importFullLoanData(
         }
         await deleteBatch.commit();
     }
-
+    
+    // Step 2: Add new data
     const addBatch = writeBatch(db);
     const plazaCache: Record<string, string> = {};
     const carteraCache: Record<string, string> = {};
@@ -241,18 +243,21 @@ export async function importFullLoanData(
         
         let fechaPrestamoDate;
         const fechaValue = row['F. Prestamo'] || row.FechaPrestamo || row.fechaPrestamo || row.fecha_prestamo;
-        if (fechaValue instanceof Date) {
-            fechaPrestamoDate = fechaValue;
-        } else if (typeof fechaValue === 'string') {
-            const parsed = Date.parse(fechaValue);
-            fechaPrestamoDate = isNaN(parsed) ? new Date() : new Date(parsed);
-        } else {
-            fechaPrestamoDate = new Date();
+        if (fechaValue) {
+            if (fechaValue instanceof Date) {
+                fechaPrestamoDate = fechaValue;
+            } else if (typeof fechaValue === 'string') {
+                const parsed = Date.parse(fechaValue);
+                fechaPrestamoDate = isNaN(parsed) ? undefined : new Date(parsed);
+            } else if (typeof fechaValue === 'number') { // Handle Excel date serial numbers
+                 const excelEpoch = new Date(1899, 11, 30);
+                 fechaPrestamoDate = new Date(excelEpoch.getTime() + fechaValue * 86400000);
+            }
         }
 
         const loanAmount = parseFloat(String(row.Prestamo || 0).replace(/[^0-9.-]+/g,""));
         const dueAmountRaw = row.Saldo || row.adeudo;
-        const dueAmount = dueAmountRaw === undefined || dueAmountRaw === "" ? loanAmount : parseFloat(String(dueAmountRaw).replace(/[^0-9.-]+/g,""));
+        const dueAmount = dueAmountRaw === undefined || String(dueAmountRaw).trim() === "" ? loanAmount : parseFloat(String(dueAmountRaw).replace(/[^0-9.-]+/g,""));
 
         const completeCustomerData = {
             plazaId: plazaId,
@@ -273,14 +278,10 @@ export async function importFullLoanData(
             direccionAval: row.DireccionAval || '',
             coloniaAval: row.ColoniaAval || '',
             cpAval: String(row.CPAval || ''),
-            fechaPrestamo: fechaPrestamoDate,
+            fechaPrestamo: fechaPrestamoDate ? Timestamp.fromDate(fechaPrestamoDate) : null,
         };
         
-        const { fechaPrestamo, ...restOfData } = completeCustomerData;
-         addBatch.set(customerRef, {
-            ...restOfData,
-            fechaPrestamo: fechaPrestamo ? Timestamp.fromDate(fechaPrestamo) : Timestamp.now()
-        });
+        addBatch.set(customerRef, completeCustomerData);
     }
 
     await addBatch.commit();
