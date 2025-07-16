@@ -15,7 +15,8 @@ import {
   Timestamp,
   writeBatch,
   limit,
-  orderBy
+  orderBy,
+  setDoc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Sucursal, CentralAccount, CentralAccountTransaction } from "@/lib/data";
@@ -75,7 +76,7 @@ export async function getIncomeExpensesSummary(prefix: string) {
   if (accountSnap.exists()) {
     centralAccount = { id: accountSnap.id, ...accountSnap.data() } as CentralAccount;
   } else {
-    // Create a new central account if it doesn't exist
+    // Create a new central account if it doesn't exist, using the prefix as the document ID
     centralAccount = {
       id: prefix,
       prefix: prefix,
@@ -83,7 +84,12 @@ export async function getIncomeExpensesSummary(prefix: string) {
       assignedCapital: 0,
       totalBranchBalance: 0,
     };
-    await addDoc(centralAccountsCollectionRef, centralAccount);
+    await setDoc(centralAccountDocRef, {
+        prefix: prefix,
+        currentBalance: 0,
+        assignedCapital: 0,
+        totalBranchBalance: 0
+    });
   }
 
   const transactions = transactionsSnap.docs.map(doc => {
@@ -114,7 +120,7 @@ export async function performCentralAccountTransaction(params: TransactionParams
     
     await runTransaction(db, async (transaction) => {
         const centralAccountDoc = await transaction.get(centralAccountRef);
-        let centralAccountData = centralAccountDoc.data() as CentralAccount;
+        let centralAccountData: CentralAccount;
         
         // If account doesn't exist, create it in memory for this transaction
         if (!centralAccountDoc.exists()) {
@@ -125,6 +131,8 @@ export async function performCentralAccountTransaction(params: TransactionParams
                 assignedCapital: 0,
                 totalBranchBalance: 0,
             };
+        } else {
+            centralAccountData = { id: centralAccountDoc.id, ...centralAccountDoc.data() } as CentralAccount;
         }
 
         const newTransactionData: Omit<CentralAccountTransaction, 'id' | 'date'> & { date: Timestamp } = {
@@ -170,10 +178,13 @@ export async function performCentralAccountTransaction(params: TransactionParams
                 throw new Error("Tipo de transacción no válido.");
         }
         
+        // Remove the 'id' field before writing to Firestore
+        const { id, ...dataToSave } = centralAccountData;
+
         if (centralAccountDoc.exists()) {
-            transaction.update(centralAccountRef, centralAccountData);
+            transaction.update(centralAccountRef, dataToSave);
         } else {
-            transaction.set(centralAccountRef, centralAccountData);
+            transaction.set(centralAccountRef, dataToSave);
         }
         transaction.set(transactionRef, newTransactionData);
     });
