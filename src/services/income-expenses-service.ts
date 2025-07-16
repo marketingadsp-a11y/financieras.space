@@ -257,17 +257,22 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
     const transactionRef = doc(sucursalTransactionsCollectionRef);
 
     await runTransaction(db, async (transaction) => {
+        // --- ALL READS FIRST ---
         const sucursalDoc = await transaction.get(sucursalRef);
         if (!sucursalDoc.exists()) {
             throw new Error("La sucursal no existe.");
         }
-        
         const sucursalData = sucursalDoc.data() as Sucursal;
+        
+        const centralAccountRef = doc(db, "centralAccounts", sucursalData.prefix);
+        const centralAccountDoc = await transaction.get(centralAccountRef);
 
+        // --- VALIDATIONS ---
         if ((type === 'expense' || type === 'transfer_to_loan_balance') && sucursalData.currentBalance < amount) {
             throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
         }
 
+        // --- ALL WRITES LAST ---
         const updates: Partial<Sucursal> = {};
         if (type === 'expense') {
             updates.currentBalance = sucursalData.currentBalance - amount;
@@ -277,7 +282,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             updates.currentBalance = sucursalData.currentBalance - amount;
             updates.loanBalance = (sucursalData.loanBalance || 0) + amount;
         }
-
+        
         transaction.update(sucursalRef, updates);
 
         const newTransactionData: Partial<Omit<SucursalTransaction, 'id'|'date'>> & { date: Timestamp } = {
@@ -291,19 +296,14 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
 
         if (category) newTransactionData.category = category;
         if (executive) newTransactionData.executive = executive;
-
+        
         transaction.set(transactionRef, newTransactionData);
 
-        // Update the totalBranchBalance in the central account only for deposit/expense
-        if (type === 'deposit' || type === 'expense') {
-            const centralAccountRef = doc(db, "centralAccounts", sucursalData.prefix);
-            const centralAccountDoc = await transaction.get(centralAccountRef);
-            if (centralAccountDoc.exists()) {
-                const centralAccountData = centralAccountDoc.data();
-                const change = type === 'expense' ? -amount : amount;
-                const newTotalBalance = (centralAccountData.totalBranchBalance || 0) + change;
-                transaction.update(centralAccountRef, { totalBranchBalance: newTotalBalance });
-            }
+        if ((type === 'deposit' || type === 'expense') && centralAccountDoc.exists()) {
+            const centralAccountData = centralAccountDoc.data();
+            const change = type === 'expense' ? -amount : amount;
+            const newTotalBalance = (centralAccountData.totalBranchBalance || 0) + change;
+            transaction.update(centralAccountRef, { totalBranchBalance: newTotalBalance });
         }
     });
 }
