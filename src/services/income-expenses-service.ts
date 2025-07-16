@@ -178,15 +178,11 @@ export async function performCentralAccountTransaction(params: CentralTransactio
 
                 centralAccountData.currentBalance -= amount;
                 centralAccountData.assignedCapital += amount;
-                // Note: totalBranchBalance is now just the sum of Caja Chica, not loan balance. We may need to reconsider this field.
                 
-                // Assign capital to the loan balance (Caja para Prestar)
                 const newLoanBalance = (sucursalData.loanBalance || 0) + amount;
 
                 transaction.update(sucursalRef, { loanBalance: newLoanBalance });
                 
-                // This is an external capital assignment, it doesn't need its own sucursal transaction log entry
-                // as it doesn't affect the Caja Chica. It's a capital injection.
                 break;
             default:
                 throw new Error("Tipo de transacción no válido.");
@@ -219,7 +215,6 @@ export async function deleteAllIncomeExpensesData(prefix: string): Promise<void>
     const centralTransactionsSnapshot = await getDocs(centralTransactionsQuery);
     centralTransactionsSnapshot.forEach(doc => batch.delete(doc.ref));
 
-    // Delete sucursal transactions in chunks if necessary
     if(sucursalIds.length > 0){
         const sucursalTransactionsQuery = query(sucursalTransactionsCollectionRef, where("sucursalId", "in", sucursalIds));
         const sucursalTransactionsSnapshot = await getDocs(sucursalTransactionsQuery);
@@ -243,7 +238,6 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
         return { ...data, id: doc.id, date: (data.date as Timestamp).toDate() }
     }) as SucursalTransaction[];
     
-    // Sort transactions in application code to avoid needing a composite index
     return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
@@ -286,16 +280,18 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
 
         transaction.update(sucursalRef, updates);
 
-        const newTransactionData: Omit<SucursalTransaction, 'id'|'date'> & { date: Timestamp } = {
+        const newTransactionData: Partial<Omit<SucursalTransaction, 'id'|'date'>> & { date: Timestamp } = {
             sucursalId,
             type,
             amount,
             userPerformed,
             description,
-            category,
-            executive,
             date: Timestamp.now()
         };
+
+        if (category) newTransactionData.category = category;
+        if (executive) newTransactionData.executive = executive;
+
         transaction.set(transactionRef, newTransactionData);
 
         // Update the totalBranchBalance in the central account only for deposit/expense
@@ -321,7 +317,6 @@ export async function getSucursalStats(sucursalId: string) {
     const transactions = snapshot.docs.map(doc => doc.data()) as SucursalTransaction[];
     
     const totals = transactions.reduce((acc, tx) => {
-        // Only consider internal deposits and expenses for Caja Chica stats
         if (tx.type === 'deposit') {
             acc.totalIncome += tx.amount;
         } else if (tx.type === 'expense') {
