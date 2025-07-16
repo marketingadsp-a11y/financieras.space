@@ -20,6 +20,7 @@ interface User {
   isPlazaUser: boolean;
   accessibleTools?: string[];
   plazaAccess?: PlazaAccess[];
+  sucursalAccess?: string[];
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
 }
@@ -142,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const toolAdmin = await getToolAdminByUsername(usernamePart, prefix);
       if (toolAdmin && toolAdmin.password === pass && toolAdmin.status === "Activo") {
-         const userData: User = { id: toolAdmin.id, username: toolAdmin.username, name: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId], prefix: toolAdmin.prefix, createdBy: toolAdmin.createdBy };
+         const userData: User = { id: toolAdmin.id, username: toolAdmin.username, name: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId], prefix: toolAdmin.prefix, createdBy: toolAdmin.createdBy, sucursalAccess: toolAdmin.sucursalAccess };
          handleSuccessfulLogin(userData);
          return true;
       } else if (toolAdmin && toolAdmin.status === "Inactivo") {
