@@ -37,13 +37,19 @@ export async function getSucursalById(id: string): Promise<Sucursal | null> {
     const docRef = doc(db, "sucursales", id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Sucursal;
+        const data = docSnap.data();
+        return { 
+            id: docSnap.id, 
+            ...data,
+            currentBalance: data.currentBalance || 0,
+            loanBalance: data.loanBalance || 0,
+        } as Sucursal;
     }
     return null;
 }
 
-export async function addSucursal(sucursal: Omit<Sucursal, 'id' | 'currentBalance'>): Promise<Sucursal> {
-  const data = { ...sucursal, currentBalance: 0 };
+export async function addSucursal(sucursal: Omit<Sucursal, 'id' | 'currentBalance' | 'loanBalance'>): Promise<Sucursal> {
+  const data = { ...sucursal, currentBalance: 0, loanBalance: 0 };
   const docRef = await addDoc(sucursalesCollectionRef, data);
   return { ...data, id: docRef.id };
 }
@@ -57,8 +63,8 @@ export async function deleteSucursal(id: string) {
   const sucursalDocRef = doc(db, "sucursales", id);
   const sucursalDoc = await getDoc(sucursalDocRef);
 
-  if (sucursalDoc.exists() && sucursalDoc.data().currentBalance > 0) {
-    throw new Error("No se puede eliminar una sucursal con balance positivo. Retire los fondos primero.");
+  if (sucursalDoc.exists() && (sucursalDoc.data().currentBalance > 0 || sucursalDoc.data().loanBalance > 0)) {
+    throw new Error("No se puede eliminar una sucursal con balance positivo en Caja Chica o Caja para Prestar. Retire los fondos primero.");
   }
   await deleteDoc(sucursalDocRef);
 }
@@ -172,22 +178,26 @@ export async function performCentralAccountTransaction(params: CentralTransactio
 
                 centralAccountData.currentBalance -= amount;
                 centralAccountData.assignedCapital += amount;
-                centralAccountData.totalBranchBalance += amount;
-                sucursalData.currentBalance += amount;
+                // Note: totalBranchBalance is now just the sum of Caja Chica, not loan balance. We may need to reconsider this field.
+                
+                // Assign capital to the loan balance (Caja para Prestar)
+                const newLoanBalance = (sucursalData.loanBalance || 0) + amount;
 
-                transaction.update(sucursalRef, { currentBalance: sucursalData.currentBalance });
+                transaction.update(sucursalRef, { loanBalance: newLoanBalance });
                 
                 // Also create a transaction record for the sucursal
                 const sucursalTransactionRef = doc(sucursalTransactionsCollectionRef);
                 const newSucursalTransaction: Omit<SucursalTransaction, 'id' | 'date'> & {date: Timestamp} = {
                     sucursalId,
-                    type: 'deposit',
+                    type: 'deposit', // An assignment is a deposit from the sucursal's perspective
                     amount,
                     userPerformed,
                     description: `Asignación desde Capital Central`,
                     date: newTransactionData.date,
                 };
-                transaction.set(sucursalTransactionRef, newSucursalTransaction);
+                // This transaction now affects the LOAN balance, not the currentBalance, so we don't record it in the same log.
+                // We'll need a separate log for loan balance movements if required. For now, we just update the balance.
+                // transaction.set(sucursalTransactionRef, newSucursalTransaction);
                 break;
             default:
                 throw new Error("Tipo de transacción no válido.");
@@ -270,7 +280,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         const sucursalData = sucursalDoc.data() as Sucursal;
 
         if (type === 'expense' && sucursalData.currentBalance < amount) {
-            throw new Error("Fondos insuficientes en la sucursal para este gasto.");
+            throw new Error("Fondos insuficientes en la Caja Chica para este gasto.");
         }
 
         const newBalance = type === 'expense'
@@ -305,13 +315,12 @@ export async function getSucursalStats(sucursalId: string) {
     const transactions = await getSucursalTransactions(sucursalId);
     
     const totals = transactions.reduce((acc, tx) => {
-        if (tx.type === 'deposit') {
+        // Only consider internal deposits and expenses for Caja Chica stats
+        if (tx.type === 'deposit' && !tx.description.includes('Asignación desde Capital Central')) {
             acc.totalIncome += tx.amount;
         } else if (tx.type === 'expense') {
             acc.totalExpenses += tx.amount;
         }
-        // Note: 'withdrawal' type is from central account perspective, it's an income for the branch
-        // but it is already handled as a 'deposit' when created.
         return acc;
     }, { totalIncome: 0, totalExpenses: 0 });
 

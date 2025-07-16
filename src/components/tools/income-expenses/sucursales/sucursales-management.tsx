@@ -45,7 +45,7 @@ export function SucursalesManagement() {
     fetchSucursales();
   }, [fetchSucursales]);
 
-  const handleSubmit = async (formData: Omit<Sucursal, 'id' | 'prefix' | 'currentBalance'>) => {
+  const handleSubmit = async (formData: Omit<Sucursal, 'id' | 'prefix' | 'currentBalance' | 'loanBalance'>) => {
     if (!user?.prefix) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se puede identificar el prefijo del administrador.'})
         return;

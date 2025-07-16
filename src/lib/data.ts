@@ -136,7 +136,8 @@ export type Sucursal = {
     prefix: string;
     name: string;
     manager: string;
-    currentBalance: number;
+    currentBalance: number; // Caja chica
+    loanBalance: number; // Caja para prestar
     logoUrl?: string;
 };
 

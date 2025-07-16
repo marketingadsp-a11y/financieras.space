@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2, Building, DollarSign } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Building, DollarSign, PiggyBank, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -64,7 +64,8 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Encargado</TableHead>
-              <TableHead>Balance Actual</TableHead>
+              <TableHead>Caja Chica</TableHead>
+              <TableHead>Caja para Prestar</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
               </TableHead>
@@ -85,9 +86,15 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
                   </TableCell>
                   <TableCell>{sucursal.manager}</TableCell>
                   <TableCell>
-                      <div className="flex items-center gap-2 text-primary font-semibold">
-                        <DollarSign className="h-4 w-4 text-muted-foreground"/>
-                        {sucursal.currentBalance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      <div className="flex items-center gap-2 font-semibold">
+                        <PiggyBank className="h-4 w-4 text-muted-foreground"/>
+                        {(sucursal.currentBalance || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      </div>
+                  </TableCell>
+                  <TableCell>
+                      <div className="flex items-center gap-2 font-semibold text-primary">
+                        <Briefcase className="h-4 w-4 text-muted-foreground"/>
+                        {(sucursal.loanBalance || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </div>
                   </TableCell>
                   <TableCell>
@@ -131,7 +138,7 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   No se encontraron sucursales.
                 </TableCell>
               </TableRow>

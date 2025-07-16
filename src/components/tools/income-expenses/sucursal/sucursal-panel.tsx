@@ -8,7 +8,7 @@ import { getSucursalById, getSucursalTransactions, performSucursalTransaction, g
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2, PiggyBank, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -157,27 +157,28 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     return (
         <div className="space-y-6">
              <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Panel de Sucursal</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Panel de Sucursal: {sucursal.name}</h1>
                  <Button variant="ghost" size="icon" onClick={fetchData}>
                     <RefreshCw className="h-5 w-5 text-muted-foreground" />
                 </Button>
             </div>
             
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <StatCard title="Ingresos Totales" value={stats.totalIncome} icon={TrendingUp} description="Total de ingresos de la sucursal" colorClass="text-green-500" />
-                <StatCard title="Gastos Totales" value={stats.totalExpenses} icon={TrendingDown} description="Total de gastos de la sucursal" colorClass="text-red-500" />
-                <StatCard title="Fondo Actual" value={sucursal.currentBalance} icon={Banknote} description="Dinero disponible en la sucursal" />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Ingresos Totales (Caja Chica)" value={stats.totalIncome} icon={TrendingUp} description="Total de ingresos de la sucursal" colorClass="text-green-500" />
+                <StatCard title="Gastos Totales (Caja Chica)" value={stats.totalExpenses} icon={TrendingDown} description="Total de gastos de la sucursal" colorClass="text-red-500" />
+                <StatCard title="Caja Chica" value={sucursal.currentBalance} icon={PiggyBank} description="Dinero disponible para gastos" />
+                <StatCard title="Caja para Prestar" value={sucursal.loanBalance || 0} icon={Briefcase} description="Dinero disponible para préstamos" />
             </div>
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <ActionCard title="Registrar Movimiento" description="Ingresos o Gastos" icon={PlusCircle} onClick={() => setDialogOpen(true)} />
+                <ActionCard title="Registrar Movimiento" description="Ingresos o Gastos (Caja Chica)" icon={PlusCircle} onClick={() => setDialogOpen(true)} />
                 <ActionCard title="Solicitar Préstamo" description="A central u otra sucursal" icon={Landmark} onClick={() => {}} disabled />
                 <ActionCard title="Enviar a Capital" description="Devolver fondos a central" icon={Send} onClick={() => {}} disabled />
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Historial de Transacciones</CardTitle>
+                    <CardTitle>Historial de Transacciones (Caja Chica)</CardTitle>
                     <CardDescription>Últimos movimientos de ingresos y gastos de la sucursal.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
