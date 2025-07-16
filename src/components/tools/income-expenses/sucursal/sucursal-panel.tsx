@@ -2,17 +2,24 @@
 "use client";
 
 import * as React from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getSucursalById, getSucursalTransactions, getSucursalStats, performSucursalTransaction } from "@/services/income-expenses-service";
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2, PiggyBank, Briefcase, MoveHorizontal, User } from "lucide-react";
+import { Loader2, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2, PiggyBank, Briefcase, MoveHorizontal, User, CalendarIcon, FilterX, FileText } from "lucide-react";
 import Link from "next/link";
 import { SucursalTransactionDialog } from "./sucursal-transaction-dialog";
 import { TransferDialog } from "./transfer-dialog";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 
 const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary', children }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string, children?: React.ReactNode }) => (
@@ -68,10 +75,11 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
                 <p className="text-sm text-muted-foreground">{tx.description}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5"><User className="h-3 w-3" /> Movimiento de: {tx.userPerformed}</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col items-end space-x-4">
                 <div className={cn("font-semibold", info.color)}>
                    ${tx.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </div>
+                 <p className="text-xs text-muted-foreground">{format(tx.date, "dd MMM yyyy, p", { locale: es })}</p>
             </div>
         </div>
     );
@@ -87,6 +95,8 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     const [isLoading, setIsLoading] = React.useState(true);
     const [isTransactionDialogOpen, setTransactionDialogOpen] = React.useState(false);
     const [isTransferDialogOpen, setTransferDialogOpen] = React.useState(false);
+    const [startDate, setStartDate] = React.useState<Date | undefined>();
+    const [endDate, setEndDate] = React.useState<Date | undefined>();
     
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
@@ -109,6 +119,19 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     React.useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    const filteredTransactions = React.useMemo(() => {
+        return transactions.filter(tx => {
+            const txDate = tx.date;
+            if (startDate && txDate < startDate) return false;
+            if (endDate) {
+                const endOfDay = new Date(endDate);
+                endOfDay.setHours(23, 59, 59, 999);
+                if (txDate > endOfDay) return false;
+            }
+            return true;
+        });
+    }, [transactions, startDate, endDate]);
     
     const handleTransaction = async (data: {type: 'expense' | 'deposit', amount: number, description: string, category?: string, executive?: string}) => {
         if (!user?.name) {
@@ -152,6 +175,41 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         }
     }
 
+    const exportToPDF = () => {
+        if (!sucursal || filteredTransactions.length === 0) {
+            toast({ variant: "destructive", title: "Sin datos", description: "No hay transacciones para exportar en el rango de fechas seleccionado." });
+            return;
+        }
+        const doc = new jsPDF();
+        const totals = filteredTransactions.reduce((acc, tx) => {
+            if (tx.type === 'deposit') acc.deposits += tx.amount;
+            if (tx.type === 'expense') acc.expenses += tx.amount;
+            return acc;
+        }, { deposits: 0, expenses: 0 });
+
+        doc.text(`Historial de Transacciones - ${sucursal.name}`, 14, 16);
+        doc.text(`Desde: ${startDate ? format(startDate, "PPP", { locale: es }) : 'Inicio'}`, 14, 22);
+        doc.text(`Hasta: ${endDate ? format(endDate, "PPP", { locale: es }) : 'Fin'}`, 14, 28);
+        doc.text(`Total Ingresos: $${totals.deposits.toLocaleString()}`, 14, 34);
+        doc.text(`Total Gastos: $${totals.expenses.toLocaleString()}`, 14, 40);
+
+        autoTable(doc, {
+            startY: 46,
+            head: [['Fecha', 'Tipo', 'Descripción', 'Realizado Por', 'Monto']],
+            body: filteredTransactions.map(tx => {
+                const typeLabels = { deposit: 'Ingreso', expense: 'Gasto', transfer_to_loan_balance: 'Transferencia' };
+                return [
+                    format(tx.date, "dd/MM/yy p", { locale: es }),
+                    typeLabels[tx.type],
+                    `${tx.category ? `[${tx.category}] ` : ''}${tx.description}`,
+                    tx.userPerformed,
+                    `$${tx.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+                ];
+            }),
+        });
+        doc.save(`Historial_${sucursal.name}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    };
+
     if (isLoading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de la sucursal...</div>;
     }
@@ -189,14 +247,40 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Historial de Transacciones (Caja Chica)</CardTitle>
-                    <CardDescription>Últimos movimientos de ingresos y gastos de la sucursal.</CardDescription>
+                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                        <div>
+                            <CardTitle>Historial de Transacciones</CardTitle>
+                            <CardDescription>Movimientos de ingresos y gastos de la sucursal.</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <Popover>
+                                <PopoverTrigger asChild>
+                                <Button variant="outline" className={cn("w-full md:w-auto", !startDate && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4"/>
+                                    {startDate ? format(startDate, "PPP", { locale: es }) : "Fecha de Inicio"}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus/></PopoverContent>
+                           </Popover>
+                           <Popover>
+                                <PopoverTrigger asChild>
+                                <Button variant="outline" className={cn("w-full md:w-auto", !endDate && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4"/>
+                                    {endDate ? format(endDate, "PPP", { locale: es }) : "Fecha de Fin"}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus/></PopoverContent>
+                           </Popover>
+                           <Button variant="ghost" size="icon" onClick={() => { setStartDate(undefined); setEndDate(undefined); }}><FilterX className="h-4 w-4"/></Button>
+                           <Button variant="outline" onClick={exportToPDF} disabled={filteredTransactions.length === 0}><FileText className="h-4 w-4"/></Button>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     {transactions.length > 0 ? transactions.map(tx => (
+                     {filteredTransactions.length > 0 ? filteredTransactions.map(tx => (
                         <TransactionRow key={tx.id} tx={tx} />
                      )) : (
-                        <div className="text-center py-10 text-muted-foreground">No hay transacciones todavía.</div>
+                        <div className="text-center py-10 text-muted-foreground">No hay transacciones para el rango de fechas seleccionado.</div>
                      )}
                 </CardContent>
             </Card>

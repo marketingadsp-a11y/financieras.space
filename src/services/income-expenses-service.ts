@@ -197,7 +197,7 @@ export async function performCentralAccountTransaction(params: CentralTransactio
     });
 }
 
-// DANGER ZONE FUNCTION
+// DANGER ZONE FUNCTIONS
 export async function deleteAllIncomeExpensesData(prefix: string): Promise<void> {
     const batch = writeBatch(db);
 
@@ -225,6 +225,20 @@ export async function deleteAllIncomeExpensesData(prefix: string): Promise<void>
     
     await batch.commit();
 }
+
+export async function deleteSucursalData(sucursalId: string): Promise<void> {
+    const batch = writeBatch(db);
+
+    const transactionsQuery = query(sucursalTransactionsCollectionRef, where("sucursalId", "==", sucursalId));
+    const transactionsSnapshot = await getDocs(transactionsQuery);
+    transactionsSnapshot.forEach(doc => batch.delete(doc.ref));
+    
+    const sucursalRef = doc(db, "sucursales", sucursalId);
+    batch.update(sucursalRef, { currentBalance: 0, loanBalance: 0 });
+
+    await batch.commit();
+}
+
 
 // --- Sucursal Panel Functions ---
 
