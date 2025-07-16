@@ -26,7 +26,9 @@ import {
   Folder,
   Home,
   ChevronRight,
-  Folders
+  Folders,
+  Landmark,
+  ShieldAlert
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -119,6 +121,16 @@ const carteraVencidaNavItems: NavItem[] = [
     { href: "/tools/overdue-portfolio", label: "Resumen General", icon: Building },
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
 ];
+
+const incomeExpensesNavItems: NavItem[] = [
+    { href: "/tools/income-expenses", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/tools/income-expenses/sucursales", label: "Gestionar Sucursales", icon: Building },
+    { href: "/tools/income-expenses/users", label: "Gestionar Usuarios", icon: Users2 },
+];
+const incomeExpensesSettingsItems: NavItem[] = [
+    { href: "/tools/income-expenses/danger-zone", label: "Zona de Peligro", icon: ShieldAlert },
+]
+
 
 const dailyControlNavItems: NavItem[] = [
     { href: "/tools/daily-control", label: "Resumen Diario", icon: BookCheck },
@@ -331,6 +343,7 @@ function NavLinks() {
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
   const isLoanControlPath = pathname.startsWith('/tools/loan-control');
+  const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -391,6 +404,47 @@ function NavLinks() {
                 </SidebarMenu>
             </SidebarGroup>
        </>
+    );
+  }
+  
+  if (isIncomeExpensesPath) {
+      return (
+      <>
+        <SidebarGroup>
+          <SidebarGroupLabel>GESTIÓN</SidebarGroupLabel>
+          <SidebarMenu>
+            {incomeExpensesNavItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href!}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                    <span>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>CONFIGURACIÓN</SidebarGroupLabel>
+          <SidebarMenu>
+            {incomeExpensesSettingsItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href!}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                    <span>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      </>
     );
   }
 
@@ -545,11 +599,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
   const isLoanControlPath = pathname.startsWith('/tools/loan-control');
+  const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return allTools.find(tool => tool.id === 'cartera-vencida');
     if (isDailyControlPath) return allTools.find(tool => tool.id === 'daily-control');
     if (isLoanControlPath) return allTools.find(tool => tool.id === 'loan-control');
+    if (isIncomeExpensesPath) return allTools.find(tool => tool.id === 'income-expenses');
     return null;
   }
 
@@ -562,7 +618,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
-  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath) && !user.isSuperAdmin && !user.isToolAdmin;
+  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath) && !user.isSuperAdmin && !user.isToolAdmin;
 
   return (
     <SidebarProvider>

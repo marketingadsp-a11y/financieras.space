@@ -77,7 +77,8 @@ export async function getIncomeExpensesSummary(prefix: string) {
   if (accountSnap.exists()) {
     centralAccount = { id: accountSnap.id, ...accountSnap.data() } as CentralAccount;
   } else {
-    // Create a new central account if it doesn't exist, using the prefix as the document ID
+    // Return a default object but don't create it here. 
+    // Creation will be handled by the first transaction.
     centralAccount = {
       id: prefix,
       prefix: prefix,
@@ -85,12 +86,6 @@ export async function getIncomeExpensesSummary(prefix: string) {
       assignedCapital: 0,
       totalBranchBalance: 0,
     };
-    await setDoc(centralAccountDocRef, {
-        prefix: prefix,
-        currentBalance: 0,
-        assignedCapital: 0,
-        totalBranchBalance: 0
-    });
   }
 
   const transactions = transactionsSnap.docs.map(doc => {
@@ -187,11 +182,29 @@ export async function performCentralAccountTransaction(params: TransactionParams
         // Remove the 'id' field before writing to Firestore
         const { id, ...dataToSave } = centralAccountData;
 
-        if (centralAccountDoc.exists()) {
-            transaction.update(centralAccountRef, dataToSave);
-        } else {
-            transaction.set(centralAccountRef, dataToSave);
-        }
+        // Use set with merge: true to create or update
+        transaction.set(centralAccountRef, dataToSave, { merge: true });
         transaction.set(transactionRef, newTransactionData);
     });
+}
+
+// DANGER ZONE FUNCTION
+export async function deleteAllIncomeExpensesData(prefix: string): Promise<void> {
+    const batch = writeBatch(db);
+
+    // Delete Central Account
+    const centralAccountRef = doc(db, "centralAccounts", prefix);
+    batch.delete(centralAccountRef);
+
+    // Delete all sucursales for the prefix
+    const sucursalesQuery = query(sucursalesCollectionRef, where("prefix", "==", prefix));
+    const sucursalesSnapshot = await getDocs(sucursalesQuery);
+    sucursalesSnapshot.forEach(doc => batch.delete(doc.ref));
+
+    // Delete all transactions for the prefix
+    const transactionsQuery = query(centralAccountTransactionsCollectionRef, where("accountId", "==", prefix));
+    const transactionsSnapshot = await getDocs(transactionsQuery);
+    transactionsSnapshot.forEach(doc => batch.delete(doc.ref));
+    
+    await batch.commit();
 }
