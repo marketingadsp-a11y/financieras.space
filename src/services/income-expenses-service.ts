@@ -15,7 +15,9 @@ import {
   Timestamp,
   writeBatch,
   limit,
-  orderBy
+  orderBy,
+  DocumentSnapshot,
+  DocumentData
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Sucursal, CentralAccount, CentralAccountTransaction, SucursalTransaction } from "@/lib/data";
@@ -48,8 +50,8 @@ export async function getSucursalById(id: string): Promise<Sucursal | null> {
     return null;
 }
 
-export async function addSucursal(sucursal: Omit<Sucursal, 'id' | 'currentBalance' | 'loanBalance' | 'prefix'>): Promise<Sucursal> {
-  const data: Omit<Sucursal, 'id'> = { ...sucursal, prefix: sucursal.prefix || '', currentBalance: 0, loanBalance: 0 };
+export async function addSucursal(sucursalData: Omit<Sucursal, 'id' | 'currentBalance' | 'loanBalance'>): Promise<Sucursal> {
+  const data: Omit<Sucursal, 'id'> = { ...sucursalData, prefix: sucursalData.prefix || '', currentBalance: 0, loanBalance: 0 };
   const docRef = await addDoc(sucursalesCollectionRef, data);
   return { ...data, id: docRef.id };
 }

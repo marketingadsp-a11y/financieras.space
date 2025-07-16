@@ -8,7 +8,7 @@ import { getSucursalById, getSucursalTransactions, getSucursalStats, performSucu
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2, PiggyBank, Briefcase, MoveHorizontal } from "lucide-react";
+import { Loader2, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2, PiggyBank, Briefcase, MoveHorizontal, User } from "lucide-react";
 import Link from "next/link";
 import { SucursalTransactionDialog } from "./sucursal-transaction-dialog";
 import { TransferDialog } from "./transfer-dialog";
@@ -66,6 +66,7 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
             <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium leading-none capitalize">{descriptionTitle}</p>
                 <p className="text-sm text-muted-foreground">{tx.description}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5"><User className="h-3 w-3" /> Movimiento de: {tx.userPerformed}</p>
             </div>
             <div className="flex items-center space-x-4">
                 <div className={cn("font-semibold", info.color)}>
