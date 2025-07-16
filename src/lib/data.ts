@@ -23,6 +23,7 @@ export type ToolAdmin = {
   toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control';
   prefix?: string;
   createdBy?: string;
+  sucursalAccess?: string[]; // Array of sucursal IDs
 };
 
 export type SuperAdmin = {

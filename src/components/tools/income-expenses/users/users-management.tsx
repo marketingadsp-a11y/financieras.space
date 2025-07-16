@@ -6,11 +6,12 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UsersTable } from "@/components/tools/income-expenses/users/users-table";
 import { ToolAdminForm } from "@/components/tools/income-expenses/users/user-form";
-import type { ToolAdmin, Admin } from "@/lib/data";
+import type { ToolAdmin, Admin, Sucursal } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getToolAdmins, addToolAdmin, updateToolAdmin, deleteToolAdmin } from "@/services/tool-admin-service";
 import { getAdminsByPrefix } from "@/services/admin-service";
+import { getSucursales } from "@/services/income-expenses-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 
@@ -23,23 +24,26 @@ type CombinedAdmin = (
 export function UsersManagement() {
   const { user } = useAuth();
   const [admins, setAdmins] = React.useState<CombinedAdmin[]>([]);
+  const [sucursales, setSucursales] = React.useState<Sucursal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingAdmin, setEditingAdmin] = React.useState<ToolAdmin | null>(null);
   const { toast } = useToast();
   const toolId = 'income-expenses';
 
-  const fetchAdmins = React.useCallback(async () => {
+  const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
       setIsLoading(false);
       return;
     }
     try {
       setIsLoading(true);
-      const toolAdminsPromise = getToolAdmins(toolId, user.prefix);
-      const globalAdminsPromise = getAdminsByPrefix(user.prefix);
-      
-      const [toolAdmins, globalAdmins] = await Promise.all([toolAdminsPromise, globalAdminsPromise]);
+      const [toolAdmins, globalAdmins, sucursalesData] = await Promise.all([
+        getToolAdmins(toolId, user.prefix),
+        getAdminsByPrefix(user.prefix),
+        getSucursales(user.prefix),
+      ]);
+      setSucursales(sucursalesData);
 
       const combined: CombinedAdmin[] = [];
       
@@ -61,7 +65,7 @@ export function UsersManagement() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudieron cargar los administradores.",
+        description: "No se pudieron cargar los datos.",
       });
     } finally {
       setIsLoading(false);
@@ -69,8 +73,8 @@ export function UsersManagement() {
   }, [toast, user?.prefix]);
   
   React.useEffect(() => {
-    fetchAdmins();
-  }, [fetchAdmins]);
+    fetchData();
+  }, [fetchData]);
 
 
   const handleAddAdmin = async (newAdmin: Omit<ToolAdmin, 'id' | 'toolId' | 'prefix'>) => {
@@ -81,7 +85,7 @@ export function UsersManagement() {
     try {
       const adminData = { ...newAdmin, toolId, prefix: user.prefix, createdBy: user.id };
       await addToolAdmin(adminData);
-      await fetchAdmins();
+      await fetchData();
       setIsFormOpen(false);
        toast({
         title: "Éxito",
@@ -100,7 +104,7 @@ export function UsersManagement() {
     try {
       const { id, ...dataToUpdate } = updatedAdmin;
       await updateToolAdmin(id, dataToUpdate);
-      await fetchAdmins(); // Refetch all to update the list correctly
+      await fetchData(); // Refetch all to update the list correctly
       setEditingAdmin(null);
       setIsFormOpen(false);
       toast({
@@ -170,7 +174,7 @@ export function UsersManagement() {
                 Agregar Usuario de Herramienta
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>{editingAdmin ? 'Editar' : 'Agregar'} Usuario de Herramienta</DialogTitle>
                  <CardDescription>
@@ -181,6 +185,7 @@ export function UsersManagement() {
                 onSubmit={editingAdmin ? handleUpdateAdmin : handleAddAdmin}
                 admin={editingAdmin}
                 prefix={user?.prefix}
+                sucursales={sucursales}
               />
             </DialogContent>
           </Dialog>
@@ -193,7 +198,7 @@ export function UsersManagement() {
             <span>Cargando usuarios...</span>
           </div>
         ) : (
-          <UsersTable data={admins} onEdit={handleEditClick} onDelete={handleDeleteAdmin} />
+          <UsersTable data={admins} sucursales={sucursales} onEdit={handleEditClick} onDelete={handleDeleteAdmin} />
         )}
       </CardContent>
     </Card>

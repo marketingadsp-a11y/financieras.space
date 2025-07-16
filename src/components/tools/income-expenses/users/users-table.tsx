@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import type { ToolAdmin, Admin, SuperAdmin } from "@/lib/data";
+import type { ToolAdmin, Admin, SuperAdmin, Sucursal } from "@/lib/data";
 
 
 type CombinedAdmin = (
@@ -32,6 +32,7 @@ type CombinedAdmin = (
 
 type UsersTableProps = {
     data: CombinedAdmin[];
+    sucursales: Sucursal[];
     onEdit: (admin: CombinedAdmin) => void;
     onDelete: (id: string) => void;
 }
@@ -50,7 +51,7 @@ const RoleBadge = ({ role }: { role: CombinedAdmin['role'] }) => {
 };
 
 
-export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
+export function UsersTable({ data, sucursales, onEdit, onDelete }: UsersTableProps) {
   const [filter, setFilter] = React.useState("");
   
   const filteredData = data.filter((admin) =>
@@ -67,6 +68,10 @@ export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
         return "destructive";
     }
   };
+
+  const sucursalMap = React.useMemo(() => 
+    new Map(sucursales.map(s => [s.id, s.name])),
+  [sucursales]);
 
   return (
     <>
@@ -85,6 +90,7 @@ export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
               <TableHead>Nombre</TableHead>
               <TableHead>Usuario</TableHead>
               <TableHead>Rol de Acceso</TableHead>
+              <TableHead>Sucursales Asignadas</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
@@ -99,6 +105,14 @@ export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
                   <TableCell>{admin.username}</TableCell>
                   <TableCell>
                     <RoleBadge role={admin.role} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {admin.role === 'Admin Global' && <Badge variant="default">Todas</Badge>}
+                      {admin.role === 'Admin de Herramienta' && (admin as ToolAdmin).sucursalAccess?.map(id => (
+                        <Badge key={id} variant="outline">{sucursalMap.get(id) || 'Desconocida'}</Badge>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(admin.status)}>
@@ -132,7 +146,7 @@ export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   No se encontraron resultados.
                 </TableCell>
               </TableRow>
