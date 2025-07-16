@@ -245,3 +245,5 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
     </Dialog>
   );
 }
+
+    

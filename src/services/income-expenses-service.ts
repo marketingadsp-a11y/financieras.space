@@ -44,14 +44,13 @@ export async function getSucursalById(id: string): Promise<Sucursal | null> {
             id: docSnap.id, 
             ...data,
             currentBalance: data.currentBalance || 0,
-            loanBalance: data.loanBalance || 0,
         } as Sucursal;
     }
     return null;
 }
 
-export async function addSucursal(sucursalData: Omit<Sucursal, 'id' | 'currentBalance' | 'loanBalance'>): Promise<Sucursal> {
-  const data: Omit<Sucursal, 'id'> = { ...sucursalData, prefix: sucursalData.prefix || '', currentBalance: 0, loanBalance: 0 };
+export async function addSucursal(sucursalData: Omit<Sucursal, 'id' | 'currentBalance'>): Promise<Sucursal> {
+  const data: Omit<Sucursal, 'id'> = { ...sucursalData, prefix: sucursalData.prefix || '', currentBalance: 0 };
   const docRef = await addDoc(sucursalesCollectionRef, data);
   return { ...data, id: docRef.id };
 }
@@ -65,8 +64,8 @@ export async function deleteSucursal(id: string) {
   const sucursalDocRef = doc(db, "sucursales", id);
   const sucursalDoc = await getDoc(sucursalDocRef);
 
-  if (sucursalDoc.exists() && (sucursalDoc.data().currentBalance > 0 || sucursalDoc.data().loanBalance > 0)) {
-    throw new Error("No se puede eliminar una sucursal con balance positivo en Caja Chica o Caja para Prestar. Retire los fondos primero.");
+  if (sucursalDoc.exists() && sucursalDoc.data().currentBalance > 0) {
+    throw new Error("No se puede eliminar una sucursal con balance positivo. Retire los fondos primero.");
   }
   await deleteDoc(sucursalDocRef);
 }
@@ -181,9 +180,9 @@ export async function performCentralAccountTransaction(params: CentralTransactio
                 centralAccountData.currentBalance -= amount;
                 centralAccountData.assignedCapital += amount;
                 
-                const newLoanBalance = (sucursalData.loanBalance || 0) + amount;
+                const newCurrentBalance = (sucursalData.currentBalance || 0) + amount;
 
-                transaction.update(sucursalRef, { loanBalance: newLoanBalance });
+                transaction.update(sucursalRef, { currentBalance: newCurrentBalance });
                 
                 break;
             default:
@@ -234,7 +233,7 @@ export async function deleteSucursalData(sucursalId: string): Promise<void> {
     transactionsSnapshot.forEach(doc => batch.delete(doc.ref));
     
     const sucursalRef = doc(db, "sucursales", sucursalId);
-    batch.update(sucursalRef, { currentBalance: 0, loanBalance: 0 });
+    batch.update(sucursalRef, { currentBalance: 0 });
 
     await batch.commit();
 }
@@ -259,7 +258,7 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
 
 type SucursalTransactionParams = {
     sucursalId: string;
-    type: 'expense' | 'deposit' | 'transfer_to_loan_balance';
+    type: 'expense' | 'deposit';
     amount: number;
     userPerformed: string;
     description: string;
@@ -284,7 +283,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         const centralAccountDoc = await transaction.get(centralAccountRef);
 
         // --- VALIDATIONS ---
-        if ((type === 'expense' || type === 'transfer_to_loan_balance') && sucursalData.currentBalance < amount) {
+        if (type === 'expense' && sucursalData.currentBalance < amount) {
             throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
         }
 
@@ -294,9 +293,6 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             updates.currentBalance = sucursalData.currentBalance - amount;
         } else if (type === 'deposit') {
             updates.currentBalance = sucursalData.currentBalance + amount;
-        } else if (type === 'transfer_to_loan_balance') {
-            updates.currentBalance = sucursalData.currentBalance - amount;
-            updates.loanBalance = (sucursalData.loanBalance || 0) + amount;
         }
         
         transaction.update(sucursalRef, updates);
@@ -343,3 +339,5 @@ export async function getSucursalStats(sucursalId: string) {
 
     return totals;
 }
+
+    

@@ -13,16 +13,15 @@ import { getSucursalById, getSucursalTransactions, getSucursalStats, performSucu
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2, PiggyBank, Briefcase, MoveHorizontal, User, CalendarIcon, FilterX, FileText } from "lucide-react";
+import { Loader2, RefreshCw, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, PiggyBank, Briefcase, MoveHorizontal, User, CalendarIcon, FilterX, FileText } from "lucide-react";
 import Link from "next/link";
 import { SucursalTransactionDialog } from "./sucursal-transaction-dialog";
-import { TransferDialog } from "./transfer-dialog";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 
 
-const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary', children }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string, children?: React.ReactNode }) => (
+const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
     <Card className="shadow-sm flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -34,7 +33,6 @@ const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-pr
             </div>
             <p className="text-xs text-muted-foreground">{description}</p>
         </CardContent>
-        {children && <CardFooter>{children}</CardFooter>}
     </Card>
 );
 
@@ -59,11 +57,10 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
     const typeInfo = {
         deposit: { label: "Ingreso", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" },
         expense: { label: "Gasto", icon: ArrowDown, color: "text-red-500", bg: "bg-red-500/10" },
-        transfer_to_loan_balance: { label: "Transferencia", icon: MoveHorizontal, color: "text-blue-500", bg: "bg-blue-500/10" },
     };
 
     const info = typeInfo[tx.type];
-    const descriptionTitle = tx.category ? tx.category : tx.type === 'transfer_to_loan_balance' ? 'Transferencia a Caja de Préstamo' : tx.type;
+    const descriptionTitle = tx.category ? tx.category : tx.type === 'deposit' ? 'Ingreso General' : 'Gasto General';
 
     return (
          <div className="flex items-center space-x-4 rounded-lg bg-muted/40 p-4">
@@ -94,7 +91,6 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     const [transactions, setTransactions] = React.useState<SucursalTransaction[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isTransactionDialogOpen, setTransactionDialogOpen] = React.useState(false);
-    const [isTransferDialogOpen, setTransferDialogOpen] = React.useState(false);
     const [startDate, setStartDate] = React.useState<Date | undefined>();
     const [endDate, setEndDate] = React.useState<Date | undefined>();
     
@@ -153,28 +149,6 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         }
     };
     
-    const handleTransfer = async (amount: number) => {
-         if (!user?.name) {
-            toast({ variant: "destructive", title: "Error", description: "No se pudo identificar al usuario." });
-            return false;
-        }
-        try {
-            await performSucursalTransaction({
-                sucursalId,
-                userPerformed: user.name,
-                type: 'transfer_to_loan_balance',
-                amount,
-                description: 'Transferencia de Caja Chica a Caja de Préstamo'
-            });
-            toast({ title: "Éxito", description: "Transferencia realizada correctamente." });
-            await fetchData();
-            return true;
-        } catch (e: any) {
-            toast({ variant: "destructive", title: "Error en la transferencia", description: e.message });
-            return false;
-        }
-    }
-
     const exportToPDF = () => {
         if (!sucursal || filteredTransactions.length === 0) {
             toast({ variant: "destructive", title: "Sin datos", description: "No hay transacciones para exportar en el rango de fechas seleccionado." });
@@ -197,7 +171,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             startY: 46,
             head: [['Fecha', 'Tipo', 'Descripción', 'Realizado Por', 'Monto']],
             body: filteredTransactions.map(tx => {
-                const typeLabels = { deposit: 'Ingreso', expense: 'Gasto', transfer_to_loan_balance: 'Transferencia' };
+                const typeLabels = { deposit: 'Ingreso', expense: 'Gasto' };
                 return [
                     format(tx.date, "dd/MM/yy p", { locale: es }),
                     typeLabels[tx.type],
@@ -227,16 +201,10 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </Button>
             </div>
             
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <StatCard title="Ingresos Totales (Caja Chica)" value={stats.totalIncome} icon={TrendingUp} description="Total de ingresos de la sucursal" colorClass="text-green-500" />
                 <StatCard title="Gastos Totales (Caja Chica)" value={stats.totalExpenses} icon={TrendingDown} description="Total de gastos de la sucursal" colorClass="text-red-500" />
-                <StatCard title="Caja Chica" value={sucursal.currentBalance} icon={PiggyBank} description="Dinero disponible para gastos">
-                    <Button className="w-full" size="sm" onClick={() => setTransferDialogOpen(true)}>
-                        <Send className="mr-2 h-4 w-4"/>
-                        Transferir a Prestar
-                    </Button>
-                </StatCard>
-                <StatCard title="Caja para Prestar" value={sucursal.loanBalance || 0} icon={Briefcase} description="Dinero disponible para préstamos" />
+                <StatCard title="Caja Chica" value={sucursal.currentBalance} icon={PiggyBank} description="Dinero disponible para gastos" />
             </div>
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -291,12 +259,8 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 onSubmit={handleTransaction}
             />
 
-            <TransferDialog
-                isOpen={isTransferDialogOpen}
-                onClose={() => setTransferDialogOpen(false)}
-                onSubmit={handleTransfer}
-                currentBalance={sucursal.currentBalance}
-            />
         </div>
     )
 }
+
+    

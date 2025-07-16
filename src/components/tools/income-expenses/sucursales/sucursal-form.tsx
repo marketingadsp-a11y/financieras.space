@@ -27,7 +27,7 @@ const formSchema = z.object({
 
 
 type SucursalFormProps = {
-  onSubmit: (data: Omit<Sucursal, 'id' | 'prefix' | 'currentBalance' | 'loanBalance'>) => void;
+  onSubmit: (data: Omit<Sucursal, 'id' | 'prefix' | 'currentBalance'>) => void;
   sucursal?: Sucursal | null;
   isSubmitting?: boolean;
 };
@@ -113,3 +113,5 @@ export function SucursalForm({ onSubmit, sucursal, isSubmitting }: SucursalFormP
         </Form>
     );
 }
+
+    

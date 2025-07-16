@@ -65,7 +65,6 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
               <TableHead>Nombre</TableHead>
               <TableHead>Encargado</TableHead>
               <TableHead>Caja Chica</TableHead>
-              <TableHead>Caja para Prestar</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
               </TableHead>
@@ -89,12 +88,6 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
                       <div className="flex items-center gap-2 font-semibold">
                         <PiggyBank className="h-4 w-4 text-muted-foreground"/>
                         {(sucursal.currentBalance || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                      </div>
-                  </TableCell>
-                  <TableCell>
-                      <div className="flex items-center gap-2 font-semibold text-primary">
-                        <Briefcase className="h-4 w-4 text-muted-foreground"/>
-                        {(sucursal.loanBalance || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </div>
                   </TableCell>
                   <TableCell>
@@ -138,7 +131,7 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   No se encontraron sucursales.
                 </TableCell>
               </TableRow>
@@ -149,3 +142,5 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
     </>
   );
 }
+
+    

@@ -137,7 +137,6 @@ export type Sucursal = {
     name: string;
     manager: string;
     currentBalance: number; // Caja chica
-    loanBalance: number; // Caja para prestar
     logoUrl?: string;
 };
 
@@ -164,7 +163,7 @@ export type CentralAccountTransaction = {
 export type SucursalTransaction = {
     id: string;
     sucursalId: string;
-    type: 'deposit' | 'expense' | 'transfer_to_loan_balance';
+    type: 'deposit' | 'expense';
     amount: number;
     date: Date;
     userPerformed: string;
@@ -227,3 +226,5 @@ export type LoanControlGrupo = {
   plazaId: string;
   prefix: string;
 }
+
+    
