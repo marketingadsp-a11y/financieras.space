@@ -236,14 +236,16 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
     const q = query(
         sucursalTransactionsCollectionRef,
         where("sucursalId", "==", sucursalId),
-        orderBy("date", "desc"),
         limit(50)
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
+    const transactions = snapshot.docs.map(doc => {
         const data = doc.data();
         return { ...data, id: doc.id, date: (data.date as Timestamp).toDate() }
     }) as SucursalTransaction[];
+    
+    // Sort in code to avoid needing a composite index
+    return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
 type SucursalTransactionParams = {
