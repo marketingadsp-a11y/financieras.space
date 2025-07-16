@@ -15,11 +15,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, PiggyBank, Briefcase, MoveHorizontal, User, CalendarIcon, FilterX, FileText } from "lucide-react";
 import Link from "next/link";
-import { SucursalTransactionDialog } from "./sucursal-transaction-dialog";
+import { SucursalTransactionDialog } from "@/components/tools/income-expenses/sucursal/sucursal-transaction-dialog";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { TransferToCentralDialog } from "./transfer-to-central-dialog";
+import { TransferToCentralDialog } from "@/components/tools/income-expenses/sucursal/transfer-to-central-dialog";
 
 
 const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
@@ -356,6 +356,5 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             />
 
         </div>
-    )
-
-    
+    );
+}
