@@ -14,6 +14,20 @@ export type Admin = {
   createdBy?: string;
 };
 
+export const INCOME_EXPENSES_PERMISSIONS = {
+    CAN_VIEW_BALANCE: 'Ver Balance',
+    CAN_TRANSACT: 'Registrar Transacciones',
+    // Futuros permisos:
+    // CAN_TRANSFER_TO_CENTRAL: 'Enviar a Capital',
+    // CAN_REQUEST_LOAN: 'Solicitar Préstamo',
+} as const;
+export type IncomeExpensesPermission = keyof typeof INCOME_EXPENSES_PERMISSIONS;
+
+export type SucursalAccess = {
+  sucursalId: string;
+  permissions: IncomeExpensesPermission[];
+}
+
 export type ToolAdmin = {
   id: string;
   name: string;
@@ -23,7 +37,7 @@ export type ToolAdmin = {
   toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control';
   prefix?: string;
   createdBy?: string;
-  sucursalAccess?: string[]; // Array of sucursal IDs
+  sucursalAccess?: SucursalAccess[]; // Array of sucursal access objects
 };
 
 export type SuperAdmin = {

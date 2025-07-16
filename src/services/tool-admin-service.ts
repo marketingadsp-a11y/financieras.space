@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc as getDoc_ } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ToolAdmin } from "@/lib/data";
 
@@ -37,6 +37,17 @@ export async function updateToolAdmin(id: string, admin: Partial<Omit<ToolAdmin,
 export async function deleteToolAdmin(id: string) {
     const adminDoc = doc(db, "toolAdmins", id);
     await deleteDoc(adminDoc);
+}
+
+export async function getToolAdminById(id: string): Promise<ToolAdmin | null> {
+    const docRef = doc(db, 'toolAdmins', id);
+    const docSnap = await getDoc_(docRef);
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        const { password, ...adminData } = data;
+        return { id: docSnap.id, ...adminData } as ToolAdmin;
+    }
+    return null;
 }
 
 export async function getToolAdminByUsername(username: string, prefix?: string): Promise<ToolAdmin & {password: string} | null> {

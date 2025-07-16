@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -18,14 +18,25 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { ToolAdmin, Sucursal } from "@/lib/data";
+import type { ToolAdmin, Sucursal, IncomeExpensesPermission } from "@/lib/data";
+import { INCOME_EXPENSES_PERMISSIONS } from "@/lib/data";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2 } from "lucide-react";
+
+
+const sucursalAccessSchema = z.object({
+  sucursalId: z.string().min(1),
+  permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
+});
+
 
 const formSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
-  sucursalAccess: z.array(z.string()).optional(),
+  sucursalAccess: z.array(sucursalAccessSchema).optional(),
 });
 
 
@@ -35,6 +46,8 @@ type ToolAdminFormProps = {
   prefix?: string;
   sucursales: Sucursal[];
 };
+
+const allPermissions = Object.entries(INCOME_EXPENSES_PERMISSIONS) as [IncomeExpensesPermission, string][];
 
 export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdminFormProps) {
     const isEditing = !!admin;
@@ -54,6 +67,11 @@ export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdmin
         },
     });
 
+    const { fields, append, remove } = useFieldArray({
+      control: form.control,
+      name: "sucursalAccess"
+    });
+
     const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSend: any = { ...values };
 
@@ -66,7 +84,9 @@ export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdmin
         
         onSubmit(dataToSend);
     };
-
+    
+    const assignedSucursalIds = fields.map(field => field.sucursalId);
+    const availableSucursales = sucursales.filter(s => !assignedSucursalIds.includes(s.id));
 
     return (
         <Form {...form}>
@@ -136,43 +156,97 @@ export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdmin
                     />
 
                     <div className="space-y-4 pt-4 border-t">
-                        <h3 className="text-lg font-medium">Asignar Sucursales</h3>
-                        <FormField
-                            control={form.control}
-                            name="sucursalAccess"
-                            render={() => (
-                                <FormItem>
-                                    <FormDescription>Selecciona las sucursales a las que este usuario tendrá acceso.</FormDescription>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                        {sucursales.map((sucursal) => (
-                                            <FormField
-                                                key={sucursal.id}
-                                                control={form.control}
-                                                name="sucursalAccess"
-                                                render={({ field }) => (
-                                                    <FormItem key={sucursal.id} className="flex flex-row items-center space-x-3 space-y-0 rounded-lg border p-3">
-                                                        <FormControl>
-                                                            <Checkbox
-                                                                checked={field.value?.includes(sucursal.id)}
-                                                                onCheckedChange={(checked) => {
-                                                                    return checked
-                                                                        ? field.onChange([...(field.value || []), sucursal.id])
-                                                                        : field.onChange(
-                                                                            (field.value || []).filter(value => value !== sucursal.id)
-                                                                        );
-                                                                }}
-                                                            />
-                                                        </FormControl>
-                                                        <FormLabel className="font-normal cursor-pointer">{sucursal.name}</FormLabel>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        ))}
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h3 className="text-lg font-medium">Asignar Sucursales y Permisos</h3>
+                                <p className="text-sm text-muted-foreground">Asigna las sucursales y los permisos que tendrá el usuario.</p>
+                                <FormMessage>{(form.formState.errors.sucursalAccess as any)?.root?.message}</FormMessage>
+                            </div>
+                            <Select onValueChange={(sucursalId) => {
+                                const sucursal = sucursales.find(s => s.id === sucursalId);
+                                if(sucursal) {
+                                append({ sucursalId: sucursal.id, permissions: [] });
+                                }
+                            }} value="">
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Asignar sucursal..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableSucursales.length > 0 ? (
+                                        availableSucursales.map(sucursal => (
+                                            <SelectItem key={sucursal.id} value={sucursal.id}>{sucursal.name}</SelectItem>
+                                        ))
+                                    ) : (
+                                        <div className="p-2 text-sm text-muted-foreground">No hay más sucursales para asignar.</div>
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        
+                        <Accordion type="multiple" className="w-full space-y-2" defaultValue={fields.map((_, i) => `item-${i}`)}>
+                            {fields.map((field, index) => {
+                                const sucursalName = sucursales.find(s => s.id === field.sucursalId)?.name;
+                                return (
+                                <AccordionItem key={field.id} value={`item-${index}`} className="border rounded-md px-4 bg-muted/20">
+                                    <div className="flex items-center">
+                                    <AccordionTrigger className="flex-1 text-base">{sucursalName}</AccordionTrigger>
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
                                     </div>
-                                    <FormMessage />
-                                </FormItem>
+                                    <AccordionContent>
+                                        <FormField
+                                        control={form.control}
+                                        name={`sucursalAccess.${index}.permissions`}
+                                        render={() => (
+                                            <FormItem>
+                                            <div className="mb-4">
+                                                <FormLabel className="text-base">Permisos para {sucursalName}</FormLabel>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                            {allPermissions.map(([key, label]) => (
+                                                <FormField
+                                                key={key}
+                                                control={form.control}
+                                                name={`sucursalAccess.${index}.permissions`}
+                                                render={({ field: permissionField }) => {
+                                                    return (
+                                                    <FormItem
+                                                        key={key}
+                                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                                    >
+                                                        <FormControl>
+                                                        <Checkbox
+                                                            checked={permissionField.value?.includes(key)}
+                                                            onCheckedChange={(checked) => {
+                                                            return checked
+                                                                ? permissionField.onChange([...(permissionField.value || []), key])
+                                                                : permissionField.onChange(
+                                                                    (permissionField.value || []).filter(
+                                                                    (value) => value !== key
+                                                                    )
+                                                                )
+                                                            }}
+                                                        />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal">
+                                                        {label}
+                                                        </FormLabel>
+                                                    </FormItem>
+                                                    )
+                                                }}
+                                                />
+                                            ))}
+                                            </div>
+                                            <FormMessage>{form.formState.errors.sucursalAccess?.[index]?.permissions?.message}</FormMessage>
+                                            </FormItem>
+                                        )}
+                                        />
+                                    </AccordionContent>
+                                </AccordionItem>
+                                )}
                             )}
-                        />
+                        </Accordion>
                          {sucursales.length === 0 && (
                             <p className="text-sm text-muted-foreground text-center p-4 border rounded-md">No hay sucursales creadas. Crea una sucursal primero para poder asignarla.</p>
                         )}

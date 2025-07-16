@@ -58,7 +58,8 @@ export function SucursalDashboard() {
     setIsLoading(true);
     try {
       const allSucursales = await getSucursales(user.prefix);
-      const accessibleSucursales = allSucursales.filter(s => user.sucursalAccess!.includes(s.id));
+      const accessibleSucursalIds = user.sucursalAccess.map(sa => sa.sucursalId);
+      const accessibleSucursales = allSucursales.filter(s => accessibleSucursalIds.includes(s.id));
       setSucursales(accessibleSucursales);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de tus sucursales.'});

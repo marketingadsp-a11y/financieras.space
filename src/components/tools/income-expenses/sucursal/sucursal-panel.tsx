@@ -9,7 +9,7 @@ import { es } from "date-fns/locale";
 
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getSucursalById, getSucursalTransactions, getSucursalStats, performSucursalTransaction } from "@/services/income-expenses-service";
+import { getSucursalById, getSucursalTransactions, getSucursalStats } from "@/services/income-expenses-service";
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
             <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium leading-none capitalize">{descriptionTitle}</p>
                 <p className="text-sm text-muted-foreground">{tx.description}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5"><User className="h-3 w-3" /> Movimiento de: {tx.userPerformed}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5"><User className="h-3 w-3" /> {tx.userPerformed}</p>
             </div>
             <div className="flex flex-col items-end space-x-4">
                 <div className={cn("font-semibold", info.color)}>
@@ -84,7 +84,7 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
 
 
 export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
     const { toast } = useToast();
     const [sucursal, setSucursal] = React.useState<Sucursal | null>(null);
     const [stats, setStats] = React.useState({ totalIncome: 0, totalExpenses: 0 });
@@ -183,6 +183,9 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         });
         doc.save(`Historial_${sucursal.name}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     };
+    
+    const canViewBalance = hasPermission(sucursalId, 'CAN_VIEW_BALANCE');
+    const canTransact = hasPermission(sucursalId, 'CAN_TRANSACT');
 
     if (isLoading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de la sucursal...</div>;
@@ -201,14 +204,16 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </Button>
             </div>
             
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <StatCard title="Ingresos Totales (Caja Chica)" value={stats.totalIncome} icon={TrendingUp} description="Total de ingresos de la sucursal" colorClass="text-green-500" />
-                <StatCard title="Gastos Totales (Caja Chica)" value={stats.totalExpenses} icon={TrendingDown} description="Total de gastos de la sucursal" colorClass="text-red-500" />
-                <StatCard title="Caja Chica" value={sucursal.currentBalance} icon={PiggyBank} description="Dinero disponible para gastos" />
-            </div>
+            {canViewBalance && (
+                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard title="Ingresos Totales (Caja Chica)" value={stats.totalIncome} icon={TrendingUp} description="Total de ingresos de la sucursal" colorClass="text-green-500" />
+                    <StatCard title="Gastos Totales (Caja Chica)" value={stats.totalExpenses} icon={TrendingDown} description="Total de gastos de la sucursal" colorClass="text-red-500" />
+                    <StatCard title="Caja Chica" value={sucursal.currentBalance} icon={PiggyBank} description="Dinero disponible para gastos" />
+                </div>
+            )}
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <ActionCard title="Registrar Movimiento" description="Ingresos y Gastos" icon={PlusCircle} onClick={() => setTransactionDialogOpen(true)} />
+                <ActionCard title="Registrar Movimiento" description="Ingresos y Gastos" icon={PlusCircle} onClick={() => setTransactionDialogOpen(true)} disabled={!canTransact} />
                 <ActionCard title="Solicitar Préstamo" description="A central u otra sucursal" icon={Landmark} onClick={() => {}} disabled />
                 <ActionCard title="Enviar a Capital" description="Devolver fondos a central" icon={Send} onClick={() => {}} disabled />
             </div>

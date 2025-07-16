@@ -6,10 +6,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { getAdminByUsername, getAdminById } from '@/services/admin-service';
 import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-admin-service';
-import { getToolAdminByUsername } from '@/services/tool-admin-service';
+import { getToolAdminByUsername, getToolAdminById } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
-import type { PlazaAccess, Admin } from '@/lib/data';
+import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission } from '@/lib/data';
 
 interface User {
   id: string;
@@ -20,7 +20,7 @@ interface User {
   isPlazaUser: boolean;
   accessibleTools?: string[];
   plazaAccess?: PlazaAccess[];
-  sucursalAccess?: string[];
+  sucursalAccess?: SucursalAccess[];
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
 }
@@ -37,7 +37,7 @@ interface AuthContextType {
   login: (emailOrUsername: string, pass: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
-  hasPermission: (plazaId: string, permission: string) => boolean;
+  hasPermission: (id: string, permission: string) => boolean;
   impersonateUser: (userId: string, role: 'Admin' | 'ToolAdmin' | 'PlazaUser') => Promise<void>;
   stopImpersonating: () => void;
 }
@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       router.push('/login');
     } else if (user && pathIsPublic) {
        if (user.isSuperAdmin && !impersonation) router.push('/');
-       else if (user.isPlazaUser) {
+       else if (user.isPlazaUser || (user.isToolAdmin && user.sucursalAccess && user.sucursalAccess.length > 0)) {
          const firstToolPath = user.accessibleTools?.[0] ? `/tools/${user.accessibleTools[0]}` : '/tools';
          router.push(firstToolPath);
        }
@@ -172,34 +172,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const impersonateUser = async (userId: string, role: 'Admin' | 'ToolAdmin' | 'PlazaUser') => {
     if (!user || !user.isSuperAdmin) return;
     
-    let impersonatedAdmin: Admin | null = null;
-    if (role === 'Admin') {
-        impersonatedAdmin = await getAdminById(userId);
-    }
-    // Add logic for other roles if needed
+    let impersonatedUser: any | null = null;
+    let userRole = '';
     
-    if (impersonatedAdmin) {
-        const impersonatedUserData: User = {
-            id: impersonatedAdmin.id,
-            username: impersonatedAdmin.username,
-            name: impersonatedAdmin.name,
-            isSuperAdmin: false,
-            isToolAdmin: false,
-            isPlazaUser: false,
-            accessibleTools: impersonatedAdmin.accessibleTools || [],
-            prefix: impersonatedAdmin.prefix,
-            createdBy: impersonatedAdmin.createdBy,
-        };
+    switch (role) {
+        case 'Admin':
+            impersonatedUser = await getAdminById(userId);
+            userRole = 'Admin';
+            break;
+        case 'ToolAdmin':
+             impersonatedUser = await getToolAdminById(userId);
+             userRole = 'Admin de Herramienta';
+            break;
+        // Add PlazaUser case if needed
+    }
+    
+    if (impersonatedUser) {
+        let userData: User;
+        if (role === 'Admin') {
+            userData = {
+                id: impersonatedUser.id,
+                username: impersonatedUser.username,
+                name: impersonatedUser.name,
+                isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false,
+                accessibleTools: impersonatedUser.accessibleTools || [],
+                prefix: impersonatedUser.prefix,
+                createdBy: impersonatedUser.createdBy,
+            };
+        } else if (role === 'ToolAdmin') {
+            userData = {
+                id: impersonatedUser.id,
+                username: impersonatedUser.username,
+                name: impersonatedUser.name,
+                isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false,
+                accessibleTools: [impersonatedUser.toolId],
+                sucursalAccess: impersonatedUser.sucursalAccess || [],
+                prefix: impersonatedUser.prefix,
+                createdBy: impersonatedUser.createdBy,
+            };
+        } else {
+            return;
+        }
+
         localStorage.setItem('originalAppUser', JSON.stringify(user));
-        localStorage.setItem('appUser', JSON.stringify(impersonatedUserData));
-        setUser(impersonatedUserData);
-        updateTitle(impersonatedUserData.prefix);
+        localStorage.setItem('appUser', JSON.stringify(userData));
+        setUser(userData);
+        updateTitle(userData.prefix);
         setImpersonation({ 
-            username: impersonatedAdmin.name, 
-            role: 'Admin',
-            prefix: impersonatedAdmin.prefix,
+            username: impersonatedUser.name || impersonatedUser.username, 
+            role: userRole,
+            prefix: impersonatedUser.prefix,
         });
-        router.push('/tools'); // Redirect to the admin's main view
+        router.push('/tools'); // Redirect to the user's main view
     }
   };
 
@@ -224,13 +248,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     router.push('/login');
   };
 
-  const hasPermission = (plazaId: string, permission: string): boolean => {
+  const hasPermission = (id: string, permission: string): boolean => {
     if (!user) return false;
-    if (user.isSuperAdmin || user.isToolAdmin || (user.accessibleTools?.includes('cartera-vencida') && !user.isPlazaUser) ) {
-      return true;
+    
+    if (user.isSuperAdmin || (user.accessibleTools?.includes('cartera-vencida') && !user.isPlazaUser)) {
+      return true; // Admins have all permissions for now.
     }
+    
+    if (user.isToolAdmin) {
+      const toolId = user.accessibleTools?.[0];
+      if (toolId === 'income-expenses') {
+        const sucursalAccess = user.sucursalAccess?.find(sa => sa.sucursalId === id);
+        return !!sucursalAccess?.permissions.includes(permission as IncomeExpensesPermission);
+      }
+    }
+
     if (user.isPlazaUser) {
-      const plazaAccess = user.plazaAccess?.find(p => p.plazaId === plazaId);
+      const plazaAccess = user.plazaAccess?.find(p => p.plazaId === id);
       return !!plazaAccess?.permissions.includes(permission as any);
     }
     return false;
