@@ -48,8 +48,8 @@ export async function getSucursalById(id: string): Promise<Sucursal | null> {
     return null;
 }
 
-export async function addSucursal(sucursal: Omit<Sucursal, 'id' | 'currentBalance' | 'loanBalance'>): Promise<Sucursal> {
-  const data = { ...sucursal, currentBalance: 0, loanBalance: 0 };
+export async function addSucursal(sucursal: Omit<Sucursal, 'id' | 'currentBalance' | 'loanBalance' | 'prefix'>): Promise<Sucursal> {
+  const data: Omit<Sucursal, 'id'> = { ...sucursal, prefix: sucursal.prefix || '', currentBalance: 0, loanBalance: 0 };
   const docRef = await addDoc(sucursalesCollectionRef, data);
   return { ...data, id: docRef.id };
 }
@@ -235,7 +235,6 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
     const q = query(
         sucursalTransactionsCollectionRef,
         where("sucursalId", "==", sucursalId),
-        orderBy("date", "desc"),
         limit(50)
     );
     const snapshot = await getDocs(q);
@@ -244,7 +243,8 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
         return { ...data, id: doc.id, date: (data.date as Timestamp).toDate() }
     }) as SucursalTransaction[];
     
-    return transactions;
+    // Sort transactions in application code to avoid needing a composite index
+    return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
 type SucursalTransactionParams = {
