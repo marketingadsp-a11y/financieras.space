@@ -19,8 +19,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import type { ExpenseCategory } from "@/lib/data";
-import { getExpenseCategories } from "@/services/expense-category-service";
+import type { TransactionCategory } from "@/lib/data";
+import { getTransactionCategories } from "@/services/transaction-category-service";
 import { useAuth } from "@/context/auth-context";
 
 
@@ -42,10 +42,17 @@ const formSchema = z.object({
     amount: z.coerce.number().positive("El monto debe ser un número positivo."),
     executive: z.string().optional(),
     description: z.string().optional(),
-}).refine(data => data.type !== 'expense' || !!data.category, {
+}).refine(data => {
+    // Category is required only if the type is 'expense'
+    if (data.type === 'expense' && !data.category) {
+        return false;
+    }
+    return true;
+}, {
     message: "La categoría es requerida para los gastos.",
     path: ["category"],
 });
+
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -59,7 +66,7 @@ const LucideIcon = ({ name, className }: { name: keyof typeof icons, className?:
 
 export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: SucursalTransactionDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [categories, setCategories] = React.useState<ExpenseCategory[]>([]);
+  const [categories, setCategories] = React.useState<TransactionCategory[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = React.useState(false);
   const { user } = useAuth();
   
@@ -68,20 +75,28 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
     defaultValues: {
         type: 'expense',
         amount: undefined,
+        category: undefined,
+        executive: "",
+        description: "",
     }
   });
 
   const watchType = form.watch('type');
 
   React.useEffect(() => {
-    if (watchType === 'expense' && user?.prefix) {
+    if (user?.prefix) {
       setIsLoadingCategories(true);
-      getExpenseCategories(user.prefix)
+      getTransactionCategories(user.prefix)
         .then(setCategories)
         .catch(() => console.error("Failed to load categories"))
         .finally(() => setIsLoadingCategories(false));
     }
-  }, [watchType, user?.prefix]);
+  }, [user?.prefix, isOpen]);
+
+  // When type changes, reset category if it doesn't belong to the new type
+  React.useEffect(() => {
+    form.setValue('category', undefined);
+  }, [watchType, form]);
 
 
   const handleSubmit = async (values: FormValues) => {
@@ -91,7 +106,7 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
     const success = await onSubmit({
         type: values.type,
         amount: values.amount,
-        description: finalDescription,
+        description: finalDescription || (values.type === 'deposit' ? 'Ingreso General' : 'Gasto General'),
         category: values.category,
         executive: values.executive
     });
@@ -108,6 +123,8 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
     onClose();
   }
   
+  const currentCategories = categories.filter(c => c.type === watchType);
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
@@ -144,42 +161,40 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                     </div>
                 </div>
 
-                {/* Step 2: Category (only for expenses) */}
-                {watchType === 'expense' && (
-                    <div className="space-y-2">
-                         <Label>2. Selecciona una categoría</Label>
-                         <FormField 
-                            control={form.control}
-                            name="category"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {isLoadingCategories ? (
-                                            <p className="col-span-3 text-sm text-muted-foreground">Cargando categorías...</p>
-                                        ) : categories.length > 0 ? (
-                                            categories.map(cat => (
-                                                 <div 
-                                                    key={cat.id}
-                                                    onClick={() => field.onChange(cat.name)}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-3 cursor-pointer transition-colors text-center h-20",
-                                                        field.value === cat.name ? "border-primary bg-primary/10" : "hover:bg-muted/50"
-                                                    )}
-                                                >
-                                                    <LucideIcon name={cat.icon as keyof typeof icons} className="h-6 w-6 text-primary/80"/>
-                                                    <span className="text-xs font-medium">{cat.name}</span>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="col-span-3 text-sm text-muted-foreground">No hay categorías de gasto. Créalas en la sección de gestión.</p>
-                                        )}
-                                    </div>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                         />
-                    </div>
-                )}
+                {/* Step 2: Category (dynamic based on type) */}
+                <div className="space-y-2">
+                    <Label>2. Selecciona una categoría</Label>
+                    <FormField 
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                            <FormItem>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {isLoadingCategories ? (
+                                        <p className="col-span-3 text-sm text-muted-foreground">Cargando categorías...</p>
+                                    ) : currentCategories.length > 0 ? (
+                                        currentCategories.map(cat => (
+                                                <div 
+                                                key={cat.id}
+                                                onClick={() => field.onChange(cat.name)}
+                                                className={cn(
+                                                    "flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-3 cursor-pointer transition-colors text-center h-20",
+                                                    field.value === cat.name ? "border-primary bg-primary/10" : "hover:bg-muted/50"
+                                                )}
+                                            >
+                                                <LucideIcon name={cat.icon as keyof typeof icons} className="h-6 w-6 text-primary/80"/>
+                                                <span className="text-xs font-medium">{cat.name}</span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="col-span-3 text-sm text-muted-foreground">No hay categorías para '{watchType === 'expense' ? 'gastos' : 'ingresos'}'. Créalas en la sección de gestión.</p>
+                                    )}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
                 
                 {/* Step 3: Amount, Executive, and Description */}
                 <div className="space-y-4">
@@ -212,7 +227,7 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                         render={({ field }) => (
                              <FormItem>
                                  <FormControl>
-                                    <Input placeholder="Movimiento de (Ejecutivo/Ruta)" {...field} />
+                                    <Input placeholder="Movimiento de (Ej. Ejecutivo/Ruta)" {...field} />
                                  </FormControl>
                                  <FormMessage />
                              </FormItem>
@@ -245,5 +260,3 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
     </Dialog>
   );
 }
-
-    
