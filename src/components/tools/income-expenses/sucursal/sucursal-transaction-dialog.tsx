@@ -13,47 +13,91 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, DollarSign } from "lucide-react";
+import { Loader2, DollarSign, ArrowDown, ArrowUp, icons } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import { cn } from "@/lib/utils";
+import type { ExpenseCategory } from "@/lib/data";
+import { getExpenseCategories } from "@/services/expense-category-service";
+import { useAuth } from "@/context/auth-context";
+
 
 type SucursalTransactionDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (type: 'expense' | 'deposit' | 'transfer_to_loan_balance', amount: number, description: string) => Promise<boolean>;
+  onSubmit: (data: {
+    type: 'expense' | 'deposit';
+    amount: number;
+    description: string;
+    category?: string;
+    executive?: string;
+  }) => Promise<boolean>;
   currentBalance: number;
 };
 
-export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, currentBalance }: SucursalTransactionDialogProps) {
-  const [mode, setMode] = React.useState<'deposit' | 'expense' | 'transfer_to_loan_balance'>('expense');
-  const [amount, setAmount] = React.useState<number | "">("");
-  const [description, setDescription] = React.useState("");
+const formSchema = z.object({
+    type: z.enum(['deposit', 'expense']),
+    category: z.string().optional(),
+    amount: z.coerce.number().positive("El monto debe ser un número positivo."),
+    executive: z.string().optional(),
+    description: z.string().optional(),
+}).refine(data => data.type !== 'expense' || !!data.category, {
+    message: "La categoría es requerida para los gastos.",
+    path: ["category"],
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+
+const LucideIcon = ({ name, className }: { name: keyof typeof icons, className?: string }) => {
+    const IconComponent = icons[name];
+    if (!IconComponent) return null;
+    return <IconComponent className={className} />;
+};
+
+
+export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: SucursalTransactionDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [categories, setCategories] = React.useState<ExpenseCategory[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = React.useState(false);
+  const { user } = useAuth();
+  
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+        type: 'expense',
+        amount: undefined,
+    }
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (typeof amount !== 'number' || amount <= 0) {
-      setError("El monto debe ser un número positivo.");
-      return;
-    }
-    if (!description.trim() && mode !== 'transfer_to_loan_balance') {
-        setError("La descripción es requerida para ingresos y gastos.");
-        return;
-    }
-    if ((mode === 'expense' || mode === 'transfer_to_loan_balance') && amount > currentBalance) {
-      setError("No hay fondos suficientes en la Caja Chica para esta operación.");
-      return;
-    }
+  const watchType = form.watch('type');
 
-    setError(null);
+  React.useEffect(() => {
+    if (watchType === 'expense' && user?.prefix) {
+      setIsLoadingCategories(true);
+      getExpenseCategories(user.prefix)
+        .then(setCategories)
+        .catch(() => console.error("Failed to load categories"))
+        .finally(() => setIsLoadingCategories(false));
+    }
+  }, [watchType, user?.prefix]);
+
+
+  const handleSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
-    
-    const finalDescription = mode === 'transfer_to_loan_balance' 
-        ? `Transferencia a Caja de Préstamo` 
-        : description;
+    const finalDescription = `${values.executive ? `[${values.executive}] ` : ''}${values.description || ''}`.trim();
 
-    const success = await onSubmit(mode, amount, finalDescription);
+    const success = await onSubmit({
+        type: values.type,
+        amount: values.amount,
+        description: finalDescription,
+        category: values.category,
+        executive: values.executive
+    });
+
     setIsSubmitting(false);
 
     if (success) {
@@ -62,91 +106,143 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, currentBa
   };
   
   const handleClose = () => {
-    setAmount("");
-    setDescription("");
-    setError(null);
-    setMode('expense'); // Reset mode
+    form.reset({ type: 'expense', amount: undefined, category: undefined, description: undefined, executive: undefined });
     onClose();
   }
-
-  React.useEffect(() => {
-    if(isOpen) {
-        setAmount("");
-        setDescription("");
-        setError(null);
-        setMode('expense');
-    }
-  }, [isOpen]);
-
+  
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Registrar Movimiento</DialogTitle>
-          <DialogDescription>
-            Registra un nuevo ingreso, gasto o transferencia para la sucursal.
-          </DialogDescription>
+          <DialogTitle>Registrar Nueva Transacción</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-                <RadioGroup defaultValue="expense" value={mode} onValueChange={(value) => setMode(value as any)} className="grid grid-cols-3 gap-4">
-                  <div>
-                    <RadioGroupItem value="expense" id="r-expense" className="peer sr-only" />
-                    <Label htmlFor="r-expense" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-destructive [&:has([data-state=checked])]:border-destructive">
-                      Gasto
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="deposit" id="r-deposit" className="peer sr-only" />
-                    <Label htmlFor="r-deposit" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                      Ingreso
-                    </Label>
-                  </div>
-                   <div>
-                    <RadioGroupItem value="transfer_to_loan_balance" id="r-transfer" className="peer sr-only" />
-                    <Label htmlFor="r-transfer" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-blue-500 [&:has([data-state=checked])]:border-blue-500">
-                      Transferir
-                    </Label>
-                  </div>
-                </RadioGroup>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
                 
+                {/* Step 1: Type */}
                 <div className="space-y-2">
-                    <Label htmlFor="amount">Monto</Label>
-                    <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            id="amount"
-                            type="number"
-                            step="0.01"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                            className="pl-9"
-                            placeholder="0.00"
-                            autoFocus
-                        />
+                    <Label>1. Elige el tipo de movimiento</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div 
+                         onClick={() => form.setValue('type', 'expense')}
+                         className={cn(
+                             "flex flex-col items-center justify-center gap-2 rounded-lg border-2 p-4 cursor-pointer transition-colors",
+                             watchType === 'expense' ? "border-destructive bg-destructive/10 text-destructive" : "hover:bg-muted/50"
+                         )}
+                       >
+                            <ArrowDown className="h-6 w-6"/>
+                            <span className="font-semibold">Gasto</span>
+                       </div>
+                       <div 
+                         onClick={() => form.setValue('type', 'deposit')}
+                         className={cn(
+                             "flex flex-col items-center justify-center gap-2 rounded-lg border-2 p-4 cursor-pointer transition-colors",
+                             watchType === 'deposit' ? "border-green-500 bg-green-500/10 text-green-600" : "hover:bg-muted/50"
+                         )}
+                       >
+                            <ArrowUp className="h-6 w-6"/>
+                            <span className="font-semibold">Ingreso</span>
+                       </div>
                     </div>
                 </div>
-                {mode !== 'transfer_to_loan_balance' && (
+
+                {/* Step 2: Category (only for expenses) */}
+                {watchType === 'expense' && (
                     <div className="space-y-2">
-                        <Label htmlFor="description">Descripción</Label>
-                        <Textarea
-                            id="description"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder={`Ej. ${mode === 'expense' ? 'Pago de renta' : 'Venta del día'}`}
-                        />
+                         <Label>2. Selecciona una categoría</Label>
+                         <FormField 
+                            control={form.control}
+                            name="category"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {isLoadingCategories ? (
+                                            <p className="col-span-3 text-sm text-muted-foreground">Cargando categorías...</p>
+                                        ) : categories.length > 0 ? (
+                                            categories.map(cat => (
+                                                 <div 
+                                                    key={cat.id}
+                                                    onClick={() => field.onChange(cat.name)}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-3 cursor-pointer transition-colors text-center h-20",
+                                                        field.value === cat.name ? "border-primary bg-primary/10" : "hover:bg-muted/50"
+                                                    )}
+                                                >
+                                                    <LucideIcon name={cat.icon as keyof typeof icons} className="h-6 w-6 text-primary/80"/>
+                                                    <span className="text-xs font-medium">{cat.name}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="col-span-3 text-sm text-muted-foreground">No hay categorías de gasto. Créalas en la sección de gestión.</p>
+                                        )}
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                         />
                     </div>
                 )}
-                {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-            </div>
-            <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleClose}>Cancelar</Button>
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Registrar Movimiento
-                </Button>
-            </DialogFooter>
-        </form>
+                
+                {/* Step 3: Amount, Executive, and Description */}
+                <div className="space-y-4">
+                    <Label>3. Ingresa los detalles</Label>
+                    <FormField
+                        control={form.control}
+                        name="amount"
+                        render={({ field }) => (
+                            <FormItem>
+                                <div className="relative">
+                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <FormControl>
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            className="pl-10 h-12 text-lg"
+                                            {...field}
+                                            autoFocus
+                                        />
+                                    </FormControl>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="executive"
+                        render={({ field }) => (
+                             <FormItem>
+                                 <FormControl>
+                                    <Input placeholder="Movimiento de (Ejecutivo/Ruta)" {...field} />
+                                 </FormControl>
+                                 <FormMessage />
+                             </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                             <FormItem>
+                                 <FormControl>
+                                     <Textarea placeholder="Descripción (Opcional)" {...field} />
+                                 </FormControl>
+                                 <FormMessage />
+                             </FormItem>
+                        )}
+                    />
+                </div>
+                
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={handleClose}>Cancelar</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Guardar Movimiento
+                    </Button>
+                </DialogFooter>
+            </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

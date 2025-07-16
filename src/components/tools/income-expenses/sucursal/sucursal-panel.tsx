@@ -51,19 +51,13 @@ const ActionCard = ({ title, description, icon: Icon, onClick, disabled }: { tit
 
 const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
     const typeInfo = {
-        deposit: { label: "Depósito Interno", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" },
-        withdrawal: { label: "Asignación de Capital", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" },
+        deposit: { label: "Ingreso", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" },
         expense: { label: "Gasto", icon: ArrowDown, color: "text-red-500", bg: "bg-red-500/10" },
-        transfer_to_loan_balance: { label: "Transferencia a Préstamos", icon: MoveHorizontal, color: "text-blue-500", bg: "bg-blue-500/10" },
     };
 
-    const info = tx.type === 'deposit' && tx.description.includes('Asignación desde Capital Central') 
-        ? typeInfo.withdrawal 
-        : typeInfo[tx.type];
-    const descriptionTitle = tx.type === 'deposit' && tx.description.includes('Asignación desde Capital Central') ? 'Asignación de Capital' : tx.description;
-    const descriptionDetail = tx.type === 'deposit' && tx.description.includes('Asignación desde Capital Central') 
-        ? `Recepción de capital desde central por ${tx.userPerformed}`
-        : `Registrado el ${format(tx.date, "d 'de' MMMM 'de' yyyy", { locale: es })} por ${tx.userPerformed}`;
+    const info = typeInfo[tx.type];
+    const descriptionTitle = tx.category ? tx.category : tx.type;
+    const descriptionDetail = `Registrado por ${tx.userPerformed}`;
 
 
     return (
@@ -72,8 +66,8 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
                 <info.icon className={cn("h-5 w-5", info.color)} />
             </div>
             <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium leading-none">{descriptionTitle}</p>
-                <p className="text-sm text-muted-foreground">{descriptionDetail}</p>
+                <p className="text-sm font-medium leading-none capitalize">{descriptionTitle}</p>
+                <p className="text-sm text-muted-foreground">{tx.description}</p>
             </div>
             <div className="flex items-center space-x-4">
                 <div className={cn("font-semibold", info.color)}>
@@ -116,7 +110,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         fetchData();
     }, [fetchData]);
     
-    const handleTransaction = async (type: 'expense' | 'deposit' | 'transfer_to_loan_balance', amount: number, description: string) => {
+    const handleTransaction = async (data: {type: 'expense' | 'deposit', amount: number, description: string, category?: string, executive?: string}) => {
         if (!user?.name) {
             toast({ variant: "destructive", title: "Error", description: "No se pudo identificar al usuario." });
             return false;
@@ -124,10 +118,8 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         try {
             await performSucursalTransaction({
                 sucursalId,
-                type,
-                amount,
                 userPerformed: user.name,
-                description,
+                ...data
             });
             toast({ title: "Éxito", description: "Transacción realizada correctamente." });
             await fetchData();
@@ -163,7 +155,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             </div>
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <ActionCard title="Registrar Movimiento" description="Ingresos, Gastos o Transferencias" icon={PlusCircle} onClick={() => setDialogOpen(true)} />
+                <ActionCard title="Registrar Movimiento" description="Ingresos y Gastos" icon={PlusCircle} onClick={() => setDialogOpen(true)} />
                 <ActionCard title="Solicitar Préstamo" description="A central u otra sucursal" icon={Landmark} onClick={() => {}} disabled />
                 <ActionCard title="Enviar a Capital" description="Devolver fondos a central" icon={Send} onClick={() => {}} disabled />
             </div>
@@ -171,7 +163,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             <Card>
                 <CardHeader>
                     <CardTitle>Historial de Transacciones (Caja Chica)</CardTitle>
-                    <CardDescription>Últimos movimientos de ingresos, gastos y transferencias de la sucursal.</CardDescription>
+                    <CardDescription>Últimos movimientos de ingresos y gastos de la sucursal.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      {transactions.length > 0 ? transactions.map(tx => (

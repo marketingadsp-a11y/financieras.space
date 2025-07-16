@@ -164,11 +164,13 @@ export type CentralAccountTransaction = {
 export type SucursalTransaction = {
     id: string;
     sucursalId: string;
-    type: 'deposit' | 'expense' | 'transfer_to_loan_balance';
+    type: 'deposit' | 'expense';
     amount: number;
     date: Date;
     userPerformed: string;
     description: string;
+    executive?: string;
+    category?: string;
 }
 
 
@@ -188,6 +190,7 @@ export type DailyRecordEntry = {
     amount: number;
     description: string;
     category?: string; // Storing category name as string
+    executive?: string;
 };
 
 export type DailyRecord = {

@@ -17,6 +17,7 @@ import {
   PiggyBank,
   TrendingUp,
   TrendingDown,
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
@@ -173,7 +174,7 @@ export function DailyControlDashboard() {
     setFormOpen(true);
   };
 
-  const handleSubmitEntry = async (data: Omit<DailyRecordEntry, 'id' | 'plazaId' | 'date'>) => {
+  const handleSubmitEntry = async (data: Omit<DailyRecordEntry, 'id' | 'date'>) => {
     if (!selectedPlaza || !entryDate || !user?.prefix) {
         toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para registrar el movimiento (plaza, fecha o prefijo).' });
         return;
@@ -253,6 +254,7 @@ export function DailyControlDashboard() {
             Tipo: config.label,
             Descripción: e.description,
             Categoría: e.category?.replace(/_/g, ' ') || 'N/A',
+            'Movimiento de': e.executive || 'N/A',
             Monto: e.amount
         }
     });
@@ -299,6 +301,7 @@ export function DailyControlDashboard() {
               Tipo: config.label,
               Descripción: e.description,
               Categoría: e.category?.replace(/_/g, ' ') || 'N/A',
+              'Movimiento de': e.executive || 'N/A',
               Monto: e.amount
           }
       });
@@ -447,6 +450,7 @@ export function DailyControlDashboard() {
                     <TableHead>Fecha</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Descripción</TableHead>
+                    <TableHead>Movimiento de</TableHead>
                     <TableHead>Categoría</TableHead>
                     <TableHead className="text-right">Monto</TableHead>
                 </TableRow>
@@ -454,7 +458,7 @@ export function DailyControlDashboard() {
             <TableBody>
                 {isLoading ? (
                     <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                           <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                         </TableCell>
                     </TableRow>
@@ -471,6 +475,12 @@ export function DailyControlDashboard() {
                                     </div>
                                 </TableCell>
                                 <TableCell>{entry.description}</TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <User className="h-4 w-4"/>
+                                        <span>{entry.executive || 'N/A'}</span>
+                                    </div>
+                                </TableCell>
                                 <TableCell className="capitalize">{entry.category?.replace(/_/g, ' ') || 'N/A'}</TableCell>
                                 <TableCell className={cn("text-right font-mono", config.color)}>
                                    ${entry.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -480,7 +490,7 @@ export function DailyControlDashboard() {
                     })
                 ) : (
                     <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                           {selectedPlaza ? 'No hay registros para este día.' : 'Por favor, selecciona una plaza.'}
                         </TableCell>
                     </TableRow>

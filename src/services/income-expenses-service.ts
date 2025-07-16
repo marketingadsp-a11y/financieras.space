@@ -260,14 +260,16 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
 
 type SucursalTransactionParams = {
     sucursalId: string;
-    type: 'expense' | 'deposit' | 'transfer_to_loan_balance';
+    type: 'expense' | 'deposit';
     amount: number;
     userPerformed: string;
     description: string;
+    category?: string;
+    executive?: string;
 }
 
 export async function performSucursalTransaction(params: SucursalTransactionParams) {
-    const { sucursalId, type, amount, userPerformed, description } = params;
+    const { sucursalId, type, amount, userPerformed, description, category, executive } = params;
     const sucursalRef = doc(db, "sucursales", sucursalId);
     const transactionRef = doc(sucursalTransactionsCollectionRef);
 
@@ -279,7 +281,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         
         const sucursalData = sucursalDoc.data() as Sucursal;
 
-        if ((type === 'expense' || type === 'transfer_to_loan_balance') && sucursalData.currentBalance < amount) {
+        if (type === 'expense' && sucursalData.currentBalance < amount) {
             throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
         }
 
@@ -288,9 +290,6 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             updates.currentBalance = sucursalData.currentBalance - amount;
         } else if (type === 'deposit') {
             updates.currentBalance = sucursalData.currentBalance + amount;
-        } else if (type === 'transfer_to_loan_balance') {
-            updates.currentBalance = sucursalData.currentBalance - amount;
-            updates.loanBalance = (sucursalData.loanBalance || 0) + amount;
         }
 
         transaction.update(sucursalRef, updates);
@@ -301,6 +300,8 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             amount,
             userPerformed,
             description,
+            category,
+            executive,
             date: Timestamp.now()
         };
         transaction.set(transactionRef, newTransactionData);

@@ -39,6 +39,7 @@ const formSchema = z.object({
   amount: z.coerce.number().positive("El monto debe ser mayor a cero."),
   description: z.string().min(3, "La descripción es requerida."),
   category: z.string().optional(),
+  executive: z.string().optional(),
 });
 
 
@@ -89,6 +90,7 @@ export function DailyRecordForm({ onSubmit, mode, isSubmitting, entryDate, onEnt
             amount: undefined,
             description: "",
             category: undefined,
+            executive: "",
         },
     });
 
@@ -149,6 +151,19 @@ export function DailyRecordForm({ onSubmit, mode, isSubmitting, entryDate, onEnt
                                 <Input type="number" step="0.01" placeholder="0.00" className="pl-9" {...field} autoFocus />
                               </FormControl>
                             </div>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="executive"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Movimiento de (Ejecutivo/Ruta)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Ej. Ruta 5, Juan Pérez, etc." {...field} />
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
