@@ -154,14 +154,14 @@ export function IncomeExpensesDashboard() {
   };
   
   const handleTransaction = async (amount: number, sucursalId?: string, description?: string) => {
-    if (!user?.prefix || !account?.id || !user?.name) {
+    if (!user?.prefix || !user?.name) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo identificar al usuario o la cuenta." });
       return false;
     }
     try {
       await performCentralAccountTransaction({
         prefix: user.prefix,
-        accountId: account.id,
+        accountId: user.prefix,
         type: dialogMode,
         amount,
         sucursalId,
