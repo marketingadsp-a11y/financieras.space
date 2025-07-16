@@ -164,7 +164,7 @@ export type CentralAccountTransaction = {
 export type SucursalTransaction = {
     id: string;
     sucursalId: string;
-    type: 'deposit' | 'expense';
+    type: 'deposit' | 'expense' | 'transfer_to_loan_balance';
     amount: number;
     date: Date;
     userPerformed: string;

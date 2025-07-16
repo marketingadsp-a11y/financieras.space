@@ -185,19 +185,8 @@ export async function performCentralAccountTransaction(params: CentralTransactio
 
                 transaction.update(sucursalRef, { loanBalance: newLoanBalance });
                 
-                // Also create a transaction record for the sucursal
-                const sucursalTransactionRef = doc(sucursalTransactionsCollectionRef);
-                const newSucursalTransaction: Omit<SucursalTransaction, 'id' | 'date'> & {date: Timestamp} = {
-                    sucursalId,
-                    type: 'deposit', // An assignment is a deposit from the sucursal's perspective
-                    amount,
-                    userPerformed,
-                    description: `Asignación desde Capital Central`,
-                    date: newTransactionData.date,
-                };
-                // This transaction now affects the LOAN balance, not the currentBalance, so we don't record it in the same log.
-                // We'll need a separate log for loan balance movements if required. For now, we just update the balance.
-                // transaction.set(sucursalTransactionRef, newSucursalTransaction);
+                // This is an external capital assignment, it doesn't need its own sucursal transaction log entry
+                // as it doesn't affect the Caja Chica. It's a capital injection.
                 break;
             default:
                 throw new Error("Tipo de transacción no válido.");
@@ -246,6 +235,7 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
     const q = query(
         sucursalTransactionsCollectionRef,
         where("sucursalId", "==", sucursalId),
+        orderBy("date", "desc"),
         limit(50)
     );
     const snapshot = await getDocs(q);
@@ -254,13 +244,12 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
         return { ...data, id: doc.id, date: (data.date as Timestamp).toDate() }
     }) as SucursalTransaction[];
     
-    // Sort in code to avoid needing a composite index
-    return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+    return transactions;
 }
 
 type SucursalTransactionParams = {
     sucursalId: string;
-    type: 'expense' | 'deposit';
+    type: 'expense' | 'deposit' | 'transfer_to_loan_balance';
     amount: number;
     userPerformed: string;
     description: string;
@@ -281,7 +270,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         
         const sucursalData = sucursalDoc.data() as Sucursal;
 
-        if (type === 'expense' && sucursalData.currentBalance < amount) {
+        if ((type === 'expense' || type === 'transfer_to_loan_balance') && sucursalData.currentBalance < amount) {
             throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
         }
 
@@ -290,6 +279,9 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             updates.currentBalance = sucursalData.currentBalance - amount;
         } else if (type === 'deposit') {
             updates.currentBalance = sucursalData.currentBalance + amount;
+        } else if (type === 'transfer_to_loan_balance') {
+            updates.currentBalance = sucursalData.currentBalance - amount;
+            updates.loanBalance = (sucursalData.loanBalance || 0) + amount;
         }
 
         transaction.update(sucursalRef, updates);
@@ -321,11 +313,16 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
 }
 
 export async function getSucursalStats(sucursalId: string) {
-    const transactions = await getSucursalTransactions(sucursalId);
+    const q = query(
+        sucursalTransactionsCollectionRef,
+        where("sucursalId", "==", sucursalId)
+    );
+    const snapshot = await getDocs(q);
+    const transactions = snapshot.docs.map(doc => doc.data()) as SucursalTransaction[];
     
     const totals = transactions.reduce((acc, tx) => {
         // Only consider internal deposits and expenses for Caja Chica stats
-        if (tx.type === 'deposit' && !tx.description.includes('Asignación desde Capital Central')) {
+        if (tx.type === 'deposit') {
             acc.totalIncome += tx.amount;
         } else if (tx.type === 'expense') {
             acc.totalExpenses += tx.amount;
