@@ -11,12 +11,18 @@ import {
   PlusCircle,
   RefreshCw,
   Send,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { CentralAccount, Sucursal } from "@/lib/data";
+import type { CentralAccount, Sucursal, CentralAccountTransaction } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
+import { getIncomeExpensesSummary, performCentralAccountTransaction } from "@/services/income-expenses-service";
+import { TransactionDialog } from "./transaction-dialog";
+import { RecentTransactions } from "./recent-transactions";
 
 const StatCard = ({
   title,
@@ -46,11 +52,13 @@ const ActionButton = ({
   title,
   description,
   variant = "default",
+  onClick,
 }: {
   icon: React.ElementType;
   title: string;
   description: string;
   variant?: "default" | "destructive" | "primary";
+  onClick?: () => void;
 }) => {
   const colors = {
     default: "text-green-500 bg-green-500/10",
@@ -59,7 +67,10 @@ const ActionButton = ({
   }
 
   return (
-    <div className="flex-1 rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer">
+    <div 
+        className="flex-1 rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
+        onClick={onClick}
+    >
       <div className="flex items-center gap-4">
         <div
           className={`flex h-10 w-10 items-center justify-center rounded-full ${colors[variant]}`}
@@ -95,7 +106,7 @@ const SucursalCard = ({ sucursal }: { sucursal: Sucursal }) => {
         </div>
       </CardContent>
       <CardFooter className="p-4">
-        <Button className="w-full bg-primary/90 hover:bg-primary" size="lg">
+        <Button className="w-full bg-primary/90 hover:bg-primary" size="lg" disabled>
             <Banknote className="mr-2" />
             Administrar Panel
         </Button>
@@ -104,31 +115,81 @@ const SucursalCard = ({ sucursal }: { sucursal: Sucursal }) => {
   );
 };
 
-// Placeholder data - we will replace this with real data later
-const placeholderAccount: CentralAccount = {
-    id: 'central-1',
-    currentBalance: 64100.00,
-    assignedCapital: 630000.00,
-    totalBranchBalance: 443400.00,
-};
-
-const placeholderSucursales: Sucursal[] = [
-    { id: 's1', name: 'La Fortuna', manager: 'Daniel', currentBalance: 300000.00, logoUrl: 'https://placehold.co/64x64.png' },
-    { id: 's2', name: 'La Quinta', manager: 'Alejandro', currentBalance: 93000.00, logoUrl: 'https://placehold.co/64x64.png' },
-    { id: 's3', name: 'San Luis', manager: 'Alejandro', currentBalance: 50400.00, logoUrl: 'https://placehold.co/64x64.png' },
-];
-
 
 export function IncomeExpensesDashboard() {
   const { user } = useAuth();
-  const [account, setAccount] = React.useState<CentralAccount>(placeholderAccount);
-  const [sucursales, setSucursales] = React.useState<Sucursal[]>(placeholderSucursales);
+  const { toast } = useToast();
+  const [account, setAccount] = React.useState<CentralAccount | null>(null);
+  const [sucursales, setSucursales] = React.useState<Sucursal[]>([]);
+  const [transactions, setTransactions] = React.useState<CentralAccountTransaction[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isDialogOpen, setDialogOpen] = React.useState(false);
+  const [dialogMode, setDialogMode] = React.useState<'deposit' | 'withdrawal' | 'assignment'>('deposit');
+  
+  const fetchData = React.useCallback(async () => {
+    if (!user?.prefix) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const summary = await getIncomeExpensesSummary(user.prefix);
+      setAccount(summary.centralAccount);
+      setSucursales(summary.sucursales);
+      setTransactions(summary.transactions);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos del dashboard.'});
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.prefix, toast]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleOpenDialog = (mode: 'deposit' | 'withdrawal' | 'assignment') => {
+    setDialogMode(mode);
+    setDialogOpen(true);
+  };
+  
+  const handleTransaction = async (amount: number, sucursalId?: string, description?: string) => {
+    if (!user?.prefix || !account?.id || !user?.name) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo identificar al usuario o la cuenta." });
+      return;
+    }
+    try {
+      await performCentralAccountTransaction({
+        prefix: user.prefix,
+        accountId: account.id,
+        type: dialogMode,
+        amount,
+        sucursalId,
+        userPerformed: user.name,
+        description,
+      });
+      toast({ title: "Éxito", description: "Transacción realizada correctamente."});
+      await fetchData(); // Refresh data
+      return true; // Indicate success to close dialog
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error en la transacción", description: e.message });
+      return false; // Indicate failure
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando dashboard...</div>;
+  }
+  
+  if (!account) {
+    return <div className="text-center">No se encontró una cuenta central para el prefijo <span className="font-bold">{user?.prefix}</span>. Se creará una al realizar la primera transacción.</div>
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <Button variant="ghost" size="icon">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard de Gastos e Ingresos</h1>
+        <Button variant="ghost" size="icon" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
         </Button>
       </div>
@@ -138,13 +199,13 @@ export function IncomeExpensesDashboard() {
         <Card className="col-span-1 lg:col-span-2">
             <CardHeader>
                 <CardTitle className="text-base font-normal text-muted-foreground">Capital Central</CardTitle>
-                <p className="text-5xl font-bold text-green-600">${account.currentBalance.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
-                <CardDescription>Fondos disponibles para asignar. Haga clic para ver historial y acciones.</CardDescription>
+                <p className="text-5xl font-bold text-green-600">${(account.currentBalance || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                <CardDescription>Fondos disponibles para asignar. Haga clic en las acciones para ver el historial.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col sm:flex-row items-center gap-4">
-                <ActionButton icon={PlusCircle} title="Ingresar Fondos" description="Añadir a Capital Central" />
-                <ActionButton icon={MinusCircle} title="Retirar Fondos" description="Desde Capital Central" variant="destructive" />
-                <ActionButton icon={Send} title="Asignar a Sucursal" description="Enviar fondos" variant="primary"/>
+                <ActionButton icon={PlusCircle} title="Ingresar Fondos" description="Añadir a Capital Central" onClick={() => handleOpenDialog('deposit')} />
+                <ActionButton icon={MinusCircle} title="Retirar Fondos" description="Desde Capital Central" variant="destructive" onClick={() => handleOpenDialog('withdrawal')} />
+                <ActionButton icon={Send} title="Asignar a Sucursal" description="Enviar fondos" variant="primary" onClick={() => handleOpenDialog('assignment')}/>
             </CardContent>
         </Card>
         
@@ -152,37 +213,57 @@ export function IncomeExpensesDashboard() {
         <div className="col-span-1 space-y-6">
             <StatCard 
                 title="Capital Asignado" 
-                value={`$${account.assignedCapital.toLocaleString('es-MX')}`} 
+                value={`$${(account.assignedCapital || 0).toLocaleString('es-MX')}`} 
                 icon={Send}
                 description="Total histórico enviado a sucursales."
             />
              <StatCard 
                 title="Balance en Sucursales" 
-                value={`$${account.totalBranchBalance.toLocaleString('es-MX')}`} 
+                value={`$${(account.totalBranchBalance || 0).toLocaleString('es-MX')}`} 
                 icon={Landmark}
                 description="Suma de balances de todas las sucursales."
             />
         </div>
       </div>
 
+      <RecentTransactions transactions={transactions} />
+
       {/* Sucursales Summary */}
        <Card>
         <CardHeader>
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold tracking-tight">Resumen de Sucursales</h2>
-              <Button variant="ghost">
-                Ver Todas <ArrowRight className="ml-2 h-4 w-4" />
+              <Button variant="ghost" asChild>
+                <Link href="/tools/income-expenses/sucursales">
+                    Gestionar Sucursales <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
         </CardHeader>
         <CardContent>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {sucursales.map(s => (
-                    <SucursalCard key={s.id} sucursal={s} />
-                ))}
-            </div>
+            {sucursales.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {sucursales.map(s => (
+                        <SucursalCard key={s.id} sucursal={s} />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                    <p>No hay sucursales creadas para este prefijo.</p>
+                    <Button variant="link" asChild><Link href="/tools/income-expenses/sucursales">Crear la primera sucursal</Link></Button>
+                </div>
+            )}
         </CardContent>
        </Card>
+
+        <TransactionDialog 
+            isOpen={isDialogOpen}
+            onClose={() => setDialogOpen(false)}
+            mode={dialogMode}
+            onSubmit={handleTransaction}
+            sucursales={sucursales}
+            currentBalance={account.currentBalance}
+        />
 
     </div>
   );

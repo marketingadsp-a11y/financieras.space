@@ -132,6 +132,7 @@ export const allTools: Tool[] = [
 
 export type Sucursal = {
     id: string;
+    prefix: string;
     name: string;
     manager: string;
     currentBalance: number;
@@ -139,11 +140,35 @@ export type Sucursal = {
 };
 
 export type CentralAccount = {
-    id: string;
+    id: string; // Will typically be the prefix
+    prefix: string;
     currentBalance: number;
     assignedCapital: number;
     totalBranchBalance: number;
 };
+
+export type CentralAccountTransaction = {
+    id: string;
+    accountId: string;
+    type: 'deposit' | 'withdrawal' | 'assignment';
+    amount: number;
+    date: Date;
+    userPerformed: string;
+    description: string;
+    from?: string; // e.g., 'External'
+    to?: string; // e.g., sucursalId or 'External'
+}
+
+export type SucursalTransaction = {
+    id: string;
+    sucursalId: string;
+    type: 'deposit' | 'withdrawal' | 'expense';
+    amount: number;
+    date: Date;
+    userPerformed: string;
+    description: string;
+}
+
 
 export type DailyRecordType = 'collected' | 'loaned' | 'spent';
 
