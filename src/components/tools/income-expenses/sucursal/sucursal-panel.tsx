@@ -62,7 +62,7 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
     };
 
     const info = typeInfo[tx.type];
-    const descriptionTitle = tx.category ? tx.category : tx.type === 'deposit' ? 'Ingreso General' : 'Gasto General';
+    const descriptionTitle = tx.category ? tx.category : tx.type === 'deposit' ? 'Ingreso General' : tx.type === 'expense' ? 'Gasto General' : 'Envío a Capital';
 
     return (
          <div className="flex items-center space-x-4 rounded-lg bg-muted/40 p-4">
@@ -175,38 +175,82 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     }
     
     const exportToPDF = () => {
-        if (!sucursal || filteredTransactions.length === 0) {
-            toast({ variant: "destructive", title: "Sin datos", description: "No hay transacciones para exportar en el rango de fechas seleccionado." });
+        if (!sucursal) {
+            toast({ variant: "destructive", title: "Sin datos", description: "No hay información de la sucursal para exportar." });
             return;
         }
         const doc = new jsPDF();
         const totals = filteredTransactions.reduce((acc, tx) => {
             if (tx.type === 'deposit') acc.deposits += tx.amount;
-            if (tx.type === 'expense') acc.expenses += tx.amount;
+            else if (tx.type === 'expense') acc.expenses += tx.amount;
+            else if (tx.type === 'transfer_to_central') acc.transfers += tx.amount;
             return acc;
-        }, { deposits: 0, expenses: 0 });
+        }, { deposits: 0, expenses: 0, transfers: 0 });
 
-        doc.text(`Historial de Transacciones - ${sucursal.name}`, 14, 16);
-        doc.text(`Desde: ${startDate ? format(startDate, "PPP", { locale: es }) : 'Inicio'}`, 14, 22);
-        doc.text(`Hasta: ${endDate ? format(endDate, "PPP", { locale: es }) : 'Fin'}`, 14, 28);
-        doc.text(`Total Ingresos: $${totals.deposits.toLocaleString()}`, 14, 34);
-        doc.text(`Total Gastos: $${totals.expenses.toLocaleString()}`, 14, 40);
+        // --- PDF Header ---
+        doc.setFontSize(18);
+        doc.text(`Reporte de Sucursal: ${sucursal.name}`, 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Encargado: ${sucursal.manager}`, 14, 26);
+        doc.text(`Fecha del Reporte: ${format(new Date(), "PPP", { locale: es })}`, 14, 32);
 
+        // --- Overall Summary ---
+        doc.setFontSize(12);
+        doc.text("Resumen General (Histórico)", 14, 45);
         autoTable(doc, {
-            startY: 46,
-            head: [['Fecha', 'Tipo', 'Descripción', 'Realizado Por', 'Monto']],
-            body: filteredTransactions.map(tx => {
-                const typeLabels = { deposit: 'Ingreso', expense: 'Gasto', transfer_to_central: 'Envío a Capital' };
-                return [
-                    format(tx.date, "dd/MM/yy p", { locale: es }),
-                    typeLabels[tx.type],
-                    `${tx.category ? `[${tx.category}] ` : ''}${tx.description}`,
-                    tx.userPerformed,
-                    `$${tx.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
-                ];
-            }),
+            startY: 48,
+            theme: 'plain',
+            body: [
+                ['Ingresos Totales', `$${stats.totalIncome.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+                ['Gastos Totales', `$${stats.totalExpenses.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+                ['Saldo Actual (Caja Chica)', `$${sucursal.currentBalance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+            ],
         });
-        doc.save(`Historial_${sucursal.name}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+
+        const lastY = (doc as any).lastAutoTable.finalY + 10;
+
+        // --- Filtered Period Summary ---
+        const dateRange = `Periodo: ${startDate ? format(startDate, "P") : 'Inicio'} - ${endDate ? format(endDate, "P") : 'Fin'}`;
+        doc.setFontSize(12);
+        doc.text(`Resumen del Periodo Filtrado`, 14, lastY);
+        doc.setFontSize(10);
+        doc.text(dateRange, 14, lastY + 6);
+        autoTable(doc, {
+            startY: lastY + 9,
+            theme: 'striped',
+            head: [['Concepto', 'Monto']],
+            body: [
+                ['Ingresos del Periodo', `$${totals.deposits.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+                ['Gastos del Periodo', `$${totals.expenses.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+                ['Envíos a Capital', `$${totals.transfers.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`],
+            ],
+            headStyles: { fillColor: [41, 128, 185] },
+        });
+
+        // --- Transactions Table ---
+        if (filteredTransactions.length > 0) {
+            const transactionsY = (doc as any).lastAutoTable.finalY + 10;
+            doc.setFontSize(12);
+            doc.text("Historial de Transacciones (Periodo Filtrado)", 14, transactionsY);
+            autoTable(doc, {
+                startY: transactionsY + 3,
+                head: [['Fecha', 'Tipo', 'Categoría', 'Descripción', 'Realizado Por', 'Monto']],
+                body: filteredTransactions.map(tx => {
+                    const typeLabels = { deposit: 'Ingreso', expense: 'Gasto', transfer_to_central: 'Envío' };
+                    return [
+                        format(tx.date, "dd/MM/yy p", { locale: es }),
+                        typeLabels[tx.type],
+                        tx.category || 'N/A',
+                        tx.description,
+                        tx.userPerformed,
+                        `$${tx.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+                    ];
+                }),
+                headStyles: { fillColor: [41, 128, 185] },
+            });
+        }
+        
+        doc.save(`Reporte_${sucursal.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     };
     
     const canViewBalance = hasPermission(sucursalId, 'CAN_VIEW_BALANCE');
@@ -234,13 +278,28 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard title="Ingresos Totales (Caja Chica)" value={stats.totalIncome} icon={TrendingUp} description="Total de ingresos de la sucursal" colorClass="text-green-500" />
                     <StatCard title="Gastos Totales (Caja Chica)" value={stats.totalExpenses} icon={TrendingDown} description="Total de gastos de la sucursal" colorClass="text-red-500" />
-                    <StatCard title="Caja Chica" value={sucursal.currentBalance} icon={PiggyBank} description="Dinero disponible para gastos" />
+                    <Card className="shadow-sm flex flex-col">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                           <CardTitle className="text-sm font-medium">Caja Chica</CardTitle>
+                           <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                             <div className="text-3xl font-bold text-primary">
+                                ${sucursal.currentBalance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Dinero disponible para gastos</p>
+                        </CardContent>
+                        <CardFooter>
+                            <Button className="w-full" variant="secondary" onClick={() => setTransferDialogOpen(true)} disabled={!canTransferToCentral}>
+                                <Send className="mr-2 h-4 w-4" /> Transferir a Capital
+                            </Button>
+                        </CardFooter>
+                    </Card>
                 </div>
             )}
             
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6">
                 <ActionCard title="Registrar Movimiento" description="Ingresos y Gastos" icon={PlusCircle} onClick={() => setTransactionDialogOpen(true)} disabled={!canTransact} />
-                <ActionCard title="Enviar a Capital" description="Devolver fondos a central" icon={Send} onClick={() => setTransferDialogOpen(true)} disabled={!canTransferToCentral} />
             </div>
 
             <Card>
@@ -270,7 +329,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                                 <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus/></PopoverContent>
                            </Popover>
                            <Button variant="ghost" size="icon" onClick={() => { setStartDate(undefined); setEndDate(undefined); }}><FilterX className="h-4 w-4"/></Button>
-                           <Button variant="outline" onClick={exportToPDF} disabled={filteredTransactions.length === 0}><FileText className="h-4 w-4"/></Button>
+                           <Button variant="outline" onClick={exportToPDF}><FileText className="h-4 w-4"/></Button>
                         </div>
                     </div>
                 </CardHeader>
@@ -298,4 +357,5 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
 
         </div>
     )
-}
+
+    
