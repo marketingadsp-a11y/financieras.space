@@ -119,11 +119,11 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
   };
   
   const handleClose = () => {
-    form.reset({ type: 'expense', amount: undefined, category: undefined, description: undefined, executive: undefined });
+    form.reset({ type: 'expense', amount: undefined, category: undefined, description: "", executive: "" });
     onClose();
   }
   
-  const currentCategories = categories.filter(c => c.type === watchType);
+  const currentCategories = categories.filter(c => c.type === (watchType === 'deposit' ? 'income' : 'expense'));
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
