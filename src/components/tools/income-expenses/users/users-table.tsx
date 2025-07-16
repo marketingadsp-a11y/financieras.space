@@ -110,7 +110,7 @@ export function UsersTable({ data, sucursales, onEdit, onDelete }: UsersTablePro
                     <div className="flex flex-wrap gap-1">
                       {admin.role === 'Admin Global' && <Badge variant="default">Todas</Badge>}
                       {admin.role === 'Admin de Herramienta' && (admin as ToolAdmin).sucursalAccess?.map(sa => (
-                        <Badge key={sa.sucursalId} variant="outline">{sucursalMap.get(sa.sucursalId) || 'Desconocida'} ({sa.permissions.length} permisos)</Badge>
+                        <Badge key={sa.sucursalId} variant="outline">{sucursalMap.get(sa.sucursalId) || 'Desconocida'} ({(sa.permissions?.length || 0)} permisos)</Badge>
                       ))}
                     </div>
                   </TableCell>
