@@ -128,6 +128,7 @@ const incomeExpensesNavItems: NavItem[] = [
     { href: "/tools/income-expenses/users", label: "Gestionar Usuarios", icon: Users2 },
 ];
 const incomeExpensesSettingsItems: NavItem[] = [
+    { href: "/tools/income-expenses/categories", label: "Gestionar Categorías", icon: ListTree },
     { href: "/tools/income-expenses/danger-zone", label: "Zona de Peligro", icon: ShieldAlert },
 ]
 

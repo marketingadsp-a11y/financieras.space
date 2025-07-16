@@ -17,9 +17,7 @@ export type Admin = {
 export const INCOME_EXPENSES_PERMISSIONS = {
     CAN_VIEW_BALANCE: 'Ver Balance',
     CAN_TRANSACT: 'Registrar Transacciones',
-    // Futuros permisos:
-    // CAN_TRANSFER_TO_CENTRAL: 'Enviar a Capital',
-    // CAN_REQUEST_LOAN: 'Solicitar Préstamo',
+    CAN_TRANSFER_TO_CENTRAL: 'Enviar a Capital',
 } as const;
 export type IncomeExpensesPermission = keyof typeof INCOME_EXPENSES_PERMISSIONS;
 
@@ -177,7 +175,7 @@ export type CentralAccountTransaction = {
 export type SucursalTransaction = {
     id: string;
     sucursalId: string;
-    type: 'deposit' | 'expense';
+    type: 'deposit' | 'expense' | 'transfer_to_central';
     amount: number;
     date: Date;
     userPerformed: string;
@@ -241,4 +239,10 @@ export type LoanControlGrupo = {
   prefix: string;
 }
 
-    
+export type TransactionCategory = {
+  id: string;
+  prefix: string;
+  name: string;
+  icon: string;
+  type: 'income' | 'expense';
+};

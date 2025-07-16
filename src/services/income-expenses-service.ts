@@ -258,7 +258,7 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
 
 type SucursalTransactionParams = {
     sucursalId: string;
-    type: 'expense' | 'deposit';
+    type: 'expense' | 'deposit' | 'transfer_to_central';
     amount: number;
     userPerformed: string;
     description: string;
@@ -268,6 +268,7 @@ type SucursalTransactionParams = {
 
 export async function performSucursalTransaction(params: SucursalTransactionParams) {
     const { sucursalId, type, amount, userPerformed, description, category, executive } = params;
+    
     const sucursalRef = doc(db, "sucursales", sucursalId);
     const transactionRef = doc(sucursalTransactionsCollectionRef);
 
@@ -281,9 +282,10 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         
         const centralAccountRef = doc(db, "centralAccounts", sucursalData.prefix);
         const centralAccountDoc = await transaction.get(centralAccountRef);
+        const centralAccountData = centralAccountDoc.exists() ? centralAccountDoc.data() : null;
 
         // --- VALIDATIONS ---
-        if (type === 'expense' && sucursalData.currentBalance < amount) {
+        if ((type === 'expense' || type === 'transfer_to_central') && sucursalData.currentBalance < amount) {
             throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
         }
 
@@ -293,6 +295,13 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             updates.currentBalance = sucursalData.currentBalance - amount;
         } else if (type === 'deposit') {
             updates.currentBalance = sucursalData.currentBalance + amount;
+        } else if (type === 'transfer_to_central') {
+            updates.currentBalance = sucursalData.currentBalance - amount;
+            if (centralAccountData) {
+                const newCentralBalance = (centralAccountData.currentBalance || 0) + amount;
+                const newAssignedCapital = (centralAccountData.assignedCapital || 0) - amount;
+                transaction.update(centralAccountRef, { currentBalance: newCentralBalance, assignedCapital: newAssignedCapital });
+            }
         }
         
         transaction.update(sucursalRef, updates);
@@ -306,13 +315,13 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             date: Timestamp.now()
         };
 
+        // Clean up undefined optional fields before saving
         if (category) newTransactionData.category = category;
         if (executive) newTransactionData.executive = executive;
         
         transaction.set(transactionRef, newTransactionData);
 
-        if ((type === 'deposit' || type === 'expense') && centralAccountDoc.exists()) {
-            const centralAccountData = centralAccountDoc.data();
+        if ((type === 'deposit' || type === 'expense') && centralAccountData) {
             const change = type === 'expense' ? -amount : amount;
             const newTotalBalance = (centralAccountData.totalBranchBalance || 0) + change;
             transaction.update(centralAccountRef, { totalBranchBalance: newTotalBalance });
@@ -339,5 +348,3 @@ export async function getSucursalStats(sucursalId: string) {
 
     return totals;
 }
-
-    

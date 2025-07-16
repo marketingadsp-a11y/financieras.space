@@ -9,7 +9,7 @@ import { es } from "date-fns/locale";
 
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getSucursalById, getSucursalTransactions, getSucursalStats } from "@/services/income-expenses-service";
+import { getSucursalById, getSucursalTransactions, getSucursalStats, performSucursalTransaction } from "@/services/income-expenses-service";
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { SucursalTransactionDialog } from "./sucursal-transaction-dialog";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { TransferToCentralDialog } from "./transfer-to-central-dialog";
 
 
 const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
@@ -57,6 +58,7 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
     const typeInfo = {
         deposit: { label: "Ingreso", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" },
         expense: { label: "Gasto", icon: ArrowDown, color: "text-red-500", bg: "bg-red-500/10" },
+        transfer_to_central: { label: "Envío a Capital", icon: Send, color: "text-blue-500", bg: "bg-blue-500/10" },
     };
 
     const info = typeInfo[tx.type];
@@ -91,6 +93,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     const [transactions, setTransactions] = React.useState<SucursalTransaction[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isTransactionDialogOpen, setTransactionDialogOpen] = React.useState(false);
+    const [isTransferDialogOpen, setTransferDialogOpen] = React.useState(false);
     const [startDate, setStartDate] = React.useState<Date | undefined>();
     const [endDate, setEndDate] = React.useState<Date | undefined>();
     
@@ -148,6 +151,28 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             return false;
         }
     };
+
+    const handleTransfer = async (amount: number) => {
+        if (!user?.name) {
+             toast({ variant: "destructive", title: "Error", description: "No se pudo identificar al usuario." });
+            return false;
+        }
+         try {
+            await performSucursalTransaction({
+                sucursalId,
+                type: 'transfer_to_central',
+                amount,
+                userPerformed: user.name,
+                description: `Envío a capital por ${user.name}`
+            });
+            toast({ title: "Éxito", description: "Fondos enviados a capital correctamente." });
+            await fetchData();
+            return true;
+        } catch (e: any) {
+            toast({ variant: "destructive", title: "Error en la transferencia", description: e.message });
+            return false;
+        }
+    }
     
     const exportToPDF = () => {
         if (!sucursal || filteredTransactions.length === 0) {
@@ -171,7 +196,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             startY: 46,
             head: [['Fecha', 'Tipo', 'Descripción', 'Realizado Por', 'Monto']],
             body: filteredTransactions.map(tx => {
-                const typeLabels = { deposit: 'Ingreso', expense: 'Gasto' };
+                const typeLabels = { deposit: 'Ingreso', expense: 'Gasto', transfer_to_central: 'Envío a Capital' };
                 return [
                     format(tx.date, "dd/MM/yy p", { locale: es }),
                     typeLabels[tx.type],
@@ -186,6 +211,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     
     const canViewBalance = hasPermission(sucursalId, 'CAN_VIEW_BALANCE');
     const canTransact = hasPermission(sucursalId, 'CAN_TRANSACT');
+    const canTransferToCentral = hasPermission(sucursalId, 'CAN_TRANSFER_TO_CENTRAL');
 
     if (isLoading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de la sucursal...</div>;
@@ -212,10 +238,9 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </div>
             )}
             
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <ActionCard title="Registrar Movimiento" description="Ingresos y Gastos" icon={PlusCircle} onClick={() => setTransactionDialogOpen(true)} disabled={!canTransact} />
-                <ActionCard title="Solicitar Préstamo" description="A central u otra sucursal" icon={Landmark} onClick={() => {}} disabled />
-                <ActionCard title="Enviar a Capital" description="Devolver fondos a central" icon={Send} onClick={() => {}} disabled />
+                <ActionCard title="Enviar a Capital" description="Devolver fondos a central" icon={Send} onClick={() => setTransferDialogOpen(true)} disabled={!canTransferToCentral} />
             </div>
 
             <Card>
@@ -264,8 +289,13 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 onSubmit={handleTransaction}
             />
 
+            <TransferToCentralDialog
+                isOpen={isTransferDialogOpen}
+                onClose={() => setTransferDialogOpen(false)}
+                onSubmit={handleTransfer}
+                maxAmount={sucursal.currentBalance}
+            />
+
         </div>
     )
 }
-
-    
