@@ -156,7 +156,7 @@ export function IncomeExpensesDashboard() {
   const handleTransaction = async (amount: number, sucursalId?: string, description?: string) => {
     if (!user?.prefix || !account?.id || !user?.name) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo identificar al usuario o la cuenta." });
-      return;
+      return false;
     }
     try {
       await performCentralAccountTransaction({
@@ -180,10 +180,14 @@ export function IncomeExpensesDashboard() {
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando dashboard...</div>;
   }
-  
-  if (!account) {
-    return <div className="text-center">No se encontró una cuenta central para el prefijo <span className="font-bold">{user?.prefix}</span>. Se creará una al realizar la primera transacción.</div>
-  }
+
+  // Use a default account structure if none exists yet, allowing the first transaction to create it.
+  const displayAccount = account || {
+    id: user?.prefix || 'default',
+    currentBalance: 0,
+    assignedCapital: 0,
+    totalBranchBalance: 0
+  };
 
   return (
     <div className="space-y-6">
@@ -199,7 +203,7 @@ export function IncomeExpensesDashboard() {
         <Card className="col-span-1 lg:col-span-2">
             <CardHeader>
                 <CardTitle className="text-base font-normal text-muted-foreground">Capital Central</CardTitle>
-                <p className="text-5xl font-bold text-green-600">${(account.currentBalance || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                <p className="text-5xl font-bold text-green-600">${(displayAccount.currentBalance || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
                 <CardDescription>Fondos disponibles para asignar. Haga clic en las acciones para ver el historial.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col sm:flex-row items-center gap-4">
@@ -213,13 +217,13 @@ export function IncomeExpensesDashboard() {
         <div className="col-span-1 space-y-6">
             <StatCard 
                 title="Capital Asignado" 
-                value={`$${(account.assignedCapital || 0).toLocaleString('es-MX')}`} 
+                value={`$${(displayAccount.assignedCapital || 0).toLocaleString('es-MX')}`} 
                 icon={Send}
                 description="Total histórico enviado a sucursales."
             />
              <StatCard 
                 title="Balance en Sucursales" 
-                value={`$${(account.totalBranchBalance || 0).toLocaleString('es-MX')}`} 
+                value={`$${(displayAccount.totalBranchBalance || 0).toLocaleString('es-MX')}`} 
                 icon={Landmark}
                 description="Suma de balances de todas las sucursales."
             />
@@ -262,7 +266,7 @@ export function IncomeExpensesDashboard() {
             mode={dialogMode}
             onSubmit={handleTransaction}
             sucursales={sucursales}
-            currentBalance={account.currentBalance}
+            currentBalance={displayAccount.currentBalance}
         />
 
     </div>
