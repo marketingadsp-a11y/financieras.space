@@ -60,11 +60,12 @@ export async function getIncomeExpensesSummary(prefix: string) {
   const centralAccountDocRef = doc(db, "centralAccounts", prefix);
   const sucursales = await getSucursales(prefix);
 
+  // Firestore requires a composite index for queries with where and orderBy on different fields.
+  // To avoid this requirement for users, we'll fetch and sort on the client side.
   const qTransactions = query(
     centralAccountTransactionsCollectionRef, 
-    where("accountId", "==", prefix), 
-    orderBy("date", "desc"),
-    limit(10)
+    where("accountId", "==", prefix),
+    limit(25) // Fetch a reasonable number to sort
   );
   
   const [accountSnap, transactionsSnap] = await Promise.all([
@@ -97,7 +98,12 @@ export async function getIncomeExpensesSummary(prefix: string) {
       return { ...data, id: doc.id, date: (data.date as Timestamp).toDate() }
   }) as CentralAccountTransaction[];
 
-  return { centralAccount, sucursales, transactions };
+  // Sort transactions by date descending and take the last 10
+  const sortedAndLimitedTransactions = transactions
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .slice(0, 10);
+
+  return { centralAccount, sucursales, transactions: sortedAndLimitedTransactions };
 }
 
 
