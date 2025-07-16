@@ -32,9 +32,11 @@ const SucursalCard = ({ sucursal }: { sucursal: Sucursal }) => {
         </div>
       </CardContent>
       <CardFooter className="p-4">
-        <Button className="w-full bg-primary/90 hover:bg-primary" size="lg" disabled>
-            <Banknote className="mr-2" />
-            Administrar Panel
+        <Button asChild className="w-full bg-primary/90 hover:bg-primary" size="lg">
+            <Link href={`/tools/income-expenses/sucursal/${sucursal.id}`}>
+                <Banknote className="mr-2" />
+                Administrar Panel
+            </Link>
         </Button>
       </CardFooter>
     </Card>

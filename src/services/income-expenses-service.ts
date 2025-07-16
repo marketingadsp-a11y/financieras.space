@@ -15,15 +15,15 @@ import {
   Timestamp,
   writeBatch,
   limit,
-  orderBy,
-  setDoc
+  orderBy
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Sucursal, CentralAccount, CentralAccountTransaction } from "@/lib/data";
+import type { Sucursal, CentralAccount, CentralAccountTransaction, SucursalTransaction } from "@/lib/data";
 
 const sucursalesCollectionRef = collection(db, "sucursales");
 const centralAccountsCollectionRef = collection(db, "centralAccounts");
 const centralAccountTransactionsCollectionRef = collection(db, "centralAccountTransactions");
+const sucursalTransactionsCollectionRef = collection(db, "sucursalTransactions");
 
 
 // --- Sucursal Functions ---
@@ -31,6 +31,15 @@ export async function getSucursales(prefix: string): Promise<Sucursal[]> {
   const q = query(sucursalesCollectionRef, where("prefix", "==", prefix));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Sucursal[];
+}
+
+export async function getSucursalById(id: string): Promise<Sucursal | null> {
+    const docRef = doc(db, "sucursales", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as Sucursal;
+    }
+    return null;
 }
 
 export async function addSucursal(sucursal: Omit<Sucursal, 'id' | 'currentBalance'>): Promise<Sucursal> {
@@ -60,12 +69,10 @@ export async function getIncomeExpensesSummary(prefix: string) {
   const centralAccountDocRef = doc(db, "centralAccounts", prefix);
   const sucursales = await getSucursales(prefix);
 
-  // Firestore requires a composite index for queries with where and orderBy on different fields.
-  // To avoid this requirement for users, we'll fetch and sort on the client side.
   const qTransactions = query(
     centralAccountTransactionsCollectionRef, 
     where("accountId", "==", prefix),
-    limit(25) // Fetch a reasonable number to sort
+    limit(25)
   );
   
   const [accountSnap, transactionsSnap] = await Promise.all([
@@ -77,8 +84,6 @@ export async function getIncomeExpensesSummary(prefix: string) {
   if (accountSnap.exists()) {
     centralAccount = { id: accountSnap.id, ...accountSnap.data() } as CentralAccount;
   } else {
-    // Return a default object but don't create it here. 
-    // Creation will be handled by the first transaction.
     centralAccount = {
       id: prefix,
       prefix: prefix,
@@ -93,7 +98,6 @@ export async function getIncomeExpensesSummary(prefix: string) {
       return { ...data, id: doc.id, date: (data.date as Timestamp).toDate() }
   }) as CentralAccountTransaction[];
 
-  // Sort transactions by date descending and take the last 10
   const sortedAndLimitedTransactions = transactions
     .sort((a, b) => b.date.getTime() - a.date.getTime())
     .slice(0, 10);
@@ -102,7 +106,7 @@ export async function getIncomeExpensesSummary(prefix: string) {
 }
 
 
-type TransactionParams = {
+type CentralTransactionParams = {
     prefix: string;
     accountId: string;
     type: 'deposit' | 'withdrawal' | 'assignment';
@@ -112,7 +116,7 @@ type TransactionParams = {
     description?: string;
 }
 
-export async function performCentralAccountTransaction(params: TransactionParams) {
+export async function performCentralAccountTransaction(params: CentralTransactionParams) {
     const { prefix, accountId, type, amount, userPerformed, sucursalId, description } = params;
 
     const centralAccountRef = doc(db, "centralAccounts", accountId);
@@ -123,7 +127,6 @@ export async function performCentralAccountTransaction(params: TransactionParams
         const centralAccountDoc = await transaction.get(centralAccountRef);
         let centralAccountData: CentralAccount;
         
-        // If account doesn't exist, create it in memory for this transaction
         if (!centralAccountDoc.exists()) {
              centralAccountData = {
                 id: prefix,
@@ -167,22 +170,31 @@ export async function performCentralAccountTransaction(params: TransactionParams
 
                 const sucursalData = sucursalDoc.data() as Sucursal;
 
-                // Update balances
                 centralAccountData.currentBalance -= amount;
                 centralAccountData.assignedCapital += amount;
                 centralAccountData.totalBranchBalance += amount;
                 sucursalData.currentBalance += amount;
 
                 transaction.update(sucursalRef, { currentBalance: sucursalData.currentBalance });
+                
+                // Also create a transaction record for the sucursal
+                const sucursalTransactionRef = doc(sucursalTransactionsCollectionRef);
+                const newSucursalTransaction: Omit<SucursalTransaction, 'id' | 'date'> & {date: Timestamp} = {
+                    sucursalId,
+                    type: 'deposit',
+                    amount,
+                    userPerformed,
+                    description: `Asignación desde Capital Central`,
+                    date: newTransactionData.date,
+                };
+                transaction.set(sucursalTransactionRef, newSucursalTransaction);
                 break;
             default:
                 throw new Error("Tipo de transacción no válido.");
         }
         
-        // Remove the 'id' field before writing to Firestore
         const { id, ...dataToSave } = centralAccountData;
 
-        // Use set with merge: true to create or update
         transaction.set(centralAccountRef, dataToSave, { merge: true });
         transaction.set(transactionRef, newTransactionData);
     });
@@ -192,19 +204,97 @@ export async function performCentralAccountTransaction(params: TransactionParams
 export async function deleteAllIncomeExpensesData(prefix: string): Promise<void> {
     const batch = writeBatch(db);
 
-    // Delete Central Account
     const centralAccountRef = doc(db, "centralAccounts", prefix);
     batch.delete(centralAccountRef);
 
-    // Delete all sucursales for the prefix
     const sucursalesQuery = query(sucursalesCollectionRef, where("prefix", "==", prefix));
     const sucursalesSnapshot = await getDocs(sucursalesQuery);
-    sucursalesSnapshot.forEach(doc => batch.delete(doc.ref));
+    
+    const sucursalIds: string[] = [];
+    sucursalesSnapshot.forEach(doc => {
+        sucursalIds.push(doc.id);
+        batch.delete(doc.ref)
+    });
 
-    // Delete all transactions for the prefix
-    const transactionsQuery = query(centralAccountTransactionsCollectionRef, where("accountId", "==", prefix));
-    const transactionsSnapshot = await getDocs(transactionsQuery);
-    transactionsSnapshot.forEach(doc => batch.delete(doc.ref));
+    const centralTransactionsQuery = query(centralAccountTransactionsCollectionRef, where("accountId", "==", prefix));
+    const centralTransactionsSnapshot = await getDocs(centralTransactionsQuery);
+    centralTransactionsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+    // Delete sucursal transactions in chunks if necessary
+    if(sucursalIds.length > 0){
+        const sucursalTransactionsQuery = query(sucursalTransactionsCollectionRef, where("sucursalId", "in", sucursalIds));
+        const sucursalTransactionsSnapshot = await getDocs(sucursalTransactionsQuery);
+        sucursalTransactionsSnapshot.forEach(doc => batch.delete(doc.ref));
+    }
     
     await batch.commit();
+}
+
+// --- Sucursal Panel Functions ---
+
+export async function getSucursalTransactions(sucursalId: string): Promise<SucursalTransaction[]> {
+    const q = query(
+        sucursalTransactionsCollectionRef,
+        where("sucursalId", "==", sucursalId),
+        orderBy("date", "desc"),
+        limit(50)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return { ...data, id: doc.id, date: (data.date as Timestamp).toDate() }
+    }) as SucursalTransaction[];
+}
+
+type SucursalTransactionParams = {
+    sucursalId: string;
+    type: 'expense' | 'deposit';
+    amount: number;
+    userPerformed: string;
+    description: string;
+}
+
+export async function performSucursalTransaction(params: SucursalTransactionParams) {
+    const { sucursalId, type, amount, userPerformed, description } = params;
+    const sucursalRef = doc(db, "sucursales", sucursalId);
+    const transactionRef = doc(sucursalTransactionsCollectionRef);
+
+    await runTransaction(db, async (transaction) => {
+        const sucursalDoc = await transaction.get(sucursalRef);
+        if (!sucursalDoc.exists()) {
+            throw new Error("La sucursal no existe.");
+        }
+        
+        const sucursalData = sucursalDoc.data() as Sucursal;
+
+        if (type === 'expense' && sucursalData.currentBalance < amount) {
+            throw new Error("Fondos insuficientes en la sucursal para este gasto.");
+        }
+
+        const newBalance = type === 'expense'
+            ? sucursalData.currentBalance - amount
+            : sucursalData.currentBalance + amount;
+
+        transaction.update(sucursalRef, { currentBalance: newBalance });
+
+        const newTransactionData: Omit<SucursalTransaction, 'id'|'date'> & { date: Timestamp } = {
+            sucursalId,
+            type,
+            amount,
+            userPerformed,
+            description,
+            date: Timestamp.now()
+        };
+        transaction.set(transactionRef, newTransactionData);
+
+        // Also update the totalBranchBalance in the central account
+        const centralAccountRef = doc(db, "centralAccounts", sucursalData.prefix);
+        const centralAccountDoc = await transaction.get(centralAccountRef);
+        if (centralAccountDoc.exists()) {
+            const centralAccountData = centralAccountDoc.data();
+            const change = type === 'expense' ? -amount : amount;
+            const newTotalBalance = (centralAccountData.totalBranchBalance || 0) + change;
+            transaction.update(centralAccountRef, { totalBranchBalance: newTotalBalance });
+        }
+    });
 }
