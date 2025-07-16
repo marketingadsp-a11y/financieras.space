@@ -300,3 +300,20 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         }
     });
 }
+
+export async function getSucursalStats(sucursalId: string) {
+    const transactions = await getSucursalTransactions(sucursalId);
+    
+    const totals = transactions.reduce((acc, tx) => {
+        if (tx.type === 'deposit') {
+            acc.totalIncome += tx.amount;
+        } else if (tx.type === 'expense') {
+            acc.totalExpenses += tx.amount;
+        }
+        // Note: 'withdrawal' type is from central account perspective, it's an income for the branch
+        // but it is already handled as a 'deposit' when created.
+        return acc;
+    }, { totalIncome: 0, totalExpenses: 0 });
+
+    return totals;
+}
