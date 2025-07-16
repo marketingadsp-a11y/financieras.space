@@ -8,7 +8,7 @@ import { getSucursalById, getSucursalTransactions, performSucursalTransaction, g
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2, PiggyBank, Briefcase } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, Banknote, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, Trash2, PiggyBank, Briefcase, MoveHorizontal } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -52,8 +52,9 @@ const ActionCard = ({ title, description, icon: Icon, onClick, disabled }: { tit
 const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
     const typeInfo = {
         deposit: { label: "Depósito Interno", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" },
-        withdrawal: { label: "Asignación de Capital", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" }, // Central assignment is a 'withdrawal' for sucursal but 'deposit' in context
+        withdrawal: { label: "Asignación de Capital", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" },
         expense: { label: "Gasto", icon: ArrowDown, color: "text-red-500", bg: "bg-red-500/10" },
+        transfer_to_loan_balance: { label: "Transferencia a Préstamos", icon: MoveHorizontal, color: "text-blue-500", bg: "bg-blue-500/10" },
     };
 
     const info = tx.type === 'deposit' && tx.description.includes('Asignación desde Capital Central') 
@@ -78,9 +79,6 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
                 <div className={cn("font-semibold", info.color)}>
                    ${tx.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </div>
-                {/* <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                    <Trash2 className="h-4 w-4" />
-                </Button> */}
             </div>
         </div>
     );
@@ -95,8 +93,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     const [transactions, setTransactions] = React.useState<SucursalTransaction[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isDialogOpen, setDialogOpen] = React.useState(false);
-    const [dialogMode, setDialogMode] = React.useState<'expense' | 'deposit'>('expense');
-
+    
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
         try {
@@ -118,13 +115,8 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     React.useEffect(() => {
         fetchData();
     }, [fetchData]);
-
-    const handleOpenDialog = (mode: 'expense' | 'deposit') => {
-        setDialogMode(mode);
-        setDialogOpen(true);
-    };
     
-    const handleTransaction = async (amount: number, description: string) => {
+    const handleTransaction = async (type: 'expense' | 'deposit' | 'transfer_to_loan_balance', amount: number, description: string) => {
         if (!user?.name) {
             toast({ variant: "destructive", title: "Error", description: "No se pudo identificar al usuario." });
             return false;
@@ -132,7 +124,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         try {
             await performSucursalTransaction({
                 sucursalId,
-                type: dialogMode,
+                type,
                 amount,
                 userPerformed: user.name,
                 description,
@@ -171,7 +163,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             </div>
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <ActionCard title="Registrar Movimiento" description="Ingresos o Gastos (Caja Chica)" icon={PlusCircle} onClick={() => setDialogOpen(true)} />
+                <ActionCard title="Registrar Movimiento" description="Ingresos, Gastos o Transferencias" icon={PlusCircle} onClick={() => setDialogOpen(true)} />
                 <ActionCard title="Solicitar Préstamo" description="A central u otra sucursal" icon={Landmark} onClick={() => {}} disabled />
                 <ActionCard title="Enviar a Capital" description="Devolver fondos a central" icon={Send} onClick={() => {}} disabled />
             </div>
@@ -179,7 +171,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             <Card>
                 <CardHeader>
                     <CardTitle>Historial de Transacciones (Caja Chica)</CardTitle>
-                    <CardDescription>Últimos movimientos de ingresos y gastos de la sucursal.</CardDescription>
+                    <CardDescription>Últimos movimientos de ingresos, gastos y transferencias de la sucursal.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      {transactions.length > 0 ? transactions.map(tx => (

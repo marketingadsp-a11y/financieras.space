@@ -20,12 +20,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 type SucursalTransactionDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (amount: number, description: string) => Promise<boolean>;
+  onSubmit: (type: 'expense' | 'deposit' | 'transfer_to_loan_balance', amount: number, description: string) => Promise<boolean>;
   currentBalance: number;
 };
 
 export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, currentBalance }: SucursalTransactionDialogProps) {
-  const [mode, setMode] = React.useState<'deposit' | 'expense'>('expense');
+  const [mode, setMode] = React.useState<'deposit' | 'expense' | 'transfer_to_loan_balance'>('expense');
   const [amount, setAmount] = React.useState<number | "">("");
   const [description, setDescription] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -37,20 +37,23 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, currentBa
       setError("El monto debe ser un número positivo.");
       return;
     }
-    if (!description.trim()) {
-        setError("La descripción es requerida.");
+    if (!description.trim() && mode !== 'transfer_to_loan_balance') {
+        setError("La descripción es requerida para ingresos y gastos.");
         return;
     }
-    if (mode === 'expense' && amount > currentBalance) {
-      setError("No hay fondos suficientes en la sucursal para este gasto.");
+    if ((mode === 'expense' || mode === 'transfer_to_loan_balance') && amount > currentBalance) {
+      setError("No hay fondos suficientes en la Caja Chica para esta operación.");
       return;
     }
 
     setError(null);
     setIsSubmitting(true);
     
-    // The parent's `onSubmit` now gets the mode from here
-    const success = await onSubmit(amount, description);
+    const finalDescription = mode === 'transfer_to_loan_balance' 
+        ? `Transferencia a Caja de Préstamo` 
+        : description;
+
+    const success = await onSubmit(mode, amount, finalDescription);
     setIsSubmitting(false);
 
     if (success) {
@@ -81,15 +84,15 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, currentBa
         <DialogHeader>
           <DialogTitle>Registrar Movimiento</DialogTitle>
           <DialogDescription>
-            Registra un nuevo ingreso o gasto para la sucursal.
+            Registra un nuevo ingreso, gasto o transferencia para la sucursal.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
-                <RadioGroup defaultValue="expense" value={mode} onValueChange={(value) => setMode(value as any)} className="grid grid-cols-2 gap-4">
+                <RadioGroup defaultValue="expense" value={mode} onValueChange={(value) => setMode(value as any)} className="grid grid-cols-3 gap-4">
                   <div>
                     <RadioGroupItem value="expense" id="r-expense" className="peer sr-only" />
-                    <Label htmlFor="r-expense" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                    <Label htmlFor="r-expense" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-destructive [&:has([data-state=checked])]:border-destructive">
                       Gasto
                     </Label>
                   </div>
@@ -97,6 +100,12 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, currentBa
                     <RadioGroupItem value="deposit" id="r-deposit" className="peer sr-only" />
                     <Label htmlFor="r-deposit" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
                       Ingreso
+                    </Label>
+                  </div>
+                   <div>
+                    <RadioGroupItem value="transfer_to_loan_balance" id="r-transfer" className="peer sr-only" />
+                    <Label htmlFor="r-transfer" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-blue-500 [&:has([data-state=checked])]:border-blue-500">
+                      Transferir
                     </Label>
                   </div>
                 </RadioGroup>
@@ -117,15 +126,17 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, currentBa
                         />
                     </div>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="description">Descripción</Label>
-                     <Textarea
-                        id="description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder={`Ej. ${mode === 'expense' ? 'Pago de renta' : 'Venta del día'}`}
-                    />
-                </div>
+                {mode !== 'transfer_to_loan_balance' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="description">Descripción</Label>
+                        <Textarea
+                            id="description"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder={`Ej. ${mode === 'expense' ? 'Pago de renta' : 'Venta del día'}`}
+                        />
+                    </div>
+                )}
                 {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             </div>
             <DialogFooter>
@@ -140,4 +151,3 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, currentBa
     </Dialog>
   );
 }
-
