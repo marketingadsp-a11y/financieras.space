@@ -97,27 +97,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const publicPaths = ['/login'];
     const pathIsPublic = publicPaths.includes(pathname);
-    const superAdminOnlyPaths = ['/settings/admins', '/settings/super-admins', '/admin-users'];
+    const superAdminOnlyPaths = ['/settings/super-admins', '/admin-users'];
+    const adminRootPath = '/settings/admins';
 
     if (!user && !pathIsPublic) {
       router.push('/login');
     } else if (user) {
-        // If user is logged in
         if (pathIsPublic) {
-            // If on a public page, redirect to their main dashboard
             if (user.isSuperAdmin && !impersonation) {
-                router.replace('/settings/admins');
-                return;
+                router.replace(adminRootPath);
+            } else {
+                router.replace('/tools');
             }
+            return;
+        }
+        
+        if (!user.isSuperAdmin && (superAdminOnlyPaths.some(p => pathname.startsWith(p)) || pathname === adminRootPath)) {
             router.replace('/tools');
+            return;
+        }
 
-        } else if (!user.isSuperAdmin && superAdminOnlyPaths.some(p => pathname.startsWith(p))) {
-            // If a non-super-admin tries to access a super-admin only path, redirect them
-            router.replace('/tools');
-        } else if (pathname === '/' && !impersonation) {
-             // Redirect from root based on role
-            if (user.isSuperAdmin) {
-                router.replace('/settings/admins');
+        if (pathname === '/') {
+            if (user.isSuperAdmin && !impersonation) {
+                router.replace(adminRootPath);
             } else {
                 router.replace('/tools');
             }
@@ -269,8 +271,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const hasPermission = (id: string, permission: string): boolean => {
     if (!user) return false;
     
-    if (user.isSuperAdmin || (user.accessibleTools?.includes('cartera-vencida') && !user.isPlazaUser)) {
-      return true; // Admins have all permissions for now.
+    // SuperAdmins and regular Admins (not tool/plaza users) have all permissions for their tools.
+    if (user.isSuperAdmin || (!user.isToolAdmin && !user.isPlazaUser)) {
+      return true;
     }
     
     if (user.isToolAdmin) {
