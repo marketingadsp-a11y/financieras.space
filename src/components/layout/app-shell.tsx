@@ -538,6 +538,32 @@ function NavLinks() {
                         ))}
                     </SidebarMenu>
                 </SidebarGroup>
+                <SidebarSeparator />
+                <SidebarGroup>
+                    <SidebarGroupLabel>AJUSTES</SidebarGroupLabel>
+                    <SidebarMenu>
+                         <SidebarMenuItem>
+                            <Link href="/settings/users">
+                                <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/users')} tooltip="Gestionar Usuarios">
+                                    <span>
+                                        <Users />
+                                        <span>Gestionar Usuarios</span>
+                                    </span>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <Link href="/settings/company-profile">
+                                <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/company-profile')} tooltip="Perfil de Empresa">
+                                    <span>
+                                        <Briefcase />
+                                        <span>Perfil de Empresa</span>
+                                    </span>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarGroup>
             </>
         )
   }
@@ -737,23 +763,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-muted-foreground font-normal">{getUserRoleLabel()}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {!user.isSuperAdmin && (
-                <>
-                  <Link href="/settings/users">
-                    <DropdownMenuItem>
-                      <Users className="mr-2 h-4 w-4" />
-                      <span>Gestionar Usuarios</span>
-                    </DropdownMenuItem>
-                  </Link>
-                  <Link href="/settings/company-profile">
-                    <DropdownMenuItem>
-                      <Briefcase className="mr-2 h-4 w-4" />
-                      <span>Perfil de Empresa</span>
-                    </DropdownMenuItem>
-                  </Link>
-                  <DropdownMenuSeparator />
-                </>
-              )}
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Cerrar Sesión</span>
@@ -768,5 +777,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
