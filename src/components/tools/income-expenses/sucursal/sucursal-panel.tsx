@@ -291,7 +291,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                         </CardContent>
                         <CardFooter>
                             <Button className="w-full" variant="secondary" onClick={() => setTransferDialogOpen(true)} disabled={!canTransferToCentral}>
-                                <Send className="mr-2 h-4 w-4" /> Transferir a Capital
+                                <Send className="mr-2 h-4 w-4" /> Transferir
                             </Button>
                         </CardFooter>
                     </Card>

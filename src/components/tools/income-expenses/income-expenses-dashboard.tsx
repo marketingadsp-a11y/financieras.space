@@ -194,7 +194,7 @@ export function IncomeExpensesDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard de Gastos e Ingresos</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Panel de Gastos e Ingresos</h1>
         <Button variant="ghost" size="icon" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
         </Button>
