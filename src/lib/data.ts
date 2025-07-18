@@ -12,6 +12,7 @@ export type Admin = {
   password?: string;
   accessibleTools?: string[];
   createdBy?: string;
+  linkedAdminIds?: string[];
 };
 
 export const INCOME_EXPENSES_PERMISSIONS = {

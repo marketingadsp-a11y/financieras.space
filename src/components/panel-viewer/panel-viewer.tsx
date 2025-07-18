@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
-import { getAdmins } from "@/services/admin-service";
+import { getAdmins, getAdminById } from "@/services/admin-service";
 import type { Admin } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Loader2, LogIn, Search, Building } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const AdminCard = ({ admin, onImpersonate, isImpersonating }: { admin: Admin, onImpersonate: (admin: Admin) => void, isImpersonating: boolean }) => {
     const [isProcessing, setIsProcessing] = React.useState(false);
@@ -51,25 +51,35 @@ const AdminCard = ({ admin, onImpersonate, isImpersonating }: { admin: Admin, on
 
 export function PanelViewer() {
   const { user, impersonateUser } = useAuth();
+  const { toast } = useToast();
   const [admins, setAdmins] = React.useState<Admin[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isImpersonating, setIsImpersonating] = React.useState(false);
 
   React.useEffect(() => {
-    if (user?.isSuperAdmin) {
-      getAdmins()
-        .then((data) => {
-          setAdmins(data);
-        })
-        .catch(() => {
-          // Handle error
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
+    const fetchAdmins = async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            if (user.isSuperAdmin) {
+                const data = await getAdmins();
+                setAdmins(data);
+            } else if (user.linkedAdminIds && user.linkedAdminIds.length > 0) {
+                const linkedAdminPromises = user.linkedAdminIds.map(id => getAdminById(id));
+                const linkedAdmins = await Promise.all(linkedAdminPromises);
+                setAdmins(linkedAdmins.filter((a): a is Admin => a !== null));
+            } else {
+                setAdmins([]);
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los paneles de administrador.' });
+        } finally {
+            setIsLoading(false);
+        }
     }
-  }, [user]);
+    fetchAdmins();
+  }, [user, toast]);
 
   const handleImpersonate = async (adminToImpersonate: Admin) => {
     setIsImpersonating(true);
@@ -115,9 +125,12 @@ export function PanelViewer() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Visualizador de Paneles</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Cambiar de Panel</h1>
             <p className="text-muted-foreground">
-            Selecciona un administrador para ingresar a su panel y gestionar sus herramientas.
+              {user?.isSuperAdmin 
+                ? "Selecciona un administrador para ingresar a su panel."
+                : "Selecciona uno de los paneles a los que tienes acceso."
+              }
             </p>
         </div>
         <div className="relative w-full md:max-w-xs">
@@ -177,8 +190,8 @@ export function PanelViewer() {
       ) : (
         <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-                <p>No se encontraron administradores.</p>
-                <p className="text-sm">{searchTerm ? "Intenta con otro término de búsqueda." : "Crea un nuevo administrador para empezar."}</p>
+                <p>No se encontraron paneles.</p>
+                <p className="text-sm">{user?.isSuperAdmin ? "Crea un nuevo administrador para empezar." : "No tienes paneles vinculados. Contacta a tu Super Administrador."}</p>
             </CardContent>
         </Card>
       )}

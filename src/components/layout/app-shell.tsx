@@ -26,7 +26,8 @@ import {
   Folder,
   Folders,
   Landmark,
-  ShieldAlert
+  ShieldAlert,
+  Swords,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -86,7 +87,7 @@ const superAdminNavItems: NavItem[] = [
         { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
     ]
   },
-  { href: "/panel-viewer", label: "Visualizador de Paneles", icon: LayoutDashboard, superAdminOnly: true },
+  { href: "/panel-viewer", label: "Cambiar de Panel", icon: Swords, superAdminOnly: true },
   { href: "/tools", label: "Herramientas", icon: Wrench, superAdminOnly: true },
   { 
     label: "Ajustes", 
@@ -105,6 +106,7 @@ const adminNavItems: NavItem[] = [
     { href: "/plazas", label: "Gestionar Plazas", icon: Building, adminOnly: true },
     { href: "/settings/users", label: "Gestionar Usuarios", icon: Users2, adminOnly: true },
     { href: "/tools", label: "Herramientas", icon: Wrench, adminOnly: true },
+    { href: "/panel-viewer", label: "Cambiar de Panel", icon: Swords, adminOnly: true },
     { 
         label: "Ajustes", 
         icon: Settings, 
@@ -506,7 +508,11 @@ function NavLinks() {
     if (user?.isSuperAdmin) {
       return superAdminNavItems;
     }
-    return adminNavItems;
+    const navs = [...adminNavItems];
+    if (user?.linkedAdminIds && user.linkedAdminIds.length > 0) {
+        return navs;
+    }
+    return navs.filter(item => item.href !== '/panel-viewer');
   }
 
   const availableNavItems = getNavItems();

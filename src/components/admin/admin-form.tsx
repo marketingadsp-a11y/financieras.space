@@ -16,6 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { Admin } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
+import * as React from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { getAdmins } from "@/services/admin-service";
+import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
@@ -23,6 +30,7 @@ const formSchema = z.object({
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
   prefix: z.string().min(1, "El prefijo es requerido."),
+  linkedAdminIds: z.array(z.string()).optional(),
 });
 
 
@@ -35,6 +43,13 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
     const { user } = useAuth();
     const isEditing = !!admin;
     const isSuperAdmin = user?.isSuperAdmin;
+    const [allAdmins, setAllAdmins] = React.useState<Admin[]>([]);
+    
+    React.useEffect(() => {
+        if(isSuperAdmin) {
+            getAdmins().then(setAllAdmins);
+        }
+    }, [isSuperAdmin]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(
@@ -48,6 +63,7 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
             password: "",
             status: admin?.status || "Activo",
             prefix: admin?.prefix || user?.prefix || "",
+            linkedAdminIds: admin?.linkedAdminIds || [],
         },
     });
 
@@ -66,6 +82,8 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
         
         onSubmit(dataToSend);
     };
+
+    const otherAdmins = allAdmins.filter(a => a.id !== admin?.id);
 
     return (
         <Form {...form}>
@@ -127,6 +145,73 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
                         </FormItem>
                     )}
                 />
+                {isSuperAdmin && (
+                  <FormField
+                    control={form.control}
+                    name="linkedAdminIds"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Ver Paneles de Otros Admins</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between"
+                              >
+                                {field.value && field.value.length > 0
+                                  ? `${field.value.length} admin(s) seleccionado(s)`
+                                  : "Seleccionar admins..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0">
+                            <Command>
+                              <CommandInput placeholder="Buscar admin..." />
+                              <CommandList>
+                                <CommandEmpty>No se encontraron admins.</CommandEmpty>
+                                <CommandGroup>
+                                  {otherAdmins.map((a) => (
+                                    <CommandItem
+                                      value={a.id}
+                                      key={a.id}
+                                      onSelect={() => {
+                                        const currentValue = field.value || [];
+                                        const newValue = currentValue.includes(a.id)
+                                          ? currentValue.filter((id) => id !== a.id)
+                                          : [...currentValue, a.id];
+                                        field.onChange(newValue);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          (field.value || []).includes(a.id)
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {a.name} ({a.prefix})
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <div className="pt-2">
+                            {field.value?.map(id => {
+                                const linked = allAdmins.find(a => a.id === id);
+                                return linked ? <Badge key={id} variant="secondary" className="mr-1">{linked.name}</Badge> : null;
+                            })}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                     control={form.control}
                     name="status"

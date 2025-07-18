@@ -23,6 +23,7 @@ interface User {
   sucursalAccess?: SucursalAccess[];
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
+  linkedAdminIds?: string[];
 }
 
 interface ImpersonationInfo {
@@ -82,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const parsedOriginalUser = JSON.parse(originalUser);
         setImpersonation({ 
             username: parsedUser.name || parsedUser.username, 
-            role: parsedOriginalUser.isSuperAdmin ? 'Admin' : 'Unknown',
+            role: 'Admin',
             prefix: parsedUser.prefix,
         });
       }
@@ -134,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       const admin = await getAdminByUsername(usernamePart, prefix);
       if (admin && admin.password === pass && admin.status === "Activo") {
-         const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy };
+         const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy, linkedAdminIds: admin.linkedAdminIds };
          handleSuccessfulLogin(userData);
          return true;
       } else if (admin && admin.status === "Inactivo") {
@@ -170,7 +171,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const impersonateUser = async (userId: string, role: 'Admin' | 'ToolAdmin' | 'PlazaUser') => {
-    if (!user || !user.isSuperAdmin) return;
+    if (!user) return;
     
     let impersonatedUser: any | null = null;
     let userRole = '';
@@ -198,6 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 accessibleTools: impersonatedUser.accessibleTools || [],
                 prefix: impersonatedUser.prefix,
                 createdBy: impersonatedUser.createdBy,
+                linkedAdminIds: impersonatedUser.linkedAdminIds,
             };
         } else if (role === 'ToolAdmin') {
             userData = {
