@@ -47,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { getCustomizedTools } from "@/lib/data";
+import { Separator } from "@/components/ui/separator";
 
 // Reusable Dialog for Daily Record Import
 const DailyRecordImportDialog = ({
@@ -276,20 +277,13 @@ const DailyRecordDeleteDialog = ({
 
 export function ToolsManagement() {
   const { user } = useAuth();
-  const [customTools, setCustomTools] = React.useState<Tool[]>(getCustomizedTools());
-
-  React.useEffect(() => {
-    const updateTools = () => setCustomTools(getCustomizedTools());
-    window.addEventListener('storage', updateTools);
-    updateTools(); // Initial call
-    return () => window.removeEventListener('storage', updateTools);
-  }, []);
+  const allCustomTools = getCustomizedTools();
 
   if (user && !user.isSuperAdmin) {
-    return <AdminToolsView customTools={customTools} />;
+    return <AdminToolsView customTools={allCustomTools} />;
   }
 
-  return <SuperAdminToolsView customTools={customTools} />;
+  return <SuperAdminToolsView customTools={allCustomTools} />;
 }
 
 function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
@@ -393,6 +387,9 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
     }
   };
 
+  const assigned = admins.filter(admin => selectedAdmins.has(admin.id));
+  const unassigned = admins.filter(admin => !selectedAdmins.has(admin.id));
+
   return (
     <div className="space-y-8">
       <div>
@@ -443,7 +440,7 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
       
       {/* Access Management Dialog */}
       <Dialog open={isAccessModalOpen} onOpenChange={setAccessModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Gestionar Acceso para {selectedTool?.name}</DialogTitle>
             <DialogDescription>
@@ -455,29 +452,55 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
                 <Loader2 className="mr-2 h-8 w-8 animate-spin" />
              </div>
           ) : (
-             <div className="space-y-2 py-4 max-h-[400px] overflow-y-auto pr-2">
-              {admins.map((admin) => {
-                const isSelected = selectedAdmins.has(admin.id);
-                return (
-                  <div 
-                    key={admin.id} 
-                    onClick={() => handleAdminSelection(admin.id)}
-                    className={cn(
-                        "flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative",
-                        isSelected ? "bg-primary/10 border-primary/50 shadow-sm" : "hover:bg-muted/50"
-                    )}
-                  >
-                    <Avatar className="h-9 w-9">
-                        <AvatarFallback>{admin.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-semibold">{admin.name}</p>
-                      <p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p>
+            <div className="space-y-4 py-4 max-h-[50vh] overflow-y-auto pr-2">
+                <div>
+                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Asignados ({assigned.length})</h4>
+                    <div className="space-y-2">
+                        {assigned.length > 0 ? assigned.map((admin) => (
+                            <div 
+                                key={admin.id} 
+                                onClick={() => handleAdminSelection(admin.id)}
+                                className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative bg-primary/10 border-primary/50 shadow-sm"
+                            >
+                                <Avatar className="h-9 w-9">
+                                    <AvatarFallback>{admin.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <p className="font-semibold">{admin.name}</p>
+                                    <p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p>
+                                </div>
+                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                            </div>
+                        )) : (
+                            <p className="text-sm text-center text-muted-foreground py-4">Ningún administrador asignado.</p>
+                        )}
                     </div>
-                    {isSelected && <CheckCircle2 className="h-5 w-5 text-primary absolute top-3 right-3" />}
-                  </div>
-                )
-              })}
+                </div>
+
+                <Separator />
+                
+                <div>
+                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Por Asignar ({unassigned.length})</h4>
+                    <div className="space-y-2">
+                        {unassigned.length > 0 ? unassigned.map((admin) => (
+                            <div 
+                                key={admin.id} 
+                                onClick={() => handleAdminSelection(admin.id)}
+                                className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative hover:bg-muted/50"
+                            >
+                                <Avatar className="h-9 w-9">
+                                    <AvatarFallback>{admin.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <p className="font-semibold">{admin.name}</p>
+                                    <p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p>
+                                </div>
+                            </div>
+                        )) : (
+                             <p className="text-sm text-center text-muted-foreground py-4">Ningún administrador por asignar.</p>
+                        )}
+                    </div>
+                </div>
             </div>
           )}
           <DialogFooter>
