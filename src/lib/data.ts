@@ -25,6 +25,7 @@ export const INCOME_EXPENSES_PERMISSIONS = {
     CAN_VIEW_BALANCE: 'Ver Balance',
     CAN_TRANSACT: 'Registrar Transacciones',
     CAN_TRANSFER_TO_CENTRAL: 'Enviar a Capital',
+    CAN_MANAGE_CATEGORIES: 'Gestionar Categorías',
 } as const;
 export type IncomeExpensesPermission = keyof typeof INCOME_EXPENSES_PERMISSIONS;
 

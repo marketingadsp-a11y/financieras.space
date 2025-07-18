@@ -340,7 +340,7 @@ function LoanControlNav() {
 
 function NavLinks() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [customTools, setCustomTools] = React.useState<Tool[]>(getCustomizedTools());
 
 
@@ -423,6 +423,17 @@ function NavLinks() {
       const isToolAdminUser = user?.isToolAdmin;
       const mainNavItems = isToolAdminUser ? [incomeExpensesNavItems[0]] : incomeExpensesNavItems;
 
+      // ToolAdmin can see categories if they have permission for any assigned sucursal
+      const canManageCategories = user?.sucursalAccess?.some(sa => sa.permissions.includes('CAN_MANAGE_CATEGORIES'));
+      const settingsNavItems = incomeExpensesSettingsItems.filter(item => {
+        if (isToolAdminUser) {
+            if (item.href?.includes('categories')) return canManageCategories;
+            return false; // Hide other settings for tool admin
+        }
+        return true; // Show all settings for normal admin
+      });
+
+
       return (
       <>
         <SidebarGroup>
@@ -442,11 +453,11 @@ function NavLinks() {
             ))}
           </SidebarMenu>
         </SidebarGroup>
-        {!isToolAdminUser && (
+        {settingsNavItems.length > 0 && (
              <SidebarGroup>
                 <SidebarGroupLabel>CONFIGURACIÓN</SidebarGroupLabel>
                 <SidebarMenu>
-                    {incomeExpensesSettingsItems.map((item) => (
+                    {settingsNavItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                         <Link href={item.href!}>
                         <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
