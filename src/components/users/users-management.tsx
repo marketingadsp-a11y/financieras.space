@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, Loader2, Users2, Landmark } from "lucide-react";
+import { PlusCircle, Loader2, Users2, Landmark, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UsersTable } from "@/components/users/users-table";
 import { UserForm } from "@/components/users/user-form";
@@ -12,12 +12,13 @@ import { getCustomizedTools } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getPlazaUsersByPrefix, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
-import { getToolAdmins, addToolAdmin, updateToolAdmin, deleteToolAdmin } from "@/services/tool-admin-service";
+import { getToolAdmins, addToolAdmin, updateToolAdmin, deleteToolAdmin as deleteToolAdminService } from "@/services/tool-admin-service";
 import { getPlazas } from "@/services/plaza-service";
 import { getSucursales } from "@/services/income-expenses-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminDashboard } from "../admin/admin-dashboard";
 
 
 export function UsersManagement() {
@@ -145,7 +146,7 @@ export function UsersManagement() {
 
   const handleDeleteToolAdmin = async (adminId: string) => {
        try {
-        await deleteToolAdmin(adminId);
+        await deleteToolAdminService(adminId);
         fetchData();
         toast({ title: "Éxito", description: "Usuario de herramienta eliminado." });
       } catch (error) {
@@ -177,7 +178,7 @@ export function UsersManagement() {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="tool-admins">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="tool-admins">
                     <Landmark className="mr-2"/>
                     {toolAdminToolName}
@@ -185,6 +186,10 @@ export function UsersManagement() {
                 <TabsTrigger value="plaza-users">
                     <Users2 className="mr-2"/>
                     {plazaUserToolName}
+                </TabsTrigger>
+                <TabsTrigger value="admins">
+                    <Shield className="mr-2"/>
+                    Administradores
                 </TabsTrigger>
             </TabsList>
 
@@ -253,6 +258,12 @@ export function UsersManagement() {
                     </CardContent>
                 </Card>
             </TabsContent>
+
+            {/* Admins Tab */}
+            <TabsContent value="admins" className="mt-6">
+                <AdminDashboard />
+            </TabsContent>
+
         </Tabs>
       </CardContent>
     </Card>
