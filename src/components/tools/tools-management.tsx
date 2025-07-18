@@ -407,10 +407,9 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
     }, {} as Record<string, { assigned: Admin[], unassigned: Admin[] }>);
   }, [admins, selectedAdmins]);
   
-  const getCompanyName = (prefix: string) => {
-      if (prefix === 'Sin Prefijo') return prefix;
-      const profile = companyProfiles.find(p => p.id === prefix);
-      return profile?.companyName || prefix;
+  const getCompanyProfile = (prefix: string) => {
+      if (prefix === 'Sin Prefijo') return null;
+      return companyProfiles.find(p => p.id === prefix);
   };
 
   return (
@@ -477,11 +476,20 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
           ) : (
             <div className="py-4 max-h-[60vh] overflow-y-auto pr-2">
                 <Accordion type="multiple" className="w-full space-y-2">
-                    {Object.entries(groupedAdmins).map(([prefix, { assigned, unassigned }]) => (
-                        <AccordionItem key={prefix} value={prefix} className="border rounded-md px-2 bg-muted/20">
+                    {Object.entries(groupedAdmins).map(([prefix, { assigned, unassigned }]) => {
+                       const profile = getCompanyProfile(prefix);
+                       const companyName = profile?.companyName || prefix;
+                       const borderColor = profile?.loginBackgroundColor;
+                       return (
+                        <AccordionItem 
+                            key={prefix} 
+                            value={prefix} 
+                            className="rounded-md px-2 bg-muted/20 border-2"
+                            style={{ borderColor: borderColor || 'hsl(var(--border))' }}
+                        >
                             <AccordionTrigger className="text-base hover:no-underline">
                                 <div className="flex-1 text-left">
-                                    <p className="font-semibold">{getCompanyName(prefix)}</p>
+                                    <p className="font-semibold">{companyName}</p>
                                     <p className="text-xs text-muted-foreground">{assigned.length} de {assigned.length + unassigned.length} admins con acceso.</p>
                                 </div>
                             </AccordionTrigger>
@@ -498,21 +506,24 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
                                         )) : <p className="text-sm text-center text-muted-foreground py-2">Ningún administrador asignado.</p>}
                                     </div>
                                 </div>
-                                <Separator />
-                                <div>
-                                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Por Asignar ({unassigned.length})</h4>
-                                    <div className="space-y-2">
-                                        {unassigned.length > 0 ? unassigned.map((admin) => (
-                                            <div key={admin.id} onClick={() => handleAdminSelection(admin.id)} className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative hover:bg-muted/50">
-                                                <Avatar className="h-9 w-9"><AvatarFallback>{admin.name.charAt(0)}</AvatarFallback></Avatar>
-                                                <div className="flex-1"><p className="font-semibold">{admin.name}</p><p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p></div>
-                                            </div>
-                                        )) : <p className="text-sm text-center text-muted-foreground py-2">Ningún administrador por asignar.</p>}
+                                {unassigned.length > 0 && <Separator />}
+                                {unassigned.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Por Asignar ({unassigned.length})</h4>
+                                        <div className="space-y-2">
+                                            {unassigned.map((admin) => (
+                                                <div key={admin.id} onClick={() => handleAdminSelection(admin.id)} className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative hover:bg-muted/50">
+                                                    <Avatar className="h-9 w-9"><AvatarFallback>{admin.name.charAt(0)}</AvatarFallback></Avatar>
+                                                    <div className="flex-1"><p className="font-semibold">{admin.name}</p><p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p></div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </AccordionContent>
                         </AccordionItem>
-                    ))}
+                        )
+                    })}
                 </Accordion>
             </div>
           )}
