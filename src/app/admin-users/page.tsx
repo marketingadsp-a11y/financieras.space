@@ -1,3 +1,4 @@
+"use client";
 
 import { AdminUsersManagement } from "@/components/users/admin-users-management";
 import { getCustomizedTools } from "@/lib/data";
