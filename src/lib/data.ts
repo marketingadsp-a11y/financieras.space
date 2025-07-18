@@ -2,6 +2,12 @@
 import type { Timestamp } from "firebase/firestore";
 import { FolderKanban, Landmark, BookCheck, Files } from "lucide-react";
 
+export type LinkedAdminAccess = {
+  adminId: string;
+  adminName: string;
+  allowedTools: string[];
+}
+
 export type Admin = {
   id: string;
   name: string;
@@ -12,7 +18,7 @@ export type Admin = {
   password?: string;
   accessibleTools?: string[];
   createdBy?: string;
-  linkedAdminIds?: string[];
+  linkedAdmins?: LinkedAdminAccess[];
 };
 
 export const INCOME_EXPENSES_PERMISSIONS = {

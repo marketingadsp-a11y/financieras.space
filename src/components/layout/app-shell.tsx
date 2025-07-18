@@ -509,7 +509,7 @@ function NavLinks() {
       return superAdminNavItems;
     }
     const navs = [...adminNavItems];
-    if (user?.linkedAdminIds && user.linkedAdminIds.length > 0) {
+    if (user?.linkedAdmins && user.linkedAdmins.length > 0) {
         return navs;
     }
     return navs.filter(item => item.href !== '/panel-viewer');

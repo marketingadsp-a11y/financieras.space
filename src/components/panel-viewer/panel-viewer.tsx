@@ -12,14 +12,25 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { getCustomizedTools } from "@/lib/data";
 
-const AdminCard = ({ admin, onImpersonate, isImpersonating }: { admin: Admin, onImpersonate: (admin: Admin) => void, isImpersonating: boolean }) => {
+const AdminCard = ({ admin, onImpersonate, isImpersonating, linkedAdminData }: { admin: Admin, onImpersonate: (admin: Admin, allowedTools?: string[]) => void, isImpersonating: boolean, linkedAdminData?: { allowedTools: string[] } }) => {
     const [isProcessing, setIsProcessing] = React.useState(false);
+    const customTools = getCustomizedTools();
 
     const handleImpersonateClick = async () => {
         setIsProcessing(true);
-        await onImpersonate(admin);
+        await onImpersonate(admin, linkedAdminData?.allowedTools);
+        // Processing will stop on navigation or error
     };
+    
+    const allowedToolNames = React.useMemo(() => {
+        if (!linkedAdminData) return null;
+        return linkedAdminData.allowedTools.map(toolId => {
+            return customTools.find(t => t.id === toolId)?.name || toolId;
+        })
+    }, [linkedAdminData, customTools]);
 
     return (
         <Card className="group flex flex-col text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-4 border-transparent hover:border-primary">
@@ -33,6 +44,14 @@ const AdminCard = ({ admin, onImpersonate, isImpersonating }: { admin: Admin, on
             <CardContent className="flex-grow">
                 <CardTitle className="text-lg">{admin.name}</CardTitle>
                 <p className="text-sm text-muted-foreground">{admin.prefix}.{admin.username}</p>
+                 {allowedToolNames && (
+                    <div className="mt-2 text-xs">
+                        <p className="font-semibold">Acceso a:</p>
+                        <div className="flex flex-wrap gap-1 justify-center mt-1">
+                            {allowedToolNames.map(name => <Badge key={name} variant="secondary">{name}</Badge>)}
+                        </div>
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="p-4">
                  <Button 
@@ -64,11 +83,11 @@ export function PanelViewer() {
         try {
             if (user.isSuperAdmin) {
                 const data = await getAdmins();
-                setAdmins(data);
-            } else if (user.linkedAdminIds && user.linkedAdminIds.length > 0) {
-                const linkedAdminPromises = user.linkedAdminIds.map(id => getAdminById(id));
-                const linkedAdmins = await Promise.all(linkedAdminPromises);
-                setAdmins(linkedAdmins.filter((a): a is Admin => a !== null));
+                setAdmins(data.filter(a => a.id !== user.id)); // SuperAdmins see all except themselves
+            } else if (user.linkedAdmins && user.linkedAdmins.length > 0) {
+                const linkedAdminPromises = user.linkedAdmins.map(linked => getAdminById(linked.adminId));
+                const linkedAdminsDetails = await Promise.all(linkedAdminPromises);
+                setAdmins(linkedAdminsDetails.filter((a): a is Admin => a !== null));
             } else {
                 setAdmins([]);
             }
@@ -81,10 +100,10 @@ export function PanelViewer() {
     fetchAdmins();
   }, [user, toast]);
 
-  const handleImpersonate = async (adminToImpersonate: Admin) => {
+  const handleImpersonate = async (adminToImpersonate: Admin, allowedTools?: string[]) => {
     setIsImpersonating(true);
     try {
-        await impersonateUser(adminToImpersonate.id, 'Admin');
+        await impersonateUser(adminToImpersonate.id, 'Admin', allowedTools);
     } catch (e) {
         setIsImpersonating(false);
     }
@@ -161,28 +180,36 @@ export function PanelViewer() {
 
             <TabsContent value="Todos" className="pt-6">
                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {filteredAdmins.sort((a,b) => a.name.localeCompare(b.name)).map((admin) => (
-                        <AdminCard 
-                            key={admin.id} 
-                            admin={admin}
-                            onImpersonate={handleImpersonate}
-                            isImpersonating={isImpersonating}
-                        />
-                    ))}
+                    {filteredAdmins.sort((a,b) => a.name.localeCompare(b.name)).map((admin) => {
+                        const linkedAdminData = user?.linkedAdmins?.find(la => la.adminId === admin.id);
+                        return (
+                            <AdminCard 
+                                key={admin.id} 
+                                admin={admin}
+                                onImpersonate={handleImpersonate}
+                                isImpersonating={isImpersonating}
+                                linkedAdminData={linkedAdminData}
+                            />
+                        )
+                    })}
                  </div>
             </TabsContent>
 
             {companyPrefixes.map(prefix => (
                 <TabsContent key={prefix} value={prefix} className="pt-6">
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                         {(groupedAdmins[prefix] || []).sort((a,b) => a.name.localeCompare(b.name)).map((admin) => (
-                            <AdminCard 
-                                key={admin.id} 
-                                admin={admin}
-                                onImpersonate={handleImpersonate}
-                                isImpersonating={isImpersonating}
-                            />
-                        ))}
+                         {(groupedAdmins[prefix] || []).sort((a,b) => a.name.localeCompare(b.name)).map((admin) => {
+                            const linkedAdminData = user?.linkedAdmins?.find(la => la.adminId === admin.id);
+                            return (
+                                <AdminCard 
+                                    key={admin.id} 
+                                    admin={admin}
+                                    onImpersonate={handleImpersonate}
+                                    isImpersonating={isImpersonating}
+                                    linkedAdminData={linkedAdminData}
+                                />
+                            )
+                        })}
                     </div>
                 </TabsContent>
             ))}

@@ -9,7 +9,7 @@ import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-adm
 import { getToolAdminByUsername, getToolAdminById } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
-import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission } from '@/lib/data';
+import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LinkedAdminAccess } from '@/lib/data';
 
 interface User {
   id: string;
@@ -23,7 +23,7 @@ interface User {
   sucursalAccess?: SucursalAccess[];
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
-  linkedAdminIds?: string[];
+  linkedAdmins?: LinkedAdminAccess[];
 }
 
 interface ImpersonationInfo {
@@ -39,7 +39,7 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   hasPermission: (id: string, permission: string) => boolean;
-  impersonateUser: (userId: string, role: 'Admin' | 'ToolAdmin' | 'PlazaUser') => Promise<void>;
+  impersonateUser: (userId: string, role: 'Admin' | 'ToolAdmin' | 'PlazaUser', allowedTools?: string[]) => Promise<void>;
   stopImpersonating: () => void;
 }
 
@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       const admin = await getAdminByUsername(usernamePart, prefix);
       if (admin && admin.password === pass && admin.status === "Activo") {
-         const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy, linkedAdminIds: admin.linkedAdminIds };
+         const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy, linkedAdmins: admin.linkedAdmins };
          handleSuccessfulLogin(userData);
          return true;
       } else if (admin && admin.status === "Inactivo") {
@@ -170,7 +170,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  const impersonateUser = async (userId: string, role: 'Admin' | 'ToolAdmin' | 'PlazaUser') => {
+  const impersonateUser = async (userId: string, role: 'Admin' | 'ToolAdmin' | 'PlazaUser', allowedTools?: string[]) => {
     if (!user) return;
     
     let impersonatedUser: any | null = null;
@@ -196,10 +196,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 username: impersonatedUser.username,
                 name: impersonatedUser.name,
                 isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false,
-                accessibleTools: impersonatedUser.accessibleTools || [],
+                accessibleTools: allowedTools || impersonatedUser.accessibleTools || [],
                 prefix: impersonatedUser.prefix,
                 createdBy: impersonatedUser.createdBy,
-                linkedAdminIds: impersonatedUser.linkedAdminIds,
+                linkedAdmins: impersonatedUser.linkedAdmins,
             };
         } else if (role === 'ToolAdmin') {
             userData = {
