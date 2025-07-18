@@ -38,7 +38,18 @@ export function UsersManagement() {
 
 
   const { toast } = useToast();
-  const allTools = getCustomizedTools();
+  const [customTools, setCustomTools] = React.useState(getCustomizedTools());
+
+  React.useEffect(() => {
+    // Effect to update tool names if they change in localStorage
+    const updateTools = () => setCustomTools(getCustomizedTools());
+    window.addEventListener('storage', updateTools);
+    updateTools(); // Initial call
+    return () => window.removeEventListener('storage', updateTools);
+  }, []);
+
+  const plazaUserToolName = customTools.find(t => t.id === 'cartera-vencida')?.name || 'Usuarios de Plaza';
+  const toolAdminToolName = customTools.find(t => t.id === 'income-expenses')?.name || 'Usuarios de Gastos/Ingresos';
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
@@ -149,7 +160,7 @@ export function UsersManagement() {
 
 
   // Admins can only assign tools they themselves have access to. SuperAdmins can assign any.
-  const adminTools = user?.isSuperAdmin ? allTools : allTools.filter(tool => user?.accessibleTools?.includes(tool.id));
+  const adminTools = user?.isSuperAdmin ? customTools : customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
   const plazaUserTools = adminTools.filter(tool => tool.id === 'cartera-vencida');
 
   return (
@@ -169,11 +180,11 @@ export function UsersManagement() {
             <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="plaza-users">
                     <Users2 className="mr-2"/>
-                    Usuarios de Plaza
+                    {plazaUserToolName}
                 </TabsTrigger>
                 <TabsTrigger value="tool-admins">
                     <Landmark className="mr-2"/>
-                    Usuarios Gastos/Ingresos
+                    {toolAdminToolName}
                 </TabsTrigger>
             </TabsList>
 
@@ -183,8 +194,8 @@ export function UsersManagement() {
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <div>
-                                <CardTitle className="text-xl">Usuarios de Plaza</CardTitle>
-                                <CardDescription>Gestiona usuarios con acceso a la herramienta "Cartera Vencida" y sus plazas.</CardDescription>
+                                <CardTitle className="text-xl">Usuarios de {plazaUserToolName}</CardTitle>
+                                <CardDescription>Gestiona usuarios con acceso a la herramienta "{plazaUserToolName}" y sus plazas.</CardDescription>
                             </div>
                             <Dialog open={isPlazaUserFormOpen} onOpenChange={(open) => { setIsPlazaUserFormOpen(open); if(!open) setEditingPlazaUser(null); }}>
                                 <DialogTrigger asChild>
@@ -192,7 +203,7 @@ export function UsersManagement() {
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-3xl">
                                     <DialogHeader>
-                                        <DialogTitle>{editingPlazaUser ? 'Editar' : 'Agregar'} Usuario de Plaza</DialogTitle>
+                                        <DialogTitle>{editingPlazaUser ? 'Editar' : 'Agregar'} Usuario de {plazaUserToolName}</DialogTitle>
                                         <CardDescription>El usuario se creará con el prefijo: <span className="font-bold">{user?.prefix}</span></CardDescription>
                                     </DialogHeader>
                                     <UserForm onSubmit={handlePlazaUserSubmit} user={editingPlazaUser} allPlazas={plazas} prefix={user?.prefix} adminTools={plazaUserTools}/>
@@ -216,8 +227,8 @@ export function UsersManagement() {
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <div>
-                                <CardTitle className="text-xl">Usuarios de Gastos/Ingresos</CardTitle>
-                                <CardDescription>Gestiona usuarios con acceso a la herramienta "Gastos e Ingresos" y sus sucursales.</CardDescription>
+                                <CardTitle className="text-xl">Usuarios de {toolAdminToolName}</CardTitle>
+                                <CardDescription>Gestiona usuarios con acceso a la herramienta "{toolAdminToolName}" y sus sucursales.</CardDescription>
                             </div>
                              <Dialog open={isToolAdminFormOpen} onOpenChange={(open) => { setIsToolAdminFormOpen(open); if(!open) setEditingToolAdmin(null); }}>
                                 <DialogTrigger asChild>
@@ -225,7 +236,7 @@ export function UsersManagement() {
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-2xl">
                                     <DialogHeader>
-                                        <DialogTitle>{editingToolAdmin ? 'Editar' : 'Agregar'} Usuario de Gastos/Ingresos</DialogTitle>
+                                        <DialogTitle>{editingToolAdmin ? 'Editar' : 'Agregar'} Usuario de {toolAdminToolName}</DialogTitle>
                                         <CardDescription>El usuario se creará con el prefijo: <span className="font-bold">{user?.prefix}</span></CardDescription>
                                     </DialogHeader>
                                     <ToolAdminForm onSubmit={handleToolAdminSubmit} admin={editingToolAdmin} sucursales={sucursales}/>
