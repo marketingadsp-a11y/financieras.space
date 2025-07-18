@@ -9,17 +9,19 @@ import { es } from "date-fns/locale";
 
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getSucursalById, getSucursalTransactions, getSucursalStats, performSucursalTransaction } from "@/services/income-expenses-service";
+import { getSucursalById, getSucursalTransactions, getSucursalStats, performSucursalTransaction, deleteSucursalTransaction, updateSucursalTransaction } from "@/services/income-expenses-service";
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, PiggyBank, Briefcase, MoveHorizontal, User, CalendarIcon, FilterX, FileText } from "lucide-react";
+import { Loader2, RefreshCw, Landmark, ArrowDown, ArrowUp, PlusCircle, Send, TrendingUp, TrendingDown, PiggyBank, Briefcase, MoveHorizontal, User, CalendarIcon, FilterX, FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { SucursalTransactionDialog } from "@/components/tools/income-expenses/sucursal/sucursal-transaction-dialog";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { TransferToCentralDialog } from "@/components/tools/income-expenses/sucursal/transfer-to-central-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
 const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
@@ -54,7 +56,7 @@ const ActionCard = ({ title, description, icon: Icon, onClick, disabled }: { tit
 );
 
 
-const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
+const TransactionRow = ({ tx, onEdit, onDelete, canEditDelete }: { tx: SucursalTransaction, onEdit: (tx: SucursalTransaction) => void, onDelete: (tx: SucursalTransaction) => void, canEditDelete: boolean }) => {
     const typeInfo = {
         deposit: { label: "Ingreso", icon: ArrowUp, color: "text-green-500", bg: "bg-green-500/10" },
         expense: { label: "Gasto", icon: ArrowDown, color: "text-red-500", bg: "bg-red-500/10" },
@@ -65,7 +67,7 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
     const descriptionTitle = tx.category ? tx.category : tx.type === 'deposit' ? 'Ingreso General' : tx.type === 'expense' ? 'Gasto General' : 'Envío a Capital';
 
     return (
-         <div className="flex items-center space-x-4 rounded-lg bg-muted/40 p-4">
+         <div className="flex items-center space-x-4 rounded-lg bg-muted/40 p-3">
             <div className={cn("flex h-10 w-10 items-center justify-center rounded-full", info.bg)}>
                 <info.icon className={cn("h-5 w-5", info.color)} />
             </div>
@@ -74,12 +76,32 @@ const TransactionRow = ({ tx }: { tx: SucursalTransaction }) => {
                 <p className="text-sm text-muted-foreground">{tx.description}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5"><User className="h-3 w-3" /> {tx.userPerformed}</p>
             </div>
-            <div className="flex flex-col items-end space-x-4">
+             <div className="flex flex-col items-end space-x-4">
                 <div className={cn("font-semibold", info.color)}>
                    ${tx.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </div>
                  <p className="text-xs text-muted-foreground">{format(tx.date, "dd MMM yyyy, p", { locale: es })}</p>
             </div>
+            {canEditDelete && (
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={() => onEdit(tx)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                        </DropdownMenuItem>
+                        <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
         </div>
     );
 };
@@ -93,9 +115,11 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     const [transactions, setTransactions] = React.useState<SucursalTransaction[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isTransactionDialogOpen, setTransactionDialogOpen] = React.useState(false);
+    const [editingTransaction, setEditingTransaction] = React.useState<SucursalTransaction | null>(null);
     const [isTransferDialogOpen, setTransferDialogOpen] = React.useState(false);
     const [startDate, setStartDate] = React.useState<Date | undefined>();
     const [endDate, setEndDate] = React.useState<Date | undefined>();
+    const [transactionToDelete, setTransactionToDelete] = React.useState<SucursalTransaction | null>(null);
     
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
@@ -138,17 +162,43 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
             return false;
         }
         try {
-            await performSucursalTransaction({
-                sucursalId,
-                userPerformed: user.name,
-                ...data
-            });
-            toast({ title: "Éxito", description: "Transacción realizada correctamente." });
+            if (editingTransaction) {
+                await updateSucursalTransaction(editingTransaction, { ...editingTransaction, ...data });
+                toast({ title: "Éxito", description: "Transacción actualizada." });
+            } else {
+                await performSucursalTransaction({
+                    sucursalId,
+                    userPerformed: user.name,
+                    ...data
+                });
+                toast({ title: "Éxito", description: "Transacción realizada correctamente." });
+            }
             await fetchData();
             return true;
         } catch (e: any) {
             toast({ variant: "destructive", title: "Error en la transacción", description: e.message });
             return false;
+        }
+    };
+    
+    const handleEditClick = (tx: SucursalTransaction) => {
+        setEditingTransaction(tx);
+        setTransactionDialogOpen(true);
+    };
+
+    const handleDeleteClick = (tx: SucursalTransaction) => {
+        setTransactionToDelete(tx);
+    };
+
+    const confirmDelete = async () => {
+        if (!transactionToDelete) return;
+        try {
+            await deleteSucursalTransaction(transactionToDelete.id);
+            toast({ title: "Éxito", description: "Transacción eliminada." });
+            await fetchData();
+            setTransactionToDelete(null);
+        } catch (e: any) {
+            toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo eliminar la transacción." });
         }
     };
 
@@ -253,9 +303,11 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         doc.save(`Reporte_${sucursal.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     };
     
-    const canViewBalance = hasPermission(sucursalId, 'CAN_VIEW_BALANCE');
-    const canTransact = hasPermission(sucursalId, 'CAN_TRANSACT');
-    const canTransferToCentral = hasPermission(sucursalId, 'CAN_TRANSFER_TO_CENTRAL');
+    const isAdmin = user ? !user.isToolAdmin && !user.isPlazaUser : false;
+    const canViewBalance = isAdmin || hasPermission(sucursalId, 'CAN_VIEW_BALANCE');
+    const canTransact = isAdmin || hasPermission(sucursalId, 'CAN_TRANSACT');
+    const canTransferToCentral = isAdmin || hasPermission(sucursalId, 'CAN_TRANSFER_TO_CENTRAL');
+    const canEditDelete = isAdmin;
 
     if (isLoading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de la sucursal...</div>;
@@ -335,7 +387,21 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      {filteredTransactions.length > 0 ? filteredTransactions.map(tx => (
-                        <TransactionRow key={tx.id} tx={tx} />
+                         <AlertDialog key={tx.id} open={transactionToDelete?.id === tx.id} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
+                            <TransactionRow tx={tx} onEdit={handleEditClick} onDelete={handleDeleteClick} canEditDelete={canEditDelete} />
+                             <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Estás seguro de eliminar esta transacción?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Esta acción es irreversible. El saldo de la sucursal se ajustará automáticamente para reflejar la eliminación de este movimiento.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                      )) : (
                         <div className="text-center py-10 text-muted-foreground">No hay transacciones para el rango de fechas seleccionado.</div>
                      )}
@@ -344,8 +410,9 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
 
             <SucursalTransactionDialog
                 isOpen={isTransactionDialogOpen}
-                onClose={() => setTransactionDialogOpen(false)}
+                onClose={() => { setTransactionDialogOpen(false); setEditingTransaction(null); }}
                 onSubmit={handleTransaction}
+                transactionToEdit={editingTransaction}
             />
 
             <TransferToCentralDialog

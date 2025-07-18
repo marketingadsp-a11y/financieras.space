@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import type { TransactionCategory } from "@/lib/data";
+import type { TransactionCategory, SucursalTransaction } from "@/lib/data";
 import { getTransactionCategories } from "@/services/transaction-category-service";
 import { useAuth } from "@/context/auth-context";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -35,6 +36,7 @@ type SucursalTransactionDialogProps = {
     category?: string;
     executive?: string;
   }) => Promise<boolean>;
+  transactionToEdit?: SucursalTransaction | null;
 };
 
 const formSchema = z.object({
@@ -56,7 +58,7 @@ const LucideIcon = ({ name, className }: { name: keyof typeof icons, className?:
 };
 
 
-export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: SucursalTransactionDialogProps) {
+export function SucursalTransactionDialog({ isOpen, onClose, onSubmit, transactionToEdit }: SucursalTransactionDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [categories, setCategories] = React.useState<TransactionCategory[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = React.useState(false);
@@ -84,11 +86,33 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
         .finally(() => setIsLoadingCategories(false));
     }
   }, [user?.prefix, isOpen]);
+  
+   React.useEffect(() => {
+    if (transactionToEdit) {
+      form.reset({
+        type: transactionToEdit.type,
+        amount: transactionToEdit.amount,
+        category: transactionToEdit.category,
+        executive: transactionToEdit.executive,
+        description: transactionToEdit.description,
+      });
+    } else {
+        form.reset({
+            type: 'deposit',
+            amount: undefined,
+            category: undefined,
+            executive: "",
+            description: "",
+        })
+    }
+  }, [transactionToEdit, form]);
 
   // When type changes, reset category if it doesn't belong to the new type
   React.useEffect(() => {
+    // don't reset if we are editing
+    if (transactionToEdit) return;
     form.setValue('category', undefined);
-  }, [watchType, form]);
+  }, [watchType, form, transactionToEdit]);
 
 
   const handleSubmit = async (values: FormValues) => {
@@ -106,22 +130,20 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
     setIsSubmitting(false);
 
     if (success) {
-      handleClose();
+      onClose();
     }
   };
-  
-  const handleClose = () => {
-    form.reset({ type: 'deposit', amount: undefined, category: undefined, description: "", executive: "" });
-    onClose();
-  }
   
   const currentCategories = categories.filter(c => c.type === (watchType === 'deposit' ? 'income' : 'expense'));
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Registrar Nueva Transacción</DialogTitle>
+          <DialogTitle>{transactionToEdit ? 'Editar' : 'Registrar'} Transacción</DialogTitle>
+           <DialogDescription>
+            {transactionToEdit ? 'Modifica los detalles de la transacción.' : 'Registra un nuevo ingreso o gasto para esta sucursal.'}
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
@@ -236,10 +258,10 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                 </div>
                 
                 <DialogFooter>
-                    <Button type="button" variant="ghost" onClick={handleClose}>Cancelar</Button>
+                    <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
                     <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Guardar Movimiento
+                        {transactionToEdit ? 'Guardar Cambios' : 'Guardar Movimiento'}
                     </Button>
                 </DialogFooter>
             </form>
@@ -248,4 +270,3 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
     </Dialog>
   );
 }
-
