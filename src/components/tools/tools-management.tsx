@@ -634,5 +634,3 @@ function AdminToolsView({ customTools }: { customTools: Tool[] }) {
         </div>
     );
 }
-
-    
