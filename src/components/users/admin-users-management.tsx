@@ -194,15 +194,14 @@ export function AdminUsersManagement() {
                                 <DialogTitle>{editingToolAdmin ? 'Editar' : 'Agregar'} Usuario de Herramienta</DialogTitle>
                                 <CardDescription>Crea un nuevo usuario con acceso a una herramienta específica.</CardDescription>
                             </DialogHeader>
-                            <ToolAdminForm onSubmit={handleToolAdminSubmit} admin={editingToolAdmin} sucursales={sucursales} />
+                            <ToolAdminForm onSubmit={handleToolAdminSubmit} admin={editingToolAdmin} sucursales={sucursales} admins={admins}/>
                         </DialogContent>
                     </Dialog>
                  </div>
                 {isLoading ? (
                     <div className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" /><span>Cargando usuarios...</span></div>
                 ) : (
-                    <p className="text-center p-4">Tabla de usuarios de herramientas aquí.</p>
-                    // <ToolAdminsTable data={toolAdmins} onEdit={handleEditToolAdminClick} onDelete={handleDeleteToolAdmin} />
+                    <UsersTable data={toolAdmins} onEdit={handleEditToolAdminClick} onDelete={handleDeleteToolAdmin} isSuperAdminView={true} />
                 )}
             </TabsContent>
         </Tabs>

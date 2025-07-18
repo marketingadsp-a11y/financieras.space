@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Shield, User, Building, Landmark, BookCheck, Files } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,7 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import type { PlazaUser } from "@/lib/data";
+import type { PlazaUser, ToolAdmin } from "@/lib/data";
+import { getCustomizedTools } from "@/lib/data";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,18 +34,28 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useAuth } from "@/context/auth-context";
+
+type CombinedUser = PlazaUser | ToolAdmin;
 
 type UsersTableProps = {
-    data: PlazaUser[];
-    onEdit: (user: PlazaUser) => void;
+    data: CombinedUser[];
+    onEdit: (user: any) => void;
     onDelete: (id: string) => void;
     isSuperAdminView?: boolean;
 }
 
+function isPlazaUser(user: any): user is PlazaUser {
+    return 'plazaAccess' in user;
+}
+
+function isToolAdmin(user: any): user is ToolAdmin {
+    return 'toolId' in user;
+}
+
 export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }: UsersTableProps) {
-  const { user } = useAuth();
   const [filter, setFilter] = React.useState("");
+  const allTools = getCustomizedTools();
+
   const filteredData = data.filter((user) =>
     user.name.toLowerCase().includes(filter.toLowerCase()) ||
     user.username.toLowerCase().includes(filter.toLowerCase()) ||
@@ -59,6 +70,16 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
         return "destructive";
     }
   };
+
+  const getToolIcon = (toolId: string) => {
+    const tool = allTools.find(t => t.id === toolId);
+    return tool ? tool.icon : User;
+  }
+
+  const getToolName = (toolId: string) => {
+    const tool = allTools.find(t => t.id === toolId);
+    return tool ? tool.name : "Herramienta Desconocida";
+  }
 
   return (
     <>
@@ -77,7 +98,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               <TableHead>Nombre</TableHead>
               <TableHead>Usuario</TableHead>
               {isSuperAdminView && <TableHead>Empresa (Prefijo)</TableHead>}
-              <TableHead>Plazas Asignadas</TableHead>
+              <TableHead>Acceso Principal</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
@@ -97,9 +118,15 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
                   )}
                    <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {user.plazaAccess.map(pa => (
-                        <Badge key={pa.plazaId} variant="outline">{pa.plazaName}</Badge>
+                      {isPlazaUser(user) && user.plazaAccess.map(pa => (
+                        <Badge key={pa.plazaId} variant="outline" className="gap-1.5"><Building className="h-3 w-3" />{pa.plazaName}</Badge>
                       ))}
+                      {isToolAdmin(user) && (
+                        <Badge variant="secondary" className="gap-1.5">
+                            {React.createElement(getToolIcon(user.toolId), { className: "h-3 w-3" })}
+                            {getToolName(user.toolId)}
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
