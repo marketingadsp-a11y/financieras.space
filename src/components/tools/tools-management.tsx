@@ -35,7 +35,6 @@ import { getPlazas } from "@/services/plaza-service";
 import { addMultipleDailyRecords, deleteDailyRecordsByPlaza } from "@/services/daily-record-service";
 import { parseDailyRecords } from "@/ai/flows/daily-record-parser-flow";
 import type { Admin, Tool, Plaza, DailyRecordEntry } from "@/lib/data";
-import { allTools } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, Wrench, CheckCircle2, ClipboardPaste, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -274,17 +273,17 @@ const DailyRecordDeleteDialog = ({
 };
 
 
-export function ToolsManagement() {
+export function ToolsManagement({ customTools }: { customTools: Tool[] }) {
   const { user } = useAuth();
 
   if (user && !user.isSuperAdmin) {
-    return <AdminToolsView />;
+    return <AdminToolsView customTools={customTools} />;
   }
 
-  return <SuperAdminToolsView />;
+  return <SuperAdminToolsView customTools={customTools} />;
 }
 
-function SuperAdminToolsView() {
+function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
   const [admins, setAdmins] = React.useState<Admin[]>([]);
   const [allPlazas, setAllPlazas] = React.useState<Plaza[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -395,7 +394,7 @@ function SuperAdminToolsView() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {allTools.map((tool) => (
+        {customTools.map((tool) => (
           <Card 
             key={tool.id} 
             className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5"
@@ -503,9 +502,9 @@ function SuperAdminToolsView() {
   );
 }
 
-function AdminToolsView() {
+function AdminToolsView({ customTools }: { customTools: Tool[] }) {
     const { user } = useAuth();
-    const accessibleUserTools = allTools.filter(tool => user?.accessibleTools?.includes(tool.id));
+    const accessibleUserTools = customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
     
     return (
         <div className="space-y-8">
@@ -552,3 +551,5 @@ function AdminToolsView() {
         </div>
     );
 }
+
+    

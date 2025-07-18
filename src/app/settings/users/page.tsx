@@ -1,6 +1,10 @@
 
 import { UsersManagement } from "@/components/users/users-management";
+import { getCustomizedTools } from "@/lib/data";
 
 export default function UsersSettingsPage() {
-  return <UsersManagement />;
+  const customTools = getCustomizedTools();
+  return <UsersManagement customTools={customTools} />;
 }
+
+    

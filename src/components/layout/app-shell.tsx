@@ -3,7 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Users,
   LogOut,
@@ -24,8 +24,6 @@ import {
   AppWindow,
   Briefcase,
   Folder,
-  Home,
-  ChevronRight,
   Folders,
   Landmark,
   ShieldAlert
@@ -45,7 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { allTools, type Tool, type Plaza, type LoanControlCartera, type LoanControlGrupo } from "@/lib/data";
+import { getCustomizedTools, type Tool, type Plaza, type LoanControlCartera, type LoanControlGrupo } from "@/lib/data";
 import { getPlazas, getPlazaById } from "@/services/plaza-service";
 import { getCarterasByPlaza, getGruposByCartera, getGrupoById, getCarteraById } from "@/services/loan-control-service";
 
@@ -338,8 +336,17 @@ function LoanControlNav() {
 
 function NavLinks() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { user } = useAuth();
+  const [customTools, setCustomTools] = React.useState<Tool[]>(getCustomizedTools());
+
+
+  React.useEffect(() => {
+    const updateTools = () => setCustomTools(getCustomizedTools());
+    window.addEventListener('storage', updateTools);
+    updateTools(); // Initial call
+    return () => window.removeEventListener('storage', updateTools);
+  }, []);
+  
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
@@ -348,7 +355,7 @@ function NavLinks() {
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
-      const userTools = allTools.filter(tool => user.accessibleTools?.includes(tool.id));
+      const userTools = customTools.filter(tool => user.accessibleTools?.includes(tool.id));
       
       const mainNavItems = userTools.map(tool => ({
         href: tool.href,
@@ -592,6 +599,20 @@ function ImpersonationBar() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout, impersonation } = useAuth();
   const pathname = usePathname();
+  const [customTools, setCustomTools] = React.useState<Tool[]>(getCustomizedTools());
+
+  React.useEffect(() => {
+    const updateTools = () => setCustomTools(getCustomizedTools());
+    // Listen for the custom event dispatched from AppSettings
+    window.addEventListener('storage', updateTools);
+    // Initial call to set the tools on component mount
+    updateTools();
+
+    // Cleanup the event listener on component unmount
+    return () => {
+        window.removeEventListener('storage', updateTools);
+    };
+  }, []);
 
   if (!user) {
     return <>{children}</>
@@ -603,10 +624,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
   
   const getToolFromPath = () => {
-    if (isCarteraVencidaPath) return allTools.find(tool => tool.id === 'cartera-vencida');
-    if (isDailyControlPath) return allTools.find(tool => tool.id === 'daily-control');
-    if (isLoanControlPath) return allTools.find(tool => tool.id === 'loan-control');
-    if (isIncomeExpensesPath) return allTools.find(tool => tool.id === 'income-expenses');
+    if (isCarteraVencidaPath) return customTools.find(tool => tool.id === 'cartera-vencida');
+    if (isDailyControlPath) return customTools.find(tool => tool.id === 'daily-control');
+    if (isLoanControlPath) return customTools.find(tool => tool.id === 'loan-control');
+    if (isIncomeExpensesPath) return customTools.find(tool => tool.id === 'income-expenses');
     return null;
   }
 
@@ -620,6 +641,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath) && !user.isSuperAdmin && !user.isToolAdmin;
+
+  const childrenWithProps = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+        // This is a way to pass props to the page component being rendered by the layout
+        return React.cloneElement(child, { customTools } as any);
+    }
+    return child;
+  });
 
   return (
     <SidebarProvider>
@@ -687,9 +716,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </DropdownMenu>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-            {children}
+            {childrenWithProps}
         </main>
       </SidebarInset>
     </SidebarProvider>
   );
 }
+
+    

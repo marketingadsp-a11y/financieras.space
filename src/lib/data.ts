@@ -143,6 +143,19 @@ export const allTools: Tool[] = [
   }
 ];
 
+// Helper function to get tools with customized names from localStorage
+export function getCustomizedTools(): Tool[] {
+  if (typeof window === 'undefined') {
+    return allTools;
+  }
+  const storedNames = JSON.parse(localStorage.getItem('toolNames') || '{}');
+  return allTools.map(tool => ({
+    ...tool,
+    name: storedNames[tool.id] || tool.name,
+  }));
+}
+
+
 export type Sucursal = {
     id: string;
     prefix: string;

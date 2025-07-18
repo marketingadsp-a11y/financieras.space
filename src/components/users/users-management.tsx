@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UsersTable } from "@/components/users/users-table";
 import { UserForm } from "@/components/users/user-form";
 import type { PlazaUser, Plaza } from "@/lib/data";
-import { allTools } from "@/lib/data";
+import { getCustomizedTools } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getPlazaUsersByPrefix, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
@@ -15,7 +15,7 @@ import { getPlazas } from "@/services/plaza-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 
-export function UsersManagement() {
+export function UsersManagement({ customTools }: { customTools: Tool[] }) {
   const { user } = useAuth();
   const [users, setUsers] = React.useState<PlazaUser[]>([]);
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
@@ -23,6 +23,7 @@ export function UsersManagement() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<PlazaUser | null>(null);
   const { toast } = useToast();
+  const allTools = getCustomizedTools();
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
