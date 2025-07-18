@@ -105,16 +105,6 @@ const superAdminNavItems: NavItem[] = [
 
 const adminSettingsNavItems: NavItem[] = [
     { href: "/panel-viewer", label: "Cambiar de Panel", icon: Swords, adminOnly: true },
-    { 
-        label: "Ajustes", 
-        icon: Settings, 
-        adminOnly: true,
-        children: [
-            { href: "/plazas", label: "Gestionar Plazas", icon: Building, adminOnly: true },
-            { href: "/settings/users", label: "Gestionar Usuarios", icon: Users, adminOnly: true },
-            { href: "/settings/company-profile", label: "Perfil de Empresa", icon: Briefcase, adminOnly: true },
-        ]
-    },
 ];
 
 const carteraVencidaNavItems: NavItem[] = [
@@ -531,30 +521,21 @@ function NavLinks() {
         
         return (
             <>
-                {accessibleUserTools.length > 0 && (
-                     <SidebarGroup>
-                        <SidebarGroupLabel>HERRAMIENTAS</SidebarGroupLabel>
-                        <SidebarMenu>
-                            {accessibleUserTools.map((item) => (
-                                <SidebarMenuItem key={item.id}>
-                                    <Link href={item.href}>
-                                        <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.name}>
-                                            <span>
-                                                <item.icon />
-                                                <span>{item.name}</span>
-                                            </span>
-                                        </SidebarMenuButton>
-                                    </Link>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroup>
-                )}
-                 <SidebarSeparator/>
-                <SidebarGroup>
-                    <SidebarGroupLabel>GENERAL</SidebarGroupLabel>
+                 <SidebarGroup>
+                    <SidebarGroupLabel>HERRAMIENTAS</SidebarGroupLabel>
                     <SidebarMenu>
-                      {renderNavItems(navs)}
+                        {accessibleUserTools.map((item) => (
+                            <SidebarMenuItem key={item.id}>
+                                <Link href={item.href}>
+                                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.name}>
+                                        <span>
+                                            <item.icon />
+                                            <span>{item.name}</span>
+                                        </span>
+                                    </SidebarMenuButton>
+                                </Link>
+                            </SidebarMenuItem>
+                        ))}
                     </SidebarMenu>
                 </SidebarGroup>
             </>
@@ -692,7 +673,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
-  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath) && !user.isSuperAdmin && !user.isToolAdmin;
+  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath) && !user.isSuperAdmin;
 
   return (
     <SidebarProvider>
@@ -756,6 +737,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-muted-foreground font-normal">{getUserRoleLabel()}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {!user.isSuperAdmin && (
+                <>
+                  <Link href="/settings/users">
+                    <DropdownMenuItem>
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>Gestionar Usuarios</span>
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/settings/company-profile">
+                    <DropdownMenuItem>
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      <span>Perfil de Empresa</span>
+                    </DropdownMenuItem>
+                  </Link>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Cerrar Sesión</span>
@@ -770,3 +768,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    
