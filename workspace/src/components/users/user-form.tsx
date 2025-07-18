@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { PlazaUser, Plaza, Permission, Tool } from "@/lib/data";
-import { PERMISSIONS, getCustomizedTools } from "@/lib/data";
+import { PERMISSIONS } from "@/lib/data";
 import { Trash2 } from "lucide-react";
 
 const plazaAccessSchema = z.object({
