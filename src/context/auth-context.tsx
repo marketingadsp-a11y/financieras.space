@@ -97,42 +97,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const publicPaths = ['/login'];
     const pathIsPublic = publicPaths.includes(pathname);
+    const superAdminOnlyPaths = ['/settings/admins', '/settings/super-admins', '/admin-users'];
 
     if (!user && !pathIsPublic) {
       router.push('/login');
     } else if (user) {
-        // User is logged in
+        // If user is logged in
         if (pathIsPublic) {
             // If on a public page, redirect to their main dashboard
             if (user.isSuperAdmin && !impersonation) {
-                router.push('/');
+                router.replace('/settings/admins');
                 return;
             }
-            
-            const accessibleToolsCount = user.accessibleTools?.length || 0;
-            if (accessibleToolsCount === 1) {
-                const singleToolId = user.accessibleTools![0];
-                const allTools = getCustomizedTools();
-                const singleTool = allTools.find(t => t.id === singleToolId);
-                
-                if (singleToolId === 'income-expenses' && user.isToolAdmin && user.sucursalAccess) {
-                    if (user.sucursalAccess.length === 1) {
-                        const sucursalId = user.sucursalAccess[0].sucursalId;
-                        router.push(`/tools/income-expenses/sucursal/${sucursalId}`);
-                        return;
-                    }
-                }
-                
-                if (singleTool?.href) {
-                    router.push(singleTool.href);
-                    return;
-                }
-            }
-            router.push('/tools');
+            router.replace('/tools');
 
-        } else if (pathname === '/' && !user.isSuperAdmin) {
-            // If a non-super-admin tries to access the root, redirect them
-            router.push('/tools');
+        } else if (!user.isSuperAdmin && superAdminOnlyPaths.some(p => pathname.startsWith(p))) {
+            // If a non-super-admin tries to access a super-admin only path, redirect them
+            router.replace('/tools');
+        } else if (pathname === '/' && !impersonation) {
+             // Redirect from root based on role
+            if (user.isSuperAdmin) {
+                router.replace('/settings/admins');
+            } else {
+                router.replace('/tools');
+            }
         }
     }
   }, [user, loading, pathname, router, impersonation]);
