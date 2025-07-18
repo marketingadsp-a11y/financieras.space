@@ -18,6 +18,12 @@ export async function getAllToolAdmins(): Promise<ToolAdmin[]> {
     });
 }
 
+// For Super Admin view, includes password
+export async function getAllToolAdminsWithPasswords(): Promise<ToolAdmin[]> {
+    const data = await getDocs(toolAdminsCollectionRef);
+    return data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ToolAdmin[];
+}
+
 
 export async function getToolAdmins(toolId: string, prefix?: string): Promise<ToolAdmin[]> {
     const constraints = [where("toolId", "==", toolId)];

@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAllPlazaUsers, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
-import { getAllToolAdmins, addToolAdmin as addToolAdminService, updateToolAdmin as updateToolAdminService, deleteToolAdmin as deleteToolAdminService } from "@/services/tool-admin-service";
+import { getAllToolAdminsWithPasswords, addToolAdmin as addToolAdminService, updateToolAdmin as updateToolAdminService, deleteToolAdmin as deleteToolAdminService } from "@/services/tool-admin-service";
 import { getAdmins } from "@/services/admin-service";
 import { getPlazas } from "@/services/plaza-service";
 import { getSucursales as getAllSucursales } from "@/services/income-expenses-service";
@@ -54,7 +54,7 @@ export function AdminUsersManagement() {
         allSucursales
       ] = await Promise.all([
         getAllPlazaUsers(),
-        getAllToolAdmins(),
+        getAllToolAdminsWithPasswords(),
         getPlazas({ fetchAll: true }),
         getAdmins(),
         getAllSucursales(), // Fetches all sucursales from all prefixes

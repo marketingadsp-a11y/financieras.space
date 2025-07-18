@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2, Shield, User, Building, Landmark, BookCheck, Files } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Shield, User, Building, Landmark, BookCheck, Files, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -52,6 +52,21 @@ function isToolAdmin(user: any): user is ToolAdmin {
     return 'toolId' in user;
 }
 
+const PasswordCell = ({ password }: { password?: string }) => {
+    const [showPassword, setShowPassword] = React.useState(false);
+    if (!password) {
+        return <span className="text-muted-foreground">N/A</span>
+    }
+    return (
+        <div className="flex items-center gap-2">
+            <span>{showPassword ? password : '••••••••'}</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+        </div>
+    )
+}
+
 export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }: UsersTableProps) {
   const [filter, setFilter] = React.useState("");
   const allTools = getCustomizedTools();
@@ -99,6 +114,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               <TableHead>Usuario</TableHead>
               {isSuperAdminView && <TableHead>Empresa (Prefijo)</TableHead>}
               <TableHead>Acceso Principal</TableHead>
+              {isSuperAdminView && isToolAdmin(data[0]) && <TableHead>Contraseña</TableHead>}
               <TableHead>Estado</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
@@ -129,6 +145,11 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
                       )}
                     </div>
                   </TableCell>
+                   {isSuperAdminView && isToolAdmin(user) && (
+                     <TableCell>
+                        <PasswordCell password={user.password} />
+                     </TableCell>
+                   )}
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(user.status)}>
                       {user.status}
@@ -173,7 +194,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={isSuperAdminView ? 6 : 5} className="h-24 text-center">
+                <TableCell colSpan={isSuperAdminView ? 7 : 5} className="h-24 text-center">
                   No se encontraron resultados.
                 </TableCell>
               </TableRow>
