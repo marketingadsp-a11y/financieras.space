@@ -24,6 +24,7 @@ import { INCOME_EXPENSES_PERMISSIONS } from "@/lib/data";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
 
 
 const sucursalAccessSchema = z.object({
@@ -37,7 +38,7 @@ const formSchema = z.object({
   username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
-  prefix: z.string().optional(),
+  prefix: z.string().min(1, "El prefijo es requerido"),
   sucursalAccess: z.array(sucursalAccessSchema).min(1, "Debe asignar acceso a al menos una sucursal."),
 });
 
@@ -53,6 +54,8 @@ const allPermissions = Object.entries(INCOME_EXPENSES_PERMISSIONS) as [IncomeExp
 
 export function ToolAdminForm({ onSubmit, admin, sucursales, admins }: ToolAdminFormProps) {
     const isEditing = !!admin;
+    const { user } = useAuth();
+    const isSuperAdminView = !!admins; // SuperAdmin view will pass down the list of admins
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(
@@ -65,7 +68,7 @@ export function ToolAdminForm({ onSubmit, admin, sucursales, admins }: ToolAdmin
             username: admin?.username || "",
             password: "",
             status: admin?.status || "Activo",
-            prefix: admin?.prefix || "",
+            prefix: admin?.prefix || user?.prefix || "",
             sucursalAccess: admin?.sucursalAccess || [],
         },
     });
@@ -113,7 +116,7 @@ export function ToolAdminForm({ onSubmit, admin, sucursales, admins }: ToolAdmin
                         )}
                     />
                     
-                     {admins && (
+                     {isSuperAdminView && admins ? (
                          <FormField
                             control={form.control}
                             name="prefix"
@@ -132,6 +135,20 @@ export function ToolAdminForm({ onSubmit, admin, sucursales, admins }: ToolAdmin
                                     ))}
                                     </SelectContent>
                                 </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    ) : (
+                         <FormField
+                            control={form.control}
+                            name="prefix"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Empresa (Prefijo)</FormLabel>
+                                <FormControl>
+                                    <Input {...field} disabled />
+                                </FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}

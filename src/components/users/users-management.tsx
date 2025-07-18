@@ -124,10 +124,10 @@ export function UsersManagement() {
   }
 
     // --- Tool Admin Handlers ---
-  const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'toolId' | 'prefix' | 'createdBy'>) => {
-      if(!user?.id || !user.prefix) return;
+  const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'toolId' | 'createdBy'>) => {
+      if(!user?.id) return;
       try {
-        const dataToSave = { ...adminData, toolId: 'income-expenses' as const, createdBy: user.id, prefix: user.prefix };
+        const dataToSave = { ...adminData, toolId: 'income-expenses' as const, createdBy: user.id };
         if (editingToolAdmin) {
             await updateToolAdmin(editingToolAdmin.id, dataToSave);
             toast({ title: "Éxito", description: "Usuario de herramienta actualizado." });
@@ -188,6 +188,39 @@ export function UsersManagement() {
                 </TabsTrigger>
             </TabsList>
 
+             {/* Tool Admins Tab */}
+            <TabsContent value="tool-admins" className="mt-6">
+                <Card>
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <CardTitle className="text-xl">Usuarios de {toolAdminToolName}</CardTitle>
+                                <CardDescription>Gestiona usuarios con acceso a la herramienta "{toolAdminToolName}" y sus sucursales.</CardDescription>
+                            </div>
+                             <Dialog open={isToolAdminFormOpen} onOpenChange={(open) => { setIsToolAdminFormOpen(open); if(!open) setEditingToolAdmin(null); }}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Agregar Usuario</Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>{editingToolAdmin ? 'Editar' : 'Agregar'} Usuario de {toolAdminToolName}</DialogTitle>
+                                        <CardDescription>El usuario se creará con el prefijo: <span className="font-bold">{user?.prefix}</span></CardDescription>
+                                    </DialogHeader>
+                                    <ToolAdminForm onSubmit={handleToolAdminSubmit} admin={editingToolAdmin} sucursales={sucursales}/>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <div className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" /><span>Cargando usuarios...</span></div>
+                        ) : (
+                            <UsersTable data={toolAdmins} onEdit={handleEditToolAdminClick} onDelete={handleDeleteToolAdmin} />
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
             {/* Plaza Users Tab */}
             <TabsContent value="plaza-users" className="mt-6">
                  <Card>
@@ -216,39 +249,6 @@ export function UsersManagement() {
                             <div className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" /><span>Cargando usuarios...</span></div>
                         ) : (
                             <UsersTable data={plazaUsers} onEdit={handleEditPlazaUserClick} onDelete={handleDeletePlazaUser} />
-                        )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
-            {/* Tool Admins Tab */}
-            <TabsContent value="tool-admins" className="mt-6">
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <CardTitle className="text-xl">Usuarios de {toolAdminToolName}</CardTitle>
-                                <CardDescription>Gestiona usuarios con acceso a la herramienta "{toolAdminToolName}" y sus sucursales.</CardDescription>
-                            </div>
-                             <Dialog open={isToolAdminFormOpen} onOpenChange={(open) => { setIsToolAdminFormOpen(open); if(!open) setEditingToolAdmin(null); }}>
-                                <DialogTrigger asChild>
-                                    <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Agregar Usuario</Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-2xl">
-                                    <DialogHeader>
-                                        <DialogTitle>{editingToolAdmin ? 'Editar' : 'Agregar'} Usuario de {toolAdminToolName}</DialogTitle>
-                                        <CardDescription>El usuario se creará con el prefijo: <span className="font-bold">{user?.prefix}</span></CardDescription>
-                                    </DialogHeader>
-                                    <ToolAdminForm onSubmit={handleToolAdminSubmit} admin={editingToolAdmin} sucursales={sucursales}/>
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? (
-                            <div className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" /><span>Cargando usuarios...</span></div>
-                        ) : (
-                            <UsersTable data={toolAdmins} onEdit={handleEditToolAdminClick} onDelete={handleDeleteToolAdmin} />
                         )}
                     </CardContent>
                 </Card>
