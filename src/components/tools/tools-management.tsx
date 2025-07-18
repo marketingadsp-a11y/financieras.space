@@ -46,6 +46,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
+import { getCustomizedTools } from "@/lib/data";
 
 // Reusable Dialog for Daily Record Import
 const DailyRecordImportDialog = ({
@@ -273,8 +274,16 @@ const DailyRecordDeleteDialog = ({
 };
 
 
-export function ToolsManagement({ customTools }: { customTools: Tool[] }) {
+export function ToolsManagement() {
   const { user } = useAuth();
+  const [customTools, setCustomTools] = React.useState<Tool[]>(getCustomizedTools());
+
+  React.useEffect(() => {
+    const updateTools = () => setCustomTools(getCustomizedTools());
+    window.addEventListener('storage', updateTools);
+    updateTools(); // Initial call
+    return () => window.removeEventListener('storage', updateTools);
+  }, []);
 
   if (user && !user.isSuperAdmin) {
     return <AdminToolsView customTools={customTools} />;
@@ -551,5 +560,3 @@ function AdminToolsView({ customTools }: { customTools: Tool[] }) {
         </div>
     );
 }
-
-    

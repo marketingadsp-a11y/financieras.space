@@ -603,12 +603,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const updateTools = () => setCustomTools(getCustomizedTools());
-    // Listen for the custom event dispatched from AppSettings
     window.addEventListener('storage', updateTools);
-    // Initial call to set the tools on component mount
     updateTools();
 
-    // Cleanup the event listener on component unmount
     return () => {
         window.removeEventListener('storage', updateTools);
     };
@@ -641,14 +638,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath) && !user.isSuperAdmin && !user.isToolAdmin;
-
-  const childrenWithProps = React.Children.map(children, child => {
-    if (React.isValidElement(child)) {
-        // This is a way to pass props to the page component being rendered by the layout
-        return React.cloneElement(child, { customTools } as any);
-    }
-    return child;
-  });
 
   return (
     <SidebarProvider>
@@ -716,11 +705,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </DropdownMenu>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-            {childrenWithProps}
+            {children}
         </main>
       </SidebarInset>
     </SidebarProvider>
   );
 }
-
-    
