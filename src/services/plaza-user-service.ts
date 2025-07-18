@@ -7,6 +7,15 @@ import type { PlazaUser } from "@/lib/data";
 
 const plazaUsersCollectionRef = collection(db, "plazaUsers");
 
+export async function getAllPlazaUsers(): Promise<PlazaUser[]> {
+    const data = await getDocs(plazaUsersCollectionRef);
+    const users = data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as PlazaUser[];
+    return users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+    });
+}
+
 export async function getPlazaUsersByPrefix(prefix: string): Promise<PlazaUser[]> {
     const q = query(plazaUsersCollectionRef, where("prefix", "==", prefix));
     const data = await getDocs(q);

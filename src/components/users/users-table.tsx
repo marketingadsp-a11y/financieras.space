@@ -33,18 +33,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/context/auth-context";
 
 type UsersTableProps = {
     data: PlazaUser[];
     onEdit: (user: PlazaUser) => void;
     onDelete: (id: string) => void;
+    isSuperAdminView?: boolean;
 }
 
-export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
+export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }: UsersTableProps) {
+  const { user } = useAuth();
   const [filter, setFilter] = React.useState("");
   const filteredData = data.filter((user) =>
     user.name.toLowerCase().includes(filter.toLowerCase()) ||
-    user.username.toLowerCase().includes(filter.toLowerCase())
+    user.username.toLowerCase().includes(filter.toLowerCase()) ||
+    user.prefix?.toLowerCase().includes(filter.toLowerCase())
   );
 
   const getStatusBadgeVariant = (status: "Activo" | "Inactivo") => {
@@ -72,6 +76,7 @@ export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Usuario</TableHead>
+              {isSuperAdminView && <TableHead>Empresa (Prefijo)</TableHead>}
               <TableHead>Plazas Asignadas</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>
@@ -85,6 +90,11 @@ export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.username}</TableCell>
+                  {isSuperAdminView && (
+                    <TableCell>
+                        <Badge variant="outline">{user.prefix}</Badge>
+                    </TableCell>
+                  )}
                    <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {user.plazaAccess.map(pa => (
@@ -136,7 +146,7 @@ export function UsersTable({ data, onEdit, onDelete }: UsersTableProps) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={isSuperAdminView ? 6 : 5} className="h-24 text-center">
                   No se encontraron resultados.
                 </TableCell>
               </TableRow>

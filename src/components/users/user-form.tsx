@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { PlazaUser, Plaza, Permission, Tool } from "@/lib/data";
+import type { PlazaUser, Plaza, Permission, Tool, Admin } from "@/lib/data";
 import { PERMISSIONS, allTools } from "@/lib/data";
 import { Trash2 } from "lucide-react";
 
@@ -41,6 +41,7 @@ const baseFormSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
+  prefix: z.string().min(1, "El prefijo de la empresa es requerido."),
   status: z.enum(["Activo", "Inactivo"]),
   accessibleTools: z.array(z.string()).min(1, "Debe asignar acceso a al menos una herramienta."),
   plazaAccess: z.array(plazaAccessSchema),
@@ -68,12 +69,14 @@ type UserFormProps = {
   user?: PlazaUser | null;
   allPlazas: Plaza[];
   prefix?: string;
+  admins?: Admin[];
   adminTools: Tool[];
+  isSuperAdminView?: boolean;
 };
 
 const allPermissions = Object.entries(PERMISSIONS) as [Permission, string][];
 
-export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: UserFormProps) {
+export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools, isSuperAdminView = false }: UserFormProps) {
     const isEditing = !!user;
 
     const form = useForm<z.infer<typeof baseFormSchema>>({
@@ -86,6 +89,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: User
             name: user?.name || "",
             username: user?.username || "",
             password: "",
+            prefix: user?.prefix || prefix || "",
             status: user?.status || "Activo",
             accessibleTools: user?.accessibleTools || [],
             plazaAccess: user?.plazaAccess || [],
@@ -98,6 +102,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: User
     });
     
     const watchAccessibleTools = form.watch("accessibleTools", user?.accessibleTools || []);
+    const watchPrefix = form.watch("prefix", user?.prefix || prefix || "");
 
     const handleFormSubmit = (values: z.infer<typeof baseFormSchema>) => {
         const dataToSend: any = { ...values };
@@ -109,9 +114,10 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: User
         }
         onSubmit(dataToSend);
     };
-
+    
+    const plazasForSelectedPrefix = allPlazas.filter(p => p.prefix === watchPrefix);
     const assignedPlazaIds = fields.map(field => field.plazaId);
-    const availablePlazas = allPlazas.filter(p => !assignedPlazaIds.includes(p.id));
+    const availablePlazas = plazasForSelectedPrefix.filter(p => !assignedPlazaIds.includes(p.id));
     
     const showPlazaManagement = watchAccessibleTools.includes('cartera-vencida');
 
@@ -129,7 +135,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: User
                                 <FormLabel>Usuario</FormLabel>
                             <div className="flex items-center">
                                     <span className="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
-                                    {prefix}.
+                                    {watchPrefix}.
                                     </span>
                                     <FormControl>
                                         <Input placeholder="nombre.usuario" {...field} className="rounded-l-none" disabled={isEditing}/>
@@ -140,6 +146,32 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, adminTools }: User
                         )}
                     />
                     <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Contraseña</FormLabel><FormControl><Input type="password" placeholder={isEditing ? "Dejar en blanco para no cambiar" : "••••••••"} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    
+                    {isSuperAdminView && admins && (
+                         <FormField
+                            control={form.control}
+                            name="prefix"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Empresa (Prefijo)</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona una empresa" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {admins.map(admin => (
+                                        <SelectItem key={admin.id} value={admin.prefix!}>{admin.prefix}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+
                     <FormField control={form.control} name="status" render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm mt-auto mb-2">
                           <FormLabel>Estado</FormLabel>

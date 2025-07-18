@@ -6,19 +6,21 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UsersTable } from "@/components/users/users-table";
 import { UserForm } from "@/components/users/user-form";
-import type { PlazaUser, Plaza, Tool } from "@/lib/data";
+import type { PlazaUser, Plaza, Tool, Admin } from "@/lib/data";
 import { getCustomizedTools } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getPlazaUsersByPrefix, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
+import { getAllPlazaUsers, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
+import { getAdmins } from "@/services/admin-service";
 import { getPlazas } from "@/services/plaza-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 
-export function UsersManagement({ customTools }: { customTools: Tool[] }) {
+export function AdminUsersManagement({ customTools }: { customTools: Tool[] }) {
   const { user } = useAuth();
   const [users, setUsers] = React.useState<PlazaUser[]>([]);
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
+  const [admins, setAdmins] = React.useState<Admin[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<PlazaUser | null>(null);
@@ -26,19 +28,17 @@ export function UsersManagement({ customTools }: { customTools: Tool[] }) {
   const allTools = getCustomizedTools();
 
   const fetchData = React.useCallback(async () => {
-    if (!user?.prefix) {
-      setIsLoading(false);
-      return;
-    }
+    if (!user?.isSuperAdmin) return;
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const shouldFetchAllPlazas = user.isSuperAdmin;
-      const [usersFromDb, plazasFromDb] = await Promise.all([
-        getPlazaUsersByPrefix(user.prefix),
-        getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAllPlazas }),
+      const [usersFromDb, plazasFromDb, adminsFromDb] = await Promise.all([
+        getAllPlazaUsers(),
+        getPlazas({ fetchAll: true }),
+        getAdmins(),
       ]);
       setUsers(usersFromDb);
       setPlazas(plazasFromDb);
+      setAdmins(adminsFromDb);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -48,28 +48,20 @@ export function UsersManagement({ customTools }: { customTools: Tool[] }) {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, user?.prefix, user?.isSuperAdmin]);
+  }, [toast, user?.isSuperAdmin]);
 
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleSubmit = async (userData: Omit<PlazaUser, 'id' | 'prefix'> & { prefix?: string }) => {
-    const finalPrefix = userData.prefix || user?.prefix;
-    if (!finalPrefix) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo determinar el prefijo." });
-        return;
-    }
-
+  const handleSubmit = async (userData: Omit<PlazaUser, 'id'>) => {
     try {
-      const { prefix, ...dataToSave } = userData;
-      const finalData = { ...dataToSave, prefix: finalPrefix };
-      
+      const dataToSave = { ...userData };
       if (editingUser) {
-        await updatePlazaUser(editingUser.id, finalData);
+        await updatePlazaUser(editingUser.id, dataToSave);
         toast({ title: "Éxito", description: "Usuario actualizado." });
       } else {
-        await addPlazaUser(finalData);
+        await addPlazaUser(dataToSave);
         toast({ title: "Éxito", description: "Usuario agregado." });
       }
       setIsFormOpen(false);
@@ -106,22 +98,19 @@ export function UsersManagement({ customTools }: { customTools: Tool[] }) {
     }
   }
   
-  // Admins can only assign tools they themselves have access to. SuperAdmins can assign any.
-  const adminTools = user?.isSuperAdmin ? allTools : allTools.filter(tool => user?.accessibleTools?.includes(tool.id));
-
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle>Gestión de Usuarios</CardTitle>
+            <CardTitle>Gestión de Usuarios de Admins</CardTitle>
             <CardDescription>
-              Crea, edita y elimina usuarios con acceso a plazas y permisos específicos. Todos los usuarios creados aquí usarán el prefijo: <span className="font-bold">{user?.prefix}</span>
+              Crea, edita y elimina usuarios creados por cualquier administrador.
             </CardDescription>
           </div>
           <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-              <Button size="sm" disabled={!user?.prefix}>
+              <Button size="sm">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Agregar Usuario
               </Button>
@@ -130,15 +119,16 @@ export function UsersManagement({ customTools }: { customTools: Tool[] }) {
               <DialogHeader>
                 <DialogTitle>{editingUser ? 'Editar' : 'Agregar'} Usuario</DialogTitle>
                  <CardDescription>
-                  El usuario se creará con el prefijo: <span className="font-bold">{user?.prefix}</span>
+                  Crea un nuevo usuario de plaza para cualquier empresa (prefijo).
                 </CardDescription>
               </DialogHeader>
               <UserForm
                 onSubmit={handleSubmit}
                 user={editingUser}
                 allPlazas={plazas}
-                prefix={user?.prefix}
-                adminTools={adminTools}
+                admins={admins}
+                adminTools={allTools}
+                isSuperAdminView={true}
               />
             </DialogContent>
           </Dialog>
@@ -151,11 +141,9 @@ export function UsersManagement({ customTools }: { customTools: Tool[] }) {
             <span>Cargando usuarios...</span>
           </div>
         ) : (
-          <UsersTable data={users} onEdit={handleEditClick} onDelete={handleDeleteUser} />
+          <UsersTable data={users} onEdit={handleEditClick} onDelete={handleDeleteUser} isSuperAdminView={true} />
         )}
       </CardContent>
     </Card>
   );
 }
-
-    

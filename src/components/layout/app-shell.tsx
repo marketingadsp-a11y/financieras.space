@@ -28,6 +28,7 @@ import {
   Landmark,
   ShieldAlert,
   Swords,
+  UserSquare2
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -84,6 +85,7 @@ const superAdminNavItems: NavItem[] = [
     superAdminOnly: true,
     children: [
         { href: "/", label: "Administradores", icon: Users, superAdminOnly: true },
+        { href: "/admin-users", label: "Usuarios de Admins", icon: UserSquare2, superAdminOnly: true },
         { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
     ]
   },
