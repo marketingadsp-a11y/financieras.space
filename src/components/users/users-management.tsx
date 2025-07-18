@@ -49,7 +49,7 @@ export function UsersManagement() {
   }, []);
 
   const plazaUserToolName = customTools.find(t => t.id === 'cartera-vencida')?.name || 'Usuarios de Plaza';
-  const toolAdminToolName = customTools.find(t => t.id === 'income-expenses')?.name || 'Usuarios de Gastos/Ingresos';
+  const toolAdminToolName = customTools.find(t => t.id === 'income-expenses')?.name || 'Usuarios Gastos/Ingresos';
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
@@ -176,15 +176,15 @@ export function UsersManagement() {
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="plaza-users">
+        <Tabs defaultValue="tool-admins">
             <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="plaza-users">
-                    <Users2 className="mr-2"/>
-                    {plazaUserToolName}
-                </TabsTrigger>
                 <TabsTrigger value="tool-admins">
                     <Landmark className="mr-2"/>
                     {toolAdminToolName}
+                </TabsTrigger>
+                <TabsTrigger value="plaza-users">
+                    <Users2 className="mr-2"/>
+                    {plazaUserToolName}
                 </TabsTrigger>
             </TabsList>
 
