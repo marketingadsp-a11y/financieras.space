@@ -27,10 +27,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, Payment } from "@/lib/data";
+import type { Customer } from "@/lib/data";
 import { addPayment as addPaymentService, updateCustomer } from "@/services/customer-service";
 import { addPayment as addLoanPayment } from "@/services/loan-control-service";
 import { Loader2, DollarSign } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 type CustomerEditDialogProps = {
   customer: Customer | null;
@@ -158,10 +159,10 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                     <FormField control={customerForm.control} name="coloniaAval" render={({ field }) => (<FormItem><FormLabel>Colonia del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="cpAval" render={({ field }) => (<FormItem><FormLabel>C.P. del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Teléfono del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="installmentsDue" render={({ field }) => (<FormItem><FormLabel>No. Vencidos</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel>Adeudo Actual</FormLabel><FormControl><Input type="number" step="0.01" {...field} disabled /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel>Adeudo Actual</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled /></FormControl><FormMessage /></FormItem>)} />
                 </div>
 
                 <DialogFooter className="pt-4 sticky bottom-0 bg-background">
@@ -190,7 +191,12 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                           <FormControl>
                             <div className="relative">
                               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input type="number" step="0.01" placeholder="0.00" className="pl-9" {...field} autoFocus />
+                              <CurrencyInput 
+                                placeholder="0.00" 
+                                className="pl-9" 
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                autoFocus />
                             </div>
                           </FormControl>
                           <FormMessage />

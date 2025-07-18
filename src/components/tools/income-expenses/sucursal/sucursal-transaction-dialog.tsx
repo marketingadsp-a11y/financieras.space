@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import type { TransactionCategory } from "@/lib/data";
 import { getTransactionCategories } from "@/services/transaction-category-service";
 import { useAuth } from "@/context/auth-context";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 
 type SucursalTransactionDialogProps = {
@@ -207,12 +208,11 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                                 <div className="relative">
                                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                                     <FormControl>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
+                                        <CurrencyInput
                                             placeholder="0.00"
                                             className="pl-10 h-12 text-lg"
-                                            {...field}
+                                            value={field.value}
+                                            onValueChange={field.onChange}
                                             autoFocus
                                         />
                                     </FormControl>

@@ -34,6 +34,7 @@ import type { DailyRecordType, ExpenseCategory } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { getExpenseCategories } from "@/services/expense-category-service";
 import { DollarSign, Loader2, CalendarIcon } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const formSchema = z.object({
   amount: z.coerce.number().positive("El monto debe ser mayor a cero."),
@@ -148,7 +149,7 @@ export function DailyRecordForm({ onSubmit, mode, isSubmitting, entryDate, onEnt
                              <div className="relative">
                               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <FormControl>
-                                <Input type="number" step="0.01" placeholder="0.00" className="pl-9" {...field} autoFocus />
+                                <CurrencyInput placeholder="0.00" className="pl-9" {...field} autoFocus />
                               </FormControl>
                             </div>
                             <FormMessage />

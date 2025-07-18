@@ -11,11 +11,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, DollarSign, Send } from "lucide-react";
+import { Loader2, DollarSign } from "lucide-react";
 import type { Sucursal } from "@/lib/data";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 type TransactionDialogProps = {
   isOpen: boolean;
@@ -33,7 +33,7 @@ const dialogDetails = {
 };
 
 export function TransactionDialog({ isOpen, onClose, mode, onSubmit, sucursales, currentBalance }: TransactionDialogProps) {
-  const [amount, setAmount] = React.useState<number | "">("");
+  const [amount, setAmount] = React.useState<number | undefined>();
   const [selectedSucursal, setSelectedSucursal] = React.useState<string>("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -73,7 +73,7 @@ export function TransactionDialog({ isOpen, onClose, mode, onSubmit, sucursales,
   };
   
   const handleClose = () => {
-    setAmount("");
+    setAmount(undefined);
     setSelectedSucursal("");
     setError(null);
     onClose();
@@ -81,7 +81,7 @@ export function TransactionDialog({ isOpen, onClose, mode, onSubmit, sucursales,
 
   React.useEffect(() => {
     if(isOpen) {
-        setAmount("");
+        setAmount(undefined);
         setSelectedSucursal("");
         setError(null);
     }
@@ -100,12 +100,10 @@ export function TransactionDialog({ isOpen, onClose, mode, onSubmit, sucursales,
                 <Label htmlFor="amount">Monto</Label>
                 <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
+                    <CurrencyInput
                         id="amount"
-                        type="number"
-                        step="0.01"
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                        onValueChange={setAmount}
                         className="pl-9"
                         placeholder="0.00"
                         autoFocus

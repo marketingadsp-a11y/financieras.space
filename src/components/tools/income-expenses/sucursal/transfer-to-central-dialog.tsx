@@ -11,9 +11,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, DollarSign } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 type TransferToCentralDialogProps = {
   isOpen: boolean;
@@ -23,7 +23,7 @@ type TransferToCentralDialogProps = {
 };
 
 export function TransferToCentralDialog({ isOpen, onClose, onSubmit, maxAmount }: TransferToCentralDialogProps) {
-  const [amount, setAmount] = React.useState<number | "">("");
+  const [amount, setAmount] = React.useState<number | undefined>();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -49,7 +49,7 @@ export function TransferToCentralDialog({ isOpen, onClose, onSubmit, maxAmount }
   };
   
   const handleClose = () => {
-    setAmount("");
+    setAmount(undefined);
     setError(null);
     onClose();
   }
@@ -69,18 +69,16 @@ export function TransferToCentralDialog({ isOpen, onClose, onSubmit, maxAmount }
                     <Label htmlFor="amount">Monto a Enviar</Label>
                     <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
+                        <CurrencyInput
                             id="amount"
-                            type="number"
-                            step="0.01"
                             value={amount}
-                            onChange={(e) => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                            onValueChange={setAmount}
                             className="pl-9"
                             placeholder="0.00"
                             autoFocus
                         />
                     </div>
-                    <p className="text-xs text-muted-foreground">Disponible en Caja Chica: ${maxAmount.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Disponible en Caja Chica: ${maxAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                 </div>
                 {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             </div>

@@ -22,6 +22,7 @@ import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const formSchema = z.object({
   name: z.string().min(3, "El nombre es requerido."),
@@ -73,10 +74,10 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
     // Watch loanAmount to auto-update dueAmount
     const loanAmount = form.watch("loanAmount");
     React.useEffect(() => {
-        if (loanAmount && !form.getValues("dueAmount")) {
+        if (loanAmount && !isEditing) {
             form.setValue("dueAmount", loanAmount);
         }
-    }, [loanAmount, form]);
+    }, [loanAmount, form, isEditing]);
 
 
     const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
@@ -125,10 +126,10 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
                                     </PopoverContent>
                                 </Popover>
                              <FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="installmentsDue" render={({ field }) => (<FormItem><FormLabel>No. Vencidos</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel>Monto Adeudo</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel>Monto Adeudo</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                     </div>
                 </div>
                 <Button type="submit" className="w-full">
