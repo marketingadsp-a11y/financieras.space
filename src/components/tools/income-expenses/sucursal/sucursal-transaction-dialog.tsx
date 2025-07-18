@@ -40,7 +40,7 @@ const formSchema = z.object({
     type: z.enum(['deposit', 'expense']),
     category: z.string().optional(),
     amount: z.coerce.number().positive("El monto debe ser un número positivo."),
-    executive: z.string().optional(),
+    executive: z.string().min(1, "El responsable del movimiento es requerido."),
     description: z.string().optional(),
 }).refine(data => {
     // Category is required only if the type is 'expense'
@@ -73,7 +73,7 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-        type: 'expense',
+        type: 'deposit',
         amount: undefined,
         category: undefined,
         executive: "",
@@ -119,7 +119,7 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
   };
   
   const handleClose = () => {
-    form.reset({ type: 'expense', amount: undefined, category: undefined, description: "", executive: "" });
+    form.reset({ type: 'deposit', amount: undefined, category: undefined, description: "", executive: "" });
     onClose();
   }
   
@@ -139,16 +139,6 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                     <Label>1. Elige el tipo de movimiento</Label>
                     <div className="grid grid-cols-2 gap-4">
                        <div 
-                         onClick={() => form.setValue('type', 'expense')}
-                         className={cn(
-                             "flex flex-col items-center justify-center gap-2 rounded-lg border-2 p-4 cursor-pointer transition-colors",
-                             watchType === 'expense' ? "border-destructive bg-destructive/10 text-destructive" : "hover:bg-muted/50"
-                         )}
-                       >
-                            <ArrowDown className="h-6 w-6"/>
-                            <span className="font-semibold">Gasto</span>
-                       </div>
-                       <div 
                          onClick={() => form.setValue('type', 'deposit')}
                          className={cn(
                              "flex flex-col items-center justify-center gap-2 rounded-lg border-2 p-4 cursor-pointer transition-colors",
@@ -157,6 +147,16 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                        >
                             <ArrowUp className="h-6 w-6"/>
                             <span className="font-semibold">Ingreso</span>
+                       </div>
+                       <div 
+                         onClick={() => form.setValue('type', 'expense')}
+                         className={cn(
+                             "flex flex-col items-center justify-center gap-2 rounded-lg border-2 p-4 cursor-pointer transition-colors",
+                             watchType === 'expense' ? "border-destructive bg-destructive/10 text-destructive" : "hover:bg-muted/50"
+                         )}
+                       >
+                            <ArrowDown className="h-6 w-6"/>
+                            <span className="font-semibold">Gasto</span>
                        </div>
                     </div>
                 </div>
@@ -227,7 +227,7 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                         render={({ field }) => (
                              <FormItem>
                                  <FormControl>
-                                    <Input placeholder="Movimiento de (Ej. Ejecutivo/Ruta)" {...field} />
+                                    <Input placeholder="Movimiento de: Ejecutivo, Ruta, Oficina, Etc." {...field} />
                                  </FormControl>
                                  <FormMessage />
                              </FormItem>

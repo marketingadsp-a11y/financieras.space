@@ -268,7 +268,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     return (
         <div className="space-y-6">
              <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Panel de Sucursal: {sucursal.name}</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Panel: {sucursal.name}</h1>
                  <Button variant="ghost" size="icon" onClick={fetchData}>
                     <RefreshCw className="h-5 w-5 text-muted-foreground" />
                 </Button>
