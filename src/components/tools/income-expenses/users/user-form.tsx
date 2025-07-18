@@ -38,7 +38,7 @@ const formSchema = z.object({
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
   prefix: z.string().optional(),
-  sucursalAccess: z.array(sucursalAccessSchema).optional(),
+  sucursalAccess: z.array(sucursalAccessSchema).min(1, "Debe asignar acceso a al menos una sucursal."),
 });
 
 
@@ -58,7 +58,7 @@ export function ToolAdminForm({ onSubmit, admin, sucursales, admins }: ToolAdmin
         resolver: zodResolver(
           isEditing 
           ? formSchema.partial()
-          : formSchema.required({ password: true, prefix: true })
+          : formSchema.required({ password: true, prefix: true, sucursalAccess: true })
         ),
         defaultValues: {
             name: admin?.name || "",
@@ -276,8 +276,8 @@ export function ToolAdminForm({ onSubmit, admin, sucursales, admins }: ToolAdmin
                                 )}
                             )}
                         </Accordion>
-                         {sucursales.length === 0 && (
-                            <p className="text-sm text-muted-foreground text-center p-4 border rounded-md">No hay sucursales creadas. Crea una sucursal primero para poder asignarla.</p>
+                         {sucursalesForSelectedPrefix.length === 0 && watchPrefix && (
+                            <p className="text-sm text-muted-foreground text-center p-4 border rounded-md">No hay sucursales creadas para esta empresa. Crea una en la sección de sucursales primero para poder asignarla.</p>
                         )}
                     </div>
                   </div>

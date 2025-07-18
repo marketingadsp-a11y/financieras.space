@@ -184,7 +184,6 @@ export function UsersManagement() {
               <ToolAdminForm
                 onSubmit={editingAdmin ? handleUpdateAdmin : handleAddAdmin}
                 admin={editingAdmin}
-                prefix={user?.prefix}
                 sucursales={sucursales}
               />
             </DialogContent>
