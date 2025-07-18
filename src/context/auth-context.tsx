@@ -100,37 +100,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (!user && !pathIsPublic) {
       router.push('/login');
-    } else if (user && pathIsPublic) {
-       if (user.isSuperAdmin && !impersonation) {
-         router.push('/');
-         return;
-       }
-       
-       const accessibleToolsCount = user.accessibleTools?.length || 0;
-       
-       if (accessibleToolsCount === 1) {
-         const singleToolId = user.accessibleTools![0];
-         const allTools = getCustomizedTools();
-         const singleTool = allTools.find(t => t.id === singleToolId);
-         
-         // Specific logic for 'income-expenses' tool with sucursal access
-         if (singleToolId === 'income-expenses' && user.isToolAdmin && user.sucursalAccess) {
-             if (user.sucursalAccess.length === 1) {
-                const sucursalId = user.sucursalAccess[0].sucursalId;
-                router.push(`/tools/income-expenses/sucursal/${sucursalId}`);
+    } else if (user) {
+        // User is logged in
+        if (pathIsPublic) {
+            // If on a public page, redirect to their main dashboard
+            if (user.isSuperAdmin && !impersonation) {
+                router.push('/');
                 return;
-             }
-             // If more than 1 sucursal, fall through to go to the tool's main page
-         }
-         
-         if (singleTool?.href) {
-            router.push(singleTool.href);
-            return;
-         }
-       }
-       
-       // Fallback for users with 0 or >1 tools, or if the tool href isn't found
-       router.push('/tools');
+            }
+            
+            const accessibleToolsCount = user.accessibleTools?.length || 0;
+            if (accessibleToolsCount === 1) {
+                const singleToolId = user.accessibleTools![0];
+                const allTools = getCustomizedTools();
+                const singleTool = allTools.find(t => t.id === singleToolId);
+                
+                if (singleToolId === 'income-expenses' && user.isToolAdmin && user.sucursalAccess) {
+                    if (user.sucursalAccess.length === 1) {
+                        const sucursalId = user.sucursalAccess[0].sucursalId;
+                        router.push(`/tools/income-expenses/sucursal/${sucursalId}`);
+                        return;
+                    }
+                }
+                
+                if (singleTool?.href) {
+                    router.push(singleTool.href);
+                    return;
+                }
+            }
+            router.push('/tools');
+
+        } else if (pathname === '/' && !user.isSuperAdmin) {
+            // If a non-super-admin tries to access the root, redirect them
+            router.push('/tools');
+        }
     }
   }, [user, loading, pathname, router, impersonation]);
 
