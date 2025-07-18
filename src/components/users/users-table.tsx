@@ -74,7 +74,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
   const filteredData = data.filter((user) =>
     user.name.toLowerCase().includes(filter.toLowerCase()) ||
     user.username.toLowerCase().includes(filter.toLowerCase()) ||
-    user.prefix?.toLowerCase().includes(filter.toLowerCase())
+    (isSuperAdminView && user.prefix?.toLowerCase().includes(filter.toLowerCase()))
   );
 
   const getStatusBadgeVariant = (status: "Activo" | "Inactivo") => {

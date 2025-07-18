@@ -1,6 +1,6 @@
 
-import { UsersManagement } from "@/components/tools/income-expenses/users/users-management";
+import { ToolUsersManagement } from "@/components/tools/income-expenses/users/users-management";
 
 export default function UsersPage() {
-  return <UsersManagement />;
+  return <ToolUsersManagement />;
 }

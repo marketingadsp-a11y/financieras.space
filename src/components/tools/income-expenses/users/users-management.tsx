@@ -21,7 +21,7 @@ type CombinedAdmin = (
 );
 
 
-export function UsersManagement() {
+export function ToolUsersManagement() {
   const { user } = useAuth();
   const [admins, setAdmins] = React.useState<CombinedAdmin[]>([]);
   const [sucursales, setSucursales] = React.useState<Sucursal[]>([]);
