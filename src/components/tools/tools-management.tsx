@@ -32,9 +32,10 @@ import {
 
 import { getAdmins, updateAdmin } from "@/services/admin-service";
 import { getPlazas } from "@/services/plaza-service";
+import { getAllCompanyProfiles } from "@/services/company-profile-service";
 import { addMultipleDailyRecords, deleteDailyRecordsByPlaza } from "@/services/daily-record-service";
 import { parseDailyRecords } from "@/ai/flows/daily-record-parser-flow";
-import type { Admin, Tool, Plaza, DailyRecordEntry } from "@/lib/data";
+import type { Admin, Tool, Plaza, DailyRecordEntry, CompanyProfile } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, Wrench, CheckCircle2, ClipboardPaste, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -290,6 +291,7 @@ export function ToolsManagement({ customTools }: { customTools?: Tool[] }) {
 function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
   const [admins, setAdmins] = React.useState<Admin[]>([]);
   const [allPlazas, setAllPlazas] = React.useState<Plaza[]>([]);
+  const [companyProfiles, setCompanyProfiles] = React.useState<CompanyProfile[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isAccessModalOpen, setAccessModalOpen] = React.useState(false);
   const [isImportModalOpen, setImportModalOpen] = React.useState(false);
@@ -302,12 +304,14 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-        const [adminData, plazaData] = await Promise.all([
+        const [adminData, plazaData, profileData] = await Promise.all([
             getAdmins(),
-            getPlazas({ fetchAll: true })
+            getPlazas({ fetchAll: true }),
+            getAllCompanyProfiles()
         ]);
         setAdmins(adminData);
         setAllPlazas(plazaData);
+        setCompanyProfiles(profileData);
     } catch (error) {
         toast({
             variant: "destructive",
@@ -402,6 +406,12 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
       return acc;
     }, {} as Record<string, { assigned: Admin[], unassigned: Admin[] }>);
   }, [admins, selectedAdmins]);
+  
+  const getCompanyName = (prefix: string) => {
+      if (prefix === 'Sin Prefijo') return prefix;
+      const profile = companyProfiles.find(p => p.id === prefix);
+      return profile?.companyName || prefix;
+  };
 
   return (
     <div className="space-y-8">
@@ -466,12 +476,12 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
              </div>
           ) : (
             <div className="py-4 max-h-[60vh] overflow-y-auto pr-2">
-                <Accordion type="multiple" className="w-full space-y-2" defaultValue={Object.keys(groupedAdmins)}>
+                <Accordion type="multiple" className="w-full space-y-2">
                     {Object.entries(groupedAdmins).map(([prefix, { assigned, unassigned }]) => (
                         <AccordionItem key={prefix} value={prefix} className="border rounded-md px-2 bg-muted/20">
                             <AccordionTrigger className="text-base hover:no-underline">
                                 <div className="flex-1 text-left">
-                                    <p className="font-semibold">{prefix}</p>
+                                    <p className="font-semibold">{getCompanyName(prefix)}</p>
                                     <p className="text-xs text-muted-foreground">{assigned.length} de {assigned.length + unassigned.length} admins con acceso.</p>
                                 </div>
                             </AccordionTrigger>
