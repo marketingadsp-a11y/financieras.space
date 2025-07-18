@@ -103,8 +103,6 @@ const superAdminNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
-    { href: "/plazas", label: "Gestionar Plazas", icon: Building, adminOnly: true },
-    { href: "/settings/users", label: "Gestionar Usuarios", icon: Users2, adminOnly: true },
     { href: "/tools", label: "Herramientas", icon: Wrench, adminOnly: true },
     { href: "/panel-viewer", label: "Cambiar de Panel", icon: Swords, adminOnly: true },
     { 
@@ -112,6 +110,8 @@ const adminNavItems: NavItem[] = [
         icon: Settings, 
         adminOnly: true,
         children: [
+            { href: "/plazas", label: "Gestionar Plazas", icon: Building, adminOnly: true },
+            { href: "/settings/users", label: "Gestionar Usuarios", icon: Users2, adminOnly: true },
             { href: "/settings/company-profile", label: "Perfil de Empresa", icon: Briefcase, adminOnly: true },
         ]
     },
