@@ -1,6 +1,7 @@
 
-import { AdminDashboard } from "@/components/admin/admin-dashboard";
+import { redirect } from 'next/navigation';
 
 export default function SuperAdminPage() {
-  return <AdminDashboard />;
+  // Redirect to the new admin management page under settings
+  redirect('/settings/admins');
 }
