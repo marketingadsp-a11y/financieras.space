@@ -25,8 +25,11 @@ export async function getAllToolAdminsWithPasswords(): Promise<ToolAdmin[]> {
 }
 
 
-export async function getToolAdmins(toolId: string, prefix?: string): Promise<ToolAdmin[]> {
-    const constraints = [where("toolId", "==", toolId)];
+export async function getToolAdmins(toolId?: string, prefix?: string): Promise<ToolAdmin[]> {
+    const constraints = [];
+    if(toolId) {
+        constraints.push(where("toolId", "==", toolId));
+    }
     if(prefix) {
         constraints.push(where("prefix", "==", prefix));
     }

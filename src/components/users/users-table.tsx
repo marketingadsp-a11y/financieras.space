@@ -45,11 +45,11 @@ type UsersTableProps = {
 }
 
 function isPlazaUser(user: any): user is PlazaUser {
-    return 'plazaAccess' in user;
+    return 'plazaAccess' in user && !('toolId' in user);
 }
 
 function isToolAdmin(user: any): user is ToolAdmin {
-    return 'toolId' in user && 'sucursalAccess' in user;
+    return 'toolId' in user;
 }
 
 const PasswordCell = ({ password }: { password?: string }) => {
@@ -96,6 +96,9 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
     return tool ? tool.name : "Herramienta Desconocida";
   }
 
+  const isAnyToolAdminInView = React.useMemo(() => data.some(isToolAdmin), [data]);
+
+
   return (
     <>
       <div className="flex items-center pb-4">
@@ -114,7 +117,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               <TableHead>Usuario</TableHead>
               {isSuperAdminView && <TableHead>Empresa (Prefijo)</TableHead>}
               <TableHead>Acceso Principal</TableHead>
-              {isSuperAdminView && data.some(isToolAdmin) && <TableHead>Contraseña</TableHead>}
+              {isSuperAdminView && isAnyToolAdminInView && <TableHead>Contraseña</TableHead>}
               <TableHead>Estado</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
@@ -145,7 +148,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
                       )}
                     </div>
                   </TableCell>
-                   {isSuperAdminView && isToolAdmin(data[0]) && (
+                   {isSuperAdminView && isAnyToolAdminInView && (
                      <TableCell>
                         {isToolAdmin(user) ? <PasswordCell password={user.password} /> : <span className="text-muted-foreground">N/A</span>}
                      </TableCell>
@@ -194,7 +197,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={isSuperAdminView && isToolAdmin(data[0]) ? 7 : 5} className="h-24 text-center">
+                <TableCell colSpan={isSuperAdminView && isAnyToolAdminInView ? 7 : isSuperAdminView ? 6 : 5} className="h-24 text-center">
                   No se encontraron resultados.
                 </TableCell>
               </TableRow>
