@@ -37,7 +37,7 @@ import { addMultipleDailyRecords, deleteDailyRecordsByPlaza } from "@/services/d
 import { parseDailyRecords } from "@/ai/flows/daily-record-parser-flow";
 import type { Admin, Tool, Plaza, DailyRecordEntry, CompanyProfile } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, Wrench, CheckCircle2, ClipboardPaste, Trash2 } from "lucide-react";
+import { Loader2, ArrowRight, Wrench, CheckCircle2, ClipboardPaste, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,8 @@ import { Input } from "@/components/ui/input";
 import { getCustomizedTools } from "@/lib/data";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 // Reusable Dialog for Daily Record Import
 const DailyRecordImportDialog = ({
@@ -412,6 +414,10 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
       return companyProfiles.find(p => p.id === prefix);
   };
 
+  const getAdminsWithAccessCount = (toolId: string) => {
+    return admins.filter(admin => admin.accessibleTools?.includes(toolId)).length;
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -423,20 +429,40 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {customTools.map((tool) => (
-          <Card 
-            key={tool.id} 
-            className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5"
-          >
-            <CardHeader className="cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
-              <div className="p-3 bg-primary/10 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
-                <tool.icon className="h-6 w-6 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent className="flex-grow cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
-              <h3 className="text-lg font-semibold">{tool.name}</h3>
-              <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
-            </CardContent>
-            <CardFooter className="flex flex-col items-start gap-2">
+          <div key={tool.id} className="group relative">
+            <Card 
+              className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1.5 overflow-hidden"
+            >
+                <div className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" 
+                    style={{
+                        background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(var(--primary-hsl), 0.1), transparent 40%)'
+                    }}
+                />
+              <CardHeader className="cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
+                <div className="flex justify-between items-start">
+                    <div className="p-3 bg-primary/10 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
+                        <tool.icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
+                                    <Users className="h-4 w-4" />
+                                    <span>{getAdminsWithAccessCount(tool.id)}</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{getAdminsWithAccessCount(tool.id)} admin(s) con acceso</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-grow cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
+                <h3 className="text-lg font-semibold">{tool.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
+              </CardContent>
+              <CardFooter className="flex flex-col items-start gap-4">
                  <Button variant="ghost" className="p-0 h-auto text-primary" onClick={() => handleManageAccessClick(tool)}>
                     <span className="text-sm font-medium flex items-center gap-2">
                         Gestionar Acceso
@@ -444,7 +470,7 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
                     </span>
                  </Button>
                 {tool.id === 'daily-control' && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 pt-2 border-t w-full">
                         <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
                             <ClipboardPaste className="mr-2 h-4 w-4" />
                             Importar Registros
@@ -455,8 +481,9 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
                         </Button>
                     </div>
                 )}
-            </CardFooter>
-          </Card>
+              </CardFooter>
+            </Card>
+           </div>
         ))}
       </div>
       
@@ -607,3 +634,5 @@ function AdminToolsView({ customTools }: { customTools: Tool[] }) {
         </div>
     );
 }
+
+    
