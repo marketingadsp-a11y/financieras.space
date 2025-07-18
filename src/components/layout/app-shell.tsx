@@ -84,6 +84,7 @@ const superAdminNavItems: NavItem[] = [
     icon: Contact, 
     superAdminOnly: true,
     children: [
+        { href: "/settings/admins", label: "Gestionar Admins", icon: Users, superAdminOnly: true },
         { href: "/admin-users", label: "Usuarios de Admins", icon: UserSquare2, superAdminOnly: true },
         { href: "/plazas", label: "Gestionar Plazas", icon: Building, superAdminOnly: true },
     ]
@@ -95,7 +96,6 @@ const superAdminNavItems: NavItem[] = [
     icon: Settings, 
     superAdminOnly: true,
     children: [
-        { href: "/settings/admins", label: "Gestionar Admins", icon: Users, superAdminOnly: true },
         { href: "/settings", label: "Aplicación", icon: AppWindow, superAdminOnly: true },
         { href: "/settings/company-profile", label: "Perfil de Empresa", icon: Briefcase, superAdminOnly: true },
         { href: "/settings/super-admins", label: "Super Admins", icon: UserCog, superAdminOnly: true },
@@ -511,13 +511,6 @@ function NavLinks() {
 
   const renderAdminNav = () => {
         const accessibleUserTools = customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
-        const navs = [...adminSettingsNavItems];
-        if (!user?.linkedAdmins || user.linkedAdmins.length === 0) {
-            const panelViewerIndex = navs.findIndex(item => item.href === '/panel-viewer');
-            if (panelViewerIndex > -1) {
-                navs.splice(panelViewerIndex, 1);
-            }
-        }
         
         return (
             <>
