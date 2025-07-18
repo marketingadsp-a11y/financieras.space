@@ -10,14 +10,14 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Regular admins don't see this page, they are redirected.
+    // Regular admins (who are not super admins) get redirected.
     if (user && !user.isSuperAdmin) {
       router.replace('/settings/company-profile');
     }
   }, [user, router]);
 
   // SuperAdmins will see the AppSettings component.
-  // The redirect will happen for admins before this is rendered.
+  // The redirect will happen for non-super-admins before this is rendered.
   if (!user || !user.isSuperAdmin) {
     // Render nothing or a loader while redirecting
     return null;
@@ -25,3 +25,4 @@ export default function SettingsPage() {
   
   return <AppSettings />;
 }
+
