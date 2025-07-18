@@ -103,8 +103,7 @@ const superAdminNavItems: NavItem[] = [
   },
 ];
 
-const adminNavItems: NavItem[] = [
-    { href: "/tools", label: "Herramientas", icon: Wrench, adminOnly: true },
+const adminSettingsNavItems: NavItem[] = [
     { href: "/panel-viewer", label: "Cambiar de Panel", icon: Swords, adminOnly: true },
     { 
         label: "Ajustes", 
@@ -520,19 +519,48 @@ function NavLinks() {
     }
 
 
-  const getNavItems = () => {
-    if (user?.isSuperAdmin) {
-      return superAdminNavItems;
-    }
-    const navs = [...adminNavItems];
-    if (user?.linkedAdmins && user.linkedAdmins.length > 0) {
-        return navs;
-    }
-    return navs.filter(item => item.href !== '/panel-viewer');
+  const renderAdminNav = () => {
+        const accessibleUserTools = customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
+        const navs = [...adminSettingsNavItems];
+        if (!user?.linkedAdmins || user.linkedAdmins.length === 0) {
+            const panelViewerIndex = navs.findIndex(item => item.href === '/panel-viewer');
+            if (panelViewerIndex > -1) {
+                navs.splice(panelViewerIndex, 1);
+            }
+        }
+        
+        return (
+            <>
+                {accessibleUserTools.length > 0 && (
+                     <SidebarGroup>
+                        <SidebarGroupLabel>HERRAMIENTAS</SidebarGroupLabel>
+                        <SidebarMenu>
+                            {accessibleUserTools.map((item) => (
+                                <SidebarMenuItem key={item.id}>
+                                    <Link href={item.href}>
+                                        <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.name}>
+                                            <span>
+                                                <item.icon />
+                                                <span>{item.name}</span>
+                                            </span>
+                                        </SidebarMenuButton>
+                                    </Link>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroup>
+                )}
+                 <SidebarSeparator/>
+                <SidebarGroup>
+                    <SidebarGroupLabel>GENERAL</SidebarGroupLabel>
+                    <SidebarMenu>
+                      {renderNavItems(navs)}
+                    </SidebarMenu>
+                </SidebarGroup>
+            </>
+        )
   }
 
-  const availableNavItems = getNavItems();
-  
   const renderNavItems = (items: NavItem[]) => {
     return items.map((item, index) => {
         if (item.children && item.children.length > 0) {
@@ -585,11 +613,16 @@ function NavLinks() {
     });
   }
 
-  return (
-    <SidebarMenu>
-      {renderNavItems(availableNavItems)}
-    </SidebarMenu>
-  );
+  if (user?.isSuperAdmin) {
+    return (
+        <SidebarMenu>
+            {renderNavItems(superAdminNavItems)}
+        </SidebarMenu>
+    );
+  }
+  
+  return renderAdminNav();
+
 }
 
 function ImpersonationBar() {
@@ -666,7 +699,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-3 p-2">
-            <Link href="/tools" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
               <UserCog className="h-8 w-8 text-primary" />
               <div className="flex flex-col">
                 <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">
