@@ -721,18 +721,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
            </div>
            
            {!user.isSuperAdmin && (
-             <SidebarMenu>
-               <SidebarMenuItem>
-                 <Link href="/support">
-                   <SidebarMenuButton asChild tooltip="Soporte" isActive={pathname === '/support'}>
-                      <span>
-                         <LifeBuoy />
-                         <span>Soporte</span>
-                      </span>
-                   </SidebarMenuButton>
-                 </Link>
-               </SidebarMenuItem>
-             </SidebarMenu>
+             <>
+                <SidebarSeparator />
+                <SidebarMenu>
+                <SidebarMenuItem>
+                    <Link href="/support">
+                    <SidebarMenuButton asChild tooltip="Soporte" isActive={pathname === '/support'}>
+                        <span>
+                            <LifeBuoy />
+                            <span>Soporte</span>
+                        </span>
+                    </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                </SidebarMenu>
+             </>
            )}
 
            { showBackButton && (
@@ -775,6 +778,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-muted-foreground font-normal">{getUserRoleLabel()}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {!user.isSuperAdmin && (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/users">
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>Gestionar Usuarios</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/company-profile">
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      <span>Perfil de Empresa</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Cerrar Sesión</span>
