@@ -99,7 +99,6 @@ const superAdminNavItems: NavItem[] = [
         { href: "/settings", label: "Aplicación", icon: AppWindow, superAdminOnly: true },
         { href: "/settings/company-profile", label: "Perfil de Empresa", icon: Briefcase, superAdminOnly: true },
         { href: "/settings/super-admins", label: "Super Admins", icon: UserCog, superAdminOnly: true },
-        { href: "/settings/users", label: "Usuarios de Plaza", icon: Users2, superAdminOnly: true },
     ]
   },
 ];
@@ -113,8 +112,7 @@ const adminNavItems: NavItem[] = [
         adminOnly: true,
         children: [
             { href: "/plazas", label: "Gestionar Plazas", icon: Building, adminOnly: true },
-            { href: "/settings/users", label: "Usuarios de Plaza", icon: Users2, adminOnly: true },
-            { href: "/tools/income-expenses/users", label: "Usuarios Gastos/Ingresos", icon: Users2, adminOnly: true },
+            { href: "/settings/users", label: "Gestionar Usuarios", icon: Users, adminOnly: true },
             { href: "/settings/company-profile", label: "Perfil de Empresa", icon: Briefcase, adminOnly: true },
         ]
     },
@@ -128,7 +126,6 @@ const carteraVencidaNavItems: NavItem[] = [
 const incomeExpensesNavItems: NavItem[] = [
     { href: "/tools/income-expenses", label: "Panel", icon: LayoutDashboard },
     { href: "/tools/income-expenses/sucursales", label: "Gestionar Sucursales", icon: Building },
-    { href: "/tools/income-expenses/users", label: "Gestionar Usuarios", icon: Users2 },
 ];
 const incomeExpensesSettingsItems: NavItem[] = [
     { href: "/tools/income-expenses/categories", label: "Gestionar Categorías", icon: ListTree },
