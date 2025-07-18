@@ -420,12 +420,15 @@ function NavLinks() {
   }
   
   if (isIncomeExpensesPath) {
+      const isToolAdminUser = user?.isToolAdmin;
+      const mainNavItems = isToolAdminUser ? [incomeExpensesNavItems[0]] : incomeExpensesNavItems;
+
       return (
       <>
         <SidebarGroup>
           <SidebarGroupLabel>GESTIÓN</SidebarGroupLabel>
           <SidebarMenu>
-            {incomeExpensesNavItems.map((item) => (
+            {mainNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <Link href={item.href!}>
                   <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
@@ -439,23 +442,25 @@ function NavLinks() {
             ))}
           </SidebarMenu>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>CONFIGURACIÓN</SidebarGroupLabel>
-          <SidebarMenu>
-            {incomeExpensesSettingsItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href!}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
-                    <span>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        {!isToolAdminUser && (
+             <SidebarGroup>
+                <SidebarGroupLabel>CONFIGURACIÓN</SidebarGroupLabel>
+                <SidebarMenu>
+                    {incomeExpensesSettingsItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                        <Link href={item.href!}>
+                        <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                            <span>
+                            <item.icon />
+                            <span>{item.label}</span>
+                            </span>
+                        </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+            </SidebarGroup>
+        )}
       </>
     );
   }
