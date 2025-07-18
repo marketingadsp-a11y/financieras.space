@@ -4,6 +4,7 @@
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -18,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { ToolAdmin, Sucursal, IncomeExpensesPermission } from "@/lib/data";
+import type { ToolAdmin, Sucursal, IncomeExpensesPermission, Admin } from "@/lib/data";
 import { INCOME_EXPENSES_PERMISSIONS } from "@/lib/data";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +37,7 @@ const formSchema = z.object({
   username: z.string().min(2, "El nombre de usuario es requerido."),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres.").optional().or(z.literal('')),
   status: z.enum(["Activo", "Inactivo"]),
+  prefix: z.string().optional(),
   sucursalAccess: z.array(sucursalAccessSchema).optional(),
 });
 
@@ -43,26 +45,27 @@ const formSchema = z.object({
 type ToolAdminFormProps = {
   onSubmit: (data: any) => void;
   admin?: ToolAdmin | null;
-  prefix?: string;
   sucursales: Sucursal[];
+  admins?: Admin[];
 };
 
 const allPermissions = Object.entries(INCOME_EXPENSES_PERMISSIONS) as [IncomeExpensesPermission, string][];
 
-export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdminFormProps) {
+export function ToolAdminForm({ onSubmit, admin, sucursales, admins }: ToolAdminFormProps) {
     const isEditing = !!admin;
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(
           isEditing 
           ? formSchema.partial()
-          : formSchema.required({ password: true })
+          : formSchema.required({ password: true, prefix: true })
         ),
         defaultValues: {
             name: admin?.name || "",
             username: admin?.username || "",
             password: "",
             status: admin?.status || "Activo",
+            prefix: admin?.prefix || "",
             sucursalAccess: admin?.sucursalAccess || [],
         },
     });
@@ -71,6 +74,8 @@ export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdmin
       control: form.control,
       name: "sucursalAccess"
     });
+    
+    const watchPrefix = form.watch("prefix");
 
     const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSend: any = { ...values };
@@ -85,8 +90,9 @@ export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdmin
         onSubmit(dataToSend);
     };
     
+    const sucursalesForSelectedPrefix = sucursales.filter(s => s.prefix === watchPrefix);
     const assignedSucursalIds = fields.map(field => field.sucursalId);
-    const availableSucursales = sucursales.filter(s => !assignedSucursalIds.includes(s.id));
+    const availableSucursales = sucursalesForSelectedPrefix.filter(s => !assignedSucursalIds.includes(s.id));
 
     return (
         <Form {...form}>
@@ -106,6 +112,32 @@ export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdmin
                             </FormItem>
                         )}
                     />
+                    
+                     {admins && (
+                         <FormField
+                            control={form.control}
+                            name="prefix"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Empresa (Prefijo)</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isEditing}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona una empresa" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {admins.map(admin => (
+                                        <SelectItem key={admin.id} value={admin.prefix!}>{admin.prefix}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+
                     <FormField
                         control={form.control}
                         name="username"
@@ -114,7 +146,7 @@ export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdmin
                                 <FormLabel>Usuario</FormLabel>
                                 <div className="flex items-center">
                                     <span className="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
-                                    {prefix}.
+                                    {watchPrefix}.
                                     </span>
                                     <FormControl>
                                         <Input placeholder="nombre.usuario" {...field} className="rounded-l-none" disabled={isEditing}/>
@@ -163,13 +195,10 @@ export function ToolAdminForm({ onSubmit, admin, prefix, sucursales }: ToolAdmin
                                 <FormMessage>{(form.formState.errors.sucursalAccess as any)?.root?.message}</FormMessage>
                             </div>
                             <Select onValueChange={(sucursalId) => {
-                                const sucursal = sucursales.find(s => s.id === sucursalId);
-                                if(sucursal) {
-                                append({ sucursalId: sucursal.id, permissions: [] });
-                                }
+                                append({ sucursalId: sucursalId, permissions: [] });
                             }} value="">
-                                <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="Asignar sucursal..." />
+                                <SelectTrigger className="w-[200px]" disabled={!watchPrefix}>
+                                    <SelectValue placeholder={!watchPrefix ? "Elige una empresa" : "Asignar sucursal..."} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {availableSucursales.length > 0 ? (

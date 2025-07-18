@@ -29,8 +29,8 @@ const sucursalTransactionsCollectionRef = collection(db, "sucursalTransactions")
 
 
 // --- Sucursal Functions ---
-export async function getSucursales(prefix: string): Promise<Sucursal[]> {
-  const q = query(sucursalesCollectionRef, where("prefix", "==", prefix));
+export async function getSucursales(prefix?: string): Promise<Sucursal[]> {
+  const q = prefix ? query(sucursalesCollectionRef, where("prefix", "==", prefix)) : query(sucursalesCollectionRef);
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Sucursal[];
 }

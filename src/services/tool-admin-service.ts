@@ -7,6 +7,18 @@ import type { ToolAdmin } from "@/lib/data";
 
 const toolAdminsCollectionRef = collection(db, "toolAdmins");
 
+export async function getAllToolAdmins(): Promise<ToolAdmin[]> {
+    const data = await getDocs(toolAdminsCollectionRef);
+    const admins = data.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ToolAdmin[];
+    
+    // Return without password for security
+    return admins.map(admin => {
+        const { password, ...adminWithoutPassword } = admin;
+        return adminWithoutPassword;
+    });
+}
+
+
 export async function getToolAdmins(toolId: string, prefix?: string): Promise<ToolAdmin[]> {
     const constraints = [where("toolId", "==", toolId)];
     if(prefix) {
