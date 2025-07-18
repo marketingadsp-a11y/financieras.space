@@ -641,7 +641,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const getUserRoleLabel = () => {
     if (user.isSuperAdmin && !impersonation) return 'Financieras MX';
     if (user.isToolAdmin) return 'Admin de Herramienta';
-    if (user.isPlazaUser) return user.name;
+    if (user.isPlazaUser) return 'Usuario de Plaza';
     return 'Admin';
   }
 
@@ -656,7 +656,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <UserCog className="h-8 w-8 text-primary" />
               <div className="flex flex-col">
                 <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">
-                  {getUserRoleLabel()}
+                  {user.name || getUserRoleLabel()}
                 </span>
                 {currentTool && (
                   <span className="text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
@@ -695,15 +695,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex-1" />
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="icon" className="rounded-full">
-                <Avatar>
-                  <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+              <Button variant="secondary" className="flex items-center gap-2 rounded-md h-10 px-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>{user.name ? user.name.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <span className="sr-only">Toggle user menu</span>
+                <span className="hidden sm:inline-block">{user.name}</span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                <p>Mi Cuenta</p>
+                <p className="text-xs text-muted-foreground font-normal">{getUserRoleLabel()}</p>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />

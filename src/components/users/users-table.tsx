@@ -49,7 +49,7 @@ function isPlazaUser(user: any): user is PlazaUser {
 }
 
 function isToolAdmin(user: any): user is ToolAdmin {
-    return 'toolId' in user;
+    return 'toolId' in user && 'sucursalAccess' in user;
 }
 
 const PasswordCell = ({ password }: { password?: string }) => {
@@ -114,7 +114,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               <TableHead>Usuario</TableHead>
               {isSuperAdminView && <TableHead>Empresa (Prefijo)</TableHead>}
               <TableHead>Acceso Principal</TableHead>
-              {isSuperAdminView && isToolAdmin(data[0]) && <TableHead>Contraseña</TableHead>}
+              {isSuperAdminView && data.some(isToolAdmin) && <TableHead>Contraseña</TableHead>}
               <TableHead>Estado</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
@@ -137,7 +137,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
                       {isPlazaUser(user) && user.plazaAccess.map(pa => (
                         <Badge key={pa.plazaId} variant="outline" className="gap-1.5"><Building className="h-3 w-3" />{pa.plazaName}</Badge>
                       ))}
-                      {isToolAdmin(user) && (
+                      {isToolAdmin(user) && user.toolId && (
                         <Badge variant="secondary" className="gap-1.5">
                             {React.createElement(getToolIcon(user.toolId), { className: "h-3 w-3" })}
                             {getToolName(user.toolId)}
@@ -145,9 +145,9 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
                       )}
                     </div>
                   </TableCell>
-                   {isSuperAdminView && isToolAdmin(user) && (
+                   {isSuperAdminView && isToolAdmin(data[0]) && (
                      <TableCell>
-                        <PasswordCell password={user.password} />
+                        {isToolAdmin(user) ? <PasswordCell password={user.password} /> : <span className="text-muted-foreground">N/A</span>}
                      </TableCell>
                    )}
                   <TableCell>
@@ -194,7 +194,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={isSuperAdminView ? 7 : 5} className="h-24 text-center">
+                <TableCell colSpan={isSuperAdminView && isToolAdmin(data[0]) ? 7 : 5} className="h-24 text-center">
                   No se encontraron resultados.
                 </TableCell>
               </TableRow>

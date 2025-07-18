@@ -15,7 +15,7 @@ import { getCustomizedTools } from '@/lib/data';
 interface User {
   id: string;
   username: string;
-  name?: string; // name for Admins, username for SuperAdmins
+  name: string;
   isSuperAdmin: boolean;
   isToolAdmin: boolean;
   isPlazaUser: boolean;
@@ -153,7 +153,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const superAdmin = await getSuperAdminByUsername(emailOrUsername);
       if (superAdmin && superAdmin.password === pass) {
-          const userData: User = { id: superAdmin.id, username: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false, prefix: superAdmin.prefix };
+          const userData: User = { id: superAdmin.id, username: superAdmin.username, name: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false, prefix: superAdmin.prefix };
           handleSuccessfulLogin(userData);
           return true;
       }
