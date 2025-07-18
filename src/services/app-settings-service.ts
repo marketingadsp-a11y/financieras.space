@@ -1,0 +1,29 @@
+
+'use server';
+
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+export type SupportInfo = {
+  title: string;
+  content: string;
+}
+
+export type AppSettings = {
+  supportInfo?: SupportInfo;
+}
+
+const SETTINGS_DOC_ID = "--app-settings--";
+const settingsDocRef = doc(db, "settings", SETTINGS_DOC_ID);
+
+export async function getAppSettings(): Promise<AppSettings | null> {
+    const docSnap = await getDoc(settingsDocRef);
+    if (docSnap.exists()) {
+        return docSnap.data() as AppSettings;
+    }
+    return null;
+}
+
+export async function saveAppSettings(settingsData: Partial<AppSettings>): Promise<void> {
+    await setDoc(settingsDocRef, settingsData, { merge: true });
+}

@@ -28,7 +28,8 @@ import {
   Landmark,
   ShieldAlert,
   Swords,
-  UserSquare2
+  UserSquare2,
+  LifeBuoy
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -715,7 +716,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-           <NavLinks />
+           <div className="flex-1 flex flex-col">
+              <NavLinks />
+           </div>
+           
+           {!user.isSuperAdmin && (
+             <SidebarMenu>
+               <SidebarMenuItem>
+                 <Link href="/support">
+                   <SidebarMenuButton asChild tooltip="Soporte" isActive={pathname === '/support'}>
+                      <span>
+                         <LifeBuoy />
+                         <span>Soporte</span>
+                      </span>
+                   </SidebarMenuButton>
+                 </Link>
+               </SidebarMenuItem>
+             </SidebarMenu>
+           )}
+
            { showBackButton && (
             <>
               <SidebarSeparator />
