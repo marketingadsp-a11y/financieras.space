@@ -10,6 +10,7 @@ import { getToolAdminByUsername, getToolAdminById } from '@/services/tool-admin-
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LinkedAdminAccess } from '@/lib/data';
+import { getCustomizedTools } from '@/lib/data';
 
 interface User {
   id: string;
@@ -100,12 +101,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user && !pathIsPublic) {
       router.push('/login');
     } else if (user && pathIsPublic) {
-       if (user.isSuperAdmin && !impersonation) router.push('/');
-       else if (user.isPlazaUser || (user.isToolAdmin && user.sucursalAccess && user.sucursalAccess.length > 0)) {
-         const firstToolPath = user.accessibleTools?.[0] ? `/tools/${user.accessibleTools[0]}` : '/tools';
-         router.push(firstToolPath);
+       if (user.isSuperAdmin && !impersonation) {
+         router.push('/');
+         return;
        }
-       else router.push('/tools');
+       
+       // For regular admins, tool admins, or plaza users
+       const accessibleToolsCount = user.accessibleTools?.length || 0;
+       
+       if (accessibleToolsCount === 1) {
+         const allTools = getCustomizedTools();
+         const singleTool = allTools.find(t => t.id === user.accessibleTools![0]);
+         if (singleTool?.href) {
+            router.push(singleTool.href);
+            return;
+         }
+       }
+       
+       // Fallback for users with 0 or >1 tools, or if the tool href isn't found
+       router.push('/tools');
     }
   }, [user, loading, pathname, router, impersonation]);
 
