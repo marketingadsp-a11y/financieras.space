@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { getSucursales } from "@/services/income-expenses-service";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const SucursalCard = ({ sucursal }: { sucursal: Sucursal }) => {
   return (
@@ -47,6 +48,7 @@ const SucursalCard = ({ sucursal }: { sucursal: Sucursal }) => {
 export function SucursalDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [sucursales, setSucursales] = React.useState<Sucursal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   
@@ -60,13 +62,22 @@ export function SucursalDashboard() {
       const allSucursales = await getSucursales(user.prefix);
       const accessibleSucursalIds = user.sucursalAccess.map(sa => sa.sucursalId);
       const accessibleSucursales = allSucursales.filter(s => accessibleSucursalIds.includes(s.id));
+      
+      // If there is only one sucursal, redirect to its panel
+      if (accessibleSucursales.length === 1) {
+        router.replace(`/tools/income-expenses/sucursal/${accessibleSucursales[0].id}`);
+        // We don't stop loading here, let the redirect happen.
+        // A loading state on the redirected page will handle the UI.
+        return;
+      }
+
       setSucursales(accessibleSucursales);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de tus sucursales.'});
     } finally {
       setIsLoading(false);
     }
-  }, [user?.prefix, user?.sucursalAccess, toast]);
+  }, [user?.prefix, user?.sucursalAccess, toast, router]);
 
   React.useEffect(() => {
     fetchData();

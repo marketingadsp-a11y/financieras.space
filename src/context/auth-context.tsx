@@ -106,12 +106,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
          return;
        }
        
-       // For regular admins, tool admins, or plaza users
        const accessibleToolsCount = user.accessibleTools?.length || 0;
        
        if (accessibleToolsCount === 1) {
+         const singleToolId = user.accessibleTools![0];
          const allTools = getCustomizedTools();
-         const singleTool = allTools.find(t => t.id === user.accessibleTools![0]);
+         const singleTool = allTools.find(t => t.id === singleToolId);
+         
+         // Specific logic for 'income-expenses' tool with sucursal access
+         if (singleToolId === 'income-expenses' && user.isToolAdmin && user.sucursalAccess) {
+             if (user.sucursalAccess.length === 1) {
+                const sucursalId = user.sucursalAccess[0].sucursalId;
+                router.push(`/tools/income-expenses/sucursal/${sucursalId}`);
+                return;
+             }
+             // If more than 1 sucursal, fall through to go to the tool's main page
+         }
+         
          if (singleTool?.href) {
             router.push(singleTool.href);
             return;
