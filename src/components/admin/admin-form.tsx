@@ -18,14 +18,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { Admin } from "@/lib/data";
-import { allTools, getCustomizedTools } from "@/lib/data";
+import { getCustomizedTools } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { getAdmins } from "@/services/admin-service";
-import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -196,19 +195,22 @@ export function AdminForm({ onSubmit, admin }: AdminFormProps) {
                                     <CommandList>
                                         <CommandEmpty>No hay más admins.</CommandEmpty>
                                         <CommandGroup>
-                                            {availableAdmins.map((a) => (
-                                            <CommandItem
-                                                key={a.id}
-                                                value={a.name}
-                                                onSelect={() => {
-                                                    append({ adminId: a.id, adminName: a.name, allowedTools: [] });
-                                                    setOpen(false)
-                                                }}
-                                            >
-                                                <Check className={cn("mr-2 h-4 w-4", assignedAdminIds.includes(a.id) ? "opacity-100" : "opacity-0")} />
-                                                {a.name}
-                                            </CommandItem>
-                                            ))}
+                                            {availableAdmins.map((a) => {
+                                                const adminLabel = `${a.name} (${a.prefix})`;
+                                                return (
+                                                    <CommandItem
+                                                        key={a.id}
+                                                        value={adminLabel}
+                                                        onSelect={() => {
+                                                            append({ adminId: a.id, adminName: adminLabel, allowedTools: [] });
+                                                            setOpen(false)
+                                                        }}
+                                                    >
+                                                        <Check className={cn("mr-2 h-4 w-4", assignedAdminIds.includes(a.id) ? "opacity-100" : "opacity-0")} />
+                                                        {adminLabel}
+                                                    </CommandItem>
+                                                )
+                                            })}
                                         </CommandGroup>
                                     </CommandList>
                                 </Command>
