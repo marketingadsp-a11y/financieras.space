@@ -39,19 +39,10 @@ type SucursalTransactionDialogProps = {
 
 const formSchema = z.object({
     type: z.enum(['deposit', 'expense']),
-    category: z.string().optional(),
+    category: z.string({ required_error: "Debe seleccionar una categoría." }).min(1, "Debe seleccionar una categoría."),
     amount: z.coerce.number().positive("El monto debe ser un número positivo."),
     executive: z.string().min(1, "El responsable del movimiento es requerido."),
     description: z.string().optional(),
-}).refine(data => {
-    // Category is required only if the type is 'expense'
-    if (data.type === 'expense' && !data.category) {
-        return false;
-    }
-    return true;
-}, {
-    message: "La categoría es requerida para los gastos.",
-    path: ["category"],
 });
 
 
@@ -133,36 +124,34 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
           <DialogTitle>Registrar Nueva Transacción</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
                 
-                {/* Step 1: Type */}
                 <div className="space-y-2">
                     <Label>1. Elige el tipo de movimiento</Label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                        <div 
                          onClick={() => form.setValue('type', 'deposit')}
                          className={cn(
-                             "flex flex-col items-center justify-center gap-2 rounded-lg border-2 p-4 cursor-pointer transition-colors",
+                             "flex items-center justify-center gap-2 rounded-lg border-2 p-2 cursor-pointer transition-colors h-16",
                              watchType === 'deposit' ? "border-green-500 bg-green-500/10 text-green-600" : "hover:bg-muted/50"
                          )}
                        >
-                            <ArrowUp className="h-6 w-6"/>
+                            <ArrowUp className="h-5 w-5"/>
                             <span className="font-semibold">Ingreso</span>
                        </div>
                        <div 
                          onClick={() => form.setValue('type', 'expense')}
                          className={cn(
-                             "flex flex-col items-center justify-center gap-2 rounded-lg border-2 p-4 cursor-pointer transition-colors",
+                             "flex items-center justify-center gap-2 rounded-lg border-2 p-2 cursor-pointer transition-colors h-16",
                              watchType === 'expense' ? "border-destructive bg-destructive/10 text-destructive" : "hover:bg-muted/50"
                          )}
                        >
-                            <ArrowDown className="h-6 w-6"/>
+                            <ArrowDown className="h-5 w-5"/>
                             <span className="font-semibold">Gasto</span>
                        </div>
                     </div>
                 </div>
 
-                {/* Step 2: Category (dynamic based on type) */}
                 <div className="space-y-2">
                     <Label>2. Selecciona una categoría</Label>
                     <FormField 
@@ -170,25 +159,25 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                         name="category"
                         render={({ field }) => (
                             <FormItem>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-4 gap-2">
                                     {isLoadingCategories ? (
-                                        <p className="col-span-3 text-sm text-muted-foreground">Cargando categorías...</p>
+                                        <p className="col-span-4 text-sm text-muted-foreground">Cargando categorías...</p>
                                     ) : currentCategories.length > 0 ? (
                                         currentCategories.map(cat => (
                                                 <div 
                                                 key={cat.id}
                                                 onClick={() => field.onChange(cat.name)}
                                                 className={cn(
-                                                    "flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-3 cursor-pointer transition-colors text-center h-20",
+                                                    "flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition-colors text-center h-16",
                                                     field.value === cat.name ? "border-primary bg-primary/10" : "hover:bg-muted/50"
                                                 )}
                                             >
-                                                <LucideIcon name={cat.icon as keyof typeof icons} className="h-6 w-6 text-primary/80"/>
-                                                <span className="text-xs font-medium">{cat.name}</span>
+                                                <LucideIcon name={cat.icon as keyof typeof icons} className="h-5 w-5 text-primary/80"/>
+                                                <span className="text-xs font-medium leading-tight">{cat.name}</span>
                                             </div>
                                         ))
                                     ) : (
-                                        <p className="col-span-3 text-sm text-muted-foreground">No hay categorías para '{watchType === 'expense' ? 'gastos' : 'ingresos'}'. Créalas en la sección de gestión.</p>
+                                        <p className="col-span-4 text-sm text-muted-foreground">No hay categorías para '{watchType === 'expense' ? 'gastos' : 'ingresos'}'. Créalas en la sección de gestión.</p>
                                     )}
                                 </div>
                                 <FormMessage />
@@ -197,7 +186,6 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
                     />
                 </div>
                 
-                {/* Step 3: Amount, Executive, and Description */}
                 <div className="space-y-4">
                     <Label>3. Ingresa los detalles</Label>
                     <FormField
@@ -260,3 +248,4 @@ export function SucursalTransactionDialog({ isOpen, onClose, onSubmit }: Sucursa
     </Dialog>
   );
 }
+
