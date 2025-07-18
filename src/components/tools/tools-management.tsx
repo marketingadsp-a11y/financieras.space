@@ -48,6 +48,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { getCustomizedTools } from "@/lib/data";
 import { Separator } from "@/components/ui/separator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 // Reusable Dialog for Daily Record Import
 const DailyRecordImportDialog = ({
@@ -275,9 +276,9 @@ const DailyRecordDeleteDialog = ({
 };
 
 
-export function ToolsManagement() {
+export function ToolsManagement({ customTools }: { customTools?: Tool[] }) {
   const { user } = useAuth();
-  const allCustomTools = getCustomizedTools();
+  const allCustomTools = customTools || getCustomizedTools();
 
   if (user && !user.isSuperAdmin) {
     return <AdminToolsView customTools={allCustomTools} />;
@@ -387,8 +388,20 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
     }
   };
 
-  const assigned = admins.filter(admin => selectedAdmins.has(admin.id));
-  const unassigned = admins.filter(admin => !selectedAdmins.has(admin.id));
+  const groupedAdmins = React.useMemo(() => {
+    return admins.reduce((acc, admin) => {
+      const prefix = admin.prefix || 'Sin Prefijo';
+      if (!acc[prefix]) {
+        acc[prefix] = { assigned: [], unassigned: [] };
+      }
+      if (selectedAdmins.has(admin.id)) {
+        acc[prefix].assigned.push(admin);
+      } else {
+        acc[prefix].unassigned.push(admin);
+      }
+      return acc;
+    }, {} as Record<string, { assigned: Admin[], unassigned: Admin[] }>);
+  }, [admins, selectedAdmins]);
 
   return (
     <div className="space-y-8">
@@ -440,11 +453,11 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
       
       {/* Access Management Dialog */}
       <Dialog open={isAccessModalOpen} onOpenChange={setAccessModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Gestionar Acceso para {selectedTool?.name}</DialogTitle>
             <DialogDescription>
-              Selecciona los administradores que tendrán acceso a esta herramienta.
+              Selecciona los administradores que tendrán acceso a esta herramienta, agrupados por empresa.
             </DialogDescription>
           </DialogHeader>
           {isLoading ? (
@@ -452,55 +465,45 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
                 <Loader2 className="mr-2 h-8 w-8 animate-spin" />
              </div>
           ) : (
-            <div className="space-y-4 py-4 max-h-[50vh] overflow-y-auto pr-2">
-                <div>
-                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Asignados ({assigned.length})</h4>
-                    <div className="space-y-2">
-                        {assigned.length > 0 ? assigned.map((admin) => (
-                            <div 
-                                key={admin.id} 
-                                onClick={() => handleAdminSelection(admin.id)}
-                                className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative bg-primary/10 border-primary/50 shadow-sm"
-                            >
-                                <Avatar className="h-9 w-9">
-                                    <AvatarFallback>{admin.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <p className="font-semibold">{admin.name}</p>
-                                    <p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p>
+            <div className="py-4 max-h-[60vh] overflow-y-auto pr-2">
+                <Accordion type="multiple" className="w-full space-y-2" defaultValue={Object.keys(groupedAdmins)}>
+                    {Object.entries(groupedAdmins).map(([prefix, { assigned, unassigned }]) => (
+                        <AccordionItem key={prefix} value={prefix} className="border rounded-md px-2 bg-muted/20">
+                            <AccordionTrigger className="text-base hover:no-underline">
+                                <div className="flex-1 text-left">
+                                    <p className="font-semibold">{prefix}</p>
+                                    <p className="text-xs text-muted-foreground">{assigned.length} de {assigned.length + unassigned.length} admins con acceso.</p>
                                 </div>
-                                <CheckCircle2 className="h-5 w-5 text-primary" />
-                            </div>
-                        )) : (
-                            <p className="text-sm text-center text-muted-foreground py-4">Ningún administrador asignado.</p>
-                        )}
-                    </div>
-                </div>
-
-                <Separator />
-                
-                <div>
-                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Por Asignar ({unassigned.length})</h4>
-                    <div className="space-y-2">
-                        {unassigned.length > 0 ? unassigned.map((admin) => (
-                            <div 
-                                key={admin.id} 
-                                onClick={() => handleAdminSelection(admin.id)}
-                                className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative hover:bg-muted/50"
-                            >
-                                <Avatar className="h-9 w-9">
-                                    <AvatarFallback>{admin.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <p className="font-semibold">{admin.name}</p>
-                                    <p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-2 space-y-4">
+                                <div>
+                                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Asignados ({assigned.length})</h4>
+                                    <div className="space-y-2">
+                                        {assigned.length > 0 ? assigned.map((admin) => (
+                                            <div key={admin.id} onClick={() => handleAdminSelection(admin.id)} className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative bg-primary/10 border-primary/50 shadow-sm">
+                                                <Avatar className="h-9 w-9"><AvatarFallback>{admin.name.charAt(0)}</AvatarFallback></Avatar>
+                                                <div className="flex-1"><p className="font-semibold">{admin.name}</p><p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p></div>
+                                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                                            </div>
+                                        )) : <p className="text-sm text-center text-muted-foreground py-2">Ningún administrador asignado.</p>}
+                                    </div>
                                 </div>
-                            </div>
-                        )) : (
-                             <p className="text-sm text-center text-muted-foreground py-4">Ningún administrador por asignar.</p>
-                        )}
-                    </div>
-                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Por Asignar ({unassigned.length})</h4>
+                                    <div className="space-y-2">
+                                        {unassigned.length > 0 ? unassigned.map((admin) => (
+                                            <div key={admin.id} onClick={() => handleAdminSelection(admin.id)} className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative hover:bg-muted/50">
+                                                <Avatar className="h-9 w-9"><AvatarFallback>{admin.name.charAt(0)}</AvatarFallback></Avatar>
+                                                <div className="flex-1"><p className="font-semibold">{admin.name}</p><p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p></div>
+                                            </div>
+                                        )) : <p className="text-sm text-center text-muted-foreground py-2">Ningún administrador por asignar.</p>}
+                                    </div>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
             </div>
           )}
           <DialogFooter>
