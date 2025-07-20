@@ -129,6 +129,7 @@ export type Tool = {
   description: string;
   href: string;
   icon: React.ElementType;
+  color?: string;
 };
 
 export const allTools: Tool[] = [
@@ -138,6 +139,7 @@ export const allTools: Tool[] = [
     description: "Gestión de clientes con cartera vencida, registro de plazas y control de deuda.",
     href: "/tools/overdue-portfolio",
     icon: FolderKanban,
+    color: '#ef4444'
   },
    {
     id: "income-expenses",
@@ -145,6 +147,7 @@ export const allTools: Tool[] = [
     description: "Administra el capital, asigna fondos a sucursales y lleva un control de los balances.",
     href: "/tools/income-expenses",
     icon: Landmark,
+    color: '#22c55e'
   },
   {
     id: "daily-control",
@@ -152,6 +155,7 @@ export const allTools: Tool[] = [
     description: "Registra y sigue el flujo financiero diario (cobrado, prestado, gastado) por plaza.",
     href: "/tools/daily-control",
     icon: BookCheck,
+    color: '#eab308'
   },
   {
     id: "loan-control",
@@ -159,19 +163,24 @@ export const allTools: Tool[] = [
     description: "Organiza clientes en Plazas, Carteras y Grupos para un seguimiento detallado.",
     href: "/tools/loan-control",
     icon: Files,
+    color: '#3b82f6'
   }
 ];
 
-// Helper function to get tools with customized names from localStorage
+// Helper function to get tools with customized names and colors from localStorage
 export function getCustomizedTools(): Tool[] {
   if (typeof window === 'undefined') {
     return allTools;
   }
-  const storedNames = JSON.parse(localStorage.getItem('toolNames') || '{}');
-  return allTools.map(tool => ({
-    ...tool,
-    name: storedNames[tool.id] || tool.name,
-  }));
+  const storedSettings = JSON.parse(localStorage.getItem('toolSettings') || '[]');
+  return allTools.map(tool => {
+    const customSetting = storedSettings.find((s: any) => s.id === tool.id);
+    return {
+      ...tool,
+      name: customSetting?.name || tool.name,
+      color: customSetting?.color || tool.color,
+    };
+  });
 }
 
 

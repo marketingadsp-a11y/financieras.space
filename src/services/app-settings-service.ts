@@ -9,8 +9,15 @@ export type SupportInfo = {
   content: string;
 }
 
+export type ToolSetting = {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export type AppSettings = {
   supportInfo?: SupportInfo;
+  toolSettings?: ToolSetting[];
 }
 
 const SETTINGS_DOC_ID = "--app-settings--";

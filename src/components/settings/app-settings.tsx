@@ -25,16 +25,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { AppWindow, Wrench, LifeBuoy, Loader2 } from "lucide-react";
+import { AppWindow, Wrench, LifeBuoy, Loader2, Palette } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { allTools, type Tool } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { getAppSettings, saveAppSettings } from "@/services/app-settings-service";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-const toolNameSchema = z.object({
+const toolSettingsSchema = z.object({
   id: z.string(),
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
+  color: z.string().optional(),
 });
 
 const supportInfoSchema = z.object({
@@ -45,7 +46,7 @@ const supportInfoSchema = z.object({
 const appSettingsSchema = z.object({
   appName: z.string().min(3, "El nombre de la aplicación debe tener al menos 3 caracteres."),
   footerText: z.string().optional(),
-  toolNames: z.array(toolNameSchema).optional(),
+  toolSettings: z.array(toolSettingsSchema).optional(),
   supportInfo: supportInfoSchema.optional(),
 });
 
@@ -61,7 +62,7 @@ export function AppSettings() {
     defaultValues: {
         appName: "Panel de Administración",
         footerText: "",
-        toolNames: allTools.map(tool => ({ id: tool.id, name: tool.name })),
+        toolSettings: allTools.map(tool => ({ id: tool.id, name: tool.name, color: tool.color || '#3b82f6' })),
         supportInfo: {
             title: "",
             content: ""
@@ -74,18 +75,23 @@ export function AppSettings() {
         setIsLoading(true);
         const storedAppName = localStorage.getItem("appName") || "Panel de Administración";
         const storedFooterText = localStorage.getItem("footerText") || "";
-        const storedToolNames = JSON.parse(localStorage.getItem("toolNames") || "{}");
-        const toolNames = allTools.map(tool => ({
-            id: tool.id,
-            name: storedToolNames[tool.id] || tool.name,
-        }));
+        const storedToolSettings = JSON.parse(localStorage.getItem("toolSettings") || "[]");
+        
+        const toolSettings = allTools.map(tool => {
+            const storedSetting = storedToolSettings.find((s: any) => s.id === tool.id);
+            return {
+                id: tool.id,
+                name: storedSetting?.name || tool.name,
+                color: storedSetting?.color || tool.color || '#3b82f6'
+            }
+        });
         
         const settings = await getAppSettings();
         
         form.reset({
             appName: storedAppName,
             footerText: storedFooterText,
-            toolNames: toolNames,
+            toolSettings: toolSettings,
             supportInfo: {
                 title: settings?.supportInfo?.title || "Página de Soporte",
                 content: settings?.supportInfo?.content || "Contacta a tu administrador para más información."
@@ -101,12 +107,8 @@ export function AppSettings() {
       localStorage.setItem("appName", data.appName);
       localStorage.setItem("footerText", data.footerText || "");
 
-      if (data.toolNames && user?.isSuperAdmin) {
-        const toolNamesMap = data.toolNames.reduce((acc, tool) => {
-            acc[tool.id] = tool.name;
-            return acc;
-        }, {} as Record<string, string>);
-        localStorage.setItem("toolNames", JSON.stringify(toolNamesMap));
+      if (data.toolSettings && user?.isSuperAdmin) {
+        localStorage.setItem("toolSettings", JSON.stringify(data.toolSettings));
       }
       
       if (data.supportInfo) {
@@ -145,7 +147,6 @@ export function AppSettings() {
             <CardContent>
               <Accordion type="multiple" className="w-full space-y-4">
                 
-                {/* General Settings */}
                 <AccordionItem value="general-settings" className="border rounded-lg">
                   <AccordionTrigger className="px-4 py-3 hover:no-underline text-left">
                     <div className="flex items-center gap-4">
@@ -191,50 +192,64 @@ export function AppSettings() {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* Tool Names */}
                 {user?.isSuperAdmin && (
                   <AccordionItem value="tool-names" className="border rounded-lg">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline text-left">
                         <div className="flex items-center gap-4">
                             <div className="p-2 bg-primary/10 rounded-lg"><Wrench className="h-6 w-6 text-primary"/></div>
                             <div>
-                                <p className="font-semibold text-base">Nombres de Herramientas</p>
-                                <p className="text-sm text-muted-foreground font-normal">Personaliza los nombres que se muestran en la app.</p>
+                                <p className="font-semibold text-base">Personalización de Herramientas</p>
+                                <p className="text-sm text-muted-foreground font-normal">Edita nombres y colores para cada herramienta.</p>
                             </div>
                         </div>
                     </AccordionTrigger>
                     <AccordionContent className="p-6 border-t">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {form.getValues('toolNames')?.map((tool, index) => (
-                          <FormField
-                              key={tool.id}
-                              control={form.control}
-                              name={`toolNames.${index}.name`}
-                              render={({ field }) => {
-                                  const originalTool = allTools.find(t => t.id === tool.id);
-                                  return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {form.getValues('toolSettings')?.map((tool, index) => {
+                          const originalTool = allTools.find(t => t.id === tool.id);
+                          return (
+                            <div key={tool.id} className="p-4 border rounded-md space-y-4">
+                              <div className="flex items-center gap-2">
+                                  {originalTool && <originalTool.icon className="h-5 w-5 text-muted-foreground" />}
+                                  <span className="font-semibold">{originalTool?.name}</span>
+                              </div>
+                              <FormField
+                                  control={form.control}
+                                  name={`toolSettings.${index}.name`}
+                                  render={({ field }) => (
                                       <FormItem>
-                                          <FormLabel>
-                                              <div className="flex items-center gap-2">
-                                                  {originalTool && <originalTool.icon className="h-4 w-4 text-muted-foreground" />}
-                                                  <span>{originalTool?.name}</span>
-                                              </div>
-                                          </FormLabel>
+                                          <FormLabel>Nombre a mostrar</FormLabel>
                                           <FormControl>
                                               <Input {...field} />
                                           </FormControl>
                                           <FormMessage />
                                       </FormItem>
-                                  )
-                              }}
-                          />
-                      ))}
+                                  )}
+                              />
+                               <FormField
+                                  control={form.control}
+                                  name={`toolSettings.${index}.color`}
+                                  render={({ field }) => (
+                                      <FormItem>
+                                          <FormLabel>Color de la herramienta</FormLabel>
+                                          <FormControl>
+                                            <div className="flex items-center gap-2">
+                                                <Input type="color" className="w-16 h-10 p-1" {...field} />
+                                                <Input type="text" placeholder="#3b82f6" {...field} />
+                                            </div>
+                                          </FormControl>
+                                          <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+                            </div>
+                          )
+                      })}
                       </div>
                     </AccordionContent>
                   </AccordionItem>
                 )}
 
-                {/* Support Page */}
                 {user?.isSuperAdmin && (
                   <AccordionItem value="support-page" className="border rounded-lg">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline text-left">
@@ -278,10 +293,8 @@ export function AppSettings() {
                     </AccordionContent>
                   </AccordionItem>
                 )}
-
               </Accordion>
             </CardContent>
-
             <CardFooter className="border-t px-6 py-4 mt-6">
                 <Button type="submit" disabled={form.formState.isSubmitting}>
                     {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}

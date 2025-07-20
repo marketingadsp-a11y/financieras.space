@@ -446,8 +446,8 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
             >
               <CardHeader className="cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
                 <div className="flex justify-between items-start">
-                    <div className="p-3 bg-primary/10 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
-                        <tool.icon className="h-6 w-6 text-primary" />
+                    <div className="p-3 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: `${tool.color}1A` }}>
+                        <tool.icon className="h-6 w-6" style={{ color: tool.color }} />
                     </div>
                     <TooltipProvider>
                         <Tooltip>
@@ -469,7 +469,7 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
                 <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
               </CardContent>
               <CardFooter className="flex flex-col items-start gap-4">
-                 <Button variant="ghost" className="p-0 h-auto text-primary" onClick={() => handleManageAccessClick(tool)}>
+                 <Button variant="ghost" className="p-0 h-auto" onClick={() => handleManageAccessClick(tool)} style={{ color: tool.color }}>
                     <span className="text-sm font-medium flex items-center gap-2">
                         Gestionar Acceso
                         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
@@ -613,8 +613,8 @@ function AdminToolsView({ customTools }: { customTools: Tool[] }) {
                         <Link href={tool.href} key={tool.id} className="group">
                             <Card className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/50">
                                 <CardHeader>
-                                    <div className="p-3 bg-primary/10 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
-                                        <tool.icon className="h-6 w-6 text-primary" />
+                                    <div className="p-3 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: `${tool.color}1A`}}>
+                                        <tool.icon className="h-6 w-6" style={{ color: tool.color }} />
                                     </div>
                                 </CardHeader>
                                 <CardContent className="flex-grow">
@@ -622,7 +622,7 @@ function AdminToolsView({ customTools }: { customTools: Tool[] }) {
                                     <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
                                 </CardContent>
                                 <CardFooter>
-                                    <span className="text-sm font-medium text-primary flex items-center gap-2">
+                                    <span className="text-sm font-medium flex items-center gap-2" style={{ color: tool.color }}>
                                         Abrir herramienta
                                         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                                     </span>
