@@ -326,19 +326,9 @@ function LoanControlNav() {
 
 
 
-function NavLinks() {
+function NavLinks({ customTools }: { customTools: Tool[] }) {
   const pathname = usePathname();
   const { user, hasPermission } = useAuth();
-  const [customTools, setCustomTools] = React.useState<Tool[]>(getCustomizedTools());
-
-
-  React.useEffect(() => {
-    const updateTools = () => setCustomTools(getCustomizedTools());
-    window.addEventListener('storage', updateTools);
-    updateTools(); // Initial call
-    return () => window.removeEventListener('storage', updateTools);
-  }, []);
-  
 
   const isCarteraVencidaPath = pathname.startsWith('/tools/overdue-portfolio');
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
@@ -655,16 +645,13 @@ function ImpersonationBar() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout, impersonation } = useAuth();
   const pathname = usePathname();
-  const [customTools, setCustomTools] = React.useState<Tool[]>(getCustomizedTools());
+  const [customTools, setCustomTools] = React.useState<Tool[]>([]);
 
   React.useEffect(() => {
     const updateTools = () => setCustomTools(getCustomizedTools());
     window.addEventListener('storage', updateTools);
-    updateTools();
-
-    return () => {
-        window.removeEventListener('storage', updateTools);
-    };
+    updateTools(); // Initial call to set names
+    return () => window.removeEventListener('storage', updateTools);
   }, []);
 
   if (!user) {
@@ -717,7 +704,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
            <div className="flex-1 flex flex-col">
-              <NavLinks />
+              <NavLinks customTools={customTools} />
            </div>
            
            {!user.isSuperAdmin && (
@@ -803,7 +790,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </DropdownMenu>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-            {children}
+            {React.cloneElement(children as React.ReactElement, { customTools })}
         </main>
       </SidebarInset>
     </SidebarProvider>
