@@ -95,7 +95,7 @@ export async function addGrupo(grupo: Omit<LoanControlGrupo, 'id'>): Promise<Loa
 }
 
 export async function updateGrupo(id: string, grupo: Partial<Omit<LoanControlGrupo, 'id'>>) {
-    const grupoDoc = doc(db, "loanControlGrupos", grupoId);
+    const grupoDoc = doc(db, "loanControlGrupos", id);
     await updateDoc(grupoDoc, grupo);
 }
 
@@ -174,9 +174,14 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
 
 // --- Full Data Import ---
 export async function clearDataByPrefix(prefix: string) {
-    const collectionsToDelete = [plazasCollectionRef, carterasCollectionRef, gruposCollectionRef, customersCollectionRef];
-    for (const coll of collectionsToDelete) {
-        const q = query(coll, where("prefix", "==", prefix));
+    const collectionsToDelete = [
+        query(plazasCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", "loan-control")),
+        query(carterasCollectionRef, where("prefix", "==", prefix)),
+        query(gruposCollectionRef, where("prefix", "==", prefix)),
+        query(customersCollectionRef, where("prefix", "==", prefix)), // Assuming customers are shared, or filter by a context if they are not
+    ];
+
+    for (const q of collectionsToDelete) {
         const snapshot = await getDocs(q);
         if (snapshot.empty) continue;
 
@@ -211,7 +216,7 @@ export async function importFullLoanData(
     const grupoCache: Record<string, string> = {};
 
     if (mode === 'add') {
-        const plazaQuery = query(plazasCollectionRef, where("prefix", "==", prefix));
+        const plazaQuery = query(plazasCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", "loan-control"));
         const plazaSnapshot = await getDocs(plazaQuery);
         plazaSnapshot.forEach(doc => { plazaCache[doc.data().name] = doc.id; });
 
@@ -262,7 +267,7 @@ export async function importFullLoanData(
         if (!plazaId) {
             const newDocRef = doc(plazasCollectionRef);
             plazaId = newDocRef.id;
-            batch.set(newDocRef, { name: currentPlazaName, prefix });
+            batch.set(newDocRef, { name: currentPlazaName, prefix, toolContext: 'loan-control' });
             operationCount++;
             plazaCache[currentPlazaName] = plazaId;
         }

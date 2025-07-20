@@ -41,7 +41,7 @@ export function DangerZoneManagement() {
   React.useEffect(() => {
     if (user?.prefix) {
         setIsLoadingPlazas(true);
-        getPlazas({ prefix: user.prefix }).then(setPlazas).catch(() => {
+        getPlazas({ prefix: user.prefix, toolContext: 'overdue-portfolio' }).then(setPlazas).catch(() => {
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las plazas.'})
         }).finally(() => setIsLoadingPlazas(false));
     }
@@ -58,7 +58,7 @@ export function DangerZoneManagement() {
     }
     setIsDeletingAll(true);
     try {
-      await deleteAllPlazasByPrefix(user.prefix);
+      await deleteAllPlazasByPrefix(user.prefix, 'overdue-portfolio');
       toast({ title: "Éxito", description: "Todas las plazas y clientes de Cartera Vencida han sido eliminados." });
       setAllDataConfirmation("");
       setPlazas([]); // Clear plazas from state

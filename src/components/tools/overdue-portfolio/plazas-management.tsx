@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -25,7 +26,7 @@ export function PlazasManagement() {
     try {
       setIsLoading(true);
       const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-      const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+      const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, toolContext: 'overdue-portfolio' });
       setPlazas(plazasFromDb);
     } catch (error) {
       toast({
@@ -42,10 +43,14 @@ export function PlazasManagement() {
     fetchPlazas();
   }, [fetchPlazas]);
 
-  const handleAddPlaza = async (newPlaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate'>) => {
+  const handleAddPlaza = async (newPlaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate' | 'toolContext'>) => {
     try {
       // Admins use their own prefix. SuperAdmins might create for others, but for now, let's stick to their prefix if they have one.
-      const plazaData = { ...newPlaza, prefix: user?.prefix };
+      const plazaData: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate' | 'totalLoanAmount'> = { 
+        ...newPlaza, 
+        prefix: user?.prefix,
+        toolContext: 'overdue-portfolio'
+      };
       await addPlaza(plazaData);
       await fetchPlazas();
       setIsFormOpen(false);

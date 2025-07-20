@@ -125,7 +125,7 @@ export function LoanControlDashboard() {
         setIsLoading(true);
         try {
             const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-            const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, startDate, endDate });
+            const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, startDate, endDate, toolContext: 'loan-control' });
             setPlazas(plazasFromDb);
         } catch (error) {
             console.error("Failed to fetch plazas", error);

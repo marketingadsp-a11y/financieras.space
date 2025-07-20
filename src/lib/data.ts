@@ -59,6 +59,7 @@ export type Plaza = {
   pendingDebt: number;
   recoveryRate: number;
   prefix?: string;
+  toolContext: 'overdue-portfolio' | 'loan-control';
   totalLoanAmount?: number;
 };
 

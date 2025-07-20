@@ -14,21 +14,31 @@ type GetPlazasOptions = {
     fetchAll?: boolean;
     startDate?: Date;
     endDate?: Date;
+    toolContext?: 'overdue-portfolio' | 'loan-control';
 }
 
-export async function getPlazas({ prefix, fetchAll = false, startDate, endDate }: GetPlazasOptions = {}): Promise<Plaza[]> {
-    let q;
+export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, toolContext }: GetPlazasOptions = {}): Promise<Plaza[]> {
+    let constraints = [];
+    
+    if (toolContext) {
+        constraints.push(where("toolContext", "==", toolContext));
+    } else {
+        // If no context is provided, we should probably not return anything to avoid data leaks between tools
+        return [];
+    }
+
     if (fetchAll) {
-        // SuperAdmins or ToolAdmins can see everything
-        q = query(plazasCollectionRef);
+        // SuperAdmins or ToolAdmins can see everything within a tool context
+        // No prefix constraint needed
     } else if (prefix) {
-        // Global Admins see only their prefixed plazas
-        q = query(plazasCollectionRef, where("prefix", "==", prefix));
+        // Global Admins see only their prefixed plazas within a tool context
+        constraints.push(where("prefix", "==", prefix));
     } else {
         // No prefix and not fetching all, return empty to avoid showing all data by mistake
         return [];
     }
     
+    const q = query(plazasCollectionRef, ...constraints);
     const plazasSnapshot = await getDocs(q);
     
     const plazasWithCalculations = await Promise.all(plazasSnapshot.docs.map(async (doc) => {
@@ -64,6 +74,7 @@ export async function getPlazas({ prefix, fetchAll = false, startDate, endDate }
             pendingDebt,
             recoveryRate,
             prefix: plazaData.prefix,
+            toolContext: plazaData.toolContext,
             totalLoanAmount: totalLoanAmount,
         };
     }));
@@ -94,7 +105,8 @@ export async function addPlaza(plaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recove
     const dataToSave = {
         name: plaza.name,
         prefix: plaza.prefix || "",
-    }
+        toolContext: plaza.toolContext
+    };
     const docRef = await addDoc(plazasCollectionRef, dataToSave);
     return { ...dataToSave, id: docRef.id, pendingDebt: 0, recoveryRate: 0, totalLoanAmount: 0 };
 }
@@ -120,11 +132,11 @@ export async function deletePlaza(id: string) {
     await batch.commit();
 }
 
-export async function deleteAllPlazasByPrefix(prefix: string) {
+export async function deleteAllPlazasByPrefix(prefix: string, toolContext: 'overdue-portfolio' | 'loan-control') {
     const batch = writeBatch(db);
     
-    // 1. Find all plazas with the given prefix
-    const plazasQuery = query(plazasCollectionRef, where("prefix", "==", prefix));
+    // 1. Find all plazas with the given prefix and tool context
+    const plazasQuery = query(plazasCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", toolContext));
     const plazasSnapshot = await getDocs(plazasQuery);
     
     // 2. For each plaza, find and delete its customers
