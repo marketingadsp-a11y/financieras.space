@@ -20,6 +20,16 @@ export async function getAllCustomersByPrefix(prefix: string): Promise<Customer[
     return data.docs.map(customerFromDoc);
 }
 
+export async function getAllCustomersByPrefixAndTool(prefix: string, toolContext: 'overdue-portfolio' | 'loan-control'): Promise<Customer[]> {
+    const q = query(
+        customersCollectionRef, 
+        where("prefix", "==", prefix), 
+        where("toolContext", "==", toolContext)
+    );
+    const data = await getDocs(q);
+    return data.docs.map(customerFromDoc);
+}
+
 
 export async function addCustomer(customer: Omit<Customer, 'id'>) : Promise<Customer> {
      const customerDataWithTimestamp = {
@@ -56,9 +66,9 @@ export async function deleteCustomersByPlaza(plazaId: string): Promise<void> {
     await batch.commit();
 }
 
-export async function deleteAllCustomersByPrefix(prefix: string): Promise<void> {
+export async function deleteAllCustomersByPrefix(prefix: string, toolContext: 'overdue-portfolio'): Promise<void> {
     const batch = writeBatch(db);
-    const q = query(customersCollectionRef, where("prefix", "==", prefix));
+    const q = query(customersCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", toolContext));
     const snapshot = await getDocs(q);
 
     snapshot.docs.forEach(doc => {
@@ -75,9 +85,10 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'sta
 
 export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'status'>[], mode: 'add' | 'replace', prefix: string, plazaId?: string, grupoId?: string): Promise<void> {
     const batch = writeBatch(db);
+    const toolContext = grupoId ? 'loan-control' : 'overdue-portfolio';
 
     if (mode === 'replace') {
-        let constraints: any[] = [where("prefix", "==", prefix)];
+        let constraints: any[] = [where("prefix", "==", prefix), where("toolContext", "==", toolContext)];
         
         if (plazaId && grupoId) { // From loan control group import
             constraints.push(where("plazaId", "==", plazaId));
@@ -101,6 +112,7 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'sta
             ...customerData,
             status: (customerData.dueAmount || 0) <= 0 ? 'Pagado' : 'Pendiente',
             prefix: prefix,
+            toolContext: toolContext,
             name: customerData.name || '',
             address: customerData.address || '',
             phone: customerData.phone || '',

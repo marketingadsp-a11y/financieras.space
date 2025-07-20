@@ -14,7 +14,7 @@ import type { Plaza, Customer } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { getPlazas } from "@/services/plaza-service";
-import { getCustomersByPlaza, addMultipleCustomers, getAllCustomersByPrefix } from "@/services/customer-service";
+import { getAllCustomersByPrefixAndTool, addMultipleCustomers } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -96,7 +96,7 @@ export function ToolsPage() {
     const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
     const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
     const [isImporting, setIsImporting] = React.useState(false);
-
+    const toolContext = 'overdue-portfolio';
 
     const fetchData = React.useCallback(async () => {
         if (!user || !user.prefix) return;
@@ -104,15 +104,15 @@ export function ToolsPage() {
             setIsLoading(true);
             const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
             const [plazasFromDb, allCustomers] = await Promise.all([
-                getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll }),
-                getAllCustomersByPrefix(user.prefix) // Fetch all customers at once
+                getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, toolContext }),
+                getAllCustomersByPrefixAndTool(user.prefix, toolContext)
             ]);
 
             setPlazas(plazasFromDb);
 
             const totalClients = allCustomers.length;
             const recoveredClients = allCustomers.filter(c => c.dueAmount === 0).length;
-            const totalDebt = allCustomers.reduce((acc, c) => acc + c.dueAmount, 0);
+            const totalDebt = allCustomers.reduce((acc, c) => acc + (c.dueAmount || 0), 0);
             const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
             
             setSummary({

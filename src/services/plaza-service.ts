@@ -132,7 +132,7 @@ export async function deletePlaza(id: string) {
     await batch.commit();
 }
 
-export async function deleteAllPlazasByPrefix(prefix: string, toolContext: 'overdue-portfolio' | 'loan-control') {
+export async function deleteAllPlazasByPrefix(prefix: string, toolContext: 'overdue-portfolio') {
     const batch = writeBatch(db);
     
     // 1. Find all plazas with the given prefix and tool context
