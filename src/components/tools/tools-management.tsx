@@ -47,7 +47,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
-import { getCustomizedTools } from "@/lib/data";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -279,30 +278,14 @@ const DailyRecordDeleteDialog = ({
 };
 
 
-export function ToolsManagement({ customTools: incomingCustomTools }: { customTools?: Tool[] }) {
+export function ToolsManagement({ customTools }: { customTools?: Tool[] }) {
   const { user } = useAuth();
-  const [customTools, setCustomTools] = React.useState<Tool[]>([]);
-
-  React.useEffect(() => {
-    // Effect to update tool names if they change in localStorage, or use incoming prop
-    const updateTools = () => {
-        if(incomingCustomTools) {
-            setCustomTools(incomingCustomTools)
-        } else {
-            setCustomTools(getCustomizedTools());
-        }
-    };
-    window.addEventListener('storage', updateTools);
-    updateTools(); // Initial call
-    return () => window.removeEventListener('storage', updateTools);
-  }, [incomingCustomTools]);
-
-
+  
   if (user && !user.isSuperAdmin) {
-    return <AdminToolsView customTools={customTools} />;
+    return <AdminToolsView customTools={customTools || []} />;
   }
 
-  return <SuperAdminToolsView customTools={customTools} />;
+  return <SuperAdminToolsView customTools={customTools || []} />;
 }
 
 function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
@@ -442,8 +425,17 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
         {customTools.map((tool) => (
           <div key={tool.id} className="group relative">
             <Card 
-              className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1.5 overflow-hidden"
+              className="h-full flex flex-col transition-all duration-300 ease-in-out hover:-translate-y-1.5 overflow-hidden border-l-4"
+              style={{ 
+                  borderColor: tool.color, 
+                  '--tool-color': tool.color 
+              } as React.CSSProperties}
             >
+             <style jsx>{`
+                .card-glow:hover {
+                    box-shadow: 0 10px 15px -3px var(--tool-color, #0002), 0 4px 6px -4px var(--tool-color, #0001);
+                }
+             `}</style>
               <CardHeader className="cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
                 <div className="flex justify-between items-start">
                     <div className="p-3 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: `${tool.color}1A` }}>
@@ -611,7 +603,18 @@ function AdminToolsView({ customTools }: { customTools: Tool[] }) {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {accessibleUserTools.map((tool) => (
                         <Link href={tool.href} key={tool.id} className="group">
-                            <Card className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/50">
+                            <Card 
+                                className="h-full flex flex-col transition-all duration-300 ease-in-out hover:-translate-y-1.5 overflow-hidden border-l-4 card-glow"
+                                style={{ 
+                                    borderColor: tool.color,
+                                    '--tool-color': tool.color 
+                                } as React.CSSProperties}
+                            >
+                                <style jsx>{`
+                                    .card-glow:hover {
+                                        box-shadow: 0 10px 15px -3px var(--tool-color, #0002), 0 4px 6px -4px var(--tool-color, #0001);
+                                    }
+                                `}</style>
                                 <CardHeader>
                                     <div className="p-3 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: `${tool.color}1A`}}>
                                         <tool.icon className="h-6 w-6" style={{ color: tool.color }} />
