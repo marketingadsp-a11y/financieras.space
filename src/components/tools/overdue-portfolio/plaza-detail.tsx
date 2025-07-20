@@ -286,8 +286,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   }
   
   const totalClients = customers.length;
-  const recoveredClients = customers.filter(c => c.status === 'Pagado').length;
-  const pendingDebt = customers.reduce((acc, c) => c.dueAmount > 0 ? acc + c.dueAmount : acc, 0);
+  const recoveredClients = customers.filter(c => c.dueAmount === 0).length;
+  const pendingDebt = customers.reduce((acc, c) => acc + c.dueAmount, 0);
   const expectedConfirmationText = `${plaza.name} eliminar`;
 
   return (

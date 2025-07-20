@@ -14,6 +14,12 @@ export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> 
     return data.docs.map(customerFromDoc);
 }
 
+export async function getAllCustomersByPrefix(prefix: string): Promise<Customer[]> {
+    const q = query(customersCollectionRef, where("prefix", "==", prefix));
+    const data = await getDocs(q);
+    return data.docs.map(customerFromDoc);
+}
+
 
 export async function addCustomer(customer: Omit<Customer, 'id'>) : Promise<Customer> {
      const customerDataWithTimestamp = {

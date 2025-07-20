@@ -14,7 +14,7 @@ import type { Plaza, Customer } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { getPlazas } from "@/services/plaza-service";
-import { getCustomersByPlaza, addMultipleCustomers } from "@/services/customer-service";
+import { getCustomersByPlaza, addMultipleCustomers, getAllCustomersByPrefix } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseCustomersFromExcel } from "@/ai/flows/customer-parser-flow";
 
-const StatCard = ({ title, value, icon: Icon, isCurrency = false }) => (
+const StatCard = ({ title, value, icon: Icon, isCurrency = false, description }: { title: string; value: number | string; icon: React.ElementType, isCurrency?: boolean, description?: string }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -32,8 +32,9 @@ const StatCard = ({ title, value, icon: Icon, isCurrency = false }) => (
         </CardHeader>
         <CardContent>
             <div className="text-2xl font-bold">
-                {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+                {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
             </div>
+             {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </CardContent>
     </Card>
 );
@@ -46,7 +47,7 @@ const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }) =
         </CardHeader>
         <CardContent>
             <div className="text-3xl font-bold">
-                {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+                {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
             </div>
         </CardContent>
     </Card>
@@ -89,7 +90,7 @@ export function ToolsPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
-    const [summary, setSummary] = React.useState({ totalDebt: 0, totalClients: 0, recoveredClients: 0, recoveryRate: 0, totalLoan: 0 });
+    const [summary, setSummary] = React.useState({ totalDebt: 0, totalClients: 0, recoveredClients: 0, recoveryRate: 0 });
     const [isLoading, setIsLoading] = React.useState(true);
     const [isImportModalOpen, setImportModalOpen] = React.useState(false);
     const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
@@ -98,35 +99,27 @@ export function ToolsPage() {
 
 
     const fetchData = React.useCallback(async () => {
-        if (!user) return;
+        if (!user || !user.prefix) return;
         try {
             setIsLoading(true);
             const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-            const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+            const [plazasFromDb, allCustomers] = await Promise.all([
+                getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll }),
+                getAllCustomersByPrefix(user.prefix) // Fetch all customers at once
+            ]);
+
             setPlazas(plazasFromDb);
 
-            let totalDebt = 0;
-            let totalLoan = 0;
-            let totalClients = 0;
-
-            for(const plaza of plazasFromDb) {
-                const customers = await getCustomersByPlaza(plaza.id);
-                const plazaTotalLoan = customers.reduce((acc, c) => acc + c.loanAmount, 0);
-                totalDebt += plaza.pendingDebt;
-                totalLoan += plazaTotalLoan;
-                totalClients += customers.length;
-            }
+            const totalClients = allCustomers.length;
+            const recoveredClients = allCustomers.filter(c => c.dueAmount === 0).length;
+            const totalDebt = allCustomers.reduce((acc, c) => acc + c.dueAmount, 0);
+            const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
             
-            const totalPaid = totalLoan - totalDebt;
-            const recoveryRate = totalLoan > 0 ? (totalPaid / totalLoan) * 100 : 0;
-            const recoveredClients = plazasFromDb.length > 0 ? Math.round(totalClients * (recoveryRate / 100)) : 0; // Simple estimation
-
             setSummary({
                 totalDebt,
                 totalClients,
                 recoveredClients,
-                recoveryRate,
-                totalLoan,
+                recoveryRate
             });
 
         } catch (error) {
@@ -265,8 +258,8 @@ export function ToolsPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <DestructiveStatCard title="Deuda Total" value={summary.totalDebt} icon={DollarSign} isCurrency />
                 <StatCard title="Clientes Totales" value={summary.totalClients} icon={Users} />
-                <StatCard title="Recuperado" value={summary.totalLoan - summary.totalDebt} icon={UserCheck} isCurrency />
-                <StatCard title="Tasa de Recuperación" value={`${summary.recoveryRate.toFixed(1)}`} icon={Percent} />
+                <StatCard title="Clientes Recuperados" value={summary.recoveredClients} icon={UserCheck} description={`de ${summary.totalClients} clientes`} />
+                <StatCard title="Tasa de Recuperación" value={`${summary.recoveryRate.toFixed(1)}%`} icon={Percent} />
             </div>
 
             {/* --- SECCIÓN DE CARTERA POR PLAZA --- */}
