@@ -29,6 +29,12 @@ import {
   AlertDialogTitle,
   AlertDialogDescription as AlertDialogDescriptionComponent,
 } from "@/components/ui/alert-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { getAdmins, updateAdmin } from "@/services/admin-service";
 import { getPlazas } from "@/services/plaza-service";
@@ -49,7 +55,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 // Reusable Dialog for Daily Record Import
@@ -425,7 +430,7 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
         {customTools.map((tool) => (
           <div key={tool.id} className="group relative">
             <Card 
-              className="h-full flex flex-col transition-all duration-300 ease-in-out hover:-translate-y-1.5 overflow-hidden border-l-4"
+              className="h-full flex flex-col transition-all duration-300 ease-in-out hover:-translate-y-1.5 overflow-hidden border-l-4 card-glow"
               style={{ 
                   borderColor: tool.color, 
                   '--tool-color': tool.color 
