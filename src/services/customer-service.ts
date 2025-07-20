@@ -50,6 +50,19 @@ export async function deleteCustomersByPlaza(plazaId: string): Promise<void> {
     await batch.commit();
 }
 
+export async function deleteAllCustomersByPrefix(prefix: string): Promise<void> {
+    const batch = writeBatch(db);
+    const q = query(customersCollectionRef, where("prefix", "==", prefix));
+    const snapshot = await getDocs(q);
+
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+}
+
+
 // Overloaded function signature
 export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'status'>[], mode: 'add' | 'replace', prefix: string): Promise<void>;
 export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'status'>[], mode: 'add' | 'replace', prefix: string, plazaId?: string, grupoId?: string): Promise<void>;

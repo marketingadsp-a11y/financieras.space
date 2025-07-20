@@ -109,9 +109,15 @@ const adminSettingsNavItems: NavItem[] = [
 ];
 
 const carteraVencidaNavItems: NavItem[] = [
-    { href: "/tools/overdue-portfolio", label: "Resumen General", icon: Building },
+    { href: "/tools/overdue-portfolio", label: "Resumen General", icon: LayoutDashboard },
+    { href: "/plazas", label: "Gestionar Plazas", icon: Building },
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
 ];
+
+const carteraVencidaSettingsItems: NavItem[] = [
+    { href: "/tools/overdue-portfolio/danger-zone", label: "Zona de Peligro", icon: ShieldAlert },
+];
+
 
 const incomeExpensesNavItems: NavItem[] = [
     { href: "/tools/income-expenses", label: "Panel", icon: LayoutDashboard },
@@ -380,6 +386,23 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                 <SidebarGroupLabel>GESTIÓN</SidebarGroupLabel>
                 <SidebarMenu>
                     {items.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                        <Link href={item.href!}>
+                            <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                                <span>
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                </span>
+                            </SidebarMenuButton>
+                        </Link>
+                        </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+            </SidebarGroup>
+            <SidebarGroup>
+                <SidebarGroupLabel>CONFIGURACIÓN</SidebarGroupLabel>
+                 <SidebarMenu>
+                    {carteraVencidaSettingsItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
                         <Link href={item.href!}>
                             <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
