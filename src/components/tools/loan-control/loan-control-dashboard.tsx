@@ -7,9 +7,9 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import type { Plaza } from "@/lib/data";
-import { getPlazas } from "@/services/plaza-service";
+import { getPlazas, updatePlaza } from "@/services/plaza-service";
 import { clearDataByPrefix } from "@/services/loan-control-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search, FileSpreadsheet, FileText } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search, FileSpreadsheet, FileText, Edit } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -27,9 +27,10 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
+import { PlazaEditDialog } from "./plaza-edit-dialog";
 
 
-const PlazaCard = ({ plaza }: { plaza: Plaza }) => {
+const PlazaCard = ({ plaza, onEdit }: { plaza: Plaza, onEdit: (plaza: Plaza) => void }) => {
     return (
         <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2">
             <CardHeader className="p-1">
@@ -43,6 +44,18 @@ const PlazaCard = ({ plaza }: { plaza: Plaza }) => {
                             <CardDescription className="text-xs">Prefijo: {plaza.prefix}</CardDescription>
                         </div>
                     </div>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                             <DropdownMenuItem onSelect={() => onEdit(plaza)}>
+                                <Edit className="mr-2 h-4 w-4" /> Editar Nombre
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-2 px-3 pb-3">
@@ -102,6 +115,8 @@ export function LoanControlDashboard() {
     const [endDate, setEndDate] = React.useState<Date | undefined>();
     const [searchTerm, setSearchTerm] = React.useState("");
     const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
+    const [editingPlaza, setEditingPlaza] = React.useState<Plaza | null>(null);
+
 
     const fetchPlazasForUser = React.useCallback(async () => {
         if (!user) return;
@@ -187,6 +202,19 @@ export function LoanControlDashboard() {
                 title: "Error",
                 description: "No se pudieron eliminar los datos.",
             });
+        }
+    };
+
+    const handleUpdatePlaza = async (id: string, newName: string) => {
+        try {
+            await updatePlaza(id, { name: newName });
+            toast({ title: "Éxito", description: "Nombre de la plaza actualizado."});
+            setEditingPlaza(null);
+            fetchPlazasForUser(); // Refresh data
+            return true;
+        } catch (error) {
+             toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar la plaza."});
+             return false;
         }
     };
 
@@ -449,7 +477,7 @@ export function LoanControlDashboard() {
             {filteredPlazas.length > 0 ? (
                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                     {filteredPlazas.map(plaza => (
-                        <PlazaCard key={plaza.id} plaza={plaza} />
+                        <PlazaCard key={plaza.id} plaza={plaza} onEdit={setEditingPlaza} />
                     ))}
                 </div>
             ) : (
@@ -461,6 +489,13 @@ export function LoanControlDashboard() {
                     </CardContent>
                 </Card>
             )}
+
+            <PlazaEditDialog
+                plaza={editingPlaza}
+                isOpen={!!editingPlaza}
+                onClose={() => setEditingPlaza(null)}
+                onSave={handleUpdatePlaza}
+            />
         </div>
     );
 }
