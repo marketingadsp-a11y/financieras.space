@@ -2,25 +2,44 @@
 "use client";
 
 import * as React from "react";
-import { getCarteraById, getGruposByCartera, addGrupo, updateGrupo, deleteGrupo, getAssignedCustomersByGrupo } from "@/services/loan-control-service";
-import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza } from "@/lib/data";
-import { useAuth } from "@/context/auth-context";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Users, Edit, Trash2, ArrowRight, DollarSign, Folder, LayoutGrid, Building, Folders, FileSpreadsheet, FileText, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { GrupoForm } from "./grupo-form";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
-import { getPlazaById } from "@/services/plaza-service";
-import { usePathname } from "next/navigation";
+import { getAssignedCustomersByGrupo, getGrupoById, getCarteraById, addGrupo, updateGrupo, deleteGrupo } from "@/services/loan-control-service";
+import { addMultipleCustomers } from "@/services/customer-service";
+import type { Customer, LoanControlGrupo, LoanControlCartera, Plaza } from "@/lib/data";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, BadgeInfo, LayoutGrid, Building, Folders, Edit, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
+import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription as DialogDescriptionComponent,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { parseCustomers } from "@/ai/flows/customer-parser-flow";
+import { useAuth } from "@/context/auth-context";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { getPlazaById } from "@/services/plaza-service";
+import { usePathname } from "next/navigation";
+import { GrupoForm } from "./grupo-form";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+
 
 const NavPanel = ({ plazaId }: { plazaId: string }) => {
     const pathname = usePathname();
@@ -50,12 +69,6 @@ const NavPanel = ({ plazaId }: { plazaId: string }) => {
     )
 }
 
-type GrupoWithStats = LoanControlGrupo & {
-    customerCount: number;
-    totalLoaned: number;
-    totalDue: number;
-};
-
 const StatCard = ({ title, value }: { title: string; value: number; }) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -70,12 +83,68 @@ const StatCard = ({ title, value }: { title: string; value: number; }) => (
     </Card>
 );
 
+const CustomerInfoCard = ({ customer, onEdit, onPayment }: { customer: Customer; onEdit: (c: Customer) => void; onPayment: (c: Customer) => void; }) => {
+    return (
+        <Card className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
+            <CardHeader className="flex-row gap-4 items-start">
+                 <div className="p-3 bg-primary/10 rounded-lg mt-1">
+                    <User className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                    <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg">{customer.name}</CardTitle>
+                        <Badge variant={customer.dueAmount > 0 ? "destructive" : "secondary"} className="ml-2 shrink-0">
+                            {customer.dueAmount > 0 ? "Pendiente" : "Pagado"}
+                        </Badge>
+                    </div>
+                    <div className="space-y-1 text-sm text-muted-foreground pt-2">
+                        <p className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0"/> {customer.phone || 'N/A'}</p>
+                        <p className="flex items-start gap-2"><Home className="h-4 w-4 mt-0.5 shrink-0"/> <span>{customer.address}, {customer.colonia}, C.P. {customer.cp}</span></p>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="flex-grow space-y-4">
+                 <div className="border-t pt-4">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-muted-foreground"><BadgeInfo className="h-4 w-4"/>Información del Préstamo</h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div className="flex items-center gap-2 col-span-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">Fecha Préstamo</p>
+                                <p className="font-medium">{customer.fechaPrestamo ? format(new Date(customer.fechaPrestamo), "PPP", { locale: es }) : 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">Monto Préstamo</p>
+                                <p className="font-medium">${(customer.loanAmount || 0).toLocaleString('es-MX')}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <DollarSign className="h-4 w-4 text-destructive shrink-0" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
+                                <p className="font-bold text-lg text-destructive">${(customer.dueAmount || 0).toLocaleString('es-MX')}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+            <CardFooter className="flex gap-2 border-t pt-4">
+                <Button variant="outline" className="w-full" onClick={() => onEdit(customer)}><Pencil className="mr-2"/>Editar</Button>
+                <Button className="w-full" onClick={() => onPayment(customer)} disabled={customer.dueAmount <= 0}><DollarSign className="mr-2"/>Abonar</Button>
+            </CardFooter>
+        </Card>
+    )
+}
+
 export function CarteraDetail({ carteraId }: { carteraId: string }) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [cartera, setCartera] = React.useState<LoanControlCartera | null>(null);
     const [plaza, setPlaza] = React.useState<Plaza | null>(null);
-    const [grupos, setGrupos] = React.useState<GrupoWithStats[]>([]);
+    const [grupos, setGrupos] = React.useState<LoanControlGrupo[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [isFormOpen, setFormOpen] = React.useState(false);
@@ -96,23 +165,7 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                     getGruposByCartera(carteraId)
                 ]);
                 setPlaza(plazaData);
-
-                const gruposWithStats = await Promise.all(gruposData.map(async (grupo) => {
-                    const customers = await getAssignedCustomersByGrupo(grupo.id);
-                    const stats = customers.reduce((acc, customer) => {
-                        acc.totalLoaned += customer.loanAmount || 0;
-                        acc.totalDue += customer.dueAmount || 0;
-                        return acc;
-                    }, { totalLoaned: 0, totalDue: 0 });
-
-                    return {
-                        ...grupo,
-                        customerCount: customers.length,
-                        totalLoaned: stats.totalLoaned,
-                        totalDue: stats.totalDue
-                    };
-                }));
-                setGrupos(gruposWithStats);
+                setGrupos(gruposData);
             }
 
         } catch (error) {
@@ -183,59 +236,6 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
         setDeleteConfirmationText('');
     };
 
-    const carteraSummary = React.useMemo(() => {
-        return filteredGrupos.reduce((acc, grupo) => {
-            acc.totalLoaned += grupo.totalLoaned;
-            acc.totalDue += grupo.totalDue;
-            return acc;
-        }, { totalLoaned: 0, totalDue: 0 });
-    }, [filteredGrupos]);
-
-    const exportToPDF = () => {
-        if (!cartera || filteredGrupos.length === 0) return;
-        const doc = new jsPDF();
-        const dateString = format(new Date(), 'dd/MM/yyyy');
-        doc.text(`Resumen de Grupos en Cartera: ${cartera.name}`, 14, 16);
-        doc.text(`Plaza: ${plaza?.name}`, 14, 22);
-        doc.text(`Fecha de Exportación: ${dateString}`, 14, 28);
-        autoTable(doc, {
-            startY: 35,
-            head: [['Grupo', 'Clientes', 'Total Prestado', 'Total Pendiente']],
-            body: filteredGrupos.map(g => [
-                g.name,
-                g.customerCount,
-                `$${g.totalLoaned.toLocaleString('es-MX')}`,
-                `$${g.totalDue.toLocaleString('es-MX')}`
-            ]),
-        });
-        const fileName = `Resumen_Grupos_${cartera.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-        doc.save(fileName);
-    };
-
-    const exportToExcel = () => {
-        if (!cartera || filteredGrupos.length === 0) return;
-        const dataToExport = filteredGrupos.map(g => ({
-            'Grupo': g.name,
-            'Clientes': g.customerCount,
-            'Total Prestado': g.totalLoaned,
-            'Total Pendiente': g.totalDue,
-        }));
-        
-        const dateString = format(new Date(), 'PPP', { locale: es });
-        const worksheet = XLSX.utils.json_to_sheet([]);
-        XLSX.utils.sheet_add_aoa(worksheet, [['Resumen de Grupos']], { origin: 'A1' });
-        XLSX.utils.sheet_add_aoa(worksheet, [[`Cartera: ${cartera.name}`]], { origin: 'A2' });
-        XLSX.utils.sheet_add_aoa(worksheet, [[`Plaza: ${plaza?.name}`]], { origin: 'A3' });
-        XLSX.utils.sheet_add_aoa(worksheet, [[`Fecha de Exportación: ${dateString}`]], { origin: 'A4' });
-
-        XLSX.utils.sheet_add_json(worksheet, dataToExport, { origin: 'A6' });
-
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Grupos");
-        const fileName = `Resumen_Grupos_${cartera.name.replace(/\s/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
-    };
-
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-full">
@@ -265,7 +265,7 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                     <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
                         <DialogTrigger asChild>
                             <Button>
-                                <PlusCircle className="mr-2 h-4 w-4" />
+                                <Users className="mr-2 h-4 w-4" />
                                 Crear Grupo
                             </Button>
                         </DialogTrigger>
@@ -280,18 +280,7 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                             />
                         </DialogContent>
                     </Dialog>
-                    <Button variant="outline" size="sm" onClick={exportToExcel} disabled={filteredGrupos.length === 0}>
-                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={exportToPDF} disabled={filteredGrupos.length === 0}>
-                        <FileText className="mr-2 h-4 w-4" /> Exportar PDF
-                    </Button>
                 </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard title="Total Prestado (Filtrado)" value={carteraSummary.totalLoaned} />
-                <StatCard title="Total Pendiente (Filtrado)" value={carteraSummary.totalDue} />
             </div>
 
             <Card>
@@ -324,7 +313,7 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                                                     </AlertDialogTrigger>
                                                      <AlertDialogContent>
                                                         <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                            <AlertDialogTitleComponent>¿Estás seguro?</AlertDialogTitleComponent>
                                                             <AlertDialogDescription>
                                                                 Esta acción es irreversible y eliminará el grupo y desasignará a sus clientes.
                                                                 Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
@@ -351,24 +340,11 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                                             </div>
                                         </div>
                                         <CardTitle className="text-xl mt-4">{grupo.name}</CardTitle>
-                                        <CardDescription>{grupo.customerCount} cliente(s)</CardDescription>
                                     </CardHeader>
-                                    <CardContent className="flex-grow space-y-4">
-                                        <div className="border-t pt-4 space-y-2 text-sm">
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Prestado</span>
-                                                <span className="font-medium">${grupo.totalLoaned.toLocaleString('es-MX')}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Pendiente</span>
-                                                <span className="font-medium text-destructive">${grupo.totalDue.toLocaleString('es-MX')}</span>
-                                            </div>
-                                        </div>
-                                    </CardContent>
                                     <CardFooter>
                                         <Button asChild className="w-full">
                                             <Link href={`/tools/loan-control/grupo/${grupo.id}`}>
-                                                Administrar Grupo
+                                                Administrar Clientes
                                                 <ArrowRight className="ml-2 h-4 w-4" />
                                             </Link>
                                         </Button>
