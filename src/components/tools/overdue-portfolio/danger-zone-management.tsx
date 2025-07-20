@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Trash2, Loader2, Building } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { getPlazas } from "@/services/plaza-service";
-import { deleteCustomersByPlaza, deleteAllCustomersByPrefix } from "@/services/customer-service";
+import { getPlazas, deleteAllPlazasByPrefix } from "@/services/plaza-service";
+import { deleteCustomersByPlaza } from "@/services/customer-service";
 import type { Plaza } from "@/lib/data";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -58,9 +58,10 @@ export function DangerZoneManagement() {
     }
     setIsDeletingAll(true);
     try {
-      await deleteAllCustomersByPrefix(user.prefix);
-      toast({ title: "Éxito", description: "Todos los clientes de Cartera Vencida han sido eliminados." });
+      await deleteAllPlazasByPrefix(user.prefix);
+      toast({ title: "Éxito", description: "Todas las plazas y clientes de Cartera Vencida han sido eliminados." });
       setAllDataConfirmation("");
+      setPlazas([]); // Clear plazas from state
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message || "No se pudo completar la operación." });
     } finally {
@@ -143,9 +144,9 @@ export function DangerZoneManagement() {
 
       <Card>
         <CardHeader>
-            <CardTitle>Eliminar Todos los Clientes</CardTitle>
+            <CardTitle>Eliminar Todos los Datos</CardTitle>
             <CardDescription>
-                Esta acción eliminará permanentemente todos los clientes de la herramienta Cartera Vencida para el prefijo <strong>{user?.prefix}</strong>. Esto no afecta a las plazas en sí.
+                Esta acción eliminará permanentemente <strong>todas las plazas y clientes</strong> de la herramienta Cartera Vencida para el prefijo <strong>{user?.prefix}</strong>.
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -166,7 +167,7 @@ export function DangerZoneManagement() {
                 disabled={isDeletingAll || allDataConfirmation !== expectedAllDataText}
             >
                 {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4" />}
-                {isDeletingAll ? "Eliminando..." : "Sí, entiendo, eliminar todos los clientes"}
+                {isDeletingAll ? "Eliminando..." : "Sí, entiendo, eliminar todo"}
             </Button>
         </CardFooter>
       </Card>
