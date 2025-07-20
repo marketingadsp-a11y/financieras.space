@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
-import type { Plaza } from "@/lib/data";
+import type { Plaza, LoanControlPermission } from "@/lib/data";
 import { getPlazas, updatePlaza } from "@/services/plaza-service";
 import { clearDataByPrefix } from "@/services/loan-control-service";
 import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search, FileSpreadsheet, FileText, Edit } from "lucide-react";
@@ -30,7 +30,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { PlazaEditDialog } from "./plaza-edit-dialog";
 
 
-const PlazaCard = ({ plaza, onEdit }: { plaza: Plaza, onEdit: (plaza: Plaza) => void }) => {
+const PlazaCard = ({ plaza, onEdit, canEdit }: { plaza: Plaza, onEdit: (plaza: Plaza) => void, canEdit: boolean }) => {
     return (
         <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2">
             <CardHeader className="p-1">
@@ -44,18 +44,20 @@ const PlazaCard = ({ plaza, onEdit }: { plaza: Plaza, onEdit: (plaza: Plaza) => 
                             <CardDescription className="text-xs">Prefijo: {plaza.prefix}</CardDescription>
                         </div>
                     </div>
-                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                             <DropdownMenuItem onSelect={() => onEdit(plaza)}>
-                                <Edit className="mr-2 h-4 w-4" /> Editar Nombre
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    {canEdit && (
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => onEdit(plaza)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Editar Nombre
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                 </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-2 px-3 pb-3">
@@ -103,7 +105,7 @@ const StatCard = ({ title, value }: { title: string; value: number; }) => (
 
 
 export function LoanControlDashboard() {
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
     const { toast } = useToast();
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -290,6 +292,8 @@ export function LoanControlDashboard() {
         XLSX.writeFile(workbook, fileName);
     };
 
+    const canEditPlazaNames = hasPermission('loan-control', 'CAN_EDIT_PLAZA_NAMES');
+    const canDeleteAllData = hasPermission('loan-control', 'CAN_DELETE_ALL_DATA');
 
     if (isLoading) {
         return (
@@ -365,50 +369,52 @@ export function LoanControlDashboard() {
                     <Button variant="outline" size="sm" onClick={exportToPDF} disabled={filteredPlazas.length === 0}>
                         <FileText className="mr-2 h-4 w-4" /> Exportar PDF
                     </Button>
-                     <AlertDialog>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={e => e.preventDefault()}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Eliminar Todos los Datos
-                                </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
-                            <AlertDialogDescription>
-                                Esta acción es irreversible y eliminará permanentemente <strong>TODAS</strong> las plazas, carteras, grupos y clientes de Control de Préstamo para el prefijo <strong>{user?.prefix}</strong>.
-                                Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <Input
-                            value={deleteConfirmationText}
-                            onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                            placeholder={expectedConfirmationText}
-                            autoFocus
-                            />
-                            <AlertDialogFooterComponent>
-                            <AlertDialogCancel onClick={() => setDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={handleDeleteAllData}
-                                disabled={deleteConfirmationText !== expectedConfirmationText}
-                                className="bg-destructive hover:bg-destructive/90"
-                            >
-                                Sí, eliminar todo
-                            </AlertDialogAction>
-                            </AlertDialogFooterComponent>
-                        </AlertDialogContent>
-                        </AlertDialog>
+                    {canDeleteAllData && (
+                         <AlertDialog>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={e => e.preventDefault()}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Eliminar Todos los Datos
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
+                                <AlertDialogDescription>
+                                    Esta acción es irreversible y eliminará permanentemente <strong>TODAS</strong> las plazas, carteras, grupos y clientes de Control de Préstamo para el prefijo <strong>{user?.prefix}</strong>.
+                                    Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <Input
+                                value={deleteConfirmationText}
+                                onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                                placeholder={expectedConfirmationText}
+                                autoFocus
+                                />
+                                <AlertDialogFooterComponent>
+                                <AlertDialogCancel onClick={() => setDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={handleDeleteAllData}
+                                    disabled={deleteConfirmationText !== expectedConfirmationText}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                >
+                                    Sí, eliminar todo
+                                </AlertDialogAction>
+                                </AlertDialogFooterComponent>
+                            </AlertDialogContent>
+                            </AlertDialog>
+                    )}
                 </div>
             </div>
 
@@ -477,7 +483,7 @@ export function LoanControlDashboard() {
             {filteredPlazas.length > 0 ? (
                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                     {filteredPlazas.map(plaza => (
-                        <PlazaCard key={plaza.id} plaza={plaza} onEdit={setEditingPlaza} />
+                        <PlazaCard key={plaza.id} plaza={plaza} onEdit={setEditingPlaza} canEdit={canEditPlazaNames}/>
                     ))}
                 </div>
             ) : (

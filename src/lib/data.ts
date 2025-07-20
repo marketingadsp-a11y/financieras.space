@@ -68,13 +68,23 @@ export const PERMISSIONS = {
   CAN_EXPORT: 'Exportar Datos',
   CAN_DELETE_ALL: 'Eliminar Todos los Clientes',
 } as const;
-
 export type Permission = keyof typeof PERMISSIONS;
+
+export const LOAN_CONTROL_PERMISSIONS = {
+  CAN_EDIT_PLAZA_NAMES: 'Editar Nombres de Plazas',
+  CAN_DELETE_ALL_DATA: 'Eliminar Todos los Datos',
+} as const;
+export type LoanControlPermission = keyof typeof LOAN_CONTROL_PERMISSIONS;
+
 
 export type PlazaAccess = {
   plazaId: string;
   plazaName: string;
   permissions: Permission[];
+}
+
+export type LoanControlPermissions = {
+    permissions: LoanControlPermission[];
 }
 
 export type PlazaUser = {
@@ -86,6 +96,7 @@ export type PlazaUser = {
   plazaAccess: PlazaAccess[];
   accessibleTools: string[];
   prefix?: string;
+  loanControlPermissions?: LoanControlPermissions;
 };
 
 export type Customer = {

@@ -27,14 +27,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { PlazaUser, Plaza, Permission, Tool, Admin } from "@/lib/data";
-import { PERMISSIONS, allTools } from "@/lib/data";
+import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission } from "@/lib/data";
+import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS } from "@/lib/data";
 import { Trash2 } from "lucide-react";
 
 const plazaAccessSchema = z.object({
   plazaId: z.string().min(1),
   plazaName: z.string().min(1),
   permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
+});
+
+const loanControlPermissionsSchema = z.object({
+    permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
 });
 
 const baseFormSchema = z.object({
@@ -45,6 +49,7 @@ const baseFormSchema = z.object({
   status: z.enum(["Activo", "Inactivo"]),
   accessibleTools: z.array(z.string()).min(1, "Debe asignar acceso a al menos una herramienta."),
   plazaAccess: z.array(plazaAccessSchema),
+  loanControlPermissions: loanControlPermissionsSchema.optional(),
 });
 
 const refinement = (data: z.infer<typeof baseFormSchema>, ctx: z.RefinementCtx) => {
@@ -53,6 +58,13 @@ const refinement = (data: z.infer<typeof baseFormSchema>, ctx: z.RefinementCtx) 
             code: z.ZodIssueCode.custom,
             message: "Si se asigna la herramienta 'Cartera Vencida', debe asignar acceso a al menos una plaza.",
             path: ["plazaAccess"],
+        });
+    }
+     if (data.accessibleTools.includes('loan-control') && (!data.loanControlPermissions || data.loanControlPermissions.permissions.length === 0)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Si se asigna la herramienta 'Control de Préstamo', debe asignar al menos un permiso.",
+            path: ["loanControlPermissions"],
         });
     }
 };
@@ -74,7 +86,8 @@ type UserFormProps = {
   isSuperAdminView?: boolean;
 };
 
-const allPermissions = Object.entries(PERMISSIONS) as [Permission, string][];
+const allPlazaPermissions = Object.entries(PERMISSIONS) as [Permission, string][];
+const allLoanControlPermissions = Object.entries(LOAN_CONTROL_PERMISSIONS) as [LoanControlPermission, string][];
 
 export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools, isSuperAdminView = false }: UserFormProps) {
     const isEditing = !!user;
@@ -93,6 +106,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
             status: user?.status || "Activo",
             accessibleTools: user?.accessibleTools || [],
             plazaAccess: user?.plazaAccess || [],
+            loanControlPermissions: user?.loanControlPermissions || { permissions: [] },
         },
     });
 
@@ -120,6 +134,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
     const availablePlazas = plazasForSelectedPrefix.filter(p => !assignedPlazaIds.includes(p.id));
     
     const showPlazaManagement = watchAccessibleTools.includes('cartera-vencida');
+    const showLoanControlManagement = watchAccessibleTools.includes('loan-control');
 
     return (
         <Form {...form}>
@@ -154,7 +169,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
                             render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Empresa (Prefijo)</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isEditing}>
                                     <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecciona una empresa" />
@@ -227,6 +242,48 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
                     />
                 </div>
 
+                {showLoanControlManagement && (
+                    <div className="space-y-4 pt-4">
+                         <h3 className="text-lg font-medium">Permisos para Control de Préstamo</h3>
+                         <FormField
+                            control={form.control}
+                            name="loanControlPermissions.permissions"
+                            render={() => (
+                                <FormItem>
+                                <FormDescription>Selecciona las acciones que este usuario podrá realizar en la herramienta "Control de Préstamo".</FormDescription>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {allLoanControlPermissions.map(([key, label]) => (
+                                        <FormField
+                                        key={key}
+                                        control={form.control}
+                                        name="loanControlPermissions.permissions"
+                                        render={({ field }) => (
+                                            <FormItem key={key} className="flex flex-row items-start space-x-3 space-y-0 rounded-lg border p-4">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(key)}
+                                                        onCheckedChange={(checked) => {
+                                                            const newValue = field.value || [];
+                                                            return checked
+                                                                ? field.onChange([...newValue, key])
+                                                                : field.onChange(newValue.filter(value => value !== key));
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal flex-1 cursor-pointer">{label}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage>{form.formState.errors.loanControlPermissions?.message || (form.formState.errors.loanControlPermissions as any)?.root?.message}</FormMessage>
+                                </FormItem>
+                            )}
+                         />
+                    </div>
+                )}
+
+
                 {showPlazaManagement && (
                     <div className="space-y-4 pt-4">
                         <div className="flex justify-between items-center">
@@ -278,7 +335,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
                                                 </FormDescription>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
-                                            {allPermissions.map(([key, label]) => (
+                                            {allPlazaPermissions.map(([key, label]) => (
                                                 <FormField
                                                 key={key}
                                                 control={form.control}

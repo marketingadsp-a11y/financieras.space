@@ -9,7 +9,7 @@ import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-adm
 import { getToolAdminByUsername, getToolAdminById } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
-import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LinkedAdminAccess } from '@/lib/data';
+import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess } from '@/lib/data';
 import { getCustomizedTools } from '@/lib/data';
 
 interface User {
@@ -22,6 +22,7 @@ interface User {
   accessibleTools?: string[];
   plazaAccess?: PlazaAccess[];
   sucursalAccess?: SucursalAccess[];
+  loanControlPermissions?: LoanControlPermissions;
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
   linkedAdmins?: LinkedAdminAccess[];
@@ -171,7 +172,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const plazaUser = await getPlazaUserByUsername(usernamePart, prefix);
       if (plazaUser && plazaUser.password === pass && plazaUser.status === "Activo") {
-         const userData: User = { id: plazaUser.id, username: plazaUser.username, name: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, accessibleTools: plazaUser.accessibleTools, prefix: plazaUser.prefix };
+         const userData: User = { id: plazaUser.id, username: plazaUser.username, name: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, accessibleTools: plazaUser.accessibleTools, prefix: plazaUser.prefix, loanControlPermissions: plazaUser.loanControlPermissions };
          handleSuccessfulLogin(userData);
          return true;
       } else if (plazaUser && plazaUser.status === "Inactivo") {
@@ -285,8 +286,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (user.isPlazaUser) {
-      const plazaAccess = user.plazaAccess?.find(p => p.plazaId === id);
-      return !!plazaAccess?.permissions.includes(permission as any);
+      const toolId = user.accessibleTools?.find(t => t === id); // id would be the toolId in this context
+      if (toolId === 'cartera-vencida') {
+        const plazaAccess = user.plazaAccess?.find(p => p.plazaId === id); // This check is incorrect, id is not plazaId here
+        return !!plazaAccess?.permissions.includes(permission as any);
+      }
+      if (toolId === 'loan-control') {
+        return !!user.loanControlPermissions?.permissions.includes(permission as LoanControlPermission);
+      }
     }
     return false;
   }

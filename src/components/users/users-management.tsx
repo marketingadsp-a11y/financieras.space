@@ -162,8 +162,7 @@ export function UsersManagement() {
 
   // Admins can only assign tools they themselves have access to. SuperAdmins can assign any.
   const adminTools = user?.isSuperAdmin ? customTools : customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
-  const plazaUserTools = adminTools.filter(tool => tool.id === 'cartera-vencida');
-
+  
   return (
     <Card>
       <CardHeader>
@@ -177,63 +176,26 @@ export function UsersManagement() {
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="tool-admins">
-            <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="tool-admins">
-                    <Landmark className="mr-2"/>
-                    {toolAdminToolName}
-                </TabsTrigger>
+        <Tabs defaultValue="plaza-users">
+            <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="plaza-users">
                     <Users2 className="mr-2"/>
-                    {plazaUserToolName}
+                    Usuarios de Herramientas
                 </TabsTrigger>
                 <TabsTrigger value="admins">
                     <Shield className="mr-2"/>
                     Administradores
                 </TabsTrigger>
             </TabsList>
-
-             {/* Tool Admins Tab */}
-            <TabsContent value="tool-admins" className="mt-6">
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <CardTitle className="text-xl">Usuarios de {toolAdminToolName}</CardTitle>
-                                <CardDescription>Gestiona usuarios con acceso a la herramienta "{toolAdminToolName}" y sus sucursales.</CardDescription>
-                            </div>
-                             <Dialog open={isToolAdminFormOpen} onOpenChange={(open) => { setIsToolAdminFormOpen(open); if(!open) setEditingToolAdmin(null); }}>
-                                <DialogTrigger asChild>
-                                    <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Agregar Usuario</Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-2xl">
-                                    <DialogHeader>
-                                        <DialogTitle>{editingToolAdmin ? 'Editar' : 'Agregar'} Usuario de {toolAdminToolName}</DialogTitle>
-                                        <CardDescription>El usuario se creará con el prefijo: <span className="font-bold">{user?.prefix}</span></CardDescription>
-                                    </DialogHeader>
-                                    <ToolAdminForm onSubmit={handleToolAdminSubmit} admin={editingToolAdmin} sucursales={sucursales}/>
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? (
-                            <div className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" /><span>Cargando usuarios...</span></div>
-                        ) : (
-                            <UsersTable data={toolAdmins} onEdit={handleEditToolAdminClick} onDelete={handleDeleteToolAdmin} />
-                        )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
-            {/* Plaza Users Tab */}
+            
+            {/* Main User Management Tab (Plaza/Tool) */}
             <TabsContent value="plaza-users" className="mt-6">
                  <Card>
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <div>
-                                <CardTitle className="text-xl">Usuarios de {plazaUserToolName}</CardTitle>
-                                <CardDescription>Gestiona usuarios con acceso a la herramienta "{plazaUserToolName}" y sus plazas.</CardDescription>
+                                <CardTitle className="text-xl">Usuarios de Herramientas</CardTitle>
+                                <CardDescription>Gestiona usuarios con acceso granular a las herramientas.</CardDescription>
                             </div>
                             <Dialog open={isPlazaUserFormOpen} onOpenChange={(open) => { setIsPlazaUserFormOpen(open); if(!open) setEditingPlazaUser(null); }}>
                                 <DialogTrigger asChild>
@@ -241,10 +203,16 @@ export function UsersManagement() {
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-3xl">
                                     <DialogHeader>
-                                        <DialogTitle>{editingPlazaUser ? 'Editar' : 'Agregar'} Usuario de {plazaUserToolName}</DialogTitle>
+                                        <DialogTitle>{editingPlazaUser ? 'Editar' : 'Agregar'} Usuario de Herramienta</DialogTitle>
                                         <CardDescription>El usuario se creará con el prefijo: <span className="font-bold">{user?.prefix}</span></CardDescription>
                                     </DialogHeader>
-                                    <UserForm onSubmit={handlePlazaUserSubmit} user={editingPlazaUser} allPlazas={plazas} prefix={user?.prefix} adminTools={plazaUserTools}/>
+                                    <UserForm 
+                                      onSubmit={handlePlazaUserSubmit} 
+                                      user={editingPlazaUser} 
+                                      allPlazas={plazas} 
+                                      prefix={user?.prefix} 
+                                      adminTools={adminTools}
+                                    />
                                 </DialogContent>
                             </Dialog>
                         </div>
