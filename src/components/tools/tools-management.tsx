@@ -55,6 +55,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { getCustomizedTools } from "@/lib/data";
 
 
 // Reusable Dialog for Daily Record Import
@@ -283,14 +284,22 @@ const DailyRecordDeleteDialog = ({
 };
 
 
-export function ToolsManagement({ customTools }: { customTools?: Tool[] }) {
+export function ToolsManagement() {
   const { user } = useAuth();
+  const [customTools, setCustomTools] = React.useState<Tool[]>([]);
+
+  React.useEffect(() => {
+    const updateTools = () => setCustomTools(getCustomizedTools());
+    window.addEventListener('storage', updateTools);
+    updateTools(); // Initial call to set names
+    return () => window.removeEventListener('storage', updateTools);
+  }, []);
   
   if (user && !user.isSuperAdmin) {
-    return <AdminToolsView customTools={customTools || []} />;
+    return <AdminToolsView customTools={customTools} />;
   }
 
-  return <SuperAdminToolsView customTools={customTools || []} />;
+  return <SuperAdminToolsView customTools={customTools} />;
 }
 
 function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
