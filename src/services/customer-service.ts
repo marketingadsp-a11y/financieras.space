@@ -50,14 +50,24 @@ export async function deleteCustomersByPlaza(plazaId: string): Promise<void> {
     await batch.commit();
 }
 
-export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], mode: 'add' | 'replace', prefix: string, plazaId: string, grupoId?: string): Promise<void> {
+// Overloaded function signature
+export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'status'>[], mode: 'add' | 'replace', prefix: string): Promise<void>;
+export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'status'>[], mode: 'add' | 'replace', prefix: string, plazaId?: string, grupoId?: string): Promise<void>;
+
+export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'status'>[], mode: 'add' | 'replace', prefix: string, plazaId?: string, grupoId?: string): Promise<void> {
     const batch = writeBatch(db);
 
     if (mode === 'replace') {
-        const constraints = [
-            where("plazaId", "==", plazaId),
-            ...(grupoId ? [where("loanControlGroupId", "==", grupoId)] : [])
-        ];
+        let constraints: any[] = [where("prefix", "==", prefix)];
+        
+        if (plazaId && grupoId) { // From loan control group import
+            constraints.push(where("plazaId", "==", plazaId));
+            constraints.push(where("loanControlGroupId", "==", grupoId));
+        } else if (plazaId) { // From plaza-specific import (legacy)
+            constraints.push(where("plazaId", "==", plazaId));
+        }
+        // If only prefix is provided, it will replace all customers for that prefix (cartera vencida import)
+
         const q = query(customersCollectionRef, ...constraints);
         const snapshot = await getDocs(q);
         snapshot.docs.forEach(doc => {
@@ -69,8 +79,8 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], mo
         const newDocRef = doc(customersCollectionRef);
         // Ensure all fields are present, even if empty, to match the Customer type
         const completeCustomerData: any = {
-            plazaId: plazaId,
-            status: 'Pendiente' as const,
+            ...customerData,
+            status: (customerData.dueAmount || 0) <= 0 ? 'Pagado' : 'Pendiente',
             prefix: prefix,
             name: customerData.name || '',
             address: customerData.address || '',
@@ -87,13 +97,13 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id'>[], mo
             coloniaAval: customerData.coloniaAval || '',
             cpAval: customerData.cpAval || '',
             fechaPrestamo: customerData.fechaPrestamo ? Timestamp.fromDate(new Date(customerData.fechaPrestamo)) : Timestamp.now(),
-            loanControlGroupId: customerData.loanControlGroupId || '',
         };
         batch.set(newDocRef, completeCustomerData);
     });
 
     await batch.commit();
 }
+
 
 export async function addPayment(customerId: string, paymentAmount: number): Promise<void> {
     const customerRef = doc(db, "customers", customerId);

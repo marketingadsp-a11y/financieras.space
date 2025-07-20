@@ -3,17 +3,26 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight, Loader2 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight, Loader2, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import type { Plaza } from "@/lib/data";
+import type { Plaza, Customer } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { getPlazas } from "@/services/plaza-service";
-import { getCustomersByPlaza } from "@/services/customer-service";
+import { getCustomersByPlaza, addMultipleCustomers } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { parseCustomersFromExcel } from "@/ai/flows/customer-parser-flow";
 
 const StatCard = ({ title, value, icon: Icon, isCurrency = false }) => (
     <Card>
@@ -82,59 +91,111 @@ export function ToolsPage() {
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
     const [summary, setSummary] = React.useState({ totalDebt: 0, totalClients: 0, recoveredClients: 0, recoveryRate: 0, totalLoan: 0 });
     const [isLoading, setIsLoading] = React.useState(true);
+    const [isImportModalOpen, setImportModalOpen] = React.useState(false);
+    const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+    const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
+    const [isImporting, setIsImporting] = React.useState(false);
 
+
+    const fetchData = React.useCallback(async () => {
+        if (!user) return;
+        try {
+            setIsLoading(true);
+            const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
+            const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+            setPlazas(plazasFromDb);
+
+            let totalDebt = 0;
+            let totalLoan = 0;
+            let totalClients = 0;
+
+            for(const plaza of plazasFromDb) {
+                const customers = await getCustomersByPlaza(plaza.id);
+                const plazaTotalLoan = customers.reduce((acc, c) => acc + c.loanAmount, 0);
+                totalDebt += plaza.pendingDebt;
+                totalLoan += plazaTotalLoan;
+                totalClients += customers.length;
+            }
+            
+            const totalPaid = totalLoan - totalDebt;
+            const recoveryRate = totalLoan > 0 ? (totalPaid / totalLoan) * 100 : 0;
+            const recoveredClients = plazasFromDb.length > 0 ? Math.round(totalClients * (recoveryRate / 100)) : 0; // Simple estimation
+
+            setSummary({
+                totalDebt,
+                totalClients,
+                recoveredClients,
+                recoveryRate,
+                totalLoan,
+            });
+
+        } catch (error) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "No se pudieron cargar los datos del resumen.",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user, toast]);
 
     React.useEffect(() => {
         if (user && !user.isSuperAdmin && !user.isToolAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
             router.push('/');
         } else {
-             const fetchData = async () => {
-                if (!user) return;
-                try {
-                    setIsLoading(true);
-
-                    // SuperAdmins and ToolAdmins should see all plazas, others see their prefixed ones.
-                    const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-                    const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
-                    setPlazas(plazasFromDb);
-
-                    let totalDebt = 0;
-                    let totalLoan = 0;
-                    let totalClients = 0;
-
-                    for(const plaza of plazasFromDb) {
-                        const customers = await getCustomersByPlaza(plaza.id);
-                        const plazaTotalLoan = customers.reduce((acc, c) => acc + c.loanAmount, 0);
-                        totalDebt += plaza.pendingDebt;
-                        totalLoan += plazaTotalLoan;
-                        totalClients += customers.length;
-                    }
-                    
-                    const totalPaid = totalLoan - totalDebt;
-                    const recoveryRate = totalLoan > 0 ? (totalPaid / totalLoan) * 100 : 0;
-                    const recoveredClients = plazasFromDb.length > 0 ? Math.round(totalClients * (recoveryRate / 100)) : 0; // Simple estimation
-
-                    setSummary({
-                        totalDebt,
-                        totalClients,
-                        recoveredClients,
-                        recoveryRate,
-                        totalLoan,
-                    });
-
-                } catch (error) {
-                    toast({
-                        variant: "destructive",
-                        title: "Error",
-                        description: "No se pudieron cargar los datos del resumen.",
-                    });
-                } finally {
-                    setIsLoading(false);
-                }
-            };
             fetchData();
         }
-    }, [user, router, toast]);
+    }, [user, router, fetchData]);
+    
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setSelectedFile(event.target.files[0]);
+        }
+    };
+    
+    const handleImport = async () => {
+        if (!selectedFile) {
+            toast({ variant: "destructive", title: "Error", description: "Por favor, selecciona un archivo de Excel." });
+            return;
+        }
+        if (!user?.prefix) {
+            toast({ variant: "destructive", title: "Error", description: "No tienes un prefijo asignado para importar datos." });
+            return;
+        }
+        setIsImporting(true);
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const fileContent = e.target?.result as string;
+                const base64Content = fileContent.split(',')[1];
+
+                const parsedCustomers = await parseCustomersFromExcel({
+                    fileContentBase64: base64Content,
+                    prefix: user.prefix!,
+                });
+
+                if (parsedCustomers.length === 0) {
+                    toast({ variant: "destructive", title: "Error de IA", description: "La IA no pudo procesar el archivo o no encontró clientes." });
+                } else {
+                    await addMultipleCustomers(parsedCustomers, importMode, user.prefix!);
+                    toast({ title: "Éxito", description: `${parsedCustomers.length} clientes importados.` });
+                    await fetchData(); // Refresh data
+                    setImportModalOpen(false);
+                }
+                 setIsImporting(false);
+            };
+            reader.onerror = () => {
+                toast({ variant: "destructive", title: "Error de Archivo", description: "No se pudo leer el archivo seleccionado." });
+                setIsImporting(false);
+            }
+            reader.readAsDataURL(selectedFile);
+
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error de Importación", description: "Ocurrió un error inesperado al iniciar la importación." });
+            setIsImporting(false);
+        }
+    };
 
     if (user && !user.isSuperAdmin && !user.isToolAdmin && !user.accessibleTools?.includes('cartera-vencida')) {
         return (
@@ -146,9 +207,58 @@ export function ToolsPage() {
     
     return (
         <div className="space-y-6">
-            <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight">Resumen General</h1>
-                <p className="text-muted-foreground">Vista general de la cartera de clientes.</p>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div className="space-y-2">
+                    <h1 className="text-3xl font-bold tracking-tight">Resumen General</h1>
+                    <p className="text-muted-foreground">Vista general de la cartera de clientes.</p>
+                </div>
+                 <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Upload className="mr-2 h-4 w-4" /> Importar desde Excel
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Importación Masiva</DialogTitle>
+                            <DialogDescription>
+                              Selecciona un archivo de Excel (`.xlsx`, `.xls`) con tus clientes. 
+                              Las columnas deben tener encabezados como: FECHA, PLAZA, NOMBRE, ADEUDO, etc.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                              <Label>Modo de Importación</Label>
+                              <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="add" id="r-add" />
+                                  <Label htmlFor="r-add">Añadir a existentes</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="replace" id="r-replace" />
+                                  <Label htmlFor="r-replace">Reemplazar todos los datos</Label>
+                                </div>
+                              </RadioGroup>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="excel-file">Archivo de Excel</Label>
+                                <Input 
+                                    id="excel-file"
+                                    type="file"
+                                    accept=".xlsx, .xls"
+                                    onChange={handleFileChange}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+                            <Button onClick={handleImport} disabled={isImporting || !selectedFile}>
+                                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4"/>}
+                                {isImporting ? 'Importando...' : 'Importar Archivo'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
             </div>
 
             {/* --- SECCIÓN DE RESUMEN GENERAL --- */}
@@ -156,7 +266,7 @@ export function ToolsPage() {
                 <DestructiveStatCard title="Deuda Total" value={summary.totalDebt} icon={DollarSign} isCurrency />
                 <StatCard title="Clientes Totales" value={summary.totalClients} icon={Users} />
                 <StatCard title="Recuperado" value={summary.totalLoan - summary.totalDebt} icon={UserCheck} isCurrency />
-                <StatCard title="Tasa de Recuperación" value={`${summary.recoveryRate.toFixed(1)}%`} icon={Percent} />
+                <StatCard title="Tasa de Recuperación" value={`${summary.recoveryRate.toFixed(1)}`} icon={Percent} />
             </div>
 
             {/* --- SECCIÓN DE CARTERA POR PLAZA --- */}
