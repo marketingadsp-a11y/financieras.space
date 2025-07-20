@@ -17,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -514,7 +513,7 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
              </div>
           ) : (
             <div className="py-4 max-h-[60vh] overflow-y-auto pr-2">
-                <Accordion type="multiple" className="w-full space-y-2">
+                <Accordion type="multiple" className="w-full space-y-2" defaultValue={Object.keys(groupedAdmins)}>
                     {Object.entries(groupedAdmins).map(([prefix, companyAdmins]) => {
                        const profile = getCompanyProfile(prefix);
                        const companyName = profile?.companyName || prefix;
