@@ -29,6 +29,7 @@ const NavPanel = ({ plazaId }: { plazaId: string }) => {
     const navItems = [
         { href: basePath, label: 'Control General', icon: LayoutGrid, active: pathname === basePath },
         { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Plazas', icon: Building, active: pathname.startsWith(`${basePath}/plaza`) },
+        { href: `${basePath}/plaza/${plazaId}/grupos`, label: 'Gestionar Grupos', icon: Users, active: pathname.startsWith(`${basePath}/plaza`) && pathname.endsWith('grupos') },
     ];
 
     return (
