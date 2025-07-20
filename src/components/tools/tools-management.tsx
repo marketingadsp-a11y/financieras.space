@@ -279,15 +279,30 @@ const DailyRecordDeleteDialog = ({
 };
 
 
-export function ToolsManagement({ customTools }: { customTools?: Tool[] }) {
+export function ToolsManagement({ customTools: incomingCustomTools }: { customTools?: Tool[] }) {
   const { user } = useAuth();
-  const allCustomTools = customTools || getCustomizedTools();
+  const [customTools, setCustomTools] = React.useState<Tool[]>([]);
+
+  React.useEffect(() => {
+    // Effect to update tool names if they change in localStorage, or use incoming prop
+    const updateTools = () => {
+        if(incomingCustomTools) {
+            setCustomTools(incomingCustomTools)
+        } else {
+            setCustomTools(getCustomizedTools());
+        }
+    };
+    window.addEventListener('storage', updateTools);
+    updateTools(); // Initial call
+    return () => window.removeEventListener('storage', updateTools);
+  }, [incomingCustomTools]);
+
 
   if (user && !user.isSuperAdmin) {
-    return <AdminToolsView customTools={allCustomTools} />;
+    return <AdminToolsView customTools={customTools} />;
   }
 
-  return <SuperAdminToolsView customTools={allCustomTools} />;
+  return <SuperAdminToolsView customTools={customTools} />;
 }
 
 function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
@@ -398,16 +413,12 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
     return admins.reduce((acc, admin) => {
       const prefix = admin.prefix || 'Sin Prefijo';
       if (!acc[prefix]) {
-        acc[prefix] = { assigned: [], unassigned: [] };
+        acc[prefix] = [];
       }
-      if (selectedAdmins.has(admin.id)) {
-        acc[prefix].assigned.push(admin);
-      } else {
-        acc[prefix].unassigned.push(admin);
-      }
+      acc[prefix].push(admin);
       return acc;
-    }, {} as Record<string, { assigned: Admin[], unassigned: Admin[] }>);
-  }, [admins, selectedAdmins]);
+    }, {} as Record<string, Admin[]>);
+  }, [admins]);
   
   const getCompanyProfile = (prefix: string) => {
       if (prefix === 'Sin Prefijo') return null;
@@ -433,11 +444,6 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
             <Card 
               className="h-full flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1.5 overflow-hidden"
             >
-                <div className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" 
-                    style={{
-                        background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(var(--primary-hsl), 0.1), transparent 40%)'
-                    }}
-                />
               <CardHeader className="cursor-pointer" onClick={() => handleManageAccessClick(tool)}>
                 <div className="flex justify-between items-start">
                     <div className="p-3 bg-primary/10 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
@@ -503,10 +509,13 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
           ) : (
             <div className="py-4 max-h-[60vh] overflow-y-auto pr-2">
                 <Accordion type="multiple" className="w-full space-y-2">
-                    {Object.entries(groupedAdmins).map(([prefix, { assigned, unassigned }]) => {
+                    {Object.entries(groupedAdmins).map(([prefix, companyAdmins]) => {
                        const profile = getCompanyProfile(prefix);
                        const companyName = profile?.companyName || prefix;
                        const borderColor = profile?.loginBackgroundColor;
+                       const assigned = companyAdmins.filter(admin => selectedAdmins.has(admin.id));
+                       const unassigned = companyAdmins.filter(admin => !selectedAdmins.has(admin.id));
+
                        return (
                         <AccordionItem 
                             key={prefix} 
@@ -517,23 +526,25 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
                             <AccordionTrigger className="text-base hover:no-underline">
                                 <div className="flex-1 text-left">
                                     <p className="font-semibold">{companyName}</p>
-                                    <p className="text-xs text-muted-foreground">{assigned.length} de {assigned.length + unassigned.length} admins con acceso.</p>
+                                    <p className="text-xs text-muted-foreground">{assigned.length} de {companyAdmins.length} admins con acceso.</p>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="p-2 space-y-4">
-                                <div>
-                                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Asignados ({assigned.length})</h4>
-                                    <div className="space-y-2">
-                                        {assigned.length > 0 ? assigned.map((admin) => (
-                                            <div key={admin.id} onClick={() => handleAdminSelection(admin.id)} className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative bg-primary/10 border-primary/50 shadow-sm">
-                                                <Avatar className="h-9 w-9"><AvatarFallback>{admin.name.charAt(0)}</AvatarFallback></Avatar>
-                                                <div className="flex-1"><p className="font-semibold">{admin.name}</p><p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p></div>
-                                                <CheckCircle2 className="h-5 w-5 text-primary" />
-                                            </div>
-                                        )) : <p className="text-sm text-center text-muted-foreground py-2">Ningún administrador asignado.</p>}
+                                {assigned.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Asignados ({assigned.length})</h4>
+                                        <div className="space-y-2">
+                                            {assigned.map((admin) => (
+                                                <div key={admin.id} onClick={() => handleAdminSelection(admin.id)} className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all duration-200 relative bg-primary/10 border-primary/50 shadow-sm">
+                                                    <Avatar className="h-9 w-9"><AvatarFallback>{admin.name.charAt(0)}</AvatarFallback></Avatar>
+                                                    <div className="flex-1"><p className="font-semibold">{admin.name}</p><p className="text-xs text-muted-foreground">{admin.prefix}.{admin.username}</p></div>
+                                                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                                {unassigned.length > 0 && <Separator />}
+                                )}
+                                {unassigned.length > 0 && assigned.length > 0 && <Separator />}
                                 {unassigned.length > 0 && (
                                     <div>
                                         <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Por Asignar ({unassigned.length})</h4>
