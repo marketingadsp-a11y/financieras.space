@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import type { Plaza, Customer } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
-import { getPlazas } from "@/services/plaza-service";
+import { getPlazas, addPlaza } from "@/services/plaza-service";
 import { getAllCustomersByPrefixAndTool, addMultipleCustomers } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -22,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { parseCustomersFromExcel } from "@/ai/flows/customer-parser-flow";
 
 const StatCard = ({ title, value, icon: Icon, isCurrency = false, description }: { title: string; value: number | string; icon: React.ElementType, isCurrency?: boolean, description?: string }) => (
     <Card>
@@ -160,29 +159,94 @@ export function ToolsPage() {
         try {
             const reader = new FileReader();
             reader.onload = async (e) => {
-                const fileContent = e.target?.result as string;
-                const base64Content = fileContent.split(',')[1];
-
-                const parsedCustomers = await parseCustomersFromExcel({
-                    fileContentBase64: base64Content,
-                    prefix: user.prefix!,
-                });
-
-                if (parsedCustomers.length === 0) {
-                    toast({ variant: "destructive", title: "Error de IA", description: "La IA no pudo procesar el archivo o no encontró clientes." });
-                } else {
-                    await addMultipleCustomers(parsedCustomers, importMode, user.prefix!);
-                    toast({ title: "Éxito", description: `${parsedCustomers.length} clientes importados.` });
-                    await fetchData(); // Refresh data
-                    setImportModalOpen(false);
+                const fileContent = e.target?.result;
+                if (!fileContent) {
+                    setIsImporting(false);
+                    return toast({ variant: "destructive", title: "Error", description: "No se pudo leer el archivo." });
                 }
-                 setIsImporting(false);
+
+                const workbook = XLSX.read(fileContent, { type: 'array', cellDates: true });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: "" }) as any[];
+
+                if (!json || json.length === 0) {
+                    setIsImporting(false);
+                    return toast({ variant: "destructive", title: "Error", description: "El archivo de Excel está vacío o no se pudo leer." });
+                }
+
+                // Get existing plazas to avoid creating duplicates
+                const existingPlazas = await getPlazas({ prefix: user.prefix, fetchAll: false, toolContext });
+                const plazaMap: Record<string, string> = {}; // Maps plaza name to plaza ID
+                existingPlazas.forEach(p => { plazaMap[p.name.toLowerCase()] = p.id; });
+
+                const parsedCustomers: Omit<Customer, 'id'>[] = [];
+
+                for (const row of json) {
+                    let plazaId = '';
+                    const plazaName = row.PLAZA || row.Plaza || '';
+
+                    if (plazaName) {
+                        if (plazaMap[plazaName.toLowerCase()]) {
+                            plazaId = plazaMap[plazaName.toLowerCase()];
+                        } else {
+                            const newPlaza = await addPlaza({ name: plazaName, prefix: user.prefix, toolContext });
+                            plazaId = newPlaza.id;
+                            plazaMap[plazaName.toLowerCase()] = newPlaza.id;
+                        }
+                    } else {
+                        continue; // Skip rows without a plaza
+                    }
+                    
+                    const parseNumeric = (val: any) => {
+                        if (val === null || val === undefined) return 0;
+                        const num = parseFloat(String(val).replace(/[^0-9.-]+/g,""));
+                        return isNaN(num) ? 0 : num;
+                    };
+                    
+                    const parseDate = (val: any): Date | undefined => {
+                        if (!val) return undefined;
+                        if (val instanceof Date) return val;
+                        try {
+                            const parsed = new Date(val);
+                            if (isNaN(parsed.getTime())) return undefined;
+                            return parsed;
+                        } catch {
+                            return undefined;
+                        }
+                    };
+
+                    const loanAmount = parseNumeric(row.PRESTAMO || row.Prestamo);
+
+                    parsedCustomers.push({
+                        plazaId,
+                        prefix: user.prefix,
+                        toolContext,
+                        status: 'Pendiente', // Will be updated by addMultipleCustomers
+                        name: row.NOMBRE || row.Nombre || '',
+                        address: row.DIRECCION || row.Direccion || '',
+                        phone: String(row.TELEFONO || row.Telefono || ''),
+                        guarantor: String(row.AVAL || row.Aval || ''),
+                        guarantorPhone: String(row['TEL. AVAL'] || row.TelAval || ''),
+                        loanAmount: loanAmount,
+                        paymentAmount: parseNumeric(row.PAGO || row.Pago),
+                        installmentsDue: parseInt(String(row['NO.VENC.'] || row.NoVenc || 0), 10),
+                        dueAmount: parseNumeric(row.ADEUDO || row.Adeudo || loanAmount),
+                        fechaPrestamo: parseDate(row.FECHA || row.Fecha),
+                    });
+                }
+                
+                await addMultipleCustomers(parsedCustomers, importMode, user.prefix);
+                toast({ title: "Éxito", description: `${parsedCustomers.length} clientes importados.` });
+                await fetchData(); // Refresh data
+                setImportModalOpen(false);
+                setIsImporting(false);
             };
             reader.onerror = () => {
                 toast({ variant: "destructive", title: "Error de Archivo", description: "No se pudo leer el archivo seleccionado." });
                 setIsImporting(false);
             }
-            reader.readAsDataURL(selectedFile);
+            reader.readAsArrayBuffer(selectedFile);
 
         } catch (error) {
             toast({ variant: "destructive", title: "Error de Importación", description: "Ocurrió un error inesperado al iniciar la importación." });

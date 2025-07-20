@@ -1,19 +1,15 @@
 
 'use server';
 /**
- * @fileOverview An AI flow to parse customer data from unstructured text or Excel files.
+ * @fileOverview An AI flow to parse customer data from unstructured text.
  *
  * - parseCustomers - A function that handles parsing of customer data from text.
- * - parseCustomersFromExcel - A function that handles parsing of customer data from an Excel file.
  * - CustomerParserInput - The input type for the parseCustomers function.
- * - ExcelCustomerParserInput - The input type for the parseCustomersFromExcel function.
  * - CustomerParserOutput - The return type for the parsing functions.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import * as XLSX from 'xlsx';
-import { getPlazas, addPlaza } from '@/services/plaza-service';
 
 // --- Text-based Parsing ---
 
@@ -81,121 +77,5 @@ const customerParserFlow = ai.defineFlow(
   async (input) => {
     const {output} = await prompt(input);
     return output!;
-  }
-);
-
-
-// --- Excel-based Parsing (for Cartera Vencida) ---
-
-const ExcelCustomerParserInputSchema = z.object({
-  fileContentBase64: z.string().describe("The content of the Excel file, encoded in Base64."),
-  prefix: z.string().describe("The user's company prefix."),
-});
-export type ExcelCustomerParserInput = z.infer<typeof ExcelCustomerParserInputSchema>;
-
-const ExcelParsedCustomerSchema = z.object({
-    plazaId: z.string(),
-    name: z.string(),
-    address: z.string(),
-    phone: z.string(),
-    guarantor: z.string(),
-    guarantorPhone: z.string(),
-    loanAmount: z.number(),
-    paymentAmount: z.number(),
-    installmentsDue: z.number(),
-    dueAmount: z.number(),
-    fechaPrestamo: z.string().optional(),
-});
-const ExcelCustomerParserOutputSchema = z.array(ExcelParsedCustomerSchema);
-export type ExcelCustomerParserOutput = z.infer<typeof ExcelCustomerParserOutputSchema>;
-
-export async function parseCustomersFromExcel(input: ExcelCustomerParserInput): Promise<ExcelCustomerParserOutput> {
-  return excelCustomerParserFlow(input);
-}
-
-const excelCustomerParserFlow = ai.defineFlow(
-  {
-    name: 'excelCustomerParserFlow',
-    inputSchema: ExcelCustomerParserInputSchema,
-    outputSchema: ExcelCustomerParserOutputSchema,
-  },
-  async ({ fileContentBase64, prefix }) => {
-    try {
-        const buffer = Buffer.from(fileContentBase64, 'base64');
-        const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, {
-            raw: false,
-            defval: "", 
-        }) as any[];
-
-        if (!json || json.length === 0) {
-            return [];
-        }
-        
-        // Get existing plazas to avoid creating duplicates
-        const existingPlazas = await getPlazas({ prefix, fetchAll: false });
-        const plazaMap: Record<string, string> = {}; // Maps plaza name to plaza ID
-        existingPlazas.forEach(p => { plazaMap[p.name.toLowerCase()] = p.id; });
-
-        const parsedCustomers: ExcelCustomerParserOutput = [];
-
-        for (const row of json) {
-            let plazaId = '';
-            const plazaName = row.PLAZA || row.Plaza || '';
-
-            if (plazaName) {
-                if (plazaMap[plazaName.toLowerCase()]) {
-                    plazaId = plazaMap[plazaName.toLowerCase()];
-                } else {
-                    const newPlaza = await addPlaza({ name: plazaName, prefix });
-                    plazaId = newPlaza.id;
-                    plazaMap[plazaName.toLowerCase()] = newPlaza.id;
-                }
-            } else {
-                continue; // Skip rows without a plaza
-            }
-            
-            const parseNumeric = (val: any) => {
-                if (val === null || val === undefined) return 0;
-                const num = parseFloat(String(val).replace(/[^0-9.-]+/g,""));
-                return isNaN(num) ? 0 : num;
-            };
-            
-             const parseDate = (val: any): string | undefined => {
-                if (!val) return undefined;
-                if (val instanceof Date) return val.toISOString().split('T')[0];
-                try {
-                    return new Date(val).toISOString().split('T')[0];
-                } catch {
-                    return undefined;
-                }
-            };
-
-            const loanAmount = parseNumeric(row.PRESTAMO || row.Prestamo);
-
-            parsedCustomers.push({
-                plazaId,
-                name: row.NOMBRE || row.Nombre || '',
-                address: row.DIRECCION || row.Direccion || '',
-                phone: String(row.TELEFONO || row.Telefono || ''),
-                guarantor: String(row.AVAL || row.Aval || ''),
-                guarantorPhone: String(row['TEL. AVAL'] || row.TelAval || ''),
-                loanAmount: loanAmount,
-                paymentAmount: parseNumeric(row.PAGO || row.Pago),
-                installmentsDue: parseInt(String(row['NO.VENC.'] || row.NoVenc || 0), 10),
-                dueAmount: parseNumeric(row.ADEUDO || row.Adeudo || loanAmount),
-                fechaPrestamo: parseDate(row.FECHA || row.Fecha),
-            });
-        }
-        
-        return parsedCustomers;
-
-    } catch (error: any) {
-        console.error("Error parsing customer data from Excel:", error);
-        // In case of error, return empty array to avoid breaking the frontend
-        return [];
-    }
   }
 );
