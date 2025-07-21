@@ -21,7 +21,7 @@ import { useAuth } from "@/context/auth-context";
 import { getPlazaById } from "@/services/plaza-service";
 import { usePathname } from "next/navigation";
 import { GrupoForm } from "./grupo-form";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { NavPanel } from "./nav-panel";
 
 
