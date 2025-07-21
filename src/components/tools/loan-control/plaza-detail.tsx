@@ -10,7 +10,7 @@ import type { LoanControlCartera, Plaza } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { addCartera, deleteCartera, getCarterasByPlaza, getGruposByCartera, updateCartera, getAssignedCustomersByGrupo } from "@/services/loan-control-service";
-import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase, LayoutGrid, Building, Folders, FileSpreadsheet, FileText, Search } from "lucide-react";
+import { Loader2, PlusCircle, Folder, Edit, Trash2, ArrowRight, DollarSign, Users, Briefcase, FileSpreadsheet, FileText, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,38 +18,10 @@ import { CarteraForm } from "./cartera-form";
 import Link from "next/link";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-
-const NavPanel = ({ plazaId }: { plazaId: string }) => {
-    const pathname = usePathname();
-    const basePath = `/tools/loan-control`;
-    
-    const navItems = [
-        { href: basePath, label: 'Control General', icon: LayoutGrid, active: pathname === basePath },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Plazas', icon: Building, active: pathname.startsWith(`${basePath}/plaza`) },
-        { href: `${basePath}/plaza/${plazaId}/grupos`, label: 'Gestionar Grupos', icon: Users, active: pathname.startsWith(`${basePath}/plaza`) && pathname.endsWith('grupos') },
-    ];
-
-    return (
-        <Card>
-            <CardContent className="p-2">
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                    {navItems.map(item => (
-                         <Button key={item.label} variant={item.active ? 'default' : 'ghost'} asChild className="flex-1 min-w-[150px] transition-all duration-200">
-                             <Link href={item.href}>
-                                <item.icon className="mr-2 h-4 w-4" />
-                                {item.label}
-                            </Link>
-                         </Button>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
+import { NavPanel } from "./nav-panel";
 
 type CarteraWithStats = LoanControlCartera & {
     grupoCount: number;

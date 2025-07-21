@@ -7,7 +7,7 @@ import { getAssignedCustomersByGrupo, getGrupoById, getCarteraById } from "@/ser
 import { addMultipleCustomers } from "@/services/customer-service";
 import type { Customer, LoanControlGrupo, LoanControlCartera, Plaza } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, BadgeInfo, LayoutGrid, Building, Folders } from "lucide-react";
+import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, BadgeInfo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -36,37 +36,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { getPlazaById } from "@/services/plaza-service";
-import { usePathname } from "next/navigation";
+import { NavPanel } from "./nav-panel";
 
-
-const NavPanel = ({ plazaId }: { plazaId: string }) => {
-    const pathname = usePathname();
-    const basePath = `/tools/loan-control`;
-    
-    const navItems = [
-        { href: basePath, label: 'Control General', icon: LayoutGrid, active: pathname === basePath },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Plazas', icon: Building, active: pathname.startsWith(`${basePath}/plaza`) },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Carteras', icon: Folders, active: pathname.startsWith(`${basePath}/cartera`) },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Grupos', icon: Users, active: pathname.startsWith(`${basePath}/grupo`) },
-    ];
-
-    return (
-        <Card>
-            <CardContent className="p-2">
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                    {navItems.map(item => (
-                         <Button key={item.label} variant={item.active ? 'default' : 'ghost'} asChild className="flex-1 min-w-[150px] transition-all duration-200">
-                             <Link href={item.href}>
-                                <item.icon className="mr-2 h-4 w-4" />
-                                {item.label}
-                            </Link>
-                         </Button>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
 
 const StatCard = ({ title, value }: { title: string; value: number; }) => (
     <Card>
