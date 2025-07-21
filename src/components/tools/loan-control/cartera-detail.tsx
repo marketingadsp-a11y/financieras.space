@@ -3,141 +3,27 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { getAssignedCustomersByGrupo, getGrupoById, getCarteraById, addGrupo, updateGrupo, deleteGrupo } from "@/services/loan-control-service";
-import { addMultipleCustomers } from "@/services/customer-service";
-import type { Customer, LoanControlGrupo, LoanControlCartera, Plaza } from "@/lib/data";
+import { getGrupoById, getCarteraById, addGrupo, updateGrupo, deleteGrupo, getGruposByCartera } from "@/services/loan-control-service";
+import type { LoanControlGrupo, LoanControlCartera, Plaza } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Users, Pencil, Phone, Home, Calendar, User, FileText, FileSpreadsheet, Download, ClipboardPaste, CalendarIcon as CalendarIconLucide, FilterX, BadgeInfo, LayoutGrid, Building, Folders, Edit, Trash2 } from "lucide-react";
+import { Loader2, Users, Edit, Trash2, ArrowRight, Search, Building, Folders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { Badge } from "@/components/ui/badge";
-import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription as DialogDescriptionComponent,
-  DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { parseCustomers } from "@/ai/flows/customer-parser-flow";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth-context";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { getPlazaById } from "@/services/plaza-service";
 import { usePathname } from "next/navigation";
 import { GrupoForm } from "./grupo-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { NavPanel } from "./nav-panel";
 
-
-const NavPanel = ({ plazaId }: { plazaId: string }) => {
-    const pathname = usePathname();
-    const basePath = `/tools/loan-control`;
-    
-    const navItems = [
-        { href: basePath, label: 'Control General', icon: LayoutGrid, active: pathname === basePath },
-        { href: `${basePath}/plaza/${plazaId}`, label: 'Gestionar Plazas', icon: Building, active: pathname.startsWith(`${basePath}/plaza`) },
-        { href: `${basePath}/plaza/${plazaId}/grupos`, label: 'Gestionar Grupos', icon: Users, active: pathname.startsWith(`${basePath}/plaza`) && pathname.endsWith('grupos') },
-    ];
-
-    return (
-        <Card>
-            <CardContent className="p-2">
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                    {navItems.map(item => (
-                         <Button key={item.label} variant={item.active ? 'default' : 'ghost'} asChild className="flex-1 min-w-[150px] transition-all duration-200">
-                             <Link href={item.href}>
-                                <item.icon className="mr-2 h-4 w-4" />
-                                {item.label}
-                            </Link>
-                         </Button>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
-const StatCard = ({ title, value }: { title: string; value: number; }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <DollarSign className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
-            ${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-      </CardContent>
-    </Card>
-);
-
-const CustomerInfoCard = ({ customer, onEdit, onPayment }: { customer: Customer; onEdit: (c: Customer) => void; onPayment: (c: Customer) => void; }) => {
-    return (
-        <Card className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
-            <CardHeader className="flex-row gap-4 items-start">
-                 <div className="p-3 bg-primary/10 rounded-lg mt-1">
-                    <User className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                    <div className="flex justify-between items-start">
-                        <CardTitle className="text-lg">{customer.name}</CardTitle>
-                        <Badge variant={customer.dueAmount > 0 ? "destructive" : "secondary"} className="ml-2 shrink-0">
-                            {customer.dueAmount > 0 ? "Pendiente" : "Pagado"}
-                        </Badge>
-                    </div>
-                    <div className="space-y-1 text-sm text-muted-foreground pt-2">
-                        <p className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0"/> {customer.phone || 'N/A'}</p>
-                        <p className="flex items-start gap-2"><Home className="h-4 w-4 mt-0.5 shrink-0"/> <span>{customer.address}, {customer.colonia}, C.P. {customer.cp}</span></p>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-4">
-                 <div className="border-t pt-4">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-muted-foreground"><BadgeInfo className="h-4 w-4"/>Información del Préstamo</h4>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        <div className="flex items-center gap-2 col-span-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">Fecha Préstamo</p>
-                                <p className="font-medium">{customer.fechaPrestamo ? format(new Date(customer.fechaPrestamo), "PPP", { locale: es }) : 'N/A'}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                             <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">Monto Préstamo</p>
-                                <p className="font-medium">${(customer.loanAmount || 0).toLocaleString('es-MX')}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                             <DollarSign className="h-4 w-4 text-destructive shrink-0" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">Saldo Pendiente</p>
-                                <p className="font-bold text-lg text-destructive">${(customer.dueAmount || 0).toLocaleString('es-MX')}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </CardContent>
-            <CardFooter className="flex gap-2 border-t pt-4">
-                <Button variant="outline" className="w-full" onClick={() => onEdit(customer)}><Pencil className="mr-2"/>Editar</Button>
-                <Button className="w-full" onClick={() => onPayment(customer)} disabled={customer.dueAmount <= 0}><DollarSign className="mr-2"/>Abonar</Button>
-            </CardFooter>
-        </Card>
-    )
-}
 
 export function CarteraDetail({ carteraId }: { carteraId: string }) {
     const { user } = useAuth();
@@ -160,11 +46,9 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
             setCartera(carteraData);
             
             if (carteraData) {
-                const [plazaData, gruposData] = await Promise.all([
-                    getPlazaById(carteraData.plazaId),
-                    getGruposByCartera(carteraId)
-                ]);
+                const plazaData = await getPlazaById(carteraData.plazaId);
                 setPlaza(plazaData);
+                const gruposData = await getGruposByCartera(carteraId);
                 setGrupos(gruposData);
             }
 
