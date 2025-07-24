@@ -56,11 +56,8 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
   };
 
   return (
-    <Card className={cn("flex flex-col overflow-hidden group relative", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
-       <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize absolute top-2 right-2 z-10">
-          {customer.status}
-      </Badge>
-      <div className="flex">
+    <Card className={cn("flex flex-col overflow-hidden group", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
+       <div className="flex">
           {customer.groupName && (
              <div style={{ backgroundColor: groupColor, color: getTextColorForBackground(groupColor || '') }} className="px-3 py-1 text-center font-semibold text-xs flex-grow">
               {customer.groupName}
@@ -72,19 +69,26 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
             </div>
           )}
       </div>
-      <CardHeader>
-        <div className="flex justify-between items-start">
-            <CardTitle className="text-base font-bold pr-2 line-clamp-2">{customer.name}</CardTitle>
+      <CardHeader className="p-4">
+        <div className="flex justify-between items-start gap-2">
+            <div className="flex-1">
+                <div className="flex items-center gap-2">
+                    <CardTitle className="text-base font-bold line-clamp-2">{customer.name}</CardTitle>
+                    <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize shrink-0">
+                        {customer.status}
+                    </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
+            </div>
             <div className="flex items-center flex-shrink-0">
                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive" onClick={() => onDelete(customer)}>
                     <Trash2 className="h-4 w-4" />
                 </Button>
             </div>
         </div>
-        <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
       </CardHeader>
-      <CardContent className="space-y-4 flex-grow">
-        <div className="space-y-2 text-sm">
+      <CardContent className="px-4 pb-3 space-y-3 flex-grow">
+        <div className="space-y-1 text-sm">
           <div className="flex items-center">
             <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
             <span>{customer.phone || 'No disponible'}</span>
@@ -94,20 +98,20 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
             <span>{customer.guarantor || 'Sin aval'}</span>
           </div>
         </div>
-        <div className="flex justify-between items-end border-t pt-4">
+        <div className="flex justify-between items-end border-t pt-3">
           <div>
             <p className="text-xs text-muted-foreground">Préstamo</p>
             <p className="font-semibold">${customer.loanAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Adeudo</p>
-            <p className={cn("font-bold", customer.dueAmount > 0 ? "text-destructive" : "")}>
+            <p className={cn("font-bold text-base", customer.dueAmount > 0 ? "text-destructive" : "")}>
               ${customer.dueAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </p>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col items-center pt-0 space-y-2">
+      <CardFooter className="flex flex-col items-center p-3 pt-0 space-y-2 bg-muted/30">
           <div className="flex w-full space-x-2">
             <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(customer)}>
                 <Pencil className="mr-2 h-4 w-4"/> Editar
