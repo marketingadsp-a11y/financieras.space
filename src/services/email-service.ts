@@ -1,3 +1,4 @@
+
 'use server';
 
 import { Resend } from 'resend';
@@ -9,8 +10,6 @@ interface SendEmailParams {
   from?: string;
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function sendEmail({
   to,
   subject,
@@ -20,8 +19,10 @@ export async function sendEmail({
   
   if (!process.env.RESEND_API_KEY) {
     console.error("Resend API key is not set in environment variables.");
-    return { success: false, message: "La configuración del servidor de correo está incompleta (falta la clave de API)." };
+    return { success: false, message: "La configuración del servidor de correo está incompleta (falta la clave de API de Resend)." };
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   try {
     const { data, error } = await resend.emails.send({
