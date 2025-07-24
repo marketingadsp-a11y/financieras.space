@@ -60,11 +60,10 @@ const sendSmsAsEmailFlow = ai.defineFlow(
             html: `<p>${messageBody}</p>`, // Wrapping in <p> for basic HTML formatting
         });
         
-        // Ensure that the result from sendEmail is correctly propagated
         if (result.success) {
             return { success: true, message: result.message };
         } else {
-             return { success: false, message: result.message };
+             return { success: false, message: result.message || "Fallo el envío de correo sin un mensaje específico." };
         }
 
     } catch (error: any) {
