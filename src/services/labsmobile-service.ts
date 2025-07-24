@@ -26,11 +26,13 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     const encodedCredentials = Buffer.from(credentials).toString('base64');
     
     const payload = {
+      sms: {
         messages: [{
             tpoa: sender || 'Sender', 
             msisdn: [to], 
             message: message,
         }]
+      }
     };
     
     try {
@@ -43,21 +45,20 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
             body: JSON.stringify(payload),
         });
 
+        const responseText = await response.text();
         if (!response.ok) {
-            // Read the body as text first to avoid "body already read" errors.
-            const errorText = await response.text();
-            let errorMessage = errorText;
+            let errorMessage = responseText;
             try {
                 // Try to parse it as JSON to get a more specific message if available.
-                const errorJson = JSON.parse(errorText);
-                errorMessage = errorJson.message || errorText;
+                const errorJson = JSON.parse(responseText);
+                errorMessage = errorJson.message || responseText;
             } catch (e) {
                 // Ignore if it's not JSON, we already have the text.
             }
              throw new Error(`LabsMobile API Error: ${response.status} ${response.statusText} - ${errorMessage}`);
         }
         
-        const result: LabsMobileResponse = await response.json();
+        const result: LabsMobileResponse = JSON.parse(responseText);
         return result;
 
     } catch (error: any) {
