@@ -46,6 +46,10 @@ export async function updateCustomer(id: string, customer: Partial<Omit<Customer
     if (customer.fechaPrestamo) {
         dataToUpdate.fechaPrestamo = Timestamp.fromDate(new Date(customer.fechaPrestamo));
     }
+    // Automatically update status based on dueAmount when editing
+    if (typeof customer.dueAmount === 'number') {
+        dataToUpdate.status = customer.dueAmount <= 0 ? 'Pagado' : 'Pendiente';
+    }
     await updateDoc(customerDoc, dataToUpdate);
 }
 

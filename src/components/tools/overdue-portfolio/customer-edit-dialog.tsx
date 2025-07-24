@@ -97,7 +97,11 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
     if (!customer) return;
     setIsSubmitting(true);
     try {
-      await updateCustomer(customer.id, values);
+      // Determine status based on the new dueAmount
+      const newStatus = values.dueAmount > 0 ? 'Pendiente' : 'Pagado';
+      const dataToUpdate = { ...values, status: newStatus };
+
+      await updateCustomer(customer.id, dataToUpdate);
       toast({ title: "Éxito", description: "Cliente actualizado." });
       onSuccess();
       onClose();
@@ -153,7 +157,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                     <FormField control={customerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="installmentsDue" render={({ field }) => (<FormItem><FormLabel>No. Vencidos</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel>Adeudo Actual</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={customerForm.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel>Adeudo Actual</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
 
                 <DialogFooter className="pt-4 sticky bottom-0 bg-background">
