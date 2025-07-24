@@ -26,11 +26,13 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     const encodedCredentials = Buffer.from(credentials).toString('base64');
     
     // Correct payload structure for LabsMobile API.
-    // The API expects a flat object for a single message.
+    // The API expects the message content inside a "messages" array.
     const payload = {
-        tpoa: sender || 'Sender', // Originator, up to 11 alphanumeric chars
-        msisdn: [to], // The recipient must be in an array
-        message: message,
+        messages: [{
+            tpoa: sender || 'Sender', // Originator, up to 11 alphanumeric chars
+            msisdn: [to], // The recipient must be in an array
+            message: message,
+        }]
     };
     
     try {
@@ -48,7 +50,9 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
             try {
                 errorBody = await response.json();
             } catch (e) {
-                errorBody = { message: 'Unknown error structure.' };
+                // If the error response is not JSON, use the status text.
+                 const textResponse = await response.text();
+                 errorBody = { message: textResponse || 'Unknown error structure.' };
             }
              throw new Error(`LabsMobile API Error: ${response.status} ${response.statusText} - ${errorBody?.message}`);
         }
