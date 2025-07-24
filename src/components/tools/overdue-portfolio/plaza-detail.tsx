@@ -351,7 +351,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   }, [filteredCustomers]);
   
   const summaryStats = React.useMemo(() => {
-    return sortedCustomers.reduce((acc, customer) => {
+    const targetCustomers = (searchTerm || selectedPromoter || selectedGroup) ? sortedCustomers : customers;
+    return targetCustomers.reduce((acc, customer) => {
         acc.totalClients += 1;
         acc.pendingDebt += customer.dueAmount;
         if (customer.dueAmount <= 0) {
@@ -359,7 +360,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         }
         return acc;
     }, { totalClients: 0, recoveredClients: 0, pendingDebt: 0 });
-  }, [sortedCustomers]);
+  }, [customers, sortedCustomers, searchTerm, selectedPromoter, selectedGroup]);
   
   const canRegister = hasPermission(plazaId, 'CAN_REGISTER');
   const canImport = hasPermission(plazaId, 'CAN_IMPORT');
