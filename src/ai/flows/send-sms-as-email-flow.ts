@@ -1,7 +1,7 @@
 'use server';
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { sendEmail } from '@/services/email-service';
 import type { Customer } from '@/lib/data';
 import { getCompanyProfileByPrefix } from '@/services/company-profile-service';
@@ -39,8 +39,8 @@ const sendSmsAsEmailFlow = ai.defineFlow(
     try {
         const profile = await getCompanyProfileByPrefix(customer.prefix);
 
-        if (!profile?.smsEmailTemplate || !profile.smsDomain || !profile.smsApiKey) {
-            return { success: false, message: "La configuración de Email-to-SMS (plantilla, dominio o clave) no está completa en el Perfil de Empresa." };
+        if (!profile?.smsEmailTemplate || !profile.smsDomain || !profile.smsApiKey || !profile.resendFromEmail) {
+            return { success: false, message: "La configuración de Email-to-SMS (plantilla, dominio, clave o correo remitente) no está completa en el Perfil de Empresa." };
         }
 
         const toEmail = `52${customer.phone.replace(/\D/g, '')}${profile.smsDomain}`;
@@ -49,14 +49,11 @@ const sendSmsAsEmailFlow = ai.defineFlow(
             .replace(/{NOMBRE}/g, customer.name)
             .replace(/{DEBE}/g, (customer.dueAmount || 0).toLocaleString('es-MX'));
 
-        // IMPORTANTE: Para que Resend funcione en producción, debes verificar tu propio dominio
-        // y usar una dirección de correo de ese dominio en el campo "from".
-        // Reemplaza la siguiente línea con tu correo verificado, ej: "notificaciones@miempresa.com"
         const result = await sendEmail({
             to: [toEmail],
             subject: profile.smsApiKey,
             text: messageBody,
-            from: "onboarding@resend.dev", // ¡Cambia esto a tu dominio verificado!
+            from: profile.resendFromEmail,
         });
 
         if (result.success) {

@@ -66,6 +66,7 @@ const companyProfileSchema = z.object({
   smsDomain: z.string().optional(),
   smsApiKey: z.string().optional(),
   smsEmailTemplate: z.string().optional(),
+  resendFromEmail: z.string().email("Debe ser un email válido.").optional().or(z.literal('')),
 });
 
 
@@ -83,6 +84,7 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
             smsDomain: profile?.smsDomain || "@api.labsmobile.com",
             smsApiKey: profile?.smsApiKey || "",
             smsEmailTemplate: profile?.smsEmailTemplate || "Estimado {NOMBRE}, tienes un saldo vencido de ${DEBE}. Por favor, acude a nuestra oficina.",
+            resendFromEmail: profile?.resendFromEmail || "",
         },
     });
     
@@ -186,6 +188,7 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="pt-6 mt-4 border-t space-y-6">
+                             <FormField control={form.control} name="resendFromEmail" render={({ field }) => (<FormItem><FormLabel>Correo Remitente (From)</FormLabel><FormControl><Input placeholder="notificaciones@dominio-verificado.com" {...field} /></FormControl><FormDescriptionComponent>El correo que usas para enviar desde Resend. Debe estar en un dominio verificado.</FormDescriptionComponent><FormMessage /></FormItem>)}/>
                             <div className="grid md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="smsDomain" render={({ field }) => (<FormItem><FormLabel>Dominio Email-to-SMS</FormLabel><FormControl><Input placeholder="@api.labsmobile.com" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                                 <FormField control={form.control} name="smsApiKey" render={({ field }) => (<FormItem><FormLabel>Asunto del Email (API Key)</FormLabel><FormControl><Input placeholder="La clave que funciona como asunto" {...field} /></FormControl><FormMessage /></FormItem>)}/>

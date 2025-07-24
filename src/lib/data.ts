@@ -262,6 +262,7 @@ export type CompanyProfile = {
   smsDomain?: string;
   smsApiKey?: string;
   smsEmailTemplate?: string;
+  resendFromEmail?: string;
 };
 
 // --- Loan Control Tool Models ---
