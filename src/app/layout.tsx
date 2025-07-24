@@ -8,21 +8,26 @@ import React, { Suspense } from "react";
 
 function AppNameUpdater() {
   const [appName, setAppName] = React.useState("Panel de Administración");
+  const [faviconUrl, setFaviconUrl] = React.useState("/favicon.ico"); // Default favicon
 
   React.useEffect(() => {
-    const storedAppName = localStorage.getItem('appName');
-    if (storedAppName) {
-      setAppName(storedAppName);
-      document.title = storedAppName;
-    }
-
     const handleStorageChange = () => {
        const updatedAppName = localStorage.getItem('appName');
         if (updatedAppName) {
           setAppName(updatedAppName);
           document.title = updatedAppName;
         }
+
+       const updatedLogoUrl = localStorage.getItem('companyLogoUrl');
+       if (updatedLogoUrl) {
+           setFaviconUrl(updatedLogoUrl);
+       } else {
+           setFaviconUrl('/favicon.ico');
+       }
     };
+    
+    // Initial load
+    handleStorageChange();
 
     window.addEventListener('storage', handleStorageChange);
     return () => {
@@ -34,6 +39,7 @@ function AppNameUpdater() {
     <head>
         <title>{appName}</title>
         <meta name="description" content="Gestión de administradores y herramientas." />
+        <link rel="icon" href={faviconUrl} sizes="any" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -67,4 +73,3 @@ export default function RootLayout({
     </html>
   );
 }
-

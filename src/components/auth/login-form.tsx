@@ -58,6 +58,8 @@ export function LoginForm() {
     setAppName(storedAppName || "Panel de Administración");
     setFooterText(storedFooterText || "");
     setLogoUrl(null); // Reset logo
+    localStorage.removeItem('companyLogoUrl');
+    window.dispatchEvent(new Event('storage'));
     setBackgroundColor("#f4f4f5"); // Reset background color
   }, []);
 
@@ -78,6 +80,12 @@ export function LoginForm() {
         setAppName(profile.companyName);
         setLogoUrl(profile.logoUrl || null);
         setBackgroundColor(profile.loginBackgroundColor || "#f4f4f5");
+        if (profile.logoUrl) {
+            localStorage.setItem('companyLogoUrl', profile.logoUrl);
+        } else {
+            localStorage.removeItem('companyLogoUrl');
+        }
+        window.dispatchEvent(new Event('storage')); // Notify layout of the change
       } else {
         // If no profile found for the prefix, revert to default
         loadDefaultSettings();
