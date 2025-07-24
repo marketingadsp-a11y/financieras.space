@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview An AI flow to send an SMS by formatting it as an email.
+ * @fileOverview An AI flow to send an SMS by formatting it as an email, following LabsMobile API specs.
  *
  * - sendSmsAsEmail - A function that handles sending the SMS-formatted email.
  * - SendSmsAsEmailInput - The input type for the sendSmsAsEmail function.
@@ -39,15 +39,20 @@ const sendSmsAsEmailFlow = ai.defineFlow(
   async ({ prefix, customer }) => {
     try {
         const profile = await getCompanyProfileByPrefix(prefix);
-        if (!profile || !profile.smsEmailTemplate || !profile.smsDomain || !profile.smsApiKey) {
-            return { success: false, message: "La configuración de Email-to-SMS (plantilla, dominio o clave) no está completa en el Perfil de Empresa." };
+        if (!profile || !profile.smsDomain || !profile.smsApiKey || !profile.smsEmailTemplate) {
+            return { 
+                success: false, 
+                message: "La configuración de Email-to-SMS (plantilla, dominio o clave) no está completa en el Perfil de Empresa." 
+            };
         }
         
         if (!customer.phone) {
             return { success: false, message: "El cliente no tiene un número de teléfono registrado." };
         }
 
-        const toAddress = `52${customer.phone.replace(/\D/g, '')}${profile.smsDomain}`;
+        const cleanPhoneNumber = customer.phone.replace(/\D/g, '');
+        const toAddress = `52${cleanPhoneNumber}${profile.smsDomain}`;
+        
         const subject = profile.smsApiKey;
         
         let messageBody = profile.smsEmailTemplate;
@@ -57,7 +62,7 @@ const sendSmsAsEmailFlow = ai.defineFlow(
         const result = await sendEmail({ 
             to: toAddress,
             subject: subject,
-            html: `<p>${messageBody}</p>`, // Wrapping in <p> for basic HTML formatting
+            html: `<p>${messageBody}</p>`, // The body is the SMS content
         });
         
         if (result.success) {
