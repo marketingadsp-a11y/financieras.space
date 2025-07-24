@@ -1,4 +1,3 @@
-
 import type { Timestamp } from "firebase/firestore";
 import { FolderKanban, Landmark, BookCheck, Files } from "lucide-react";
 
@@ -260,8 +259,7 @@ export type CompanyProfile = {
   logoUrl?: string;
   loginBackgroundColor?: string;
   whatsappLinkTemplate?: string;
-  smsSenderName?: string;
-  smsTemplate?: string;
+  smsEmailTemplate?: string; // New field for the email template
   labsmobileUsername?: string;
   labsmobileToken?: string;
 };

@@ -19,6 +19,7 @@ import {
   Loader2,
   ClipboardPaste,
   Send,
+  Mail,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
 import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
-import { sendSms } from "@/ai/flows/send-sms-flow";
+import { sendSmsAsEmail } from "@/ai/flows/send-sms-as-email-flow";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -233,22 +234,16 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     }
   };
 
-  const handleSendSms = async (customer: Customer) => {
-    if (!companyProfile?.smsTemplate || !customer.phone || !user?.prefix) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Plantilla de SMS, teléfono del cliente o prefijo no configurado.' });
+  const handleSendEmailSms = async (customer: Customer) => {
+    if (!companyProfile?.smsEmailTemplate || !customer.phone || !user?.prefix) {
+        toast({ variant: 'destructive', title: 'Error', description: 'La plantilla, el teléfono del cliente o el prefijo de la empresa no están configurados.' });
         return;
     }
     
-    let message = companyProfile.smsTemplate;
-    message = message.replace(/{NOMBRE}/g, customer.name);
-    message = message.replace(/{DEBE}/g, customer.dueAmount.toLocaleString('es-MX'));
-
     try {
-        const result = await sendSms({
+        const result = await sendSmsAsEmail({
             prefix: user.prefix,
-            to: customer.phone.replace(/\D/g, ''),
-            message: message,
-            sender: companyProfile.smsSenderName
+            customer,
         });
 
         if (result.success) {
@@ -257,7 +252,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
             toast({ variant: 'destructive', title: 'Error de Envío', description: result.message });
         }
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo enviar el SMS.' });
+        toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo enviar el email.' });
     }
   };
 
@@ -545,7 +540,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                   onEdit={handleEditClick} 
                   onPayment={handlePaymentClick} 
                   onDelete={handleDeleteClick}
-                  onSendSms={handleSendSms}
+                  onSendSms={handleSendEmailSms}
                   promoterColor={customer.promoter ? promoterColors.get(customer.promoter) : undefined}
                   whatsappLink={generateWhatsAppLink(customer)}
                 />
@@ -579,8 +574,4 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         isOpen={!!selectedCustomer}
         onClose={closeDialog}
         onSuccess={fetchPlazaAndCustomers}
-        mode={dialogMode}
-      />
-    </div>
-  );
-}
+        mode
