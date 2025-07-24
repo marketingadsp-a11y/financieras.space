@@ -52,6 +52,7 @@ const customerFormSchema = z.object({
   installmentsDue: z.coerce.number().min(0, "Debe ser un número positivo."),
   dueAmount: z.coerce.number().min(0, "El adeudo no puede ser negativo."),
   promoter: z.string().optional(),
+  groupName: z.string().optional(),
 });
 
 const paymentSchema = z.object({
@@ -85,6 +86,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
         installmentsDue: customer.installmentsDue,
         dueAmount: customer.dueAmount,
         promoter: customer.promoter || "",
+        groupName: customer.groupName || "",
       });
       paymentForm.reset({ amount: undefined });
     }
@@ -145,6 +147,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                     <FormField control={customerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                      <FormField control={customerForm.control} name="promoter" render={({ field }) => (<FormItem><FormLabel>Promotor/a</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                     <FormField control={customerForm.control} name="groupName" render={({ field }) => (<FormItem><FormLabel>Grupo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel>Nombre del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Teléfono del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
