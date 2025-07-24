@@ -45,9 +45,28 @@ const sendSmsAsEmailFlow = ai.defineFlow(
 
         const toEmail = `52${customer.phone.replace(/\D/g, '')}${profile.smsDomain}`;
 
-        let messageBody = profile.smsEmailTemplate
-            .replace(/{NOMBRE}/g, customer.name)
-            .replace(/{DEBE}/g, (customer.dueAmount || 0).toLocaleString('es-MX'));
+        let messageBody = profile.smsEmailTemplate;
+
+        // Dynamically replace all customer fields as placeholders
+        for (const key in customer) {
+            if (Object.prototype.hasOwnProperty.call(customer, key)) {
+                const placeholder = `{${key.toUpperCase()}}`;
+                let value = (customer as any)[key];
+
+                // Format numbers and dates nicely
+                if (typeof value === 'number') {
+                    value = value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                } else if (value instanceof Date) {
+                    value = value.toLocaleDateString('es-MX');
+                }
+                
+                messageBody = messageBody.replace(new RegExp(placeholder, 'g'), String(value || ''));
+            }
+        }
+        
+        // Ensure DEBE is formatted as currency, as it was specifically requested before.
+        messageBody = messageBody.replace(/{DEBE}/g, (customer.dueAmount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
 
         const result = await sendEmail({
             to: [toEmail],
