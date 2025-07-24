@@ -326,8 +326,14 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.address.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      .filter(customer => !selectedPromoter || customer.promoter === selectedPromoter)
-      .filter(customer => !selectedGroup || customer.groupName === selectedGroup);
+      .filter(customer => {
+        if (selectedPromoter === 'unassigned') return !customer.promoter;
+        return !selectedPromoter || customer.promoter === selectedPromoter
+      })
+      .filter(customer => {
+        if (selectedGroup === 'unassigned') return !customer.groupName;
+        return !selectedGroup || customer.groupName === selectedGroup
+      });
   }, [customers, searchTerm, selectedPromoter, selectedGroup]);
 
   const sortedCustomers = React.useMemo(() => {
@@ -351,8 +357,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   }, [filteredCustomers]);
   
   const summaryStats = React.useMemo(() => {
-    const targetCustomers = (searchTerm || selectedPromoter || selectedGroup) ? sortedCustomers : customers;
-    return targetCustomers.reduce((acc, customer) => {
+    return sortedCustomers.reduce((acc, customer) => {
         acc.totalClients += 1;
         acc.pendingDebt += customer.dueAmount;
         if (customer.dueAmount <= 0) {
@@ -360,7 +365,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         }
         return acc;
     }, { totalClients: 0, recoveredClients: 0, pendingDebt: 0 });
-  }, [customers, sortedCustomers, searchTerm, selectedPromoter, selectedGroup]);
+  }, [sortedCustomers]);
   
   const canRegister = hasPermission(plazaId, 'CAN_REGISTER');
   const canImport = hasPermission(plazaId, 'CAN_IMPORT');
@@ -399,13 +404,32 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     return colors;
   }, [customers]);
   
-  const uniquePromoters = React.useMemo(() => {
-    return [...new Set(customers.map(c => c.promoter).filter(Boolean) as string[])].sort();
+  const { uniquePromoters, hasUnassignedPromoters } = React.useMemo(() => {
+    const promoters = new Set<string>();
+    let unassigned = false;
+    customers.forEach(c => {
+      if (c.promoter) {
+        promoters.add(c.promoter);
+      } else {
+        unassigned = true;
+      }
+    });
+    return { uniquePromoters: [...promoters].sort(), hasUnassignedPromoters: unassigned };
   }, [customers]);
   
-  const uniqueGroups = React.useMemo(() => {
-    return [...new Set(customers.map(c => c.groupName).filter(Boolean) as string[])].sort();
+  const { uniqueGroups, hasUnassignedGroups } = React.useMemo(() => {
+    const groups = new Set<string>();
+    let unassigned = false;
+    customers.forEach(c => {
+      if (c.groupName) {
+        groups.add(c.groupName);
+      } else {
+        unassigned = true;
+      }
+    });
+    return { uniqueGroups: [...groups].sort(), hasUnassignedGroups: unassigned };
   }, [customers]);
+
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -608,6 +632,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                     <SelectContent>
                         <SelectItem value="all">Todos los Promotores</SelectItem>
                         {uniquePromoters.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        {hasUnassignedPromoters && <SelectItem value="unassigned">Sin Promotor</SelectItem>}
                     </SelectContent>
                 </Select>
                  <Select value={selectedGroup} onValueChange={(value) => setSelectedGroup(value === 'all' ? '' : value)}>
@@ -617,13 +642,14 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                     <SelectContent>
                         <SelectItem value="all">Todos los Grupos</SelectItem>
                         {uniqueGroups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                        {hasUnassignedGroups && <SelectItem value="unassigned">Sin Grupo</SelectItem>}
                     </SelectContent>
                 </Select>
                  <Button variant="ghost" onClick={clearFilters}>
                     <FilterX className="mr-2 h-4 w-4" />
                     Limpiar
                 </Button>
-                {selectedPromoter && (
+                {selectedPromoter && selectedPromoter !== 'unassigned' && (
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive" size="sm">
