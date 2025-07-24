@@ -29,7 +29,7 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     // The API expects a flat object for a single message.
     const payload = {
         tpoa: sender || 'Sender', // Originator, up to 11 alphanumeric chars
-        msisdn: to,
+        msisdn: [to], // The recipient must be in an array
         message: message,
     };
     
