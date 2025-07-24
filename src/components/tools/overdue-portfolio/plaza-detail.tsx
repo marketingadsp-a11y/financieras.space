@@ -55,7 +55,7 @@ import {
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
 import type { Plaza, Customer, CompanyProfile } from "@/lib/data";
 import { getPlazaById } from "@/services/plaza-service";
-import { getCustomersByPlaza, addCustomer, deleteCustomersByPlaza, addMultipleCustomers, deleteCustomer } from "@/services/customer-service";
+import { getCustomersByPlaza, addCustomer, deleteCustomersByPlaza, addMultipleCustomers, deleteCustomer, deleteCustomersByPromoter } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
 import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
@@ -117,6 +117,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [isParsing, setIsParsing] = React.useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
+  const [promoterDeleteConfirmationText, setPromoterDeleteConfirmationText] = React.useState('');
   const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [dialogMode, setDialogMode] = React.useState<'edit' | 'payment'>('edit');
@@ -223,6 +224,19 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
       toast({ variant: "destructive", title: "Error", description: "No se pudieron eliminar los clientes." });
     }
   };
+
+  const handleDeleteByPromoter = async () => {
+    if (!selectedPromoter) return;
+    try {
+        await deleteCustomersByPromoter(plazaId, selectedPromoter);
+        toast({ title: "Éxito", description: `Clientes de ${selectedPromoter} eliminados.` });
+        await fetchPlazaAndCustomers();
+        setSelectedPromoter(""); // Reset filter
+        setPromoterDeleteConfirmationText("");
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudieron eliminar los clientes del promotor." });
+    }
+  }
   
   const handleImport = async () => {
     if (!importText.trim()) {
@@ -404,6 +418,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   }
   
   const expectedConfirmationText = `${plaza.name} eliminar`;
+  const expectedPromoterDeleteText = `ELIMINAR ${selectedPromoter}`;
   
   const generateWhatsAppLink = (customer: Customer) => {
     if (!companyProfile?.whatsappLinkTemplate || !customer.phone) return "";
@@ -598,6 +613,41 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                     <FilterX className="mr-2 h-4 w-4" />
                     Limpiar
                 </Button>
+                {selectedPromoter && (
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Eliminar {sortedCustomers.length} cliente(s)
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Estás a punto de eliminar a <strong>{sortedCustomers.length}</strong> cliente(s) del promotor <strong>{selectedPromoter}</strong>. Esta acción no se puede deshacer.
+                                    Para confirmar, escribe <strong className="text-foreground">{expectedPromoterDeleteText}</strong>.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                             <Input
+                              value={promoterDeleteConfirmationText}
+                              onChange={(e) => setPromoterDeleteConfirmationText(e.target.value)}
+                              placeholder={expectedPromoterDeleteText}
+                              autoFocus
+                            />
+                            <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setPromoterDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={handleDeleteByPromoter}
+                                    disabled={promoterDeleteConfirmationText !== expectedPromoterDeleteText}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                >
+                                    Sí, eliminar clientes
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
             </div>
           <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

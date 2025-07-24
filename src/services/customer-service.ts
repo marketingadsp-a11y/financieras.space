@@ -66,6 +66,27 @@ export async function deleteCustomersByPlaza(plazaId: string): Promise<void> {
     await batch.commit();
 }
 
+export async function deleteCustomersByPromoter(plazaId: string, promoterName: string): Promise<void> {
+    const batch = writeBatch(db);
+    const q = query(
+        customersCollectionRef, 
+        where("plazaId", "==", plazaId), 
+        where("promoter", "==", promoterName)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        throw new Error("No se encontraron clientes para este promotor en la plaza especificada.");
+    }
+
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+}
+
+
 export async function deleteAllCustomersByPrefix(prefix: string, toolContext: 'overdue-portfolio'): Promise<void> {
     const batch = writeBatch(db);
     const q = query(customersCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", toolContext));
