@@ -54,7 +54,15 @@ const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }) =
 )
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
-    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:-translate-y-1.5 p-2 border-2 border-transparent hover:border-primary hover:shadow-primary/20">
+    <Card 
+        className="group flex flex-col transition-all duration-300 ease-in-out hover:-translate-y-1.5 p-2 border-2 border-transparent hover:border-primary hover:shadow-primary/20"
+        style={{ '--tool-color': 'hsl(var(--primary))' } as React.CSSProperties}
+    >
+        <style jsx>{`
+            .card-glow:hover {
+                box-shadow: 0 10px 15px -3px var(--tool-color, #0002), 0 4px 6px -4px var(--tool-color, #0001);
+            }
+        `}</style>
         <CardHeader className="p-4">
             <div className="flex items-center gap-4">
                 <div className="p-3 bg-primary/10 rounded-lg w-fit">
@@ -122,7 +130,7 @@ export function ToolsPage() {
             setPlazas(plazasFromDb);
 
             const totalClients = allCustomers.length;
-            const recoveredClients = allCustomers.filter(c => c.dueAmount === 0).length;
+            const recoveredClients = allCustomers.filter(c => c.dueAmount <= 0).length;
             const totalDebt = allCustomers.reduce((acc, c) => acc + (c.dueAmount || 0), 0);
             const totalLoanAmount = allCustomers.reduce((acc, c) => acc + (c.loanAmount || 0), 0);
             const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
