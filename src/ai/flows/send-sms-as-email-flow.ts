@@ -59,15 +59,17 @@ const sendSmsAsEmailFlow = ai.defineFlow(
             subject: subject,
             html: `<p>${messageBody}</p>`, // Wrapping in <p> for basic HTML formatting
         });
-
+        
+        // Ensure that the result from sendEmail is correctly propagated
         if (result.success) {
-            return { success: true, message: "SMS enviado correctamente a través del gateway de email." };
+            return { success: true, message: result.message };
         } else {
              return { success: false, message: result.message };
         }
+
     } catch (error: any) {
         console.error("Error in sendSmsAsEmailFlow:", error);
-        return { success: false, message: error.message || "Error desconocido al enviar el email." };
+        return { success: false, message: error.message || "Error desconocido al procesar el envío de SMS por email." };
     }
   }
 );
