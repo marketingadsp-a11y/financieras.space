@@ -64,7 +64,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/auth-context";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { getAppSettings } from "@/services/app-settings-service";
+import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 
 const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }) => {
     const cardClasses = {
@@ -114,11 +114,12 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const fetchPlazaAndCustomers = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const [plazaData, settings] = await Promise.all([
-          getPlazaById(plazaId),
-          getAppSettings()
-      ]);
-      setWhatsappTemplate(settings?.whatsappLinkTemplate || "https://api.whatsapp.com/send?phone=52{TELEFONO}&text=Estimado%20{NOMBRE}%0A%0ATienes%20un%20saldo%20vencido%20por%20la%20cantidad%20de%3A%20%24{DEBE}");
+      const plazaData = await getPlazaById(plazaId);
+      
+      if(user?.prefix){
+        const profile = await getCompanyProfileByPrefix(user.prefix);
+        setWhatsappTemplate(profile?.whatsappLinkTemplate || "https://api.whatsapp.com/send?phone=52{TELEFONO}&text=Estimado%20{NOMBRE}%0A%0ATienes%20un%20saldo%20vencido%20por%20la%20cantidad%20de%3A%20%24{DEBE}");
+      }
       
       if (plazaData) {
         setPlaza(plazaData);
@@ -132,7 +133,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [plazaId, toast]);
+  }, [plazaId, toast, user?.prefix]);
 
   React.useEffect(() => {
     fetchPlazaAndCustomers();
@@ -382,8 +383,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                             <DialogHeader>
                                 <DialogTitle>Importar Clientes desde Texto</DialogTitle>
                                 <DialogDescriptionComponent>
-                                    Pega texto de una hoja de cálculo. Las columnas deben estar separadas por tabulaciones.
-                                    La herramienta procesará las siguientes columnas: PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE.
+                                  Pega texto de una hoja de cálculo. Las columnas deben estar separadas por tabulaciones y contener encabezados.
+                                  Columnas Requeridas: PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE.
                                 </DialogDescriptionComponent>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">

@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { AppWindow, Wrench, LifeBuoy, Loader2, Palette, MessageSquare } from "lucide-react";
+import { AppWindow, Wrench, LifeBuoy, Loader2, Palette } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { allTools, type Tool } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
@@ -48,7 +48,6 @@ const appSettingsSchema = z.object({
   footerText: z.string().optional(),
   toolSettings: z.array(toolSettingsSchema).optional(),
   supportInfo: supportInfoSchema.optional(),
-  whatsappLinkTemplate: z.string().optional(),
 });
 
 type AppSettingsFormValues = z.infer<typeof appSettingsSchema>;
@@ -68,7 +67,6 @@ export function AppSettings() {
             title: "",
             content: ""
         },
-        whatsappLinkTemplate: "https://api.whatsapp.com/send?phone=52{TELEFONO}&text=Estimado%20{NOMBRE}%0A%0ATienes%20un%20saldo%20vencido%20por%20la%20cantidad%20de%3A%20%24{DEBE}%2C%20por%20favor%20acude%20a%20nuestra%20oficina%20de%20atenci%C3%B3n%20para%20evitar%20procesar%20su%20adeudo%20en%20materia%20legal.%20",
     },
   });
   
@@ -98,7 +96,6 @@ export function AppSettings() {
                 title: settings?.supportInfo?.title || "Página de Soporte",
                 content: settings?.supportInfo?.content || "Contacta a tu administrador para más información."
             },
-            whatsappLinkTemplate: settings?.whatsappLinkTemplate || form.getValues('whatsappLinkTemplate'),
         });
         setIsLoading(false);
     }
@@ -116,7 +113,6 @@ export function AppSettings() {
       
       await saveAppSettings({
          supportInfo: data.supportInfo,
-         whatsappLinkTemplate: data.whatsappLinkTemplate,
       });
       
       window.dispatchEvent(new Event("storage"));
@@ -195,41 +191,6 @@ export function AppSettings() {
                       </div>
                   </AccordionContent>
                 </AccordionItem>
-
-                 {user?.isSuperAdmin && (
-                  <AccordionItem value="whatsapp-template" className="border rounded-lg">
-                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-left">
-                       <div className="flex items-center gap-4">
-                            <div className="p-2 bg-primary/10 rounded-lg"><MessageSquare className="h-6 w-6 text-primary"/></div>
-                            <div>
-                                <p className="font-semibold text-base">Plantilla de Mensaje de WhatsApp</p>
-                                <p className="text-sm text-muted-foreground font-normal">Edita el enlace para los envíos de WhatsApp.</p>
-                            </div>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-6 border-t">
-                       <div className="space-y-6">
-                          <FormField
-                              control={form.control}
-                              name="whatsappLinkTemplate"
-                              render={({ field }) => (
-                                  <FormItem>
-                                  <FormLabel>Plantilla de Enlace de WhatsApp</FormLabel>
-                                  <FormControl>
-                                      <Textarea className="min-h-[150px] font-mono text-xs" placeholder="Pega aquí el enlace de WhatsApp" {...field} />
-                                  </FormControl>
-                                  <FormDescriptionComponent>
-                                    Usa los marcadores <code className="bg-muted px-1 py-0.5 rounded-sm">{'{NOMBRE}'}</code>, <code className="bg-muted px-1 py-0.5 rounded-sm">{'{TELEFONO}'}</code> y <code className="bg-muted px-1 py-0.5 rounded-sm">{'{DEBE}'}</code> para insertar datos del cliente.
-                                  </FormDescriptionComponent>
-                                  <FormMessage />
-                                  </FormItem>
-                              )}
-                          />
-                        </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )}
-
 
                 {user?.isSuperAdmin && (
                   <AccordionItem value="tool-names" className="border rounded-lg">

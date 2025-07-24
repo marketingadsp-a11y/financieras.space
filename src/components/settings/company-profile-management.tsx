@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, Loader2, Pencil, Trash2, PlusCircle, Building, Palette } from "lucide-react";
+import { Briefcase, Loader2, Pencil, Trash2, MessageSquare, Building, Palette } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getCompanyProfileByPrefix, saveCompanyProfile, getAllCompanyProfiles, deleteCompanyProfile } from "@/services/company-profile-service";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,7 +35,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
@@ -57,11 +56,14 @@ import {
   AlertDialogDescription as AlertDialogDescriptionComponent,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
+import { Textarea } from "../ui/textarea";
 
 const companyProfileSchema = z.object({
   companyName: z.string().min(3, "El nombre de la empresa debe tener al menos 3 caracteres."),
   logoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
   loginBackgroundColor: z.string().optional(),
+  whatsappLinkTemplate: z.string().optional(),
 });
 
 type CompanyProfileFormValues = z.infer<typeof companyProfileSchema>;
@@ -74,6 +76,7 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
             companyName: profile?.companyName || "",
             logoUrl: profile?.logoUrl || "",
             loginBackgroundColor: profile?.loginBackgroundColor || "#f4f4f5", // Default to muted gray
+            whatsappLinkTemplate: profile?.whatsappLinkTemplate || "https://api.whatsapp.com/send?phone=52{TELEFONO}&text=Estimado%20{NOMBRE}%0A%0ATienes%20un%20saldo%20vencido%20por%20la%20cantidad%20de%3A%20%24{DEBE}%2C%20por%20favor%20acude%20a%20nuestra%20oficina%20de%20atenci%C3%B3n%20para%20evitar%20procesar%20su%20adeudo%20en%20materia%20legal.%20",
         },
     });
     
@@ -83,63 +86,90 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                    control={form.control}
-                    name="companyName"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Nombre de la Empresa</FormLabel>
-                        <FormControl>
-                            <Input placeholder="El nombre de tu empresa" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="logoUrl"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Logotipo</FormLabel>
-                        <div className="flex items-center gap-4">
-                            <Avatar className="h-20 w-20">
-                            <AvatarImage src={currentLogoUrl} alt={currentCompanyName} />
-                            <AvatarFallback><Briefcase className="h-10 w-10 text-muted-foreground"/></AvatarFallback>
-                            </Avatar>
-                            <div className="flex-grow">
-                                <FormControl>
-                                    <Input placeholder="https://ejemplo.com/logo.png" {...field} />
-                                </FormControl>
-                                <FormDescriptionComponent className="mt-2">
-                                    Pega una URL a una imagen para el logotipo.
-                                </FormDescriptionComponent>
+                 <Accordion type="multiple" className="w-full space-y-4" defaultValue={['item-1', 'item-2']}>
+                    <AccordionItem value="item-1" className="border-b-0">
+                        <div className="p-4 border rounded-lg">
+                        <AccordionTrigger className="py-0 hover:no-underline">
+                           <div className="flex items-center gap-4">
+                                <div className="p-2 bg-primary/10 rounded-lg"><Briefcase className="h-6 w-6 text-primary"/></div>
+                                <div>
+                                    <p className="font-semibold text-base">Identidad de la Empresa</p>
+                                    <p className="text-sm text-muted-foreground font-normal">Nombre, logo y color para el login.</p>
+                                </div>
                             </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-6 mt-4 border-t">
+                            <div className="space-y-6">
+                                <FormField control={form.control} name="companyName" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Nombre de la Empresa</FormLabel>
+                                    <FormControl><Input placeholder="El nombre de tu empresa" {...field} /></FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={form.control} name="logoUrl" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Logotipo</FormLabel>
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-20 w-20"><AvatarImage src={currentLogoUrl} alt={currentCompanyName} /><AvatarFallback><Briefcase className="h-10 w-10 text-muted-foreground"/></AvatarFallback></Avatar>
+                                        <div className="flex-grow">
+                                            <FormControl><Input placeholder="https://ejemplo.com/logo.png" {...field} /></FormControl>
+                                            <FormDescriptionComponent className="mt-2">Pega una URL a una imagen para el logotipo.</FormDescriptionComponent>
+                                        </div>
+                                    </div>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={form.control} name="loginBackgroundColor" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Color de Fondo del Login</FormLabel>
+                                    <FormControl>
+                                    <div className="flex items-center gap-2">
+                                        <Input type="color" className="w-16 h-10 p-1" {...field} />
+                                        <Input type="text" placeholder="#f4f4f5" {...field} />
+                                    </div>
+                                    </FormControl>
+                                    <FormDescriptionComponent>Selecciona un color para el fondo de la pantalla de inicio de sesión.</FormDescriptionComponent>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}/>
+                            </div>
+                        </AccordionContent>
                         </div>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="loginBackgroundColor"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Color de Fondo del Login</FormLabel>
-                        <FormControl>
-                          <div className="flex items-center gap-2">
-                              <Input type="color" className="w-16 h-10 p-1" {...field} />
-                              <Input type="text" placeholder="#f4f4f5" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormDescriptionComponent>
-                            Selecciona un color para el fondo de la pantalla de inicio de sesión.
-                        </FormDescriptionComponent>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                 <CardFooter className="border-t px-0 pt-6 mt-6">
+                    </AccordionItem>
+                    <AccordionItem value="item-2" className="border-b-0">
+                        <div className="p-4 border rounded-lg">
+                        <AccordionTrigger className="py-0 hover:no-underline">
+                           <div className="flex items-center gap-4">
+                                <div className="p-2 bg-primary/10 rounded-lg"><MessageSquare className="h-6 w-6 text-primary"/></div>
+                                <div>
+                                    <p className="font-semibold text-base">Plantilla de WhatsApp</p>
+                                    <p className="text-sm text-muted-foreground font-normal">Edita el enlace para los envíos de WhatsApp.</p>
+                                </div>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-6 mt-4 border-t">
+                             <FormField
+                                control={form.control}
+                                name="whatsappLinkTemplate"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Plantilla de Enlace de WhatsApp</FormLabel>
+                                    <FormControl>
+                                        <Textarea className="min-h-[150px] font-mono text-xs" placeholder="Pega aquí el enlace de WhatsApp" {...field} />
+                                    </FormControl>
+                                    <FormDescriptionComponent>
+                                        Usa los marcadores <code className="bg-muted px-1 py-0.5 rounded-sm">{'{NOMBRE}'}</code>, <code className="bg-muted px-1 py-0.5 rounded-sm">{'{TELEFONO}'}</code> y <code className="bg-muted px-1 py-0.5 rounded-sm">{'{DEBE}'}</code> para insertar datos del cliente.
+                                    </FormDescriptionComponent>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                        </AccordionContent>
+                        </div>
+                    </AccordionItem>
+                </Accordion>
+                 <CardFooter className="px-0 pt-6">
                     <Button type="submit" disabled={isSaving}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Guardar Cambios
@@ -201,13 +231,8 @@ function AdminProfileView() {
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-start gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg"><Briefcase className="h-6 w-6 text-primary"/></div>
-                    <div>
-                        <CardTitle>Perfil de Empresa</CardTitle>
-                        <CardDescription>Personaliza cómo se muestra tu empresa en el inicio de sesión. Estos cambios se aplicarán a todos los usuarios con el prefijo: <span className="font-bold">{user?.prefix}</span>.</CardDescription>
-                    </div>
-                </div>
+                <CardTitle>Perfil de Empresa</CardTitle>
+                <CardDescription>Personaliza cómo se muestra tu empresa en el inicio de sesión y otras configuraciones. Estos cambios se aplicarán a todos los usuarios con el prefijo: <span className="font-bold">{user?.prefix}</span>.</CardDescription>
             </CardHeader>
              <CardContent>
                 <ProfileForm profile={initialProfile} onSubmit={onSubmit} isSaving={isSaving} />

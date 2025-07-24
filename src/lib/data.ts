@@ -259,6 +259,7 @@ export type CompanyProfile = {
   companyName: string;
   logoUrl?: string;
   loginBackgroundColor?: string;
+  whatsappLinkTemplate?: string;
 };
 
 // --- Loan Control Tool Models ---
