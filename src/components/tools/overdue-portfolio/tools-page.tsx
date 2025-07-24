@@ -54,7 +54,7 @@ const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }) =
 )
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
-    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2 border-2 border-transparent hover:border-primary hover:shadow-primary/20">
+    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:-translate-y-1.5 p-2 border-2 border-transparent hover:border-primary hover:shadow-primary/20">
         <CardHeader className="p-4">
             <div className="flex items-center gap-4">
                 <div className="p-3 bg-primary/10 rounded-lg w-fit">
