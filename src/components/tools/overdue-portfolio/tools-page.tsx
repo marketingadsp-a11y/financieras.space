@@ -170,13 +170,12 @@ export function ToolsPage() {
                 const worksheet = workbook.Sheets[sheetName];
                 const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: "" }) as any[][];
 
-                if (!json || json.length < 2) { // Must have at least a header and one data row
+                if (!json || json.length < 2) {
                     setIsImporting(false);
                     return toast({ variant: "destructive", title: "Error", description: "El archivo de Excel está vacío o no tiene un formato válido." });
                 }
 
                 let headerRowIndex = -1;
-                // Find header row
                 for (let i = 0; i < json.length; i++) {
                     const rowString = json[i].map(cell => String(cell)).join(' ').toUpperCase();
                     if (/(NOMBRE|DIRECCION|PRESTAMO|ADEUDO|DEBE)/.test(rowString)) {
@@ -192,6 +191,29 @@ export function ToolsPage() {
                 
                 const headers = json[headerRowIndex].map(h => String(h || '').trim().toUpperCase());
                 const dataRows = json.slice(headerRowIndex + 1);
+                
+                // Get header indices
+                const getIndex = (keys: string[]) => {
+                    for(const key of keys) {
+                        const index = headers.indexOf(key);
+                        if (index > -1) return index;
+                    }
+                    return -1;
+                }
+
+                const promoterIdx = getIndex(["PROMOTOR", "PROMOTOR/A"]);
+                const plazaIdx = getIndex(["PLAZA"]);
+                const fechaIdx = getIndex(["FECHA", "F. PRESTAMO"]);
+                const nombreIdx = getIndex(["NOMBRE", "CLIENTE"]);
+                const direccionIdx = getIndex(["DIRECCION"]);
+                const telefonoIdx = getIndex(["TELEFONO", "TELEFONOS"]);
+                const avalIdx = getIndex(["AVAL"]);
+                const telAvalIdx = getIndex(["TEL. AVAL", "TELEFONO AVAL"]);
+                const prestamoIdx = getIndex(["PRESTAMO"]);
+                const pagoIdx = getIndex(["PAGO"]);
+                const vencidosIdx = getIndex(["NO.VENC.", "VENCIDOS"]);
+                const debeIdx = getIndex(["DEBE", "ADEUDO", "SALDO"]);
+
 
                 const existingPlazas = await getPlazas({ prefix: user.prefix, fetchAll: false, toolContext });
                 const plazaMap: Record<string, string> = {};
@@ -200,26 +222,14 @@ export function ToolsPage() {
                 const parsedCustomers: Omit<Customer, 'id'>[] = [];
 
                 for (const row of dataRows) {
-                    const rowData: Record<string, any> = {};
-                    headers.forEach((header, index) => {
-                        if (header) { 
-                            rowData[header] = row[index];
-                        }
-                    });
-                    
-                    let plazaId = '';
-                    const plazaName = String(rowData.PLAZA || '').trim();
+                    const plazaName = plazaIdx > -1 ? String(row[plazaIdx] || '').trim() : '';
+                    if (!plazaName) continue; // Skip rows without a plaza name
 
-                    if (plazaName) {
-                        if (plazaMap[plazaName.toUpperCase()]) {
-                            plazaId = plazaMap[plazaName.toUpperCase()];
-                        } else {
-                            const newPlaza = await addPlaza({ name: plazaName, prefix: user.prefix, toolContext });
-                            plazaId = newPlaza.id;
-                            plazaMap[plazaName.toUpperCase()] = newPlaza.id;
-                        }
-                    } else {
-                        continue; 
+                    let plazaId = plazaMap[plazaName.toUpperCase()];
+                    if (!plazaId) {
+                        const newPlaza = await addPlaza({ name: plazaName, prefix: user.prefix, toolContext });
+                        plazaId = newPlaza.id;
+                        plazaMap[plazaName.toUpperCase()] = newPlaza.id;
                     }
                     
                     const parseNumeric = (val: any) => {
@@ -232,8 +242,7 @@ export function ToolsPage() {
                         if (!val) return undefined;
                         if (val instanceof Date) return val;
                         try {
-                            // Handle Excel serial date number
-                            if (typeof val === 'number' && val > 1) {
+                            if (typeof val === 'number' && val > 1) { // Excel date serial number
                                 return new Date(Date.UTC(1900, 0, val - 1));
                             }
                             const parsed = new Date(val);
@@ -244,24 +253,24 @@ export function ToolsPage() {
                         }
                     };
 
-                    const loanAmount = parseNumeric(rowData.PRESTAMO);
+                    const loanAmount = parseNumeric(row[prestamoIdx]);
 
                     parsedCustomers.push({
                         plazaId,
                         prefix: user.prefix,
                         toolContext,
                         status: 'Pendiente', 
-                        promoter: String(rowData.PROMOTOR || rowData['PROMOTOR/A'] || ''),
-                        name: String(rowData.NOMBRE || ''),
-                        address: String(rowData.DIRECCION || ''),
-                        phone: String(rowData.TELEFONO || ''),
-                        guarantor: String(rowData.AVAL || ''),
-                        guarantorPhone: String(rowData['TEL. AVAL'] || ''),
+                        promoter: promoterIdx > -1 ? String(row[promoterIdx] || '') : '',
+                        name: nombreIdx > -1 ? String(row[nombreIdx] || '') : '',
+                        address: direccionIdx > -1 ? String(row[direccionIdx] || '') : '',
+                        phone: telefonoIdx > -1 ? String(row[telefonoIdx] || '') : '',
+                        guarantor: avalIdx > -1 ? String(row[avalIdx] || '') : '',
+                        guarantorPhone: telAvalIdx > -1 ? String(row[telAvalIdx] || '') : '',
                         loanAmount: loanAmount,
-                        paymentAmount: parseNumeric(rowData.PAGO),
-                        installmentsDue: parseInt(String(rowData['NO.VENC.'] || 0), 10),
-                        dueAmount: parseNumeric(rowData.ADEUDO || rowData.DEBE || loanAmount),
-                        fechaPrestamo: parseDate(rowData.FECHA),
+                        paymentAmount: parseNumeric(row[pagoIdx]),
+                        installmentsDue: parseInt(String(row[vencidosIdx] || 0), 10),
+                        dueAmount: debeIdx > -1 ? parseNumeric(row[debeIdx]) : loanAmount,
+                        fechaPrestamo: parseDate(row[fechaIdx]),
                     });
                 }
                 
