@@ -26,13 +26,11 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     const encodedCredentials = Buffer.from(credentials).toString('base64');
     
     const payload = {
-      sms: {
-        messages: [{
-            tpoa: sender || 'Sender', 
-            msisdn: [to], 
-            message: message,
-        }]
-      }
+      messages: [{
+        tpoa: sender || 'Sender', 
+        msisdn: [to], 
+        message: message,
+      }]
     };
     
     try {
