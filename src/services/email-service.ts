@@ -1,3 +1,4 @@
+
 "use server";
 
 import { Resend } from 'resend';
@@ -28,7 +29,8 @@ export async function sendEmail({ to, subject, text, from }: SendEmailParams): P
 
     if (error) {
       console.error("Resend error:", error);
-      return { success: false, message: error.message || "Error desconocido de Resend." };
+      const errorMessage = error.message || JSON.stringify(error);
+      return { success: false, message: `Error de Resend: ${errorMessage}` };
     }
 
     console.log("Email sent successfully:", data);
