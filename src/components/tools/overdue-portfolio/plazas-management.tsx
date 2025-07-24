@@ -43,11 +43,11 @@ export function PlazasManagement() {
     fetchPlazas();
   }, [fetchPlazas]);
 
-  const handleAddPlaza = async (newPlaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate' | 'toolContext'>) => {
+  const handleAddPlaza = async (newPlaza: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate' | 'toolContext' | 'totalLoanAmount'>) => {
     try {
       // Admins use their own prefix. SuperAdmins might create for others, but for now, let's stick to their prefix if they have one.
-      const plazaData: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate' | 'totalLoanAmount'> = { 
-        ...newPlaza, 
+      const plazaData: Omit<Plaza, 'id' | 'pendingDebt' | 'recoveryRate' | 'totalLoanAmount'> = {
+        ...newPlaza,
         prefix: user?.prefix,
         toolContext: 'overdue-portfolio'
       };
