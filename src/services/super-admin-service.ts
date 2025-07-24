@@ -1,3 +1,4 @@
+
 'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc } from "firebase/firestore";
@@ -5,19 +6,6 @@ import { db } from "@/lib/firebase";
 import type { SuperAdmin } from "@/lib/data";
 
 const superAdminsCollectionRef = collection(db, "super-admins");
-
-// Create initial super admin if none exist
-(async () => {
-    const snapshot = await getDocs(superAdminsCollectionRef);
-    if (snapshot.empty) {
-        console.log("No super admins found, creating default 'Cristobal' user...");
-        await addDoc(superAdminsCollectionRef, {
-            username: "Cristobal",
-            password: "0120",
-            prefix: "demo"
-        });
-    }
-})();
 
 export async function getSuperAdmins(): Promise<SuperAdmin[]> {
     const data = await getDocs(superAdminsCollectionRef);
