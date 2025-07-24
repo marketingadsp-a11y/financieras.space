@@ -12,9 +12,10 @@ type CustomerCardProps = {
   customer: Customer;
   onEdit: (customer: Customer) => void;
   onPayment: (customer: Customer) => void;
+  promoterColor?: string;
 };
 
-export function CustomerCard({ customer, onEdit, onPayment }: CustomerCardProps) {
+export function CustomerCard({ customer, onEdit, onPayment, promoterColor }: CustomerCardProps) {
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
       case 'Pendiente':
@@ -28,8 +29,29 @@ export function CustomerCard({ customer, onEdit, onPayment }: CustomerCardProps)
 
   const isPaid = customer.status === 'Pagado';
 
+  // Helper to determine text color (black or white) based on background hex/hsl color
+  const getTextColorForBackground = (color: string): string => {
+    if (!color) return '#18181b'; // Default dark text
+    
+    // Simple check for HSL format
+    if (color.startsWith('hsl')) {
+      try {
+        const lightness = parseInt(color.split(',')[2]?.replace('%', '').trim() || '0');
+        return lightness > 60 ? '#000000' : '#ffffff';
+      } catch {
+        return '#18181b';
+      }
+    }
+    return '#18181b'; // Default for non-hsl
+  };
+
   return (
-    <Card className={cn("flex flex-col", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
+    <Card className={cn("flex flex-col overflow-hidden", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
+      {customer.promoter && (
+        <div style={{ backgroundColor: promoterColor, color: getTextColorForBackground(promoterColor || '') }} className="p-2 text-center font-semibold text-sm">
+          {customer.promoter}
+        </div>
+      )}
       <CardHeader>
         <div className="flex justify-between items-start">
           <CardTitle className="text-base font-bold">{customer.name}</CardTitle>
@@ -38,9 +60,6 @@ export function CustomerCard({ customer, onEdit, onPayment }: CustomerCardProps)
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
-        {customer.promoter && (
-             <p className="text-xs text-primary font-semibold pt-1 flex items-center gap-1"><UserSquare className="h-3 w-3"/>Promotor/a: {customer.promoter}</p>
-        )}
       </CardHeader>
       <CardContent className="space-y-4 flex-grow">
         <div className="space-y-2 text-sm">

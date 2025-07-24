@@ -226,6 +226,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const exportToExcel = () => {
     const dateString = format(new Date(), 'PPP', { locale: es });
     const dataToExport = sortedCustomers.map(c => ({
+      Promotor: c.promoter,
       Nombre: c.name,
       Dirección: c.address,
       Teléfono: c.phone,
@@ -270,6 +271,22 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const canImport = hasPermission(plazaId, 'CAN_IMPORT');
   const canExport = hasPermission(plazaId, 'CAN_EXPORT');
   const canDeleteAll = hasPermission(plazaId, 'CAN_DELETE_ALL');
+
+  const promoterColors = React.useMemo(() => {
+    const colors = new Map<string, string>();
+    const uniquePromoters = [...new Set(customers.map(c => c.promoter).filter(Boolean) as string[])];
+    
+    uniquePromoters.forEach(name => {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const h = hash % 360;
+      colors.set(name, `hsl(${h}, 60%, 80%)`);
+    });
+
+    return colors;
+  }, [customers]);
 
 
   if (isLoading) {
@@ -349,7 +366,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                 <DialogTitle>Importar Clientes desde Texto</DialogTitle>
                                 <DialogDescriptionComponent>
                                     Pega texto desde una hoja de cálculo. Las columnas deben estar separadas por tabulaciones.
-                                    Asegúrate de que las columnas coincidan con: PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE.
+                                    La herramienta procesará las siguientes columnas: PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE.
                                 </DialogDescriptionComponent>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
@@ -454,7 +471,13 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
           {sortedCustomers.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {sortedCustomers.map(customer => (
-                <CustomerCard key={customer.id} customer={customer} onEdit={handleEditClick} onPayment={handlePaymentClick} />
+                <CustomerCard 
+                  key={customer.id} 
+                  customer={customer} 
+                  onEdit={handleEditClick} 
+                  onPayment={handlePaymentClick} 
+                  promoterColor={customer.promoter ? promoterColors.get(customer.promoter) : undefined}
+                />
               ))}
             </div>
           ) : (

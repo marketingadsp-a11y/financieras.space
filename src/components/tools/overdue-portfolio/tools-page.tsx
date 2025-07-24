@@ -177,14 +177,7 @@ export function ToolsPage() {
 
                 const headers = json[0].map(h => String(h || '').trim().toUpperCase());
                 
-                // Get header indices
-                const getIndex = (keys: string[]) => {
-                    for(const key of keys) {
-                        const index = headers.indexOf(key);
-                        if (index > -1) return index;
-                    }
-                    return -1;
-                };
+                const getIndex = (keys: string[]) => keys.reduce((acc, key) => (acc !== -1 ? acc : headers.indexOf(key)), -1);
 
                 const promoterIdx = getIndex(["PROMOTOR", "PROMOTOR/A"]);
                 const plazaIdx = getIndex(["PLAZA"]);
@@ -211,10 +204,19 @@ export function ToolsPage() {
                 existingPlazas.forEach(p => { plazaMap[p.name.toUpperCase()] = p.id; });
 
                 const parsedCustomers: Omit<Customer, 'id'>[] = [];
+                let currentPromoter = "";
 
                 for (const row of dataRows) {
+                    // Check if the row could be a promoter row
+                    if (row.length === 1 && String(row[0] || "").trim()) {
+                        currentPromoter = String(row[0]).trim();
+                        continue;
+                    }
+                    
+                    const promoterFromFile = promoterIdx > -1 ? String(row[promoterIdx] || '').trim() : '';
+
                     const plazaName = plazaIdx > -1 ? String(row[plazaIdx] || '').trim() : 'General';
-                    if (!plazaName) continue; // Skip rows without a plaza name
+                    if (!plazaName) continue;
 
                     let plazaId = plazaMap[plazaName.toUpperCase()];
                     if (!plazaId) {
@@ -233,8 +235,9 @@ export function ToolsPage() {
                         if (!val) return undefined;
                         if (val instanceof Date) return val;
                         try {
-                            if (typeof val === 'number' && val > 1) { // Excel date serial number
-                                return new Date(Date.UTC(1900, 0, val - 1));
+                           // Handle Excel date serial numbers
+                           if (typeof val === 'number') {
+                                return new Date(Math.round((val - 25569) * 86400 * 1000));
                             }
                             const parsed = new Date(val);
                             if (isNaN(parsed.getTime())) return undefined;
@@ -251,7 +254,7 @@ export function ToolsPage() {
                         prefix: user.prefix,
                         toolContext,
                         status: 'Pendiente', 
-                        promoter: promoterIdx > -1 ? String(row[promoterIdx] || '') : '',
+                        promoter: promoterFromFile || currentPromoter,
                         name: String(row[nombreIdx] || ''),
                         address: direccionIdx > -1 ? String(row[direccionIdx] || '') : '',
                         phone: telefonoIdx > -1 ? String(row[telefonoIdx] || '') : '',
@@ -309,7 +312,7 @@ export function ToolsPage() {
                             <DialogTitle>Importación Masiva</DialogTitle>
                             <DialogDescription>
                               Selecciona un archivo de Excel (`.xlsx`, `.xls`) con tus clientes. 
-                              Las columnas deben tener encabezados como: PROMOTOR, PLAZA, NOMBRE, ADEUDO, etc.
+                              Las columnas deben tener encabezados como: FECHA, PLAZA, NOMBRE, ADEUDO, etc.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
