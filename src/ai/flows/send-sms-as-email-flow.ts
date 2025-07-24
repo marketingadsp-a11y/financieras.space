@@ -67,4 +67,7 @@ const sendSmsAsEmailFlow = ai.defineFlow(
         }
     } catch (error: any) {
         console.error("Error in sendSmsAsEmailFlow:", error);
-        return { success: false, message: error.message || "Error desconocido al enviar el email."
+        return { success: false, message: error.message || "Error desconocido al enviar el email." };
+    }
+  }
+);
