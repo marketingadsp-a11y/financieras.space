@@ -53,7 +53,7 @@ import {
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
 import type { Plaza, Customer } from "@/lib/data";
 import { getPlazaById } from "@/services/plaza-service";
-import { getCustomersByPlaza, addCustomer, deleteCustomersByPlaza, addMultipleCustomers } from "@/services/customer-service";
+import { getCustomersByPlaza, addCustomer, deleteCustomersByPlaza, addMultipleCustomers, deleteCustomer } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
 import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
@@ -107,6 +107,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
   const [isParsing, setIsParsing] = React.useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
+  const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [dialogMode, setDialogMode] = React.useState<'edit' | 'payment'>('edit');
 
@@ -159,6 +160,22 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const handlePaymentClick = (customer: Customer) => {
     setSelectedCustomer(customer);
     setDialogMode('payment');
+  };
+  
+  const handleDeleteClick = (customer: Customer) => {
+    setCustomerToDelete(customer);
+  };
+
+  const confirmDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+    try {
+      await deleteCustomer(customerToDelete.id);
+      toast({ title: "Éxito", description: "Cliente eliminado correctamente." });
+      setCustomerToDelete(null);
+      await fetchPlazaAndCustomers();
+    } catch (error) {
+       toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el cliente." });
+    }
   };
 
   const closeDialog = () => {
@@ -383,8 +400,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                             <DialogHeader>
                                 <DialogTitle>Importar Clientes desde Texto</DialogTitle>
                                 <DialogDescriptionComponent>
-                                  Pega texto de una hoja de cálculo. Las columnas deben estar separadas por tabulaciones y contener encabezados.
-                                  Columnas Requeridas: PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE.
+                                  Pega texto de una hoja de cálculo. Las columnas deben estar separadas por tabulaciones y contener encabezados como: PROMOTOR, FECHA, NOMBRE, etc.
                                 </DialogDescriptionComponent>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
@@ -486,7 +502,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
            </div>
         </CardHeader>
         <CardContent>
-          {sortedCustomers.length > 0 ? (
+          <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {sortedCustomers.map(customer => (
                 <CustomerCard 
@@ -494,12 +510,27 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                   customer={customer} 
                   onEdit={handleEditClick} 
                   onPayment={handlePaymentClick} 
+                  onDelete={handleDeleteClick}
                   promoterColor={customer.promoter ? promoterColors.get(customer.promoter) : undefined}
                   whatsappLink={generateWhatsAppLink(customer)}
                 />
               ))}
             </div>
-          ) : (
+             <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. Se eliminará permanentemente al cliente: <strong className="text-foreground">{customerToDelete?.name}</strong>.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeleteCustomer}>Eliminar</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {sortedCustomers.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
               <p>No se encontraron clientes.</p>
               {customers.length === 0 && <p className="text-sm mt-2">Puedes registrar uno nuevo o importarlos masivamente.</p>}

@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Pencil, User, Phone, UserSquare, MessageCircle } from "lucide-react";
+import { DollarSign, Pencil, User, Phone, UserSquare, MessageCircle, Trash2 } from "lucide-react";
 import type { Customer } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -12,11 +12,12 @@ type CustomerCardProps = {
   customer: Customer;
   onEdit: (customer: Customer) => void;
   onPayment: (customer: Customer) => void;
+  onDelete: (customer: Customer) => void;
   promoterColor?: string;
   whatsappLink?: string;
 };
 
-export function CustomerCard({ customer, onEdit, onPayment, promoterColor, whatsappLink }: CustomerCardProps) {
+export function CustomerCard({ customer, onEdit, onPayment, onDelete, promoterColor, whatsappLink }: CustomerCardProps) {
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
       case 'Pendiente':
@@ -53,7 +54,7 @@ export function CustomerCard({ customer, onEdit, onPayment, promoterColor, whats
   };
 
   return (
-    <Card className={cn("flex flex-col overflow-hidden", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
+    <Card className={cn("flex flex-col overflow-hidden group", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
       {customer.promoter && (
         <div style={{ backgroundColor: promoterColor, color: getTextColorForBackground(promoterColor || '') }} className="p-2 text-center font-semibold text-sm">
           {customer.promoter}
@@ -61,10 +62,15 @@ export function CustomerCard({ customer, onEdit, onPayment, promoterColor, whats
       )}
       <CardHeader>
         <div className="flex justify-between items-start">
-          <CardTitle className="text-base font-bold">{customer.name}</CardTitle>
-          <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
-            {customer.status}
-          </Badge>
+            <CardTitle className="text-base font-bold pr-2">{customer.name}</CardTitle>
+            <div className="flex items-center flex-shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive" onClick={() => onDelete(customer)}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+                <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize ml-1">
+                    {customer.status}
+                </Badge>
+            </div>
         </div>
         <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
       </CardHeader>
