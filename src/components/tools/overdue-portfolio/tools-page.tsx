@@ -6,8 +6,8 @@ import Link from "next/link";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight, Loader2, Upload } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight, Loader2, Upload, Target, TrendingUp, TrendingDown } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { Plaza, Customer } from "@/lib/data";
@@ -53,35 +53,46 @@ const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }) =
 )
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
-    <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-                <Building className="h-5 w-5 text-muted-foreground" />
-                {plaza.name}
-            </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            <div>
-                <p className="text-sm text-muted-foreground">Deuda Pendiente</p>
-                <p className="text-2xl font-bold text-destructive">
-                    ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-            </div>
-            <div>
-                <div className="flex justify-between text-sm text-muted-foreground mb-1">
-                    <span>Tasa de Recuperación</span>
-                    <span>{plaza.recoveryRate.toFixed(1)}%</span>
+    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2">
+        <CardHeader className="p-4">
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                    <Building className="h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
                 </div>
-                <Progress value={plaza.recoveryRate} aria-label={`${plaza.recoveryRate}% de recuperación`} />
+                <div>
+                    <CardTitle className="text-base font-semibold leading-tight">{plaza.name}</CardTitle>
+                    <p className="text-xs text-muted-foreground">Prefijo: {plaza.prefix}</p>
+                </div>
             </div>
-            <Button asChild className="w-full">
-               <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
-                    Ver Detalles <ArrowRight className="ml-2" />
+        </CardHeader>
+        <CardContent className="flex-grow space-y-4 px-4 pb-4">
+             <div className="space-y-1">
+                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-green-500"/> PRESTADO</span>
+                <p className="text-xl font-bold">${(plaza.totalLoanAmount || 0).toLocaleString('es-MX')}</p>
+            </div>
+             <div className="space-y-1">
+                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingDown className="h-3 w-3 text-red-500"/> PENDIENTE</span>
+                <p className="text-xl font-bold text-destructive">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
+            </div>
+            <div className="space-y-1">
+                <div className="flex justify-between items-baseline">
+                     <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Target className="h-3 w-3 text-blue-500"/> RECUPERACIÓN</span>
+                    <span className="text-sm font-bold">{plaza.recoveryRate.toFixed(1)}%</span>
+                </div>
+                <Progress value={plaza.recoveryRate} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-blue-400 [&>div]:to-blue-600" />
+            </div>
+        </CardContent>
+        <CardFooter className="p-2 border-t">
+            <Button asChild className="w-full" variant="ghost" size="sm">
+                <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
+                    Administrar Plaza
+                    <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
             </Button>
-        </CardContent>
+        </CardFooter>
     </Card>
 );
+
 
 
 export function ToolsPage() {
@@ -89,7 +100,7 @@ export function ToolsPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
-    const [summary, setSummary] = React.useState({ totalDebt: 0, totalClients: 0, recoveredClients: 0, recoveryRate: 0 });
+    const [summary, setSummary] = React.useState({ totalDebt: 0, totalClients: 0, recoveredClients: 0, recoveryRate: 0, totalLoanAmount: 0 });
     const [isLoading, setIsLoading] = React.useState(true);
     const [isImportModalOpen, setImportModalOpen] = React.useState(false);
     const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
@@ -112,13 +123,15 @@ export function ToolsPage() {
             const totalClients = allCustomers.length;
             const recoveredClients = allCustomers.filter(c => c.dueAmount === 0).length;
             const totalDebt = allCustomers.reduce((acc, c) => acc + (c.dueAmount || 0), 0);
-            const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
+            const totalLoanAmount = allCustomers.reduce((acc, c) => acc + (c.loanAmount || 0), 0);
+            const recoveryRate = totalLoanAmount > 0 ? ((totalLoanAmount - totalDebt) / totalLoanAmount) * 100 : 0;
             
             setSummary({
                 totalDebt,
                 totalClients,
                 recoveredClients,
-                recoveryRate
+                recoveryRate,
+                totalLoanAmount
             });
 
         } catch (error) {
@@ -368,7 +381,7 @@ export function ToolsPage() {
                     <span>Cargando plazas...</span>
                 </div>
             ) : plazas.length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {plazas.map((plaza) => (
                         <PlazaCard key={plaza.id} plaza={plaza} />
                     ))}
