@@ -105,14 +105,9 @@ export type Customer = {
   plazaId: string;
   name: string;
   address: string;
-  colonia?: string;
-  cp?: string;
   phone: string;
   guarantor: string;
   guarantorPhone: string;
-  direccionAval?: string;
-  coloniaAval?: string;
-  cpAval?: string;
   loanAmount: number;
   paymentAmount: number; // Monto de pago (cuota)
   installmentsDue: number; // No. vencidos

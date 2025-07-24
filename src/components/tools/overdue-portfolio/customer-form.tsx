@@ -27,14 +27,9 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 const formSchema = z.object({
   name: z.string().min(3, "El nombre es requerido."),
   address: z.string().min(5, "La dirección es requerida."),
-  colonia: z.string().optional(),
-  cp: z.string().optional(),
   phone: z.string().optional(),
   guarantor: z.string().optional(),
   guarantorPhone: z.string().optional(),
-  direccionAval: z.string().optional(),
-  coloniaAval: z.string().optional(),
-  cpAval: z.string().optional(),
   loanAmount: z.coerce.number().positive("El monto debe ser positivo."),
   paymentAmount: z.coerce.number().min(0, "El monto de pago no puede ser negativo."),
   installmentsDue: z.coerce.number().min(0, "No puede ser negativo"),
@@ -56,14 +51,9 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
         defaultValues: {
             name: customer?.name || "",
             address: customer?.address || "",
-            colonia: customer?.colonia || "",
-            cp: customer?.cp || "",
             phone: customer?.phone || "",
             guarantor: customer?.guarantor || "",
             guarantorPhone: customer?.guarantorPhone || "",
-            direccionAval: customer?.direccionAval || "",
-            coloniaAval: customer?.coloniaAval || "",
-            cpAval: customer?.cpAval || "",
             loanAmount: customer?.loanAmount || undefined,
             paymentAmount: customer?.paymentAmount || 0,
             installmentsDue: customer?.installmentsDue || 0,
@@ -98,17 +88,12 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
                         <h4 className="font-semibold text-lg">Información del Cliente</h4>
                         <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input placeholder="Nombre del cliente" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Dirección</FormLabel><FormControl><Input placeholder="Calle y número" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="colonia" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input placeholder="Colonia" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="cp" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input placeholder="C.P." {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input placeholder="Número de teléfono" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="promoter" render={({ field }) => (<FormItem><FormLabel>Promotor/a</FormLabel><FormControl><Input placeholder="Nombre del promotor" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     </div>
                      <div className="space-y-4 p-4 border rounded-lg">
                         <h4 className="font-semibold text-lg">Información del Aval</h4>
                         <FormField control={form.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel>Nombre del Aval</FormLabel><FormControl><Input placeholder="Nombre (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="direccionAval" render={({ field }) => (<FormItem><FormLabel>Dirección del Aval</FormLabel><FormControl><Input placeholder="Calle y número (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="coloniaAval" render={({ field }) => (<FormItem><FormLabel>Colonia del Aval</FormLabel><FormControl><Input placeholder="Colonia (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="cpAval" render={({ field }) => (<FormItem><FormLabel>C.P. del Aval</FormLabel><FormControl><Input placeholder="C.P. (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Teléfono del Aval</FormLabel><FormControl><Input placeholder="Teléfono (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     </div>
                     <div className="space-y-4 p-4 border rounded-lg">

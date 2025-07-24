@@ -44,14 +44,9 @@ type CustomerEditDialogProps = {
 const customerFormSchema = z.object({
   name: z.string().min(3, "El nombre es requerido."),
   address: z.string().min(5, "La dirección es requerida."),
-  colonia: z.string().optional(),
-  cp: z.string().optional(),
   phone: z.string().optional(),
   guarantor: z.string().optional(),
   guarantorPhone: z.string().optional(),
-  direccionAval: z.string().optional(),
-  coloniaAval: z.string().optional(),
-  cpAval: z.string().optional(),
   loanAmount: z.coerce.number().positive("El monto debe ser positivo."),
   paymentAmount: z.coerce.number().min(0, "El monto de pago debe ser positivo."),
   installmentsDue: z.coerce.number().min(0, "Debe ser un número positivo."),
@@ -82,14 +77,9 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
       customerForm.reset({
         name: customer.name,
         address: customer.address,
-        colonia: customer.colonia || "",
-        cp: customer.cp || "",
         phone: customer.phone || "",
         guarantor: customer.guarantor || "",
         guarantorPhone: customer.guarantorPhone || "",
-        direccionAval: customer.direccionAval || "",
-        coloniaAval: customer.coloniaAval || "",
-        cpAval: customer.cpAval || "",
         loanAmount: customer.loanAmount,
         paymentAmount: customer.paymentAmount,
         installmentsDue: customer.installmentsDue,
@@ -153,14 +143,9 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={customerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="colonia" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="cp" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                      <FormField control={customerForm.control} name="promoter" render={({ field }) => (<FormItem><FormLabel>Promotor/a</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel>Nombre del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="direccionAval" render={({ field }) => (<FormItem><FormLabel>Dirección del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="coloniaAval" render={({ field }) => (<FormItem><FormLabel>Colonia del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="cpAval" render={({ field }) => (<FormItem><FormLabel>C.P. del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Teléfono del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />

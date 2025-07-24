@@ -69,7 +69,7 @@ const CustomerInfoCard = ({ customer, onEdit, onPayment }: { customer: Customer;
                     </div>
                     <div className="space-y-1 text-sm text-muted-foreground pt-2">
                         <p className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0"/> {customer.phone || 'N/A'}</p>
-                        <p className="flex items-start gap-2"><Home className="h-4 w-4 mt-0.5 shrink-0"/> <span>{customer.address}, {customer.colonia}, C.P. {customer.cp}</span></p>
+                        <p className="flex items-start gap-2"><Home className="h-4 w-4 mt-0.5 shrink-0"/> <span>{customer.address}</span></p>
                     </div>
                 </div>
             </CardHeader>
@@ -274,13 +274,8 @@ export function GrupoDetail({ grupoId }: { grupoId: string }) {
         const dataToExport = filteredCustomers.map(c => ({
             'Nombre': c.name,
             'Dirección': c.address,
-            'Colonia': c.colonia,
-            'CP': c.cp,
             'Teléfono': c.phone,
             'Aval': c.guarantor,
-            'Dirección Aval': c.direccionAval,
-            'Colonia Aval': c.coloniaAval,
-            'CP Aval': c.cpAval,
             'Teléfono Aval': c.guarantorPhone,
             'Fecha Préstamo': c.fechaPrestamo ? format(new Date(c.fechaPrestamo), 'yyyy-MM-dd') : 'N/A',
             'Monto Prestado': c.loanAmount,

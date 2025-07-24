@@ -122,11 +122,6 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'sta
             paymentAmount: customerData.paymentAmount || 0,
             installmentsDue: customerData.installmentsDue || 0,
             dueAmount: customerData.dueAmount || customerData.loanAmount || 0,
-            colonia: customerData.colonia || '',
-            cp: customerData.cp || '',
-            direccionAval: customerData.direccionAval || '',
-            coloniaAval: customerData.coloniaAval || '',
-            cpAval: customerData.cpAval || '',
             fechaPrestamo: customerData.fechaPrestamo ? Timestamp.fromDate(new Date(customerData.fechaPrestamo)) : Timestamp.now(),
         };
         batch.set(newDocRef, completeCustomerData);
