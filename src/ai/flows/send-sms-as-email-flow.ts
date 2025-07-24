@@ -52,7 +52,7 @@ const sendSmsAsEmailFlow = ai.defineFlow(
         
         let messageBody = profile.smsEmailTemplate;
         messageBody = messageBody.replace(/{NOMBRE}/g, customer.name);
-        messageBody = messageBody.replace(/{DEBE}/g, customer.dueAmount.toLocaleString('es-MX'));
+        messageBody = messageBody.replace(/{DEBE}/g, (customer.dueAmount || 0).toLocaleString('es-MX'));
 
         const result = await sendEmail({ 
             to: toAddress,
