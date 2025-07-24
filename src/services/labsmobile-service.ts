@@ -25,6 +25,7 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     const credentials = `${username}:${apiToken}`;
     const encodedCredentials = Buffer.from(credentials).toString('base64');
     
+    // Correct payload structure according to LabsMobile JSON API documentation
     const payload = {
       messages: [{
         tpoa: sender || 'Sender', 
@@ -44,14 +45,14 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
         });
 
         const responseText = await response.text();
+        
         if (!response.ok) {
             let errorMessage = responseText;
             try {
-                // Try to parse it as JSON to get a more specific message if available.
                 const errorJson = JSON.parse(responseText);
-                errorMessage = errorJson.message || responseText;
+                errorMessage = errorJson.message || JSON.stringify(errorJson);
             } catch (e) {
-                // Ignore if it's not JSON, we already have the text.
+                // Not a JSON error response, use the raw text.
             }
              throw new Error(`LabsMobile API Error: ${response.status} ${response.statusText} - ${errorMessage}`);
         }
