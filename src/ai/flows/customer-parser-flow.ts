@@ -22,6 +22,8 @@ const ParsedCustomerSchema = z.object({
     carteraName: z.string().describe("The name of the portfolio ('cartera') the customer belongs to. This is crucial for organizing groups. This field should never be null or empty."),
     responsable: z.string().optional().describe("The person responsible for the portfolio ('cartera')."),
     groupName: z.string().describe("The name of the group the customer belongs to. This field is crucial for organizing customers. This field should never be null or empty."),
+    promoter: z.string().optional().describe("The promoter or salesperson associated with the customer."),
+    fechaPrestamo: z.string().optional().describe("The date the loan was given, in YYYY-MM-DD format."),
     name: z.string().describe("The full name of the customer."),
     address: z.string().describe("The customer's full address, street and number."),
     phone: z.string().describe("The customer's phone number."),
@@ -31,9 +33,6 @@ const ParsedCustomerSchema = z.object({
     paymentAmount: z.number().optional().describe("The amount for each payment or installment."),
     installmentsDue: z.number().optional().describe("The number of overdue installments."),
     dueAmount: z.number().describe("The outstanding amount owed by the customer."),
-    fechaPrestamo: z.string().optional().describe("The date the loan was given, in YYYY-MM-DD format."),
-    promoter: z.string().optional().describe("The promoter or salesperson associated with the customer."),
-    group: z.string().optional().describe("The group the customer belongs to."),
 });
 
 const CustomerParserOutputSchema = z.array(ParsedCustomerSchema);
@@ -51,12 +50,14 @@ const prompt = ai.definePrompt({
   output: {schema: CustomerParserOutputSchema},
   prompt: `You are an expert data processor. Your task is to parse the following text, which contains customer data pasted from a spreadsheet.
 The data is semi-structured. Each line represents a customer. The columns are likely separated by tabs.
-The columns could be in any order, but the expected headers are: GRUPO, PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE. Your job is to intelligently identify the correct data for each field in the output schema based on these headers.
-- It is CRITICAL to identify the 'CARTERA' and 'GRUPO' columns if they exist. These are used to organize everything.
-- **CRITICAL RULE**: If a row does not have an explicit cartera or group name, you MUST infer it from the previous row. It is absolutely crucial that every customer belongs to a named cartera and a named group. The 'carteraName' and 'groupName' fields should never be null or empty.
-- The 'RESPONSABLE' field is associated with the 'CARTERA'. Try to find it.
-- For numerical fields, clean the data to remove currency symbols, commas, or any other non-numeric characters. If a value is not present, use a sensible default (e.g., 0 for numbers, empty string for text).
-- For the 'fechaPrestamo' field, convert any found date into YYYY-MM-DD format.
+The column order is CRITICAL. The first column is GRUPO, the second is PROMOTOR, the third is FECHA, and so on. The expected headers are: GRUPO, PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE.
+
+**Rules for parsing:**
+1.  **Strict Column Order**: The first column is ALWAYS 'groupName'. The second column is ALWAYS 'promoter'. DO NOT confuse them.
+2.  **CARTERA Identification**: You must identify the 'CARTERA' and 'RESPONSABLE' fields, which are usually on their own lines above a set of customer rows. Associate all subsequent customers with the most recently found CARTERA.
+3.  **Hierarchy Inference**: If a row does not have an explicit cartera or group name, you MUST infer it from a previous row. It is absolutely crucial that every customer belongs to a named cartera and a named group. The 'carteraName' and 'groupName' fields should never be null or empty.
+4.  **Data Cleaning**: For numerical fields, clean the data to remove currency symbols, commas, or any other non-numeric characters. If a value is not present, use a sensible default (e.g., 0 for numbers, empty string for text).
+5.  **Date Formatting**: For the 'fechaPrestamo' field, convert any found date into YYYY-MM-DD format.
 
 Parse the data and return a JSON array of customers.
 
