@@ -320,19 +320,20 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     XLSX.writeFile(workbook, fileName);
   };
 
-
-  const sortedCustomers = React.useMemo(() => {
-    const filtered = customers
+  const filteredCustomers = React.useMemo(() => {
+    return customers
       .filter(customer =>
         customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.address.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .filter(customer => !selectedPromoter || customer.promoter === selectedPromoter)
       .filter(customer => !selectedGroup || customer.groupName === selectedGroup);
+  }, [customers, searchTerm, selectedPromoter, selectedGroup]);
 
+  const sortedCustomers = React.useMemo(() => {
     // Separate paid from unpaid
-    const paid = filtered.filter(c => c.status === 'Pagado');
-    const unpaid = filtered.filter(c => c.status !== 'Pagado');
+    const paid = filteredCustomers.filter(c => c.status === 'Pagado');
+    const unpaid = filteredCustomers.filter(c => c.status !== 'Pagado');
     
     // Sort logic: by group, then by name
     const sortFunction = (a: Customer, b: Customer) => {
@@ -347,18 +348,20 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         ...unpaid.sort(sortFunction),
         ...paid.sort(sortFunction)
     ];
-  }, [customers, searchTerm, selectedPromoter, selectedGroup]);
+  }, [filteredCustomers]);
   
   const summaryStats = React.useMemo(() => {
-    return sortedCustomers.reduce((acc, customer) => {
+    const listToSummarize = (searchTerm || selectedPromoter || selectedGroup) ? sortedCustomers : customers;
+    
+    return listToSummarize.reduce((acc, customer) => {
         acc.totalClients += 1;
         acc.pendingDebt += customer.dueAmount;
-        if (customer.dueAmount === 0) {
+        if (customer.dueAmount <= 0) {
             acc.recoveredClients += 1;
         }
         return acc;
     }, { totalClients: 0, recoveredClients: 0, pendingDebt: 0 });
-  }, [sortedCustomers]);
+  }, [sortedCustomers, customers, searchTerm, selectedPromoter, selectedGroup]);
   
   const canRegister = hasPermission(plazaId, 'CAN_REGISTER');
   const canImport = hasPermission(plazaId, 'CAN_IMPORT');
@@ -706,3 +709,5 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     </div>
   );
 }
+
+    
