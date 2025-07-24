@@ -456,10 +456,27 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   
   const generateWhatsAppLink = (customer: Customer) => {
     if (!companyProfile?.whatsappLinkTemplate || !customer.phone) return "";
+    
     let link = companyProfile.whatsappLinkTemplate;
-    link = link.replace(/{NOMBRE}/g, encodeURIComponent(customer.name));
-    link = link.replace(/{TELEFONO}/g, customer.phone.replace(/\D/g, ''));
-    link = link.replace(/{DEBE}/g, encodeURIComponent(customer.dueAmount.toLocaleString('es-MX')));
+    
+    const formatCurrency = (num: number | undefined) => (num || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    const replacements: { [key: string]: string } = {
+        '{NOMBRE}': customer.name || '',
+        '{DIRECCION}': customer.address || '',
+        '{TELEFONO}': customer.phone ? customer.phone.replace(/\D/g, '') : '',
+        '{AVAL}': customer.guarantor || '',
+        '{TEL AVAL}': customer.guarantorPhone || '',
+        '{PRESTAMO}': formatCurrency(customer.loanAmount),
+        '{PAGO}': formatCurrency(customer.paymentAmount),
+        '{NO.VENC.}': String(customer.installmentsDue || 0),
+        '{DEBE}': formatCurrency(customer.dueAmount),
+    };
+
+    for (const key in replacements) {
+        link = link.replace(new RegExp(key, 'g'), encodeURIComponent(replacements[key]));
+    }
+    
     return link;
   };
 
