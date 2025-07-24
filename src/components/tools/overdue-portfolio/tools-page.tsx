@@ -53,7 +53,7 @@ const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }) =
 )
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
-    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2">
+    <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2 border-2 border-transparent hover:border-primary hover:shadow-primary/20">
         <CardHeader className="p-4">
             <div className="flex items-center gap-4">
                 <div className="p-3 bg-primary/10 rounded-lg w-fit">
@@ -124,7 +124,7 @@ export function ToolsPage() {
             const recoveredClients = allCustomers.filter(c => c.dueAmount === 0).length;
             const totalDebt = allCustomers.reduce((acc, c) => acc + (c.dueAmount || 0), 0);
             const totalLoanAmount = allCustomers.reduce((acc, c) => acc + (c.loanAmount || 0), 0);
-            const recoveryRate = totalLoanAmount > 0 ? ((totalLoanAmount - totalDebt) / totalLoanAmount) * 100 : 0;
+            const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
             
             setSummary({
                 totalDebt,

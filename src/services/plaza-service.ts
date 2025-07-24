@@ -65,8 +65,11 @@ export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, 
 
         const pendingDebt = filteredCustomers.reduce((acc, customer) => acc + (customer.dueAmount || 0), 0);
         const totalLoanAmount = filteredCustomers.reduce((acc, customer) => acc + (customer.loanAmount || 0), 0);
-        const totalPaidAmount = totalLoanAmount - pendingDebt;
-        const recoveryRate = totalLoanAmount > 0 ? (totalPaidAmount / totalLoanAmount) * 100 : 0;
+        
+        const totalClients = filteredCustomers.length;
+        const recoveredClients = filteredCustomers.filter(c => c.dueAmount <= 0).length;
+        const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
+
 
         return {
             id: plazaId,
