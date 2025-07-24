@@ -53,7 +53,7 @@ const sendSmsAsEmailFlow = ai.defineFlow(
             to: [toEmail],
             subject: profile.smsApiKey,
             text: messageBody,
-            from: "onboarding@resend.dev", // This is the default 'from' for Resend sandbox
+            from: "cramonmb@gmail.com", // Use the verified email address
         });
 
         return result;
