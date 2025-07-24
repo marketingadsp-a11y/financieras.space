@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -46,26 +47,19 @@ const sendSmsAsEmailFlow = ai.defineFlow(
         const toEmail = `52${customer.phone.replace(/\D/g, '')}${profile.smsDomain}`;
 
         let messageBody = profile.smsEmailTemplate;
-
-        // Dynamically replace all customer fields as placeholders
-        for (const key in customer) {
-            if (Object.prototype.hasOwnProperty.call(customer, key)) {
-                const placeholder = `{${key.toUpperCase()}}`;
-                let value = (customer as any)[key];
-
-                // Format numbers and dates nicely
-                if (typeof value === 'number') {
-                    value = value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                } else if (value instanceof Date) {
-                    value = value.toLocaleDateString('es-MX');
-                }
-                
-                messageBody = messageBody.replace(new RegExp(placeholder, 'g'), String(value || ''));
-            }
-        }
         
-        // Ensure DEBE is formatted as currency, as it was specifically requested before.
-        messageBody = messageBody.replace(/{DEBE}/g, (customer.dueAmount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        const formatCurrency = (num: number | undefined) => (num || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Explicitly replace placeholders based on import names
+        messageBody = messageBody.replace(/{NOMBRE}/g, customer.name || '');
+        messageBody = messageBody.replace(/{DIRECCION}/g, customer.address || '');
+        messageBody = messageBody.replace(/{TELEFONO}/g, customer.phone || '');
+        messageBody = messageBody.replace(/{AVAL}/g, customer.guarantor || '');
+        messageBody = messageBody.replace(/{TEL AVAL}/g, customer.guarantorPhone || '');
+        messageBody = messageBody.replace(/{PRESTAMO}/g, formatCurrency(customer.loanAmount));
+        messageBody = messageBody.replace(/{PAGO}/g, formatCurrency(customer.paymentAmount));
+        messageBody = messageBody.replace(/{NO.VENC.}/g, String(customer.installmentsDue || 0));
+        messageBody = messageBody.replace(/{DEBE}/g, formatCurrency(customer.dueAmount));
 
 
         const result = await sendEmail({
