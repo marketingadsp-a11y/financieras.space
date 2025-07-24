@@ -22,9 +22,12 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     
     const endpoint = 'https://api.labsmobile.com/json/send';
     
+    // Create the credentials string and encode it in Base64
+    const credentials = `${username}:${apiToken}`;
+    const encodedCredentials = Buffer.from(credentials).toString('base64');
+    
+    // The payload should only contain the message data, not credentials
     const payload = {
-        username: username,
-        token: apiToken,
         messages: [
             {
                 tpoa: sender || 'Sender', // Originator, up to 11 alphanumeric chars
@@ -39,6 +42,7 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Basic ${encodedCredentials}`
             },
             body: JSON.stringify(payload),
         });
