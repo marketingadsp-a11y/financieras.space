@@ -17,7 +17,7 @@ interface LabsMobileResponse {
 export async function sendSms({ to, message, sender, username, apiToken }: SendSmsParams): Promise<LabsMobileResponse> {
 
     if (!username || !apiToken) {
-        throw new Error("LabsMobile credentials are not configured in the environment variables.");
+        throw new Error("LabsMobile username or API token is missing.");
     }
     
     const endpoint = 'https://api.labsmobile.com/json/send';
