@@ -22,19 +22,15 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     
     const endpoint = 'https://api.labsmobile.com/json/send';
     
-    // Create the credentials string and encode it in Base64
     const credentials = `${username}:${apiToken}`;
     const encodedCredentials = Buffer.from(credentials).toString('base64');
     
-    // The payload should only contain the message data, not credentials
+    // Correct payload structure for LabsMobile API.
+    // The API expects a flat object for a single message.
     const payload = {
-        messages: [
-            {
-                tpoa: sender || 'Sender', // Originator, up to 11 alphanumeric chars
-                msisdn: to,
-                message: message,
-            }
-        ]
+        tpoa: sender || 'Sender', // Originator, up to 11 alphanumeric chars
+        msisdn: to,
+        message: message,
     };
     
     try {
@@ -48,7 +44,6 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
         });
 
         if (!response.ok) {
-            // Try to get error details from LabsMobile response if possible
             let errorBody;
             try {
                 errorBody = await response.json();
