@@ -43,6 +43,7 @@ export function customerFromDoc(doc: DocumentData): Customer {
         prefix: data.prefix || "",
         toolContext: data.toolContext,
         promoter: data.promoter || "",
+        groupName: data.groupName || "",
         loanControlGroupId: data.loanControlGroupId,
     };
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -14,10 +15,11 @@ type CustomerCardProps = {
   onDelete: (customer: Customer) => void;
   onSendSms: (customer: Customer) => void;
   promoterColor?: string;
+  groupColor?: string;
   whatsappLink?: string;
 };
 
-export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms, promoterColor, whatsappLink }: CustomerCardProps) {
+export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms, promoterColor, groupColor, whatsappLink }: CustomerCardProps) {
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
       case 'Pendiente':
@@ -55,11 +57,18 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
 
   return (
     <Card className={cn("flex flex-col overflow-hidden group", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
-      {customer.promoter && (
-        <div style={{ backgroundColor: promoterColor, color: getTextColorForBackground(promoterColor || '') }} className="p-2 text-center font-semibold text-sm">
-          {customer.promoter}
-        </div>
-      )}
+      <div className="flex flex-wrap">
+          {customer.promoter && (
+            <div style={{ backgroundColor: promoterColor, color: getTextColorForBackground(promoterColor || '') }} className="p-2 text-center font-semibold text-sm flex-grow">
+              Promotor: {customer.promoter}
+            </div>
+          )}
+          {customer.groupName && (
+             <div style={{ backgroundColor: groupColor, color: getTextColorForBackground(groupColor || '') }} className="p-2 text-center font-semibold text-sm flex-grow">
+              Grupo: {customer.groupName}
+            </div>
+          )}
+      </div>
       <CardHeader>
         <div className="flex justify-between items-start">
             <CardTitle className="text-base font-bold pr-2">{customer.name}</CardTitle>

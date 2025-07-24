@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -272,6 +273,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     const dateString = format(new Date(), 'PPP', { locale: es });
     const dataToExport = sortedCustomers.map(c => ({
       Promotor: c.promoter,
+      Grupo: c.groupName,
       Nombre: c.name,
       Dirección: c.address,
       Teléfono: c.phone,
@@ -328,6 +330,22 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
       }
       const h = hash % 360;
       colors.set(name, `hsl(${h}, 60%, 80%)`);
+    });
+
+    return colors;
+  }, [customers]);
+
+   const groupColors = React.useMemo(() => {
+    const colors = new Map<string, string>();
+    const uniqueGroups = [...new Set(customers.map(c => c.groupName).filter(Boolean) as string[])];
+    
+    uniqueGroups.forEach(name => {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 7) - hash); // Slightly different hash
+      }
+      const h = hash % 360;
+      colors.set(name, `hsl(${h}, 70%, 85%)`); // Different saturation/lightness
     });
 
     return colors;
@@ -420,7 +438,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                             <DialogHeader>
                                 <DialogTitle>Importar Clientes desde Texto</DialogTitle>
                                 <DialogDescriptionComponent>
-                                  Pega texto de una hoja de cálculo. Las columnas deben estar separadas por tabulaciones y contener encabezados como: PROMOTOR, FECHA, NOMBRE, etc.
+                                  Pega texto de una hoja de cálculo. Las columnas deben estar separadas por tabulaciones y contener encabezados como: PROMOTOR, GRUPO, FECHA, NOMBRE, etc.
                                 </DialogDescriptionComponent>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
@@ -533,6 +551,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                   onDelete={handleDeleteClick}
                   onSendSms={handleSendSms}
                   promoterColor={customer.promoter ? promoterColors.get(customer.promoter) : undefined}
+                  groupColor={customer.groupName ? groupColors.get(customer.groupName) : undefined}
                   whatsappLink={generateWhatsAppLink(customer)}
                 />
               ))}

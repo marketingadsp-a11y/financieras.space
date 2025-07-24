@@ -123,6 +123,8 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'sta
             installmentsDue: customerData.installmentsDue || 0,
             dueAmount: customerData.dueAmount || customerData.loanAmount || 0,
             fechaPrestamo: customerData.fechaPrestamo ? Timestamp.fromDate(new Date(customerData.fechaPrestamo)) : Timestamp.now(),
+            promoter: customerData.promoter || "",
+            groupName: customerData.groupName || "",
         };
         batch.set(newDocRef, completeCustomerData);
     });

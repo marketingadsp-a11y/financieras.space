@@ -26,6 +26,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 
 const formSchema = z.object({
   promoter: z.string().optional(),
+  groupName: z.string().optional(),
   fechaPrestamo: z.date().optional(),
   name: z.string().min(3, "El nombre es requerido."),
   address: z.string().min(5, "La dirección es requerida."),
@@ -50,6 +51,7 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
         resolver: zodResolver(formSchema),
         defaultValues: {
             promoter: customer?.promoter || "",
+            groupName: customer?.groupName || "",
             fechaPrestamo: customer?.fechaPrestamo ? new Date(customer.fechaPrestamo) : new Date(),
             name: customer?.name || "",
             address: customer?.address || "",
@@ -88,6 +90,7 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
                     <div className="space-y-4 p-4 border rounded-lg">
                         <h4 className="font-semibold text-lg">Información Principal</h4>
                         <FormField control={form.control} name="promoter" render={({ field }) => (<FormItem><FormLabel>Promotor/a</FormLabel><FormControl><Input placeholder="Nombre del promotor" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="groupName" render={({ field }) => (<FormItem><FormLabel>Grupo</FormLabel><FormControl><Input placeholder="Nombre del grupo" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="fechaPrestamo" render={({ field }) => (
                              <FormItem className="flex flex-col"><FormLabel>Fecha de Préstamo</FormLabel>
                                 <Popover>

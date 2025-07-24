@@ -1,3 +1,4 @@
+
 import type { Timestamp } from "firebase/firestore";
 import { FolderKanban, Landmark, BookCheck, Files } from "lucide-react";
 
@@ -117,6 +118,7 @@ export type Customer = {
   loanControlGroupId?: string; // Relation to Loan Control Group
   toolContext?: 'overdue-portfolio' | 'loan-control';
   promoter?: string;
+  groupName?: string;
 };
 
 
