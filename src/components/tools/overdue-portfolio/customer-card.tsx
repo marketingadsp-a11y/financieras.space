@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Pencil, User, Phone, UserSquare } from "lucide-react";
+import { DollarSign, Pencil, User, Phone, UserSquare, MessageCircle } from "lucide-react";
 import type { Customer } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +13,10 @@ type CustomerCardProps = {
   onEdit: (customer: Customer) => void;
   onPayment: (customer: Customer) => void;
   promoterColor?: string;
+  whatsappLink?: string;
 };
 
-export function CustomerCard({ customer, onEdit, onPayment, promoterColor }: CustomerCardProps) {
+export function CustomerCard({ customer, onEdit, onPayment, promoterColor, whatsappLink }: CustomerCardProps) {
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
       case 'Pendiente':
@@ -43,6 +44,12 @@ export function CustomerCard({ customer, onEdit, onPayment, promoterColor }: Cus
       }
     }
     return '#18181b'; // Default for non-hsl
+  };
+  
+  const handleWhatsAppClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!whatsappLink) {
+      e.preventDefault();
+    }
   };
 
   return (
@@ -85,12 +92,19 @@ export function CustomerCard({ customer, onEdit, onPayment, promoterColor }: Cus
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex items-center pt-0 space-x-2">
-          <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(customer)}>
-              <Pencil className="mr-2 h-4 w-4"/> Editar
-          </Button>
-          <Button size="sm" className="w-full" onClick={() => onPayment(customer)} disabled={isPaid}>
-              <DollarSign className="mr-2 h-4 w-4"/> Abonar
+      <CardFooter className="flex flex-col items-center pt-0 space-y-2">
+          <div className="flex w-full space-x-2">
+            <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(customer)}>
+                <Pencil className="mr-2 h-4 w-4"/> Editar
+            </Button>
+            <Button size="sm" className="w-full" onClick={() => onPayment(customer)} disabled={isPaid}>
+                <DollarSign className="mr-2 h-4 w-4"/> Abonar
+            </Button>
+          </div>
+           <Button variant="outline" size="sm" className="w-full border-green-600 text-green-700 hover:bg-green-100 hover:text-green-800" asChild>
+              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsAppClick} aria-disabled={!whatsappLink}>
+                <MessageCircle className="mr-2 h-4 w-4"/> Enviar WhatsApp
+              </a>
           </Button>
       </CardFooter>
     </Card>

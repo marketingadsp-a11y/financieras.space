@@ -18,6 +18,7 @@ export type ToolSetting = {
 export type AppSettings = {
   supportInfo?: SupportInfo;
   toolSettings?: ToolSetting[];
+  whatsappLinkTemplate?: string;
 }
 
 const SETTINGS_DOC_ID = "--app-settings--";

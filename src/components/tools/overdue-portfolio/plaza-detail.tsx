@@ -64,6 +64,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/auth-context";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { getAppSettings } from "@/services/app-settings-service";
 
 const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }) => {
     const cardClasses = {
@@ -83,7 +84,7 @@ const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, v
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">
-                    {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+                    {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
                 </div>
                 {description && <p className="text-xs text-muted-foreground">{description}</p>}
             </CardContent>
@@ -99,7 +100,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [searchTerm, setSearchTerm] = React.useState("");
   const { toast } = useToast();
   const { user, hasPermission } = useAuth();
-
+  
+  const [whatsappTemplate, setWhatsappTemplate] = React.useState("");
   const [isImportModalOpen, setImportModalOpen] = React.useState(false);
   const [importText, setImportText] = React.useState('');
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
@@ -112,7 +114,12 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const fetchPlazaAndCustomers = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const plazaData = await getPlazaById(plazaId);
+      const [plazaData, settings] = await Promise.all([
+          getPlazaById(plazaId),
+          getAppSettings()
+      ]);
+      setWhatsappTemplate(settings?.whatsappLinkTemplate || "https://api.whatsapp.com/send?phone=52{TELEFONO}&text=Estimado%20{NOMBRE}%0A%0ATienes%20un%20saldo%20vencido%20por%20la%20cantidad%20de%3A%20%24{DEBE}");
+      
       if (plazaData) {
         setPlaza(plazaData);
         const customerData = await getCustomersByPlaza(plazaId);
@@ -306,6 +313,16 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const recoveredClients = customers.filter(c => c.dueAmount === 0).length;
   const pendingDebt = customers.reduce((acc, c) => acc + c.dueAmount, 0);
   const expectedConfirmationText = `${plaza.name} eliminar`;
+  
+  const generateWhatsAppLink = (customer: Customer) => {
+    if (!whatsappTemplate || !customer.phone) return "";
+    let link = whatsappTemplate;
+    link = link.replace(/{NOMBRE}/g, encodeURIComponent(customer.name));
+    link = link.replace(/{TELEFONO}/g, customer.phone.replace(/\D/g, ''));
+    link = link.replace(/{DEBE}/g, encodeURIComponent(customer.dueAmount.toLocaleString('es-MX')));
+    return link;
+  };
+
 
   return (
     <div className="space-y-6">
@@ -365,7 +382,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                             <DialogHeader>
                                 <DialogTitle>Importar Clientes desde Texto</DialogTitle>
                                 <DialogDescriptionComponent>
-                                    Pega texto desde una hoja de cálculo. Las columnas deben estar separadas por tabulaciones.
+                                    Pega texto de una hoja de cálculo. Las columnas deben estar separadas por tabulaciones.
                                     La herramienta procesará las siguientes columnas: PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE.
                                 </DialogDescriptionComponent>
                             </DialogHeader>
@@ -477,6 +494,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                   onEdit={handleEditClick} 
                   onPayment={handlePaymentClick} 
                   promoterColor={customer.promoter ? promoterColors.get(customer.promoter) : undefined}
+                  whatsappLink={generateWhatsAppLink(customer)}
                 />
               ))}
             </div>
