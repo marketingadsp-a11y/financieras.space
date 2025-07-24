@@ -1,4 +1,4 @@
-import { PlazasManagement } from "@/components/plazas/plazas-management";
+import { PlazasManagement } from "@/components/tools/overdue-portfolio/plazas-management";
 
 export default function PlazasPage() {
   return <PlazasManagement />;
