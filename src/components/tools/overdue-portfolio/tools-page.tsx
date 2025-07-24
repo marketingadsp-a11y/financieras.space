@@ -190,7 +190,7 @@ export function ToolsPage() {
                     return toast({ variant: "destructive", title: "Error", description: "No se encontró una fila de encabezado válida (con columnas como NOMBRE, PRESTAMO, etc)." });
                 }
                 
-                const headers = json[headerRowIndex].map(h => String(h).toUpperCase().trim());
+                const headers = json[headerRowIndex].map(h => String(h || '').trim().toUpperCase());
                 const dataRows = json.slice(headerRowIndex + 1);
 
                 const existingPlazas = await getPlazas({ prefix: user.prefix, fetchAll: false, toolContext });
@@ -206,7 +206,7 @@ export function ToolsPage() {
                             rowData[header] = row[index];
                         }
                     });
-
+                    
                     let plazaId = '';
                     const plazaName = String(rowData.PLAZA || '').trim();
 
@@ -251,7 +251,7 @@ export function ToolsPage() {
                         prefix: user.prefix,
                         toolContext,
                         status: 'Pendiente', 
-                        promoter: String(rowData.PROMOTOR || ''),
+                        promoter: String(rowData.PROMOTOR || rowData['PROMOTOR/A'] || ''),
                         name: String(rowData.NOMBRE || ''),
                         address: String(rowData.DIRECCION || ''),
                         phone: String(rowData.TELEFONO || ''),
