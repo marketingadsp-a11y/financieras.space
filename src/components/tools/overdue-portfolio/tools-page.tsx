@@ -168,33 +168,26 @@ export function ToolsPage() {
                 const workbook = XLSX.read(fileContent, { type: 'array', cellDates: true });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true, defval: "" }) as any[][];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: "" }) as any[][];
 
-                if (!json || json.length === 0) {
+                if (!json || json.length < 2) { // Must have at least a header and one data row
                     setIsImporting(false);
-                    return toast({ variant: "destructive", title: "Error", description: "El archivo de Excel está vacío o no se pudo leer." });
+                    return toast({ variant: "destructive", title: "Error", description: "El archivo de Excel está vacío o no tiene un formato válido." });
                 }
 
                 let headerRowIndex = -1;
-                let promoterName = '';
-
-                // Find header row and promoter
+                // Find header row
                 for (let i = 0; i < json.length; i++) {
-                    const row = json[i];
-                    const rowString = row.map(cell => String(cell)).join(' ').toUpperCase();
-                    if (/(FECHA|NOMBRE|DIRECCION|TELEFONO|AVAL|PRESTAMO|PAGO|VENC|DEBE)/.test(rowString)) {
+                    const rowString = json[i].map(cell => String(cell)).join(' ').toUpperCase();
+                    if (/(NOMBRE|DIRECCION|PRESTAMO|ADEUDO|DEBE)/.test(rowString)) {
                         headerRowIndex = i;
-                        const promoterMatch = rowString.match(/PROMOTOR\s+(.+?)(?=\s+FECHA|\s+NOMBRE|$)/);
-                        if (promoterMatch && promoterMatch[1]) {
-                            promoterName = promoterMatch[1].trim();
-                        }
                         break;
                     }
                 }
                 
                 if (headerRowIndex === -1) {
                     setIsImporting(false);
-                    return toast({ variant: "destructive", title: "Error", description: "No se encontró una fila de encabezado válida (con columnas como FECHA, NOMBRE, etc)." });
+                    return toast({ variant: "destructive", title: "Error", description: "No se encontró una fila de encabezado válida (con columnas como NOMBRE, PRESTAMO, etc)." });
                 }
                 
                 const headers = json[headerRowIndex].map(h => String(h).toUpperCase().trim());
@@ -207,9 +200,9 @@ export function ToolsPage() {
                 const parsedCustomers: Omit<Customer, 'id'>[] = [];
 
                 for (const row of dataRows) {
-                     const rowData: Record<string, any> = {};
+                    const rowData: Record<string, any> = {};
                     headers.forEach((header, index) => {
-                        if (header) { // Only map if header is not empty
+                        if (header) { 
                             rowData[header] = row[index];
                         }
                     });
@@ -258,7 +251,7 @@ export function ToolsPage() {
                         prefix: user.prefix,
                         toolContext,
                         status: 'Pendiente', 
-                        promoter: promoterName || String(rowData.PROMOTOR || ''),
+                        promoter: String(rowData.PROMOTOR || ''),
                         name: String(rowData.NOMBRE || ''),
                         address: String(rowData.DIRECCION || ''),
                         phone: String(rowData.TELEFONO || ''),
