@@ -56,7 +56,10 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
   };
 
   return (
-    <Card className={cn("flex flex-col overflow-hidden group", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
+    <Card className={cn("flex flex-col overflow-hidden group relative", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
+       <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize absolute top-2 right-2 z-10">
+          {customer.status}
+      </Badge>
       <div className="flex">
           {customer.groupName && (
              <div style={{ backgroundColor: groupColor, color: getTextColorForBackground(groupColor || '') }} className="px-3 py-1 text-center font-semibold text-xs flex-grow">
@@ -71,14 +74,11 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
       </div>
       <CardHeader>
         <div className="flex justify-between items-start">
-            <CardTitle className="text-base font-bold pr-2">{customer.name}</CardTitle>
+            <CardTitle className="text-base font-bold pr-2 line-clamp-2">{customer.name}</CardTitle>
             <div className="flex items-center flex-shrink-0">
                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive" onClick={() => onDelete(customer)}>
                     <Trash2 className="h-4 w-4" />
                 </Button>
-                <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize ml-1">
-                    {customer.status}
-                </Badge>
             </div>
         </div>
         <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
