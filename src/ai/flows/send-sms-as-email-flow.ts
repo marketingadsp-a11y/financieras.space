@@ -63,7 +63,7 @@ const sendSmsAsEmailFlow = ai.defineFlow(
         if (result.success) {
             return { success: true, message: "SMS enviado correctamente a través del gateway de email." };
         } else {
-             return { success: false, message: `Error al enviar: ${result.message}` };
+             return { success: false, message: result.message };
         }
     } catch (error: any) {
         console.error("Error in sendSmsAsEmailFlow:", error);

@@ -38,8 +38,9 @@ export async function sendEmail({
     }
 
     return { success: true, message: "Correo enviado correctamente." };
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to send email:', error);
-    return { success: false, message: error.message || 'Ocurrió un error inesperado al enviar el correo.' };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: errorMessage || 'Ocurrió un error inesperado al enviar el correo.' };
   }
 }
