@@ -51,13 +51,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
-import type { Plaza, Customer } from "@/lib/data";
+import type { Plaza, Customer, CompanyProfile } from "@/lib/data";
 import { getPlazaById } from "@/services/plaza-service";
 import { getCustomersByPlaza, addCustomer, deleteCustomersByPlaza, addMultipleCustomers, deleteCustomer } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
 import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
+import { sendSms } from "@/ai/flows/send-sms-flow";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -101,7 +102,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const { toast } = useToast();
   const { user, hasPermission } = useAuth();
   
-  const [whatsappTemplate, setWhatsappTemplate] = React.useState("");
+  const [companyProfile, setCompanyProfile] = React.useState<CompanyProfile | null>(null);
   const [isImportModalOpen, setImportModalOpen] = React.useState(false);
   const [importText, setImportText] = React.useState('');
   const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
@@ -119,7 +120,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
       
       if(user?.prefix){
         const profile = await getCompanyProfileByPrefix(user.prefix);
-        setWhatsappTemplate(profile?.whatsappLinkTemplate || "https://api.whatsapp.com/send?phone=52{TELEFONO}&text=Estimado%20{NOMBRE}%0A%0ATienes%20un%20saldo%20vencido%20por%20la%20cantidad%20de%3A%20%24{DEBE}");
+        setCompanyProfile(profile);
       }
       
       if (plazaData) {
@@ -224,6 +225,33 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         console.error(error);
     } finally {
         setIsParsing(false);
+    }
+  };
+
+  const handleSendSms = async (customer: Customer) => {
+    if (!companyProfile?.smsTemplate || !customer.phone) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Plantilla de SMS o teléfono del cliente no configurado.' });
+        return;
+    }
+    
+    let message = companyProfile.smsTemplate;
+    message = message.replace(/{NOMBRE}/g, customer.name);
+    message = message.replace(/{DEBE}/g, customer.dueAmount.toLocaleString('es-MX'));
+
+    try {
+        const result = await sendSms({
+            to: customer.phone.replace(/\D/g, ''),
+            message: message,
+            sender: companyProfile.smsSenderName
+        });
+
+        if (result.success) {
+            toast({ title: 'Éxito', description: result.message });
+        } else {
+            toast({ variant: 'destructive', title: 'Error de Envío', description: result.message });
+        }
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo enviar el SMS.' });
     }
   };
 
@@ -333,8 +361,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const expectedConfirmationText = `${plaza.name} eliminar`;
   
   const generateWhatsAppLink = (customer: Customer) => {
-    if (!whatsappTemplate || !customer.phone) return "";
-    let link = whatsappTemplate;
+    if (!companyProfile?.whatsappLinkTemplate || !customer.phone) return "";
+    let link = companyProfile.whatsappLinkTemplate;
     link = link.replace(/{NOMBRE}/g, encodeURIComponent(customer.name));
     link = link.replace(/{TELEFONO}/g, customer.phone.replace(/\D/g, ''));
     link = link.replace(/{DEBE}/g, encodeURIComponent(customer.dueAmount.toLocaleString('es-MX')));
@@ -511,6 +539,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                   onEdit={handleEditClick} 
                   onPayment={handlePaymentClick} 
                   onDelete={handleDeleteClick}
+                  onSendSms={handleSendSms}
                   promoterColor={customer.promoter ? promoterColors.get(customer.promoter) : undefined}
                   whatsappLink={generateWhatsAppLink(customer)}
                 />

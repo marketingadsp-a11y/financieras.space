@@ -64,7 +64,12 @@ const companyProfileSchema = z.object({
   logoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
   loginBackgroundColor: z.string().optional(),
   whatsappLinkTemplate: z.string().optional(),
+  smsSenderName: z.string().optional(),
+  smsTemplate: z.string().optional(),
+  labsmobileUsername: z.string().optional(),
+  labsmobileToken: z.string().optional(),
 });
+
 
 type CompanyProfileFormValues = z.infer<typeof companyProfileSchema>;
 
@@ -77,6 +82,10 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
             logoUrl: profile?.logoUrl || "",
             loginBackgroundColor: profile?.loginBackgroundColor || "#f4f4f5", // Default to muted gray
             whatsappLinkTemplate: profile?.whatsappLinkTemplate || "https://api.whatsapp.com/send?phone=52{TELEFONO}&text=Estimado%20{NOMBRE}%0A%0ATienes%20un%20saldo%20vencido%20por%20la%20cantidad%20de%3A%20%24{DEBE}%2C%20por%20favor%20acude%20a%20nuestra%20oficina%20de%20atenci%C3%B3n%20para%20evitar%20procesar%20su%20adeudo%20en%20materia%20legal.%20",
+            smsSenderName: profile?.smsSenderName || "",
+            smsTemplate: profile?.smsTemplate || "Estimado {NOMBRE}, tienes un saldo vencido de ${DEBE}. Por favor, acude a nuestra oficina.",
+            labsmobileUsername: profile?.labsmobileUsername || "",
+            labsmobileToken: profile?.labsmobileToken || "",
         },
     });
     
@@ -86,7 +95,7 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                 <Accordion type="multiple" className="w-full space-y-4" defaultValue={['item-1', 'item-2']}>
+                 <Accordion type="multiple" className="w-full space-y-4" defaultValue={['item-1', 'item-2', 'item-3']}>
                     <AccordionItem value="item-1" className="border-b-0">
                         <div className="p-4 border rounded-lg">
                         <AccordionTrigger className="py-0 hover:no-underline">
@@ -141,7 +150,7 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
                         <div className="p-4 border rounded-lg">
                         <AccordionTrigger className="py-0 hover:no-underline">
                            <div className="flex items-center gap-4">
-                                <div className="p-2 bg-primary/10 rounded-lg"><MessageSquare className="h-6 w-6 text-primary"/></div>
+                                <div className="p-2 bg-green-500/10 rounded-lg"><MessageSquare className="h-6 w-6 text-green-600"/></div>
                                 <div>
                                     <p className="font-semibold text-base">Plantilla de WhatsApp</p>
                                     <p className="text-sm text-muted-foreground font-normal">Edita el enlace para los envíos de WhatsApp.</p>
@@ -165,6 +174,59 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
                                     </FormItem>
                                 )}
                                 />
+                        </AccordionContent>
+                        </div>
+                    </AccordionItem>
+                     <AccordionItem value="item-3" className="border-b-0">
+                        <div className="p-4 border rounded-lg">
+                        <AccordionTrigger className="py-0 hover:no-underline">
+                           <div className="flex items-center gap-4">
+                                <div className="p-2 bg-blue-500/10 rounded-lg"><MessageSquare className="h-6 w-6 text-blue-600"/></div>
+                                <div>
+                                    <p className="font-semibold text-base">Configuración de SMS (LabsMobile)</p>
+                                    <p className="text-sm text-muted-foreground font-normal">Credenciales y plantilla para envíos de SMS.</p>
+                                </div>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-6 mt-4 border-t space-y-6">
+                            <FormField control={form.control} name="labsmobileUsername" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Usuario de LabsMobile</FormLabel>
+                                    <FormControl><Input placeholder="tu-email@ejemplo.com" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                             <FormField control={form.control} name="labsmobileToken" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Token de API de LabsMobile</FormLabel>
+                                    <FormControl><Input type="password" placeholder="••••••••••••••" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                             <FormField control={form.control} name="smsSenderName" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Nombre del Remitente (TPOA)</FormLabel>
+                                    <FormControl><Input placeholder="MiEmpresa" {...field} /></FormControl>
+                                     <FormDescriptionComponent>Máximo 11 caracteres alfanuméricos.</FormDescriptionComponent>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                            <FormField
+                                control={form.control}
+                                name="smsTemplate"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Plantilla del Mensaje SMS</FormLabel>
+                                    <FormControl>
+                                        <Textarea className="min-h-[150px] font-mono text-xs" {...field} />
+                                    </FormControl>
+                                    <FormDescriptionComponent>
+                                        Usa los marcadores <code className="bg-muted px-1 py-0.5 rounded-sm">{'{NOMBRE}'}</code> y <code className="bg-muted px-1 py-0.5 rounded-sm">{'{DEBE}'}</code>. Recuerda que un SMS tiene 160 caracteres.
+                                    </FormDescriptionComponent>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </AccordionContent>
                         </div>
                     </AccordionItem>

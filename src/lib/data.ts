@@ -260,6 +260,10 @@ export type CompanyProfile = {
   logoUrl?: string;
   loginBackgroundColor?: string;
   whatsappLinkTemplate?: string;
+  smsSenderName?: string;
+  smsTemplate?: string;
+  labsmobileUsername?: string;
+  labsmobileToken?: string;
 };
 
 // --- Loan Control Tool Models ---

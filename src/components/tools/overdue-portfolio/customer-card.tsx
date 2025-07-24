@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Pencil, User, Phone, UserSquare, MessageCircle, Trash2 } from "lucide-react";
+import { DollarSign, Pencil, User, Phone, UserSquare, MessageCircle, Trash2, Send } from "lucide-react";
 import type { Customer } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -13,11 +13,12 @@ type CustomerCardProps = {
   onEdit: (customer: Customer) => void;
   onPayment: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
+  onSendSms: (customer: Customer) => void;
   promoterColor?: string;
   whatsappLink?: string;
 };
 
-export function CustomerCard({ customer, onEdit, onPayment, onDelete, promoterColor, whatsappLink }: CustomerCardProps) {
+export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms, promoterColor, whatsappLink }: CustomerCardProps) {
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
       case 'Pendiente':
@@ -111,6 +112,9 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, promoterCo
               <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsAppClick} aria-disabled={!whatsappLink}>
                 <MessageCircle className="mr-2 h-4 w-4"/> Enviar WhatsApp
               </a>
+          </Button>
+          <Button variant="outline" size="sm" className="w-full border-blue-600 text-blue-700 hover:bg-blue-100 hover:text-blue-800" onClick={() => onSendSms(customer)} disabled={!customer.phone}>
+            <Send className="mr-2 h-4 w-4" /> Enviar SMS
           </Button>
       </CardFooter>
     </Card>
