@@ -18,8 +18,9 @@ export async function sendEmail({
 }: SendEmailParams): Promise<{ success: boolean; message: string }> {
   
   if (!process.env.RESEND_API_KEY) {
-    console.error("Resend API key is not set in environment variables.");
-    return { success: false, message: "La configuración del servidor de correo está incompleta (falta la clave de API de Resend)." };
+    const errorMessage = "La API Key de Resend no está configurada.";
+    console.error(errorMessage);
+    return { success: false, message: errorMessage };
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
