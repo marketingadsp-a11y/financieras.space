@@ -25,12 +25,10 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     const credentials = `${username}:${apiToken}`;
     const encodedCredentials = Buffer.from(credentials).toString('base64');
     
-    // Correct payload structure for LabsMobile API.
-    // The API expects the message content inside a "messages" array.
     const payload = {
         messages: [{
-            tpoa: sender || 'Sender', // Originator, up to 11 alphanumeric chars
-            msisdn: [to], // The recipient must be in an array
+            tpoa: sender || 'Sender', 
+            msisdn: [to], 
             message: message,
         }]
     };
@@ -46,15 +44,17 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
         });
 
         if (!response.ok) {
-            let errorBody;
+            // Read the body as text first to avoid "body already read" errors.
+            const errorText = await response.text();
+            let errorMessage = errorText;
             try {
-                errorBody = await response.json();
+                // Try to parse it as JSON to get a more specific message if available.
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.message || errorText;
             } catch (e) {
-                // If the error response is not JSON, use the status text.
-                 const textResponse = await response.text();
-                 errorBody = { message: textResponse || 'Unknown error structure.' };
+                // Ignore if it's not JSON, we already have the text.
             }
-             throw new Error(`LabsMobile API Error: ${response.status} ${response.statusText} - ${errorBody?.message}`);
+             throw new Error(`LabsMobile API Error: ${response.status} ${response.statusText} - ${errorMessage}`);
         }
         
         const result: LabsMobileResponse = await response.json();
