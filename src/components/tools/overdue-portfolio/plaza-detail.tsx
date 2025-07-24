@@ -327,6 +327,17 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     ];
   }, [customers, searchTerm, selectedPromoter, selectedGroup]);
   
+  const summaryStats = React.useMemo(() => {
+    return sortedCustomers.reduce((acc, customer) => {
+        acc.totalClients += 1;
+        acc.pendingDebt += customer.dueAmount;
+        if (customer.dueAmount === 0) {
+            acc.recoveredClients += 1;
+        }
+        return acc;
+    }, { totalClients: 0, recoveredClients: 0, pendingDebt: 0 });
+  }, [sortedCustomers]);
+  
   const canRegister = hasPermission(plazaId, 'CAN_REGISTER');
   const canImport = hasPermission(plazaId, 'CAN_IMPORT');
   const canExport = hasPermission(plazaId, 'CAN_EXPORT');
@@ -392,9 +403,6 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     return <div className="text-center">No se pudo cargar la información de la plaza.</div>;
   }
   
-  const totalClients = customers.length;
-  const recoveredClients = customers.filter(c => c.dueAmount === 0).length;
-  const pendingDebt = customers.reduce((acc, c) => acc + c.dueAmount, 0);
   const expectedConfirmationText = `${plaza.name} eliminar`;
   
   const generateWhatsAppLink = (customer: Customer) => {
@@ -412,9 +420,9 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
       <h1 className="text-3xl font-bold tracking-tight">Plaza: {plaza.name}</h1>
       
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Deuda Pendiente" value={pendingDebt} icon={DollarSign} isCurrency variant="destructive" />
-        <StatCard title="Total de Clientes" value={totalClients} icon={Users} />
-        <StatCard title="Recuperados" value={recoveredClients} icon={UserCheck} description={`de ${totalClients} clientes`} />
+        <StatCard title="Deuda Pendiente (Filtro)" value={summaryStats.pendingDebt} icon={DollarSign} isCurrency variant="destructive" />
+        <StatCard title="Total de Clientes (Filtro)" value={summaryStats.totalClients} icon={Users} />
+        <StatCard title="Recuperados (Filtro)" value={summaryStats.recoveredClients} icon={UserCheck} description={`de ${summaryStats.totalClients} clientes`} />
       </div>
 
       <Card>
@@ -422,7 +430,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
            <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
             <div>
               <CardTitle>Clientes de {plaza.name}</CardTitle>
-              <CardDescription>{totalClients} cliente(s) en esta plaza.</CardDescription>
+              <CardDescription>{customers.length} cliente(s) en esta plaza.</CardDescription>
             </div>
             
             <div className="flex flex-col md:flex-row gap-2 items-center w-full md:w-auto">
