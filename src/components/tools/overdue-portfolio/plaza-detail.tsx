@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -18,7 +17,6 @@ import {
   FileSpreadsheet,
   Loader2,
   ClipboardPaste,
-  Send,
   Mail,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -60,6 +58,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
 import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
+import { sendSmsAsEmail } from "@/ai/flows/send-sms-as-email-flow";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -171,6 +170,21 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const handleDeleteClick = (customer: Customer) => {
     setCustomerToDelete(customer);
   };
+  
+  const handleSendSms = async (customer: Customer) => {
+    toast({ title: 'Enviando SMS...', description: `Enviando a ${customer.name}.` });
+    try {
+      const result = await sendSmsAsEmail({ customer });
+      if (result.success) {
+        toast({ title: 'Éxito', description: result.message });
+      } else {
+        toast({ variant: 'destructive', title: 'Error al enviar', description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error inesperado', description: e.message || 'Ocurrió un error al enviar el SMS.' });
+    }
+  };
+
 
   const confirmDeleteCustomer = async () => {
     if (!customerToDelete) return;
@@ -517,6 +531,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                   onEdit={handleEditClick} 
                   onPayment={handlePaymentClick} 
                   onDelete={handleDeleteClick}
+                  onSendSms={handleSendSms}
                   promoterColor={customer.promoter ? promoterColors.get(customer.promoter) : undefined}
                   whatsappLink={generateWhatsAppLink(customer)}
                 />

@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, Loader2, Pencil, Trash2, MessageSquare, Building, Palette, Mail } from "lucide-react";
+import { Briefcase, Loader2, Pencil, Trash2, MessageSquare, Building, Mail } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getCompanyProfileByPrefix, saveCompanyProfile, getAllCompanyProfiles, deleteCompanyProfile } from "@/services/company-profile-service";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

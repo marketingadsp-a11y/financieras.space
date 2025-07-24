@@ -259,8 +259,8 @@ export type CompanyProfile = {
   logoUrl?: string;
   loginBackgroundColor?: string;
   whatsappLinkTemplate?: string;
-  smsDomain?: string; // e.g., @api.labsmobile.com
-  smsApiKey?: string; // The subject line for the email
+  smsDomain?: string;
+  smsApiKey?: string;
   smsEmailTemplate?: string;
 };
 
