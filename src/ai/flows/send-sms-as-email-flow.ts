@@ -49,14 +49,21 @@ const sendSmsAsEmailFlow = ai.defineFlow(
             .replace(/{NOMBRE}/g, customer.name)
             .replace(/{DEBE}/g, (customer.dueAmount || 0).toLocaleString('es-MX'));
 
+        // IMPORTANTE: Para que Resend funcione en producción, debes verificar tu propio dominio
+        // y usar una dirección de correo de ese dominio en el campo "from".
+        // Reemplaza la siguiente línea con tu correo verificado, ej: "notificaciones@miempresa.com"
         const result = await sendEmail({
             to: [toEmail],
             subject: profile.smsApiKey,
             text: messageBody,
-            from: "cramonmb@gmail.com", // Use the verified email address
+            from: "onboarding@resend.dev", // ¡Cambia esto a tu dominio verificado!
         });
 
-        return result;
+        if (result.success) {
+            return { success: true, message: 'SMS enviado a través de la pasarela de correo.' };
+        } else {
+            return { success: false, message: result.message };
+        }
 
     } catch (e: any) {
         console.error("Error in sendSmsAsEmailFlow: ", e);
