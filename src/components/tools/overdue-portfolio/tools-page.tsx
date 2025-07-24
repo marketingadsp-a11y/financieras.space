@@ -175,22 +175,7 @@ export function ToolsPage() {
                     return toast({ variant: "destructive", title: "Error", description: "El archivo de Excel está vacío o no tiene un formato válido." });
                 }
 
-                let headerRowIndex = -1;
-                for (let i = 0; i < json.length; i++) {
-                    const rowString = json[i].map(cell => String(cell)).join(' ').toUpperCase();
-                    if (/(NOMBRE|DIRECCION|PRESTAMO|ADEUDO|DEBE)/.test(rowString)) {
-                        headerRowIndex = i;
-                        break;
-                    }
-                }
-                
-                if (headerRowIndex === -1) {
-                    setIsImporting(false);
-                    return toast({ variant: "destructive", title: "Error", description: "No se encontró una fila de encabezado válida (con columnas como NOMBRE, PRESTAMO, etc)." });
-                }
-                
-                const headers = json[headerRowIndex].map(h => String(h || '').trim().toUpperCase());
-                const dataRows = json.slice(headerRowIndex + 1);
+                const headers = json[0].map(h => String(h || '').trim().toUpperCase());
                 
                 // Get header indices
                 const getIndex = (keys: string[]) => {
@@ -199,7 +184,7 @@ export function ToolsPage() {
                         if (index > -1) return index;
                     }
                     return -1;
-                }
+                };
 
                 const promoterIdx = getIndex(["PROMOTOR", "PROMOTOR/A"]);
                 const plazaIdx = getIndex(["PLAZA"]);
@@ -214,7 +199,13 @@ export function ToolsPage() {
                 const vencidosIdx = getIndex(["NO.VENC.", "VENCIDOS"]);
                 const debeIdx = getIndex(["DEBE", "ADEUDO", "SALDO"]);
 
+                if (nombreIdx === -1 || prestamoIdx === -1 || debeIdx === -1) {
+                    setIsImporting(false);
+                    return toast({ variant: "destructive", title: "Error", description: "El archivo debe contener al menos las columnas: NOMBRE, PRESTAMO y DEBE." });
+                }
 
+                const dataRows = json.slice(1);
+                
                 const existingPlazas = await getPlazas({ prefix: user.prefix, fetchAll: false, toolContext });
                 const plazaMap: Record<string, string> = {};
                 existingPlazas.forEach(p => { plazaMap[p.name.toUpperCase()] = p.id; });
@@ -222,7 +213,7 @@ export function ToolsPage() {
                 const parsedCustomers: Omit<Customer, 'id'>[] = [];
 
                 for (const row of dataRows) {
-                    const plazaName = plazaIdx > -1 ? String(row[plazaIdx] || '').trim() : '';
+                    const plazaName = plazaIdx > -1 ? String(row[plazaIdx] || '').trim() : 'General';
                     if (!plazaName) continue; // Skip rows without a plaza name
 
                     let plazaId = plazaMap[plazaName.toUpperCase()];
@@ -261,16 +252,16 @@ export function ToolsPage() {
                         toolContext,
                         status: 'Pendiente', 
                         promoter: promoterIdx > -1 ? String(row[promoterIdx] || '') : '',
-                        name: nombreIdx > -1 ? String(row[nombreIdx] || '') : '',
+                        name: String(row[nombreIdx] || ''),
                         address: direccionIdx > -1 ? String(row[direccionIdx] || '') : '',
                         phone: telefonoIdx > -1 ? String(row[telefonoIdx] || '') : '',
                         guarantor: avalIdx > -1 ? String(row[avalIdx] || '') : '',
                         guarantorPhone: telAvalIdx > -1 ? String(row[telAvalIdx] || '') : '',
                         loanAmount: loanAmount,
-                        paymentAmount: parseNumeric(row[pagoIdx]),
-                        installmentsDue: parseInt(String(row[vencidosIdx] || 0), 10),
+                        paymentAmount: pagoIdx > -1 ? parseNumeric(row[pagoIdx]) : 0,
+                        installmentsDue: vencidosIdx > -1 ? parseInt(String(row[vencidosIdx] || 0), 10) : 0,
                         dueAmount: debeIdx > -1 ? parseNumeric(row[debeIdx]) : loanAmount,
-                        fechaPrestamo: parseDate(row[fechaIdx]),
+                        fechaPrestamo: fechaIdx > -1 ? parseDate(row[fechaIdx]) : undefined,
                     });
                 }
                 
@@ -318,7 +309,7 @@ export function ToolsPage() {
                             <DialogTitle>Importación Masiva</DialogTitle>
                             <DialogDescription>
                               Selecciona un archivo de Excel (`.xlsx`, `.xls`) con tus clientes. 
-                              Las columnas deben tener encabezados como: FECHA, PLAZA, NOMBRE, ADEUDO, etc.
+                              Las columnas deben tener encabezados como: PROMOTOR, PLAZA, NOMBRE, ADEUDO, etc.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
