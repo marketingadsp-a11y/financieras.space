@@ -63,9 +63,9 @@ const companyProfileSchema = z.object({
   logoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
   loginBackgroundColor: z.string().optional(),
   whatsappLinkTemplate: z.string().optional(),
+  smsDomain: z.string().optional(),
+  smsApiKey: z.string().optional(),
   smsEmailTemplate: z.string().optional(),
-  labsmobileUsername: z.string().optional(),
-  labsmobileToken: z.string().optional(),
 });
 
 
@@ -80,9 +80,9 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
             logoUrl: profile?.logoUrl || "",
             loginBackgroundColor: profile?.loginBackgroundColor || "#f4f4f5", // Default to muted gray
             whatsappLinkTemplate: profile?.whatsappLinkTemplate || "https://api.whatsapp.com/send?phone=52{TELEFONO}&text=Estimado%20{NOMBRE}%0A%0ATienes%20un%20saldo%20vencido%20por%20la%20cantidad%20de%3A%20%24{DEBE}%2C%20por%20favor%20acude%20a%20nuestra%20oficina%20de%20atenci%C3%B3n%20para%20evitar%20procesar%20su%20adeudo%20en%20materia%20legal.%20",
+            smsDomain: profile?.smsDomain || "@api.labsmobile.com",
+            smsApiKey: profile?.smsApiKey || "",
             smsEmailTemplate: profile?.smsEmailTemplate || "Estimado {NOMBRE}, tienes un saldo vencido de ${DEBE}. Por favor, acude a nuestra oficina.",
-            labsmobileUsername: profile?.labsmobileUsername || "",
-            labsmobileToken: profile?.labsmobileToken || "",
         },
     });
     
@@ -92,7 +92,7 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                 <Accordion type="multiple" className="w-full space-y-4" defaultValue={['item-1', 'item-2', 'item-3']}>
+                 <Accordion type="multiple" className="w-full space-y-4" defaultValue={['item-1']}>
                     <AccordionItem value="item-1" className="border-b-0">
                         <div className="p-4 border rounded-lg">
                         <AccordionTrigger className="py-0 hover:no-underline">
@@ -180,18 +180,22 @@ const ProfileForm = ({ profile, onSubmit, isSaving }: { profile?: Partial<Compan
                            <div className="flex items-center gap-4">
                                 <div className="p-2 bg-blue-500/10 rounded-lg"><Mail className="h-6 w-6 text-blue-600"/></div>
                                 <div>
-                                    <p className="font-semibold text-base">Plantilla de SMS (Email)</p>
-                                    <p className="text-sm text-muted-foreground font-normal">Contenido del mensaje que se enviará.</p>
+                                    <p className="font-semibold text-base">Configuración de Email-to-SMS</p>
+                                    <p className="text-sm text-muted-foreground font-normal">Configura la pasarela de Email-to-SMS de LabsMobile.</p>
                                 </div>
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="pt-6 mt-4 border-t space-y-6">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <FormField control={form.control} name="smsDomain" render={({ field }) => (<FormItem><FormLabel>Dominio Email-to-SMS</FormLabel><FormControl><Input placeholder="@api.labsmobile.com" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                <FormField control={form.control} name="smsApiKey" render={({ field }) => (<FormItem><FormLabel>Asunto del Email (API Key)</FormLabel><FormControl><Input placeholder="La clave que funciona como asunto" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            </div>
                             <FormField
                                 control={form.control}
                                 name="smsEmailTemplate"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Plantilla del Mensaje</FormLabel>
+                                    <FormLabel>Plantilla del Mensaje de Texto</FormLabel>
                                     <FormControl>
                                         <Textarea className="min-h-[150px] font-mono text-xs" {...field} />
                                     </FormControl>

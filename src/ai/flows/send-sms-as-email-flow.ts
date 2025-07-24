@@ -39,16 +39,16 @@ const sendSmsAsEmailFlow = ai.defineFlow(
   async ({ prefix, customer }) => {
     try {
         const profile = await getCompanyProfileByPrefix(prefix);
-        if (!profile || !profile.smsEmailTemplate) {
-            return { success: false, message: "La plantilla de SMS (Email) no está configurada en el Perfil de Empresa." };
+        if (!profile || !profile.smsEmailTemplate || !profile.smsDomain || !profile.smsApiKey) {
+            return { success: false, message: "La configuración de Email-to-SMS (plantilla, dominio o clave) no está completa en el Perfil de Empresa." };
         }
         
         if (!customer.phone) {
             return { success: false, message: "El cliente no tiene un número de teléfono registrado." };
         }
 
-        const toAddress = `52${customer.phone.replace(/\D/g, '')}@api.labsmobile.com`;
-        const subject = 'rkkrCRWGPAgLzktwh0bd0MKcjWmexgwO';
+        const toAddress = `52${customer.phone.replace(/\D/g, '')}${profile.smsDomain}`;
+        const subject = profile.smsApiKey;
         
         let messageBody = profile.smsEmailTemplate;
         messageBody = messageBody.replace(/{NOMBRE}/g, customer.name);

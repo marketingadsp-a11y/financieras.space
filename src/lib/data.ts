@@ -259,9 +259,9 @@ export type CompanyProfile = {
   logoUrl?: string;
   loginBackgroundColor?: string;
   whatsappLinkTemplate?: string;
-  smsEmailTemplate?: string; // New field for the email template
-  labsmobileUsername?: string;
-  labsmobileToken?: string;
+  smsDomain?: string; // e.g., @api.labsmobile.com
+  smsApiKey?: string; // The subject line for the email
+  smsEmailTemplate?: string;
 };
 
 // --- Loan Control Tool Models ---
