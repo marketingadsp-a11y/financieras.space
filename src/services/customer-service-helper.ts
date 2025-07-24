@@ -47,5 +47,6 @@ export function customerFromDoc(doc: DocumentData): Customer {
         status: data.status || "Pendiente",
         prefix: data.prefix || "",
         toolContext: data.toolContext,
+        promoter: data.promoter || "",
     };
 }

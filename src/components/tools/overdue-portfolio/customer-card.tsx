@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Pencil, User, Phone } from "lucide-react";
+import { DollarSign, Pencil, User, Phone, UserSquare } from "lucide-react";
 import type { Customer } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +38,9 @@ export function CustomerCard({ customer, onEdit, onPayment }: CustomerCardProps)
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
+        {customer.promoter && (
+             <p className="text-xs text-primary font-semibold pt-1 flex items-center gap-1"><UserSquare className="h-3 w-3"/>Promotor/a: {customer.promoter}</p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4 flex-grow">
         <div className="space-y-2 text-sm">

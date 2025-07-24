@@ -122,6 +122,7 @@ export type Customer = {
   prefix?: string;
   loanControlGroupId?: string; // Relation to Loan Control Group
   toolContext?: 'overdue-portfolio' | 'loan-control';
+  promoter?: string;
 };
 
 

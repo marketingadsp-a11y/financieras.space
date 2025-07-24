@@ -56,6 +56,7 @@ const customerFormSchema = z.object({
   paymentAmount: z.coerce.number().min(0, "El monto de pago debe ser positivo."),
   installmentsDue: z.coerce.number().min(0, "Debe ser un número positivo."),
   dueAmount: z.coerce.number().min(0, "El adeudo no puede ser negativo."),
+  promoter: z.string().optional(),
 });
 
 const paymentSchema = z.object({
@@ -93,6 +94,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
         paymentAmount: customer.paymentAmount,
         installmentsDue: customer.installmentsDue,
         dueAmount: customer.dueAmount,
+        promoter: customer.promoter || "",
       });
       paymentForm.reset({ amount: undefined });
     }
@@ -154,6 +156,7 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
                     <FormField control={customerForm.control} name="colonia" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="cp" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                     <FormField control={customerForm.control} name="promoter" render={({ field }) => (<FormItem><FormLabel>Promotor/a</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel>Nombre del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="direccionAval" render={({ field }) => (<FormItem><FormLabel>Dirección del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={customerForm.control} name="coloniaAval" render={({ field }) => (<FormItem><FormLabel>Colonia del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />

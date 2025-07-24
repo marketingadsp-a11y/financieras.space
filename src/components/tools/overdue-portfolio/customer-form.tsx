@@ -40,6 +40,7 @@ const formSchema = z.object({
   installmentsDue: z.coerce.number().min(0, "No puede ser negativo"),
   dueAmount: z.coerce.number().min(0, "El adeudo no puede ser negativo."),
   fechaPrestamo: z.date().optional(),
+  promoter: z.string().optional(),
 });
 
 type CustomerFormProps = {
@@ -68,6 +69,7 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
             installmentsDue: customer?.installmentsDue || 0,
             dueAmount: customer?.dueAmount || customer?.loanAmount || undefined,
             fechaPrestamo: customer?.fechaPrestamo ? new Date(customer.fechaPrestamo) : new Date(),
+            promoter: customer?.promoter || "",
         },
     });
     
@@ -99,6 +101,7 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
                         <FormField control={form.control} name="colonia" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input placeholder="Colonia" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="cp" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input placeholder="C.P." {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input placeholder="Número de teléfono" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="promoter" render={({ field }) => (<FormItem><FormLabel>Promotor/a</FormLabel><FormControl><Input placeholder="Nombre del promotor" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     </div>
                      <div className="space-y-4 p-4 border rounded-lg">
                         <h4 className="font-semibold text-lg">Información del Aval</h4>
