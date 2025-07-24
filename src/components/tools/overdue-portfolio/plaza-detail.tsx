@@ -235,9 +235,17 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   };
 
   const handleSendEmailSms = async (customer: Customer) => {
-    if (!companyProfile?.smsEmailTemplate || !customer.phone || !user?.prefix) {
-        toast({ variant: 'destructive', title: 'Error', description: 'La plantilla, el teléfono del cliente o el prefijo de la empresa no están configurados.' });
-        return;
+    if (!user?.prefix) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar tu prefijo de empresa.' });
+      return;
+    }
+    if (!companyProfile?.smsEmailTemplate) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No hay una plantilla de SMS configurada en el Perfil de Empresa.' });
+      return;
+    }
+    if (!customer.phone) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Este cliente no tiene un número de teléfono registrado.' });
+      return;
     }
     
     try {
