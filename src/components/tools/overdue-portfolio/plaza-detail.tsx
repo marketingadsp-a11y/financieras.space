@@ -60,7 +60,6 @@ import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
 import { CustomerEditDialog } from "@/components/tools/overdue-portfolio/customer-edit-dialog";
 import { parseCustomers } from "@/ai/flows/customer-parser-flow";
-import { sendSmsAsEmail } from "@/ai/flows/send-sms-as-email-flow";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -231,36 +230,6 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         console.error(error);
     } finally {
         setIsParsing(false);
-    }
-  };
-
-  const handleSendEmailSms = async (customer: Customer) => {
-    if (!user?.prefix) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar tu prefijo de empresa.' });
-      return;
-    }
-    if (!companyProfile?.smsEmailTemplate) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No hay una plantilla de SMS configurada en el Perfil de Empresa.' });
-      return;
-    }
-    if (!customer.phone) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Este cliente no tiene un número de teléfono registrado.' });
-      return;
-    }
-    
-    try {
-        const result = await sendSmsAsEmail({
-            prefix: user.prefix,
-            customer,
-        });
-
-        if (result.success) {
-            toast({ title: 'Éxito', description: result.message });
-        } else {
-            toast({ variant: 'destructive', title: 'Error de Envío', description: result.message });
-        }
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo enviar el email.' });
     }
   };
 
@@ -548,7 +517,6 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                   onEdit={handleEditClick} 
                   onPayment={handlePaymentClick} 
                   onDelete={handleDeleteClick}
-                  onSendSms={handleSendEmailSms}
                   promoterColor={customer.promoter ? promoterColors.get(customer.promoter) : undefined}
                   whatsappLink={generateWhatsAppLink(customer)}
                 />
