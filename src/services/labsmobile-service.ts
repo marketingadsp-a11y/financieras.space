@@ -28,7 +28,7 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     const payload = {
         messages: [{
             tpoa: sender || 'Sender',
-            msisdn: [to], // Ensure 'to' is wrapped in an array
+            msisdn: [to],
             message: message,
         }]
     };
@@ -38,6 +38,7 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'Authorization': `Basic ${encodedCredentials}`
             },
             body: JSON.stringify(payload),
@@ -46,27 +47,19 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
         const responseText = await response.text();
         
         if (!response.ok) {
-            let errorMessage = responseText;
+            let errorMessage = `Error ${response.status}: ${response.statusText}`;
             try {
-                // Try to parse as JSON to get a cleaner error message
                 const errorJson = JSON.parse(responseText);
-                if (errorJson.subaccounts && errorJson.subaccounts[0]) {
-                     errorMessage = errorJson.subaccounts[0].message;
-                } else {
-                     errorMessage = errorJson.message || JSON.stringify(errorJson);
-                }
+                errorMessage = `(${errorJson.code}) ${errorJson.message}`;
             } catch (e) {
-                // Response was not JSON, use the raw text.
+                // If parsing fails, it might be an HTML error page or plain text.
+                // We keep the original error message but append the body for context.
+                errorMessage += ` - ${responseText}`;
             }
-             throw new Error(`LabsMobile API Error: ${response.status} ${response.statusText} - ${errorMessage}`);
+            throw new Error(`LabsMobile API Error: ${errorMessage}`);
         }
         
-        // Assuming success response might also have a nested structure
         const resultJson = JSON.parse(responseText);
-        if (resultJson.subaccounts && resultJson.subaccounts[0]) {
-            return resultJson.subaccounts[0];
-        }
-
         return resultJson;
 
     } catch (error: any) {
