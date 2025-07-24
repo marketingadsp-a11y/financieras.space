@@ -333,11 +333,19 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     // Separate paid from unpaid
     const paid = filtered.filter(c => c.status === 'Pagado');
     const unpaid = filtered.filter(c => c.status !== 'Pagado');
+    
+    // Sort logic: by group, then by name
+    const sortFunction = (a: Customer, b: Customer) => {
+        const groupA = a.groupName || 'zzzz'; // Put customers without group at the end
+        const groupB = b.groupName || 'zzzz';
+        if (groupA < groupB) return -1;
+        if (groupA > groupB) return 1;
+        return a.name.localeCompare(b.name);
+    };
 
-    // Sort unpaid by name, then append paid sorted by name
     return [
-        ...unpaid.sort((a, b) => a.name.localeCompare(b.name)),
-        ...paid.sort((a, b) => a.name.localeCompare(b.name))
+        ...unpaid.sort(sortFunction),
+        ...paid.sort(sortFunction)
     ];
   }, [customers, searchTerm, selectedPromoter, selectedGroup]);
   
