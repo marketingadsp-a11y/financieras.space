@@ -25,6 +25,8 @@ import { es } from "date-fns/locale";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 const formSchema = z.object({
+  promoter: z.string().optional(),
+  fechaPrestamo: z.date().optional(),
   name: z.string().min(3, "El nombre es requerido."),
   address: z.string().min(5, "La dirección es requerida."),
   phone: z.string().optional(),
@@ -34,8 +36,6 @@ const formSchema = z.object({
   paymentAmount: z.coerce.number().min(0, "El monto de pago no puede ser negativo."),
   installmentsDue: z.coerce.number().min(0, "No puede ser negativo"),
   dueAmount: z.coerce.number().min(0, "El adeudo no puede ser negativo."),
-  fechaPrestamo: z.date().optional(),
-  promoter: z.string().optional(),
 });
 
 type CustomerFormProps = {
@@ -49,6 +49,8 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
+            promoter: customer?.promoter || "",
+            fechaPrestamo: customer?.fechaPrestamo ? new Date(customer.fechaPrestamo) : new Date(),
             name: customer?.name || "",
             address: customer?.address || "",
             phone: customer?.phone || "",
@@ -58,8 +60,6 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
             paymentAmount: customer?.paymentAmount || 0,
             installmentsDue: customer?.installmentsDue || 0,
             dueAmount: customer?.dueAmount || customer?.loanAmount || undefined,
-            fechaPrestamo: customer?.fechaPrestamo ? new Date(customer.fechaPrestamo) : new Date(),
-            promoter: customer?.promoter || "",
         },
     });
     
@@ -84,20 +84,10 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Column 1: Promoter, Date, Name */}
                     <div className="space-y-4 p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">Información del Cliente</h4>
-                        <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input placeholder="Nombre del cliente" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Dirección</FormLabel><FormControl><Input placeholder="Calle y número" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input placeholder="Número de teléfono" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <h4 className="font-semibold text-lg">Información Principal</h4>
                         <FormField control={form.control} name="promoter" render={({ field }) => (<FormItem><FormLabel>Promotor/a</FormLabel><FormControl><Input placeholder="Nombre del promotor" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    </div>
-                     <div className="space-y-4 p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">Información del Aval</h4>
-                        <FormField control={form.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel>Nombre del Aval</FormLabel><FormControl><Input placeholder="Nombre (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Teléfono del Aval</FormLabel><FormControl><Input placeholder="Teléfono (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    </div>
-                    <div className="space-y-4 p-4 border rounded-lg">
-                         <h4 className="font-semibold text-lg">Información del Préstamo</h4>
                         <FormField control={form.control} name="fechaPrestamo" render={({ field }) => (
                              <FormItem className="flex flex-col"><FormLabel>Fecha de Préstamo</FormLabel>
                                 <Popover>
@@ -114,6 +104,19 @@ export function CustomerForm({ onSubmit, customer }: CustomerFormProps) {
                                     </PopoverContent>
                                 </Popover>
                              <FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input placeholder="Nombre del cliente" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    </div>
+                     {/* Column 2: Address, Phone, Guarantor */}
+                     <div className="space-y-4 p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">Datos de Contacto</h4>
+                        <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Dirección</FormLabel><FormControl><Input placeholder="Calle y número" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono Cliente</FormLabel><FormControl><Input placeholder="Número de teléfono" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel>Nombre del Aval</FormLabel><FormControl><Input placeholder="Nombre (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Teléfono del Aval</FormLabel><FormControl><Input placeholder="Teléfono (opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    </div>
+                     {/* Column 3: Loan Details */}
+                    <div className="space-y-4 p-4 border rounded-lg">
+                         <h4 className="font-semibold text-lg">Información del Préstamo</h4>
                         <FormField control={form.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="installmentsDue" render={({ field }) => (<FormItem><FormLabel>No. Vencidos</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />

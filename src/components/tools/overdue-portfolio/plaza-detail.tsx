@@ -131,9 +131,9 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     fetchPlazaAndCustomers();
   }, [fetchPlazaAndCustomers]);
 
-  const handleAddSubmit = async (customerData: Omit<Customer, 'id' | 'plazaId' | 'status'>) => {
+  const handleAddSubmit = async (customerData: Omit<Customer, 'id' | 'plazaId' | 'status' | 'toolContext'>) => {
     try {
-        const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const, prefix: user?.prefix };
+        const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const, prefix: user?.prefix, toolContext: 'overdue-portfolio' as const };
         await addCustomer(newCustomerData);
         toast({ title: "Éxito", description: "Cliente agregado correctamente." });
         await fetchPlazaAndCustomers();
@@ -181,13 +181,13 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     try {
         const parsedData = await parseCustomers({ inputText: importText });
         if (!parsedData || parsedData.length === 0) {
-            toast({ variant: "destructive", title: "Error de IA", description: "La IA no pudo procesar el texto. Verifica el formato." });
+            toast({ variant: "destructive", title: "Error de IA", description: "El flujo de IA no pudo procesar el texto. Verifica el formato." });
             return;
         }
 
-        const customersToAdd = parsedData.map(c => ({...c, plazaId, status: 'Pendiente' as const}));
+        const customersToAdd = parsedData.map(c => ({...c, plazaId, status: 'Pendiente' as const, toolContext: 'overdue-portfolio' as const}));
         
-        await addMultipleCustomers(customersToAdd, plazaId, importMode, user.prefix);
+        await addMultipleCustomers(customersToAdd, importMode, user.prefix, plazaId);
 
         toast({ title: "Éxito", description: `${customersToAdd.length} clientes importados correctamente.` });
         await fetchPlazaAndCustomers();
@@ -326,7 +326,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                                   <PlusCircle className="mr-2 h-4 w-4" /> Registrar
                               </Button>
                           </DialogTrigger>
-                          <DialogContent>
+                          <DialogContent className="sm:max-w-4xl">
                               <DialogHeader>
                                   <DialogTitle>Registrar Cliente</DialogTitle>
                               </DialogHeader>
@@ -346,10 +346,10 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-2xl">
                             <DialogHeader>
-                                <DialogTitle>Importar Clientes</DialogTitle>
+                                <DialogTitle>Importar Clientes desde Texto</DialogTitle>
                                 <DialogDescriptionComponent>
-                                  Pega texto de una hoja de cálculo para añadir nuevos clientes. Las columnas deben estar separadas por tabulaciones.
-                                  La IA intentará reconocer las columnas comunes como: FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, PRESTAMO, ADEUDO.
+                                    Pega texto desde una hoja de cálculo. Las columnas deben estar separadas por tabulaciones.
+                                    Asegúrate de que las columnas coincidan con: PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE.
                                 </DialogDescriptionComponent>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">

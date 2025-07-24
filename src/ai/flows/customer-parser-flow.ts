@@ -50,8 +50,8 @@ const prompt = ai.definePrompt({
   output: {schema: CustomerParserOutputSchema},
   prompt: `You are an expert data processor. Your task is to parse the following text, which contains customer data pasted from a spreadsheet.
 The data is semi-structured. Each line represents a customer. The columns are likely separated by tabs.
-The columns could be in any order, but common headers include: CARTERA, RESPONSABLE, GRUPO, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, VENCIDOS, ADEUDO, PROMOTOR. Your job is to intelligently identify the correct data for each field in the output schema.
-- It is CRITICAL to identify the 'CARTERA' and 'GRUPO' columns. These are used to organize everything. 
+The columns could be in any order, but the expected headers are: PROMOTOR, FECHA, NOMBRE, DIRECCION, TELEFONO, AVAL, TEL AVAL, PRESTAMO, PAGO, NO.VENC., DEBE. Your job is to intelligently identify the correct data for each field in the output schema based on these headers.
+- It is CRITICAL to identify the 'CARTERA' and 'GRUPO' columns if they exist. These are used to organize everything. 
 - **CRITICAL RULE**: If a row does not have an explicit cartera or group name, you MUST infer it from the previous row. It is absolutely crucial that every customer belongs to a named cartera and a named group. The 'carteraName' and 'groupName' fields should never be null or empty.
 - The 'RESPONSABLE' field is associated with the 'CARTERA'. Try to find it.
 - For numerical fields, clean the data to remove currency symbols, commas, or any other non-numeric characters. If a value is not present, use a sensible default (e.g., 0 for numbers, empty string for text).
