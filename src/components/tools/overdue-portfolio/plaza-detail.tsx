@@ -19,6 +19,7 @@ import {
   Loader2,
   ClipboardPaste,
   Mail,
+  FilterX,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,13 @@ import { useAuth } from "@/context/auth-context";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }: { title: string; value: number; icon: React.ElementType, description?: string, isCurrency?: boolean, variant?: 'default' | 'destructive' }) => {
     const cardClasses = {
@@ -112,7 +120,9 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [dialogMode, setDialogMode] = React.useState<'edit' | 'payment'>('edit');
-
+  
+  const [selectedGroup, setSelectedGroup] = React.useState<string>("");
+  const [selectedPromoter, setSelectedPromoter] = React.useState<string>("");
 
   const fetchPlazaAndCustomers = React.useCallback(async () => {
     try {
@@ -173,7 +183,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   };
   
   const handleSendSms = async (customer: Customer) => {
-    toast({ title: 'Enviando SMS...', description: `Enviando a ${customer.name}.` });
+    toast({ title: 'Enviando SMS...', description: `Enviando a ${customer.name}.`, variant: 'default' });
     try {
       const result = await sendSmsAsEmail({ customer });
       if (result.success) {
@@ -298,10 +308,13 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
 
   const sortedCustomers = React.useMemo(() => {
-    const filtered = customers.filter(customer =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.address.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filtered = customers
+      .filter(customer =>
+        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.address.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .filter(customer => !selectedPromoter || customer.promoter === selectedPromoter)
+      .filter(customer => !selectedGroup || customer.groupName === selectedGroup);
 
     // Separate paid from unpaid
     const paid = filtered.filter(c => c.status === 'Pagado');
@@ -312,7 +325,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         ...unpaid.sort((a, b) => a.name.localeCompare(b.name)),
         ...paid.sort((a, b) => a.name.localeCompare(b.name))
     ];
-  }, [customers, searchTerm]);
+  }, [customers, searchTerm, selectedPromoter, selectedGroup]);
   
   const canRegister = hasPermission(plazaId, 'CAN_REGISTER');
   const canImport = hasPermission(plazaId, 'CAN_IMPORT');
@@ -350,6 +363,20 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
     return colors;
   }, [customers]);
+  
+  const uniquePromoters = React.useMemo(() => {
+    return [...new Set(customers.map(c => c.promoter).filter(Boolean) as string[])].sort();
+  }, [customers]);
+  
+  const uniqueGroups = React.useMemo(() => {
+    return [...new Set(customers.map(c => c.groupName).filter(Boolean) as string[])].sort();
+  }, [customers]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedPromoter("");
+    setSelectedGroup("");
+  };
 
 
   if (isLoading) {
@@ -399,15 +426,6 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
             </div>
             
             <div className="flex flex-col md:flex-row gap-2 items-center w-full md:w-auto">
-                <div className="relative w-full md:flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Buscar cliente..." 
-                      className="pl-9 w-full"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     {canRegister && (
                       <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
@@ -540,6 +558,39 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
            </div>
         </CardHeader>
         <CardContent>
+           <div className="flex flex-col md:flex-row gap-2 mb-6">
+                <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Buscar por nombre o dirección..." 
+                      className="pl-9"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <Select value={selectedPromoter} onValueChange={setSelectedPromoter}>
+                    <SelectTrigger className="w-full md:w-[200px]">
+                        <SelectValue placeholder="Filtrar por Promotor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">Todos los Promotores</SelectItem>
+                        {uniquePromoters.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                 <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                    <SelectTrigger className="w-full md:w-[200px]">
+                        <SelectValue placeholder="Filtrar por Grupo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">Todos los Grupos</SelectItem>
+                        {uniqueGroups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                 <Button variant="ghost" onClick={clearFilters}>
+                    <FilterX className="mr-2 h-4 w-4" />
+                    Limpiar
+                </Button>
+            </div>
           <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {sortedCustomers.map(customer => (
