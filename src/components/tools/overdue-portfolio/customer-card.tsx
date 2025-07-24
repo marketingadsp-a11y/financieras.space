@@ -69,23 +69,17 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
             </div>
           )}
       </div>
-      <CardHeader className="p-4">
-        <div className="flex justify-between items-start gap-2">
-            <div className="flex-1">
-                <div className="flex items-center gap-2">
-                    <CardTitle className="text-base font-bold line-clamp-2">{customer.name}</CardTitle>
-                    <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize shrink-0">
-                        {customer.status}
-                    </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
-            </div>
-            <div className="flex items-center flex-shrink-0">
-                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive" onClick={() => onDelete(customer)}>
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-            </div>
+      <CardHeader className="p-4 relative">
+        <div className="absolute top-2 right-2">
+            <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize shrink-0 group-hover:opacity-0 transition-opacity">
+                {customer.status}
+            </Badge>
+             <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive absolute top-0 right-0" onClick={() => onDelete(customer)}>
+                <Trash2 className="h-4 w-4" />
+            </Button>
         </div>
+        <CardTitle className="text-base font-bold line-clamp-2 pr-12">{customer.name}</CardTitle>
+        <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-3 flex-grow">
         <div className="space-y-1 text-sm">
