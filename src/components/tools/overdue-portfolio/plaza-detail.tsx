@@ -176,7 +176,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     try {
       const result = await sendSmsAsEmail({ customer });
       if (result.success) {
-        toast({ title: 'Éxito', description: result.message });
+        toast({ variant: 'success', title: 'Éxito', description: result.message });
       } else {
         toast({ variant: 'destructive', title: 'Error al enviar', description: result.message });
       }

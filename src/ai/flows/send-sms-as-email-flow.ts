@@ -57,7 +57,7 @@ const sendSmsAsEmailFlow = ai.defineFlow(
         });
 
         if (result.success) {
-            return { success: true, message: 'SMS enviado a través de la pasarela de correo.' };
+            return { success: true, message: 'SMS enviado al cliente' };
         } else {
             return { success: false, message: result.message };
         }
