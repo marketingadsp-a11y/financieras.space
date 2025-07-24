@@ -22,15 +22,16 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
-const StatCard = ({ title, value, icon: Icon, isCurrency = false, description }: { title: string; value: number | string; icon: React.ElementType, isCurrency?: boolean, description?: string }) => (
+const StatCard = ({ title, value, icon: Icon, isCurrency = false, description, colorClass = 'text-card-foreground' }: { title: string; value: number | string; icon: React.ElementType, isCurrency?: boolean, description?: string, colorClass?: string }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
             <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-            <div className="text-2xl font-bold">
+            <div className={cn("text-2xl font-bold", colorClass)}>
                 {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
             </div>
              {description && <p className="text-xs text-muted-foreground">{description}</p>}
@@ -367,8 +368,8 @@ export function ToolsPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <DestructiveStatCard title="Deuda Total" value={summary.totalDebt} icon={DollarSign} isCurrency />
                 <StatCard title="Clientes Totales" value={summary.totalClients} icon={Users} />
-                <StatCard title="Clientes Recuperados" value={summary.recoveredClients} icon={UserCheck} description={`de ${summary.totalClients} clientes`} />
-                <StatCard title="Tasa de Recuperación" value={`${summary.recoveryRate.toFixed(1)}%`} icon={Percent} />
+                <StatCard title="Clientes Recuperados" value={summary.recoveredClients} icon={UserCheck} description={`de ${summary.totalClients} clientes`} colorClass="text-green-600" />
+                <StatCard title="Tasa de Recuperación" value={`${summary.recoveryRate.toFixed(1)}%`} icon={Percent} colorClass="text-blue-600" />
             </div>
 
             {/* --- SECCIÓN DE CARTERA POR PLAZA --- */}
