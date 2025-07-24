@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Loader2,
   ClipboardPaste,
+  Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -141,9 +142,13 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     fetchPlazaAndCustomers();
   }, [fetchPlazaAndCustomers]);
 
-  const handleAddSubmit = async (customerData: Omit<Customer, 'id' | 'plazaId' | 'status' | 'toolContext'>) => {
+  const handleAddSubmit = async (customerData: Omit<Customer, 'id' | 'plazaId' | 'status' | 'toolContext' | 'prefix'>) => {
+    if (!user?.prefix) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar al administrador.'});
+      return;
+    }
     try {
-        const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const, prefix: user?.prefix, toolContext: 'overdue-portfolio' as const };
+        const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const, prefix: user.prefix, toolContext: 'overdue-portfolio' as const };
         await addCustomer(newCustomerData);
         toast({ title: "Éxito", description: "Cliente agregado correctamente." });
         await fetchPlazaAndCustomers();
@@ -229,8 +234,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   };
 
   const handleSendSms = async (customer: Customer) => {
-    if (!companyProfile?.smsTemplate || !customer.phone) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Plantilla de SMS o teléfono del cliente no configurado.' });
+    if (!companyProfile?.smsTemplate || !customer.phone || !user?.prefix) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Plantilla de SMS, teléfono del cliente o prefijo no configurado.' });
         return;
     }
     
@@ -240,6 +245,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
     try {
         const result = await sendSms({
+            prefix: user.prefix,
             to: customer.phone.replace(/\D/g, ''),
             message: message,
             sender: companyProfile.smsSenderName

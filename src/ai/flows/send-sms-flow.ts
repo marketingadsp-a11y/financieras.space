@@ -11,8 +11,10 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { sendSms as sendSmsService } from '@/services/labsmobile-service';
+import { getCompanyProfileByPrefix } from '@/services/company-profile-service';
 
 const SendSmsInputSchema = z.object({
+  prefix: z.string().describe("The company prefix to retrieve API credentials."),
   to: z.string().describe("The recipient's phone number, including country code but without '+' or '00'."),
   message: z.string().describe("The text message content to send."),
   sender: z.string().optional().describe("The alphanumeric sender ID (TPOA)."),
@@ -35,9 +37,21 @@ const sendSmsFlow = ai.defineFlow(
     inputSchema: SendSmsInputSchema,
     outputSchema: SendSmsOutputSchema,
   },
-  async ({ to, message, sender }) => {
+  async ({ prefix, to, message, sender }) => {
     try {
-        const result = await sendSmsService({ to, message, sender });
+        const profile = await getCompanyProfileByPrefix(prefix);
+        if (!profile || !profile.labsmobileUsername || !profile.labsmobileToken) {
+            return { success: false, message: "Las credenciales de LabsMobile no están configuradas en el Perfil de Empresa." };
+        }
+
+        const result = await sendSmsService({ 
+            to, 
+            message, 
+            sender,
+            username: profile.labsmobileUsername,
+            apiToken: profile.labsmobileToken
+        });
+
         if (result.code === 0) {
             return { success: true, message: "SMS enviado correctamente." };
         } else {

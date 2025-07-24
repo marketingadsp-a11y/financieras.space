@@ -5,6 +5,8 @@ interface SendSmsParams {
     to: string;
     message: string;
     sender?: string;
+    username: string;
+    apiToken: string;
 }
 
 interface LabsMobileResponse {
@@ -12,11 +14,9 @@ interface LabsMobileResponse {
     message: string;
 }
 
-export async function sendSms({ to, message, sender }: SendSmsParams): Promise<LabsMobileResponse> {
-    const username = process.env.LABSMOBILE_USERNAME;
-    const token = process.env.LABSMOBILE_TOKEN;
+export async function sendSms({ to, message, sender, username, apiToken }: SendSmsParams): Promise<LabsMobileResponse> {
 
-    if (!username || !token) {
+    if (!username || !apiToken) {
         throw new Error("LabsMobile credentials are not configured in the environment variables.");
     }
     
@@ -24,7 +24,7 @@ export async function sendSms({ to, message, sender }: SendSmsParams): Promise<L
     
     const payload = {
         username: username,
-        token: token,
+        token: apiToken,
         messages: [
             {
                 tpoa: sender || 'Sender', // Originator, up to 11 alphanumeric chars
