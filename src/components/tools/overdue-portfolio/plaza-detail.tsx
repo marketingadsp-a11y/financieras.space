@@ -568,21 +568,21 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <Select value={selectedPromoter} onValueChange={setSelectedPromoter}>
+                <Select value={selectedPromoter} onValueChange={(value) => setSelectedPromoter(value === 'all' ? '' : value)}>
                     <SelectTrigger className="w-full md:w-[200px]">
                         <SelectValue placeholder="Filtrar por Promotor" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Todos los Promotores</SelectItem>
+                        <SelectItem value="all">Todos los Promotores</SelectItem>
                         {uniquePromoters.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                 <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                 <Select value={selectedGroup} onValueChange={(value) => setSelectedGroup(value === 'all' ? '' : value)}>
                     <SelectTrigger className="w-full md:w-[200px]">
                         <SelectValue placeholder="Filtrar por Grupo" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Todos los Grupos</SelectItem>
+                        <SelectItem value="all">Todos los Grupos</SelectItem>
                         {uniqueGroups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                     </SelectContent>
                 </Select>
