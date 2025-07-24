@@ -168,40 +168,62 @@ export function ToolsPage() {
                 const workbook = XLSX.read(fileContent, { type: 'array', cellDates: true });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: "" }) as any[];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true, defval: "" }) as any[][];
 
                 if (!json || json.length === 0) {
                     setIsImporting(false);
                     return toast({ variant: "destructive", title: "Error", description: "El archivo de Excel está vacío o no se pudo leer." });
                 }
 
+                let headerRowIndex = -1;
+                let promoterName = '';
+
+                // Find header row and promoter
+                for (let i = 0; i < json.length; i++) {
+                    const row = json[i];
+                    const rowString = row.map(cell => String(cell)).join(' ').toUpperCase();
+                    if (/(FECHA|NOMBRE|DIRECCION|TELEFONO|AVAL|PRESTAMO|PAGO|VENC|DEBE)/.test(rowString)) {
+                        headerRowIndex = i;
+                        const promoterMatch = rowString.match(/PROMOTOR\s+(.+?)(?=\s+FECHA|\s+NOMBRE|$)/);
+                        if (promoterMatch && promoterMatch[1]) {
+                            promoterName = promoterMatch[1].trim();
+                        }
+                        break;
+                    }
+                }
+                
+                if (headerRowIndex === -1) {
+                    setIsImporting(false);
+                    return toast({ variant: "destructive", title: "Error", description: "No se encontró una fila de encabezado válida (con columnas como FECHA, NOMBRE, etc)." });
+                }
+                
+                const headers = json[headerRowIndex].map(h => String(h).toUpperCase().trim());
+                const dataRows = json.slice(headerRowIndex + 1);
+
                 const existingPlazas = await getPlazas({ prefix: user.prefix, fetchAll: false, toolContext });
                 const plazaMap: Record<string, string> = {};
-                existingPlazas.forEach(p => { plazaMap[p.name.toLowerCase()] = p.id; });
+                existingPlazas.forEach(p => { plazaMap[p.name.toUpperCase()] = p.id; });
 
                 const parsedCustomers: Omit<Customer, 'id'>[] = [];
-                let currentPromoter = '';
 
-                for (const row of json) {
-                    const rowValues = Object.values(row).map(v => String(v).trim());
-
-                    // Heuristic to detect a promoter row: one non-empty cell, which is not a header.
-                    if (rowValues.filter(v => v).length === 1 && !/(fecha|nombre|direccion|telefono|aval|prestamo|pago|venc|debe)/i.test(rowValues[0])) {
-                         currentPromoter = rowValues[0];
-                         continue; // This row is a promoter, so we skip to the next one
-                    }
-
+                for (const row of dataRows) {
+                     const rowData: Record<string, any> = {};
+                    headers.forEach((header, index) => {
+                        if (header) { // Only map if header is not empty
+                            rowData[header] = row[index];
+                        }
+                    });
 
                     let plazaId = '';
-                    const plazaName = row.PLAZA || row.Plaza || '';
+                    const plazaName = String(rowData.PLAZA || '').trim();
 
                     if (plazaName) {
-                        if (plazaMap[plazaName.toLowerCase()]) {
-                            plazaId = plazaMap[plazaName.toLowerCase()];
+                        if (plazaMap[plazaName.toUpperCase()]) {
+                            plazaId = plazaMap[plazaName.toUpperCase()];
                         } else {
                             const newPlaza = await addPlaza({ name: plazaName, prefix: user.prefix, toolContext });
                             plazaId = newPlaza.id;
-                            plazaMap[plazaName.toLowerCase()] = newPlaza.id;
+                            plazaMap[plazaName.toUpperCase()] = newPlaza.id;
                         }
                     } else {
                         continue; 
@@ -217,6 +239,10 @@ export function ToolsPage() {
                         if (!val) return undefined;
                         if (val instanceof Date) return val;
                         try {
+                            // Handle Excel serial date number
+                            if (typeof val === 'number' && val > 1) {
+                                return new Date(Date.UTC(1900, 0, val - 1));
+                            }
                             const parsed = new Date(val);
                             if (isNaN(parsed.getTime())) return undefined;
                             return parsed;
@@ -225,24 +251,24 @@ export function ToolsPage() {
                         }
                     };
 
-                    const loanAmount = parseNumeric(row.PRESTAMO || row.Prestamo);
+                    const loanAmount = parseNumeric(rowData.PRESTAMO);
 
                     parsedCustomers.push({
                         plazaId,
                         prefix: user.prefix,
                         toolContext,
                         status: 'Pendiente', 
-                        promoter: currentPromoter || row.PROMOTOR || row.Promotor,
-                        name: row.NOMBRE || row.Nombre || '',
-                        address: row.DIRECCION || row.Direccion || '',
-                        phone: String(row.TELEFONO || row.Telefono || ''),
-                        guarantor: String(row.AVAL || row.Aval || ''),
-                        guarantorPhone: String(row['TEL. AVAL'] || row.TelAval || ''),
+                        promoter: promoterName || String(rowData.PROMOTOR || ''),
+                        name: String(rowData.NOMBRE || ''),
+                        address: String(rowData.DIRECCION || ''),
+                        phone: String(rowData.TELEFONO || ''),
+                        guarantor: String(rowData.AVAL || ''),
+                        guarantorPhone: String(rowData['TEL. AVAL'] || ''),
                         loanAmount: loanAmount,
-                        paymentAmount: parseNumeric(row.PAGO || row.Pago),
-                        installmentsDue: parseInt(String(row['NO.VENC.'] || row.NoVenc || 0), 10),
-                        dueAmount: parseNumeric(row.ADEUDO || row.Adeudo || loanAmount),
-                        fechaPrestamo: parseDate(row.FECHA || row.Fecha),
+                        paymentAmount: parseNumeric(rowData.PAGO),
+                        installmentsDue: parseInt(String(rowData['NO.VENC.'] || 0), 10),
+                        dueAmount: parseNumeric(rowData.ADEUDO || rowData.DEBE || loanAmount),
+                        fechaPrestamo: parseDate(rowData.FECHA),
                     });
                 }
                 
