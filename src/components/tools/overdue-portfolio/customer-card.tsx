@@ -57,15 +57,15 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
 
   return (
     <Card className={cn("flex flex-col overflow-hidden group", isPaid && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800")}>
-      <div className="flex flex-wrap">
+      <div className="flex">
           {customer.promoter && (
-            <div style={{ backgroundColor: promoterColor, color: getTextColorForBackground(promoterColor || '') }} className="p-2 text-center font-semibold text-sm flex-grow">
-              Promotor: {customer.promoter}
+            <div style={{ backgroundColor: promoterColor, color: getTextColorForBackground(promoterColor || '') }} className="px-3 py-1 text-center font-semibold text-xs flex-grow">
+              {customer.promoter}
             </div>
           )}
           {customer.groupName && (
-             <div style={{ backgroundColor: groupColor, color: getTextColorForBackground(groupColor || '') }} className="p-2 text-center font-semibold text-sm flex-grow">
-              Grupo: {customer.groupName}
+             <div style={{ backgroundColor: groupColor, color: getTextColorForBackground(groupColor || '') }} className="px-3 py-1 text-center font-semibold text-xs flex-grow">
+              {customer.groupName}
             </div>
           )}
       </div>
