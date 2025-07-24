@@ -26,9 +26,11 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
     const encodedCredentials = Buffer.from(credentials).toString('base64');
     
     const payload = {
-        tpoa: sender || 'Sender',
-        msisdn: to,
-        message: message,
+        messages: [{
+            tpoa: sender || 'Sender',
+            msisdn: [to], // Ensure 'to' is wrapped in an array
+            message: message,
+        }]
     };
     
     try {
@@ -46,16 +48,26 @@ export async function sendSms({ to, message, sender, username, apiToken }: SendS
         if (!response.ok) {
             let errorMessage = responseText;
             try {
+                // Try to parse as JSON to get a cleaner error message
                 const errorJson = JSON.parse(responseText);
-                errorMessage = errorJson.message || JSON.stringify(errorJson);
+                if (errorJson.subaccounts && errorJson.subaccounts[0]) {
+                     errorMessage = errorJson.subaccounts[0].message;
+                } else {
+                     errorMessage = errorJson.message || JSON.stringify(errorJson);
+                }
             } catch (e) {
-                // Not a JSON error response, use the raw text.
+                // Response was not JSON, use the raw text.
             }
              throw new Error(`LabsMobile API Error: ${response.status} ${response.statusText} - ${errorMessage}`);
         }
         
-        const result: LabsMobileResponse = JSON.parse(responseText);
-        return result;
+        // Assuming success response might also have a nested structure
+        const resultJson = JSON.parse(responseText);
+        if (resultJson.subaccounts && resultJson.subaccounts[0]) {
+            return resultJson.subaccounts[0];
+        }
+
+        return resultJson;
 
     } catch (error: any) {
         console.error('Failed to send SMS via LabsMobile:', error);
