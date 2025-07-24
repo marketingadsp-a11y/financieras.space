@@ -114,4 +114,9 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
               </a>
           </Button>
           <Button variant="outline" size="sm" className="w-full border-blue-600 text-blue-700 hover:bg-blue-100 hover:text-blue-800" onClick={() => onSendSms(customer)} disabled={!customer.phone}>
-            <Mail className="mr-2 h
+            <Mail className="mr-2 h-4 w-4" /> Enviar SMS
+          </Button>
+      </CardFooter>
+    </Card>
+  );
+}

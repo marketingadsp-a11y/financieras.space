@@ -69,7 +69,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 
-const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }) => {
+const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }: { title: string; value: number; icon: React.ElementType, description?: string, isCurrency?: boolean, variant?: 'default' | 'destructive' }) => {
     const cardClasses = {
         default: "bg-card text-card-foreground",
         destructive: "bg-destructive/90 text-destructive-foreground",
@@ -574,4 +574,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         isOpen={!!selectedCustomer}
         onClose={closeDialog}
         onSuccess={fetchPlazaAndCustomers}
-        mode
+        mode={dialogMode}
+      />
+    </div>
+  );
+}
