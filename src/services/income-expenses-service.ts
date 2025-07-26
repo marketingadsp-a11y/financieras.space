@@ -271,77 +271,74 @@ type SucursalTransactionParams = {
 
 export async function performSucursalTransaction(params: SucursalTransactionParams) {
     const { sucursalId, type, amount, userPerformed, description, category, executive } = params;
-    
-    const sucursalRef = doc(db, "sucursales", sucursalId);
-    const sucursalTransactionRef = doc(sucursalTransactionsCollectionRef);
 
     await runTransaction(db, async (transaction) => {
         // --- ALL READS FIRST ---
+        const sucursalRef = doc(db, "sucursales", sucursalId);
         const sucursalDoc = await transaction.get(sucursalRef);
         if (!sucursalDoc.exists()) {
             throw new Error("La sucursal no existe.");
         }
         const sucursalData = sucursalDoc.data() as Sucursal;
-        
+
         const centralAccountRef = doc(db, "centralAccounts", sucursalData.prefix);
         const centralAccountDoc = await transaction.get(centralAccountRef);
-        
+        if (!centralAccountDoc.exists()) {
+            throw new Error("La cuenta de Capital Central no existe.");
+        }
+        const centralAccountData = centralAccountDoc.data() as CentralAccount;
+
         // --- VALIDATIONS ---
         if ((type === 'expense' || type === 'transfer_to_central') && sucursalData.currentBalance < amount) {
             throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
         }
 
-        // --- ALL WRITES LAST ---
-        // 1. Create the Sucursal Transaction log first
+        // --- PREPARE DATA ---
+        const now = Timestamp.now();
+        const sucursalTransactionRef = doc(sucursalTransactionsCollectionRef);
         const newSucursalTransactionData: Partial<Omit<SucursalTransaction, 'id'|'date'>> & { date: Timestamp } = {
-            sucursalId,
-            type,
-            amount,
-            userPerformed,
-            description,
-            date: Timestamp.now()
+            sucursalId, type, amount, userPerformed, description, date: now,
         };
         if (category) newSucursalTransactionData.category = category;
         if (executive) newSucursalTransactionData.executive = executive;
-        transaction.set(sucursalTransactionRef, newSucursalTransactionData);
 
-        // 2. Update Sucursal Balance
+        // --- CALCULATE NEW BALANCES ---
         let newSucursalBalance = sucursalData.currentBalance;
-        if (type === 'expense' || type === 'transfer_to_central') {
-            newSucursalBalance -= amount;
-        } else if (type === 'deposit') {
+        let newCentralBalance = centralAccountData.currentBalance;
+        let newCentralTotalBranchBalance = centralAccountData.totalBranchBalance;
+        
+        if (type === 'deposit') {
             newSucursalBalance += amount;
+            newCentralTotalBranchBalance += amount;
+        } else if (type === 'expense') {
+            newSucursalBalance -= amount;
+            newCentralTotalBranchBalance -= amount;
+        } else if (type === 'transfer_to_central') {
+            newSucursalBalance -= amount;
+            newCentralBalance += amount;
+            newCentralTotalBranchBalance -= amount;
+
+            // Log the "deposit" on the central account's side
+            const centralTransactionRef = doc(centralAccountTransactionsCollectionRef);
+            const centralTxData = {
+                accountId: sucursalData.prefix,
+                type: 'deposit' as const,
+                amount: amount,
+                date: now,
+                userPerformed,
+                description: `Transferencia recibida de ${sucursalData.name}`,
+                from: sucursalId,
+            };
+            transaction.set(centralTransactionRef, centralTxData);
         }
+
+        // --- ALL WRITES LAST ---
+        transaction.set(sucursalTransactionRef, newSucursalTransactionData);
         transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
-
-        // 3. Update Central Account Totals if it exists
-        if (centralAccountDoc.exists()) {
-            const centralAccountData = centralAccountDoc.data() as CentralAccount;
-            const updates: Partial<CentralAccount> = {};
-
-            if (type === 'deposit') {
-                updates.totalBranchBalance = (centralAccountData.totalBranchBalance || 0) + amount;
-            } else if (type === 'expense') {
-                updates.totalBranchBalance = (centralAccountData.totalBranchBalance || 0) - amount;
-            } else if (type === 'transfer_to_central') {
-                updates.currentBalance = (centralAccountData.currentBalance || 0) + amount; // Add money back to central
-                updates.totalBranchBalance = (centralAccountData.totalBranchBalance || 0) - amount; // Reduce from what's in branches
-            
-                 // Create a CentralAccountTransaction to log the transfer
-                const centralTransactionRef = doc(centralAccountTransactionsCollectionRef);
-                const centralTxData = {
-                    accountId: sucursalData.prefix,
-                    type: 'deposit' as const, // It's a deposit for the central account
-                    amount: amount,
-                    date: Timestamp.now(),
-                    userPerformed,
-                    description: `Transferencia recibida de ${sucursalData.name}`,
-                    from: sucursalId,
-                };
-                transaction.set(centralTransactionRef, centralTxData);
-            }
-            transaction.update(centralAccountRef, updates);
-        }
+        transaction.update(centralAccountRef, {
+            currentBalance: newCentralBalance,
+            totalBranchBalance: newCentralTotalBranchBalance,
+        });
     });
 }
 
