@@ -283,10 +283,19 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
 
         const centralAccountRef = doc(db, "centralAccounts", sucursalData.prefix);
         const centralAccountDoc = await transaction.get(centralAccountRef);
+        // !! CRITICAL FIX: Do not throw error if central account doesn't exist. Create it. !!
+        let centralAccountData: CentralAccount;
         if (!centralAccountDoc.exists()) {
-            throw new Error("La cuenta de Capital Central no existe.");
+             centralAccountData = {
+                id: sucursalData.prefix,
+                prefix: sucursalData.prefix,
+                currentBalance: 0,
+                assignedCapital: 0,
+                totalBranchBalance: 0,
+            };
+        } else {
+            centralAccountData = centralAccountDoc.data() as CentralAccount;
         }
-        const centralAccountData = centralAccountDoc.data() as CentralAccount;
 
         // --- VALIDATIONS ---
         if ((type === 'expense' || type === 'transfer_to_central') && sucursalData.currentBalance < amount) {
@@ -304,19 +313,17 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
 
         // --- CALCULATE NEW BALANCES ---
         let newSucursalBalance = sucursalData.currentBalance;
-        let newCentralBalance = centralAccountData.currentBalance;
-        let newCentralTotalBranchBalance = centralAccountData.totalBranchBalance;
         
         if (type === 'deposit') {
             newSucursalBalance += amount;
-            newCentralTotalBranchBalance += amount;
+            centralAccountData.totalBranchBalance += amount;
         } else if (type === 'expense') {
             newSucursalBalance -= amount;
-            newCentralTotalBranchBalance -= amount;
+            centralAccountData.totalBranchBalance -= amount;
         } else if (type === 'transfer_to_central') {
             newSucursalBalance -= amount;
-            newCentralBalance += amount;
-            newCentralTotalBranchBalance -= amount;
+            centralAccountData.currentBalance += amount; // Add to central account
+            centralAccountData.totalBranchBalance -= amount; // Remove from total in branches
 
             // Log the "deposit" on the central account's side
             const centralTransactionRef = doc(centralAccountTransactionsCollectionRef);
@@ -335,10 +342,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         // --- ALL WRITES LAST ---
         transaction.set(sucursalTransactionRef, newSucursalTransactionData);
         transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
-        transaction.update(centralAccountRef, {
-            currentBalance: newCentralBalance,
-            totalBranchBalance: newCentralTotalBranchBalance,
-        });
+        transaction.set(centralAccountRef, centralAccountData, { merge: true });
     });
 }
 
