@@ -95,8 +95,9 @@ const TransactionRow = ({ tx, onEdit, onDelete, canEditDelete }: { tx: SucursalT
                             <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
                         <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onDelete(tx); }}>
+                                <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
+                                <span className="text-destructive">Eliminar</span>
                             </DropdownMenuItem>
                         </AlertDialogTrigger>
                     </DropdownMenuContent>
@@ -387,26 +388,27 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      {filteredTransactions.length > 0 ? filteredTransactions.map(tx => (
-                         <AlertDialog key={tx.id} open={transactionToDelete?.id === tx.id} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
-                            <TransactionRow tx={tx} onEdit={handleEditClick} onDelete={handleDeleteClick} canEditDelete={canEditDelete} />
-                             <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Estás seguro de eliminar esta transacción?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta acción es irreversible. El saldo de la sucursal se ajustará automáticamente para reflejar la eliminación de este movimiento.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                        <TransactionRow key={tx.id} tx={tx} onEdit={handleEditClick} onDelete={handleDeleteClick} canEditDelete={canEditDelete} />
                      )) : (
                         <div className="text-center py-10 text-muted-foreground">No hay transacciones para el rango de fechas seleccionado.</div>
                      )}
                 </CardContent>
             </Card>
+
+            <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro de eliminar esta transacción?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción es irreversible. El saldo de la sucursal se ajustará automáticamente para reflejar la eliminación de este movimiento.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <SucursalTransactionDialog
                 isOpen={isTransactionDialogOpen}
