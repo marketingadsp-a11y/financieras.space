@@ -177,12 +177,14 @@ export async function performCentralAccountTransaction(params: CentralTransactio
 
                 const sucursalData = sucursalDoc.data() as Sucursal;
 
+                // Update Central Account
                 centralAccountData.currentBalance -= amount;
                 centralAccountData.assignedCapital += amount;
+                centralAccountData.totalBranchBalance += amount;
                 
-                const newCurrentBalance = (sucursalData.currentBalance || 0) + amount;
-
-                transaction.update(sucursalRef, { currentBalance: newCurrentBalance });
+                // Update Sucursal
+                const newSucursalBalance = (sucursalData.currentBalance || 0) + amount;
+                transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
                 
                 break;
             default:
@@ -300,7 +302,12 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             if (centralAccountData) {
                 const newCentralBalance = (centralAccountData.currentBalance || 0) + amount;
                 const newAssignedCapital = (centralAccountData.assignedCapital || 0) - amount;
-                transaction.update(centralAccountRef, { currentBalance: newCentralBalance, assignedCapital: newAssignedCapital });
+                const newTotalBranchBalance = (centralAccountData.totalBranchBalance || 0) - amount;
+                transaction.update(centralAccountRef, { 
+                    currentBalance: newCentralBalance, 
+                    assignedCapital: newAssignedCapital,
+                    totalBranchBalance: newTotalBranchBalance,
+                });
             }
         }
         
