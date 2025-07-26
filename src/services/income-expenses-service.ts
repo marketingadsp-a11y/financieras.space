@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -409,16 +410,15 @@ export async function deleteSucursalTransaction(transactionId: string): Promise<
     if (centralAccountDoc.exists()) {
         const centralAccountData = centralAccountDoc.data() as CentralAccount;
         let newCentralTotalBranchBalance = centralAccountData.totalBranchBalance;
+        let newCentralBalance = centralAccountData.currentBalance;
+
         if (txData.type === 'deposit') {
             newCentralTotalBranchBalance -= txData.amount;
         } else if (txData.type === 'expense') {
             newCentralTotalBranchBalance += txData.amount;
-        }
-        
-        let newCentralBalance = centralAccountData.currentBalance;
-        if (txData.type === 'transfer_to_central') {
-            newCentralBalance -= txData.amount; // Remove the money that was previously transferred back
-            // The total branch balance is already handled by adding back the amount to the sucursal
+        } else if (txData.type === 'transfer_to_central') {
+            newCentralTotalBranchBalance += txData.amount; // Revert the reduction
+            newCentralBalance -= txData.amount; // Revert the deposit
         }
 
         transaction.update(centralAccountRef, { 
