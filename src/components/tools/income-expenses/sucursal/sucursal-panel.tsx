@@ -83,25 +83,39 @@ const TransactionRow = ({ tx, onEdit, onDelete, canEditDelete }: { tx: SucursalT
                  <p className="text-xs text-muted-foreground">{format(tx.date, "dd MMM yyyy, p", { locale: es })}</p>
             </div>
             {canEditDelete && (
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem onSelect={() => onEdit(tx)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
-                        </DropdownMenuItem>
-                        <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onDelete(tx); }}>
-                                <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
-                                <span className="text-destructive">Eliminar</span>
+                <AlertDialog>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => onEdit(tx)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Editar
                             </DropdownMenuItem>
-                        </AlertDialogTrigger>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                             <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" /> 
+                                    <span>Eliminar</span>
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro de eliminar esta transacción?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción es irreversible. El saldo de la sucursal se ajustará automáticamente para reflejar la eliminación de este movimiento.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(tx)}>Eliminar</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             )}
         </div>
     );
@@ -187,17 +201,11 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         setTransactionDialogOpen(true);
     };
 
-    const handleDeleteClick = (tx: SucursalTransaction) => {
-        setTransactionToDelete(tx);
-    };
-
-    const confirmDelete = async () => {
-        if (!transactionToDelete) return;
+    const confirmDelete = async (tx: SucursalTransaction) => {
         try {
-            await deleteSucursalTransaction(transactionToDelete.id);
+            await deleteSucursalTransaction(tx.id);
             toast({ title: "Éxito", description: "Transacción eliminada." });
             await fetchData();
-            setTransactionToDelete(null);
         } catch (e: any) {
             toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo eliminar la transacción." });
         }
@@ -388,27 +396,12 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      {filteredTransactions.length > 0 ? filteredTransactions.map(tx => (
-                        <TransactionRow key={tx.id} tx={tx} onEdit={handleEditClick} onDelete={handleDeleteClick} canEditDelete={canEditDelete} />
+                        <TransactionRow key={tx.id} tx={tx} onEdit={handleEditClick} onDelete={confirmDelete} canEditDelete={canEditDelete} />
                      )) : (
                         <div className="text-center py-10 text-muted-foreground">No hay transacciones para el rango de fechas seleccionado.</div>
                      )}
                 </CardContent>
             </Card>
-
-            <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro de eliminar esta transacción?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción es irreversible. El saldo de la sucursal se ajustará automáticamente para reflejar la eliminación de este movimiento.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
 
             <SucursalTransactionDialog
                 isOpen={isTransactionDialogOpen}
