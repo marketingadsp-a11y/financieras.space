@@ -272,7 +272,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
     const { sucursalId, type, amount, userPerformed, description, category, executive } = params;
     
     const sucursalRef = doc(db, "sucursales", sucursalId);
-    const transactionRef = doc(sucursalTransactionsCollectionRef);
+    const sucursalTransactionRef = doc(sucursalTransactionsCollectionRef);
 
     await runTransaction(db, async (transaction) => {
         // --- ALL READS FIRST ---
@@ -292,26 +292,52 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         }
 
         // --- ALL WRITES LAST ---
+        // 1. Update Sucursal Balance
         const updates: Partial<Sucursal> = {};
-        if (type === 'expense') {
+        if (type === 'expense' || type === 'transfer_to_central') {
             updates.currentBalance = sucursalData.currentBalance - amount;
         } else if (type === 'deposit') {
             updates.currentBalance = sucursalData.currentBalance + amount;
-        } else if (type === 'transfer_to_central') {
-            updates.currentBalance = sucursalData.currentBalance - amount;
-            if (centralAccountData) {
-                const newCentralBalance = centralAccountData.currentBalance + amount;
-                const newTotalBranchBalance = centralAccountData.totalBranchBalance - amount;
-                transaction.update(centralAccountRef, { 
-                    currentBalance: newCentralBalance,
-                    totalBranchBalance: newTotalBranchBalance,
-                });
-            }
         }
-        
         transaction.update(sucursalRef, updates);
 
-        const newTransactionData: Partial<Omit<SucursalTransaction, 'id'|'date'>> & { date: Timestamp } = {
+        // 2. Update Central Account Totals
+        if (centralAccountData) {
+            let newCentralBalance = centralAccountData.currentBalance;
+            let newTotalBranchBalance = centralAccountData.totalBranchBalance;
+
+            if (type === 'deposit') {
+                newTotalBranchBalance += amount;
+            } else if (type === 'expense') {
+                newTotalBranchBalance -= amount;
+            } else if (type === 'transfer_to_central') {
+                newCentralBalance += amount; // Add money back to central
+                newTotalBranchBalance -= amount; // Reduce from what's in branches
+            }
+
+            transaction.update(centralAccountRef, { 
+                currentBalance: newCentralBalance,
+                totalBranchBalance: newTotalBranchBalance,
+            });
+            
+            // 3. Create a CentralAccountTransaction if it's a transfer to central
+            if (type === 'transfer_to_central') {
+                const centralTransactionRef = doc(centralAccountTransactionsCollectionRef);
+                const centralTxData = {
+                    accountId: sucursalData.prefix,
+                    type: 'deposit' as const, // It's a deposit for the central account
+                    amount: amount,
+                    date: Timestamp.now(),
+                    userPerformed,
+                    description: `Transferencia recibida de ${sucursalData.name}`,
+                    from: sucursalId,
+                };
+                transaction.set(centralTransactionRef, centralTxData);
+            }
+        }
+
+        // 4. Create the Sucursal Transaction log
+        const newSucursalTransactionData: Partial<Omit<SucursalTransaction, 'id'|'date'>> & { date: Timestamp } = {
             sucursalId,
             type,
             amount,
@@ -319,20 +345,12 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             description,
             date: Timestamp.now()
         };
-
-        // Clean up undefined optional fields before saving
-        if (category) newTransactionData.category = category;
-        if (executive) newTransactionData.executive = executive;
-        
-        transaction.set(transactionRef, newTransactionData);
-
-        if ((type === 'deposit' || type === 'expense') && centralAccountData) {
-            const change = type === 'deposit' ? amount : -amount;
-            const newTotalBalance = centralAccountData.totalBranchBalance + change;
-            transaction.update(centralAccountRef, { totalBranchBalance: newTotalBalance });
-        }
+        if (category) newSucursalTransactionData.category = category;
+        if (executive) newSucursalTransactionData.executive = executive;
+        transaction.set(sucursalTransactionRef, newSucursalTransactionData);
     });
 }
+
 
 export async function getSucursalStats(sucursalId: string) {
     const q = query(
@@ -399,8 +417,8 @@ export async function deleteSucursalTransaction(transactionId: string): Promise<
         
         let newCentralBalance = centralAccountData.currentBalance;
         if (txData.type === 'transfer_to_central') {
-            newCentralBalance += txData.amount; // Add back to central
-            newCentralTotalBranchBalance += txData.amount; // Add back to branch total as it's no longer transferred
+            newCentralBalance -= txData.amount; // Remove the money that was previously transferred back
+            // The total branch balance is already handled by adding back the amount to the sucursal
         }
 
         transaction.update(centralAccountRef, { 
