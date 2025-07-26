@@ -417,8 +417,9 @@ export async function deleteSucursalTransaction(transactionId: string): Promise<
         } else if (txData.type === 'expense') {
             newCentralTotalBranchBalance += txData.amount;
         } else if (txData.type === 'transfer_to_central') {
-            newCentralTotalBranchBalance += txData.amount; // Revert the reduction
-            newCentralBalance -= txData.amount; // Revert the deposit
+            // Revert the effects on central account
+            newCentralTotalBranchBalance += txData.amount; // Add back to total branch balance
+            newCentralBalance -= txData.amount; // Remove from central's available cash
         }
 
         transaction.update(centralAccountRef, { 
