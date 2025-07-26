@@ -223,12 +223,6 @@ export function IncomeExpensesDashboard() {
                 icon={Send}
                 description="Total histórico enviado a sucursales."
             />
-             <StatCard 
-                title="Balance en Sucursales" 
-                value={`$${(displayAccount.totalBranchBalance || 0).toLocaleString('es-MX')}`} 
-                icon={Landmark}
-                description="Suma de balances de todas las sucursales."
-            />
         </div>
       </div>
 
