@@ -301,7 +301,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             updates.currentBalance = sucursalData.currentBalance - amount;
             if (centralAccountData) {
                 const newCentralBalance = (centralAccountData.currentBalance || 0) + amount;
-                const newAssignedCapital = (centralAccountData.assignedCapital || 0) - amount;
+                const newAssignedCapital = (centralAccountData.assignedCapital || 0); // No change on return
                 const newTotalBranchBalance = (centralAccountData.totalBranchBalance || 0) - amount;
                 transaction.update(centralAccountRef, { 
                     currentBalance: newCentralBalance, 
@@ -402,8 +402,8 @@ export async function deleteSucursalTransaction(transactionId: string): Promise<
         let newCentralBalance = centralAccountData.currentBalance;
         let newAssignedCapital = centralAccountData.assignedCapital;
         if (txData.type === 'transfer_to_central') {
-            newCentralBalance += txData.amount;
-            newAssignedCapital += txData.amount; // Revert the reduction in assigned capital
+            newCentralBalance -= txData.amount;
+            newTotalBranchBalance += txData.amount;
         }
 
         transaction.update(centralAccountRef, { 
