@@ -12,9 +12,12 @@ import {
   where,
   getDoc,
   Timestamp,
+  orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry } from "@/lib/data";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const sucursalesCollectionRef = collection(db, "flujo_sucursales");
 const centralAccountsCollectionRef = collection(db, "flujo_central_accounts");
@@ -88,4 +91,48 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id' | 'date'>) 
         date: Timestamp.now(),
     };
     await addDoc(entriesCollectionRef, dataWithTimestamp);
+}
+
+export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Date): Promise<{ entries: FlujoEntry[], dateRange: string }> {
+    // Saturday is 6, Sunday is 0. We want the week to start on Saturday.
+    const dayOfWeek = currentDate.getDay(); // 0 (Sun) - 6 (Sat)
+    
+    // Days to subtract to get to the last Saturday.
+    // If today is Sunday (0), subtract 1 day.
+    // If today is Monday (1), subtract 2 days. ...
+    // If today is Saturday (6), subtract 0 days.
+    const daysSinceSaturday = (dayOfWeek + 1) % 7;
+    
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - daysSinceSaturday);
+    startOfWeek.setHours(0, 0, 0, 0); // Start of the day
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999); // End of the day
+
+    const startTimestamp = Timestamp.fromDate(startOfWeek);
+    const endTimestamp = Timestamp.fromDate(endOfWeek);
+
+    const q = query(
+        entriesCollectionRef,
+        where("sucursalId", "==", sucursalId),
+        where("date", ">=", startTimestamp),
+        where("date", "<=", endTimestamp),
+        orderBy("date", "asc")
+    );
+
+    const snapshot = await getDocs(q);
+    const entries = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            ...data,
+            id: doc.id,
+            date: (data.date as Timestamp).toDate()
+        }
+    }) as FlujoEntry[];
+
+    const dateRange = `Semana del Sábado ${format(startOfWeek, 'dd MMM', { locale: es })} al Viernes ${format(endOfWeek, 'dd MMM', { locale: es })}`;
+
+    return { entries, dateRange };
 }

@@ -319,7 +319,7 @@ export type FlujoCentralAccount = {
 export type FlujoEntry = {
     id: string;
     sucursalId: string;
-    date: Timestamp;
+    date: Date; // Changed from Timestamp to Date for easier use in components
     fondo: number;
     debeEntregar: number;
     falla: number;
