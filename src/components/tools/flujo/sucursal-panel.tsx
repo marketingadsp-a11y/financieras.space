@@ -66,7 +66,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       try {
           const [sucursalData, { entries, dateRange }] = await Promise.all([
               getFlujoSucursalById(sucursalId),
-              getFlujoEntriesForWeek(sucursalId, new Date())
+              getFlujoEntriesForWeek(sucursalId)
           ]);
           setSucursal(sucursalData);
           setWeeklyEntries(entries);

@@ -14,6 +14,7 @@ import {
   Timestamp,
   orderBy,
   runTransaction,
+  limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry } from "@/lib/data";
@@ -119,48 +120,25 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
     });
 }
 
-export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Date): Promise<{ entries: FlujoEntry[], dateRange: string }> {
-    // Get ALL entries for the sucursal and filter in code
-    const allEntriesQuery = query(entriesCollectionRef, where("sucursalId", "==", sucursalId), orderBy("date", "desc"));
-    const snapshot = await getDocs(allEntriesQuery);
+export async function getFlujoEntriesForWeek(sucursalId: string): Promise<{ entries: FlujoEntry[], dateRange: string }> {
+    const q = query(
+        entriesCollectionRef,
+        where("sucursalId", "==", sucursalId),
+        orderBy("date", "desc"),
+        limit(7) 
+    );
+    const snapshot = await getDocs(q);
 
-    const allEntries = snapshot.docs.map(doc => {
+    const entries = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
             ...data,
             id: doc.id,
             date: (data.date as Timestamp).toDate()
         }
-    }) as FlujoEntry[];
-    
-    const today = currentDate;
-    today.setHours(0, 0, 0, 0);
+    }).sort((a, b) => a.date.getTime() - b.date.getTime()) as FlujoEntry[];
 
-    const dayOfWeek = today.getDay(); // Sunday is 0, Saturday is 6
-
-    // Calculate the start of the week (last Saturday)
-    const startOfWeek = new Date(today);
-    // If today is Sunday (0), we subtract 1 day to get to Saturday.
-    // If today is Monday (1), we subtract 2 days.
-    // ...
-    // If today is Saturday (6), we subtract 0 days.
-    const daysToSubtract = (dayOfWeek + 1) % 7;
-    startOfWeek.setDate(today.getDate() - daysToSubtract);
-
-    // Calculate the end of the week (coming Friday)
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-    
-    const entries = allEntries
-        .filter(entry => {
-            const entryDate = entry.date;
-            return entryDate >= startOfWeek && entryDate <= endOfWeek;
-        })
-        .sort((a, b) => a.date.getTime() - b.date.getTime());
-
-
-    const dateRange = `Semana del Sábado ${format(startOfWeek, 'dd MMM', { locale: es })} al Viernes ${format(endOfWeek, 'dd MMM', { locale: es })}`;
+    const dateRange = "Últimos 7 días de registros";
 
     return { entries, dateRange };
 }
