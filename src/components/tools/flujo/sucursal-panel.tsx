@@ -85,7 +85,9 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleFormSubmit = async (data: Omit<FlujoEntry, 'id' | 'sucursalId' | 'date'>) => {
     setIsSubmitting(true);
     try {
-        await addFlujoEntry({ ...data, sucursalId });
+        const today = new Date();
+        const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        await addFlujoEntry({ ...data, sucursalId, date: todayUTC });
         toast({ title: 'Éxito', description: 'Registro guardado correctamente.' });
         fetchData(); // Refresh data to show new entry in history
     } catch(e) {

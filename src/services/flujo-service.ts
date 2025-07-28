@@ -13,6 +13,7 @@ import {
   getDoc,
   Timestamp,
   orderBy,
+  runTransaction,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry } from "@/lib/data";
@@ -85,36 +86,54 @@ export async function getFlujoSummary(prefix: string) {
 }
 
 // --- Flujo Entry Functions ---
-export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id' | 'date'>) {
-    const dataWithTimestamp = {
-        ...entryData,
-        date: Timestamp.now(),
-    };
-    await addDoc(entriesCollectionRef, dataWithTimestamp);
+export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
+    
+    await runTransaction(db, async (transaction) => {
+        const sucursalRef = doc(db, 'flujo_sucursales', entryData.sucursalId);
+        const sucursalDoc = await transaction.get(sucursalRef);
+
+        if (!sucursalDoc.exists()) {
+            throw new Error('La sucursal no existe.');
+        }
+
+        const sucursalData = sucursalDoc.data() as FlujoSucursal;
+        
+        // Calculate new balance
+        let newBalance = sucursalData.currentBalance;
+        newBalance += entryData.fondo;
+        newBalance -= entryData.debeEntregar;
+        newBalance += entryData.recuperado;
+        newBalance -= entryData.salientes;
+        newBalance += entryData.entrantes;
+
+        // Set the new entry
+        const entryRef = doc(entriesCollectionRef);
+        const dataWithTimestamp = {
+            ...entryData,
+            date: Timestamp.fromDate(entryData.date),
+        };
+        transaction.set(entryRef, dataWithTimestamp);
+
+        // Update sucursal balance
+        transaction.update(sucursalRef, { currentBalance: newBalance });
+    });
 }
 
 export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Date): Promise<{ entries: FlujoEntry[], dateRange: string }> {
-    // Ensure we are working with UTC dates to avoid timezone issues
     const today = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()));
+    const dayOfWeek = today.getUTCDay(); // 0 (Sun) to 6 (Sat)
 
-    // Day of week in UTC: 0 (Sun) to 6 (Sat)
-    const dayOfWeek = today.getUTCDay();
-
-    // Calculate start of the week (last Saturday)
-    // If today is Sunday (0), we need to go back 1 day to Saturday.
-    // If today is Monday (1), we need to go back 2 days.
-    // If today is Saturday (6), we need to go back 0 days.
-    // The formula is (dayOfWeek + 1) % 7
-    const daysToSubtractForSaturday = (dayOfWeek + 1) % 7;
+    // Calculate start of the week (most recent Saturday)
+    const daysToSubtract = (dayOfWeek + 1) % 7;
     const startOfWeek = new Date(today);
-    startOfWeek.setUTCDate(today.getUTCDate() - daysToSubtractForSaturday);
+    startOfWeek.setUTCDate(today.getUTCDate() - daysToSubtract);
     startOfWeek.setUTCHours(0, 0, 0, 0);
 
-    // Calculate end of the week (this coming Friday)
+    // Calculate end of the week (upcoming Friday)
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
     endOfWeek.setUTCHours(23, 59, 59, 999);
-    
+
     const startTimestamp = Timestamp.fromDate(startOfWeek);
     const endTimestamp = Timestamp.fromDate(endOfWeek);
 
