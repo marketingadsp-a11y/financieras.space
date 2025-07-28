@@ -162,6 +162,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const { toast } = useToast();
   const [sucursal, setSucursal] = React.useState<FlujoSucursal | null>(null);
   const [weeklySummary, setWeeklySummary] = React.useState<FlujoWeeklySummary | null>(null);
+  const [weeklyEntries, setWeeklyEntries] = React.useState<FlujoEntry[]>([]);
   const [weekDateRange, setWeekDateRange] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -175,9 +176,10 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
           if (!sucursalData) throw new Error("No se encontró la sucursal.");
           setSucursal(sucursalData);
 
-          const { summary, dateRange } = await getFlujoWeeklySummary(sucursalId);
+          const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId);
           setWeeklySummary(summary);
           setWeekDateRange(dateRange);
+          setWeeklyEntries(entries);
 
       } catch (e: any) {
           toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal o su historial.' });
@@ -292,7 +294,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <WeeklyHistoryTable entries={weeklySummary?.entries || []} />
+                <WeeklyHistoryTable entries={weeklyEntries} />
             </CardContent>
         </Card>
         
