@@ -95,19 +95,20 @@ export async function getFlujoSummary(prefix: string) {
 
 // Helper function to get week boundaries
 const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string } => {
-    const dayOfWeek = date.getDay(); // Sunday = 0, Saturday = 6
-    const start = new Date(date);
-    start.setDate(date.getDate() - dayOfWeek - 1); // Go back to last Saturday
-    if (dayOfWeek === 6) { // If today is Saturday
-        start.setDate(date.getDate());
-    }
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
+    const dayOfWeek = date.getUTCDay(); // Sunday = 0, Saturday = 6
     
-    // ISO week number might not align perfectly with Sat-Fri, but it's a good way to get a unique week identifier for the year.
+    // Calculate days to subtract to get to the last Saturday
+    // If today is Sunday (0), subtract 1 day. If Monday (1), subtract 2 days... If Saturday (6), subtract 0 days.
+    const daysToSubtract = (dayOfWeek + 1) % 7;
+    
+    const start = new Date(date);
+    start.setUTCDate(date.getUTCDate() - daysToSubtract);
+    start.setUTCHours(0, 0, 0, 0);
+    
+    const end = new Date(start);
+    end.setUTCDate(start.getUTCDate() + 6);
+    end.setUTCHours(23, 59, 59, 999);
+
     // Using year and week number for the ID.
     const year = getYear(date);
     const weekNumber = getISOWeek(date);
@@ -117,8 +118,10 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
 };
 
 export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
+    const entryDate = new Date(); // Use current date for the entry
+    const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(entryDate);
+    
     await runTransaction(db, async (transaction) => {
-        const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(entryData.date);
         const summaryId = `${entryData.sucursalId}_${weekId}`;
         const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
         
@@ -133,7 +136,7 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
         
         // Add the entry
         const entryRef = doc(entriesCollectionRef);
-        const dataWithTimestamp = { ...entryData, date: Timestamp.fromDate(entryData.date), id: entryRef.id };
+        const dataWithTimestamp = { ...entryData, date: Timestamp.fromDate(entryDate), id: entryRef.id };
         transaction.set(entryRef, dataWithTimestamp);
 
         // Update or create weekly summary
@@ -142,8 +145,8 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
             const newSummary: FlujoWeeklySummary = {
                 id: summaryId,
                 sucursalId: entryData.sucursalId,
-                weekStartDate,
-                weekEndDate,
+                weekStartDate: weekStartDate,
+                weekEndDate: weekEndDate,
                 totalCobradoSemanal: entryData.totalCobrado,
                 comisiones: 0,
                 gastos: [],
@@ -161,22 +164,7 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
 export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summary: FlujoWeeklySummary | null, dateRange: string, entries: FlujoEntry[] }> {
     const today = new Date();
     const { start, end, weekId } = getWeekBoundaries(today);
-    const summaryId = `${sucursalId}_${weekId}`;
-    const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
     
-    const summarySnap = await getDoc(summaryRef);
-    let summary: FlujoWeeklySummary | null = null;
-    if (summarySnap.exists()) {
-        const data = summarySnap.data();
-        summary = {
-            ...data,
-            id: summarySnap.id,
-            weekStartDate: (data.weekStartDate as Timestamp).toDate(),
-            weekEndDate: (data.weekEndDate as Timestamp).toDate(),
-            gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
-        } as FlujoWeeklySummary;
-    }
-
     const q = query(
         entriesCollectionRef,
         where("sucursalId", "==", sucursalId),
@@ -190,6 +178,36 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
         id: docSnap.id,
         date: (docSnap.data().date as Timestamp).toDate()
     })) as FlujoEntry[];
+    
+    const summaryId = `${sucursalId}_${weekId}`;
+    const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+    
+    const summarySnap = await getDoc(summaryRef);
+    let summary: FlujoWeeklySummary | null = null;
+    if (summarySnap.exists()) {
+        const data = summarySnap.data();
+        summary = {
+            ...data,
+            id: summarySnap.id,
+            weekStartDate: (data.weekStartDate as Timestamp).toDate(),
+            weekEndDate: (data.weekEndDate as Timestamp).toDate(),
+            gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
+            entries, // Embed the fetched entries into the summary object for the component
+        } as FlujoWeeklySummary;
+    } else {
+        // If no summary doc exists, still return the entries and date range
+        summary = {
+            id: summaryId,
+            sucursalId,
+            weekStartDate: start,
+            weekEndDate: end,
+            totalCobradoSemanal: entries.reduce((acc, e) => acc + e.totalCobrado, 0),
+            comisiones: 0,
+            gastos: [],
+            entries,
+        } as any;
+    }
+
 
     const dateRange = `Semana del ${format(start, "dd 'de' LLLL", { locale: es })} al ${format(end, "dd 'de' LLLL", { locale: es })}`;
 
