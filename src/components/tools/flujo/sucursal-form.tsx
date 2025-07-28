@@ -42,6 +42,10 @@ export function FlujoSucursalForm({ onSubmit, sucursal, isSubmitting }: Sucursal
     const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
         onSubmit(values);
     };
+    
+    const handleUpperCase = (e: React.ChangeEvent<HTMLInputElement>) => {
+      e.target.value = e.target.value.toUpperCase();
+    };
 
     return (
         <Form {...form}>
@@ -53,7 +57,12 @@ export function FlujoSucursalForm({ onSubmit, sucursal, isSubmitting }: Sucursal
                         <FormItem>
                             <FormLabel>Nombre de la Sucursal</FormLabel>
                             <FormControl>
-                                <Input placeholder="Ej. Sucursal Principal" {...field} />
+                                <Input 
+                                    placeholder="Ej. SUCURSAL PRINCIPAL" 
+                                    {...field}
+                                    onInput={handleUpperCase}
+                                    style={{ textTransform: 'uppercase' }}
+                                />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -66,7 +75,12 @@ export function FlujoSucursalForm({ onSubmit, sucursal, isSubmitting }: Sucursal
                         <FormItem>
                             <FormLabel>Nombre del Encargado</FormLabel>
                             <FormControl>
-                                <Input placeholder="Ej. Responsable de Sucursal" {...field} />
+                                <Input 
+                                    placeholder="Ej. RESPONSABLE DE SUCURSAL" 
+                                    {...field}
+                                    onInput={handleUpperCase}
+                                    style={{ textTransform: 'uppercase' }}
+                                />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
