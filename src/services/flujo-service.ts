@@ -120,26 +120,8 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
 }
 
 export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Date): Promise<{ entries: FlujoEntry[], dateRange: string }> {
-    const today = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()));
-    
-    // Day of week: 0 for Sunday, 6 for Saturday. We want to treat Saturday as the start (day 6).
-    const dayOfWeek = today.getUTCDay(); 
-    
-    // Days to subtract to get to the last Saturday
-    // If today is Saturday (6), subtract 0. If Sunday (0), subtract 1. If Monday (1), subtract 2...
-    const daysSinceSaturday = (dayOfWeek + 1) % 7;
-
-    const startOfWeek = new Date(today);
-    startOfWeek.setUTCDate(today.getUTCDate() - daysSinceSaturday);
-    startOfWeek.setUTCHours(0, 0, 0, 0);
-
-    // End of the week is 6 days after the start (Friday)
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
-    endOfWeek.setUTCHours(23, 59, 59, 999);
-    
     // Get ALL entries for the sucursal and filter in code
-    const allEntriesQuery = query(entriesCollectionRef, where("sucursalId", "==", sucursalId));
+    const allEntriesQuery = query(entriesCollectionRef, where("sucursalId", "==", sucursalId), orderBy("date", "desc"));
     const snapshot = await getDocs(allEntriesQuery);
 
     const allEntries = snapshot.docs.map(doc => {
@@ -150,6 +132,21 @@ export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Da
             date: (data.date as Timestamp).toDate()
         }
     }) as FlujoEntry[];
+
+    const today = currentDate;
+    today.setHours(0, 0, 0, 0);
+
+    const dayOfWeek = today.getDay(); // 0 (Sun) to 6 (Sat)
+    
+    const daysSinceSaturday = (dayOfWeek < 6) ? dayOfWeek + 1 : 0;
+    
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - daysSinceSaturday);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
 
     const entries = allEntries
         .filter(entry => {
