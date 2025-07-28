@@ -1,6 +1,6 @@
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -163,6 +163,14 @@ export const allTools: Tool[] = [
     href: "/tools/loan-control",
     icon: Files,
     color: '#3b82f6'
+  },
+  {
+    id: "flujo",
+    name: "Flujo",
+    description: "Visualiza y gestiona el flujo de operaciones y procesos.",
+    href: "/tools/flujo",
+    icon: Workflow,
+    color: '#8b5cf6'
   }
 ];
 

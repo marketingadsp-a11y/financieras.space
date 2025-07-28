@@ -340,6 +340,7 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
   const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
+  const isFlujoPath = pathname.startsWith('/tools/flujo');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -522,6 +523,26 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
         return <LoanControlNav />;
     }
 
+    if (isFlujoPath) {
+        return (
+            <SidebarGroup>
+                <SidebarGroupLabel>FLUJO</SidebarGroupLabel>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <Link href="/tools/flujo">
+                            <SidebarMenuButton asChild isActive={pathname === "/tools/flujo"} tooltip="Dashboard de Flujo">
+                                <span>
+                                    <LayoutDashboard />
+                                    <span>Dashboard</span>
+                                </span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroup>
+        )
+    }
+
 
   const renderAdminNav = () => {
         const accessibleUserTools = customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
@@ -685,12 +706,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isDailyControlPath = pathname.startsWith('/tools/daily-control');
   const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
+  const isFlujoPath = pathname.startsWith('/tools/flujo');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return customTools.find(tool => tool.id === 'cartera-vencida');
     if (isDailyControlPath) return customTools.find(tool => tool.id === 'daily-control');
     if (isLoanControlPath) return customTools.find(tool => tool.id === 'loan-control');
     if (isIncomeExpensesPath) return customTools.find(tool => tool.id === 'income-expenses');
+    if (isFlujoPath) return customTools.find(tool => tool.id === 'flujo');
     return null;
   }
 
@@ -703,7 +726,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
-  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath) && !user.isSuperAdmin;
+  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath) && !user.isSuperAdmin;
 
   return (
     <SidebarProvider>
