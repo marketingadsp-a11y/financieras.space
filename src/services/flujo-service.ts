@@ -94,19 +94,18 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id' | 'date'>) 
 }
 
 export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Date): Promise<{ entries: FlujoEntry[], dateRange: string }> {
-    const dayOfWeek = currentDate.getDay(); // 0 (Sun) - 6 (Sat)
+    const dayOfWeek = currentDate.getUTCDay(); // 0 (Sun) - 6 (Sat)
     
-    // Calculate days to subtract to get to the last Saturday
-    // If today is Sunday (0), subtract 1 day. If Monday (1), subtract 2... If Saturday (6), subtract 0.
-    const daysSinceSaturday = (dayOfWeek + 1) % 7;
-    
+    // Adjust to make Saturday the start of the week (Saturday = 0)
+    const adjustedDay = (dayOfWeek + 1) % 7; 
+
     const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - daysSinceSaturday);
-    startOfWeek.setHours(0, 0, 0, 0);
+    startOfWeek.setUTCDate(currentDate.getUTCDate() - adjustedDay);
+    startOfWeek.setUTCHours(0, 0, 0, 0);
 
     const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+    endOfWeek.setUTCHours(23, 59, 59, 999);
 
     const startTimestamp = Timestamp.fromDate(startOfWeek);
     const endTimestamp = Timestamp.fromDate(endOfWeek);
