@@ -1,29 +1,241 @@
+
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Workflow } from "lucide-react";
+import * as React from "react";
+import { useAuth } from "@/context/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import type { FlujoSucursal, FlujoCentralAccount } from "@/lib/data";
+import { getFlujoSummary, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal } from "@/services/flujo-service";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { FlujoSucursalForm } from "./sucursal-form";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 
-export function FlujoDashboard() {
+const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <Icon className="h-4 w-4 text-muted-foreground" />
+    </CardHeader>
+    <CardContent>
+      <div className="text-3xl font-bold">
+        ${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+      </div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </CardContent>
+  </Card>
+);
+
+const SucursalCard = ({ sucursal, onEdit, onDelete }: { sucursal: FlujoSucursal, onEdit: (s: FlujoSucursal) => void, onDelete: (s: FlujoSucursal) => void }) => {
   return (
-    <Card>
+    <Card className="group flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
       <CardHeader>
-        <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg w-fit">
-                <Workflow className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-                <CardTitle>Herramienta de Flujo</CardTitle>
-                <CardDescription>
-                Bienvenido a la nueva herramienta de Flujo. Aquí podrás visualizar y gestionar tus procesos.
-                </CardDescription>
-            </div>
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                  <Building className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                  <CardTitle>{sucursal.name}</CardTitle>
+                  <CardDescription>{sucursal.manager}</CardDescription>
+              </div>
+          </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(sucursal)}><Edit className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(sucursal)}><Trash2 className="h-4 w-4" /></Button>
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-center py-10 text-muted-foreground">
-          <p>El desarrollo de esta herramienta está en curso.</p>
-        </div>
+      <CardContent className="flex-grow">
+          <div className="rounded-lg bg-muted p-4">
+              <p className="text-xs text-muted-foreground tracking-widest">FONDO ACTUAL</p>
+              <p className="text-4xl font-bold text-primary">${sucursal.currentBalance.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+          </div>
       </CardContent>
+      <CardFooter>
+          <Button asChild variant="outline" className="w-full">
+            <p>Ir al Panel <ArrowRight className="ml-2 h-4 w-4" /></p>
+          </Button>
+      </CardFooter>
     </Card>
+  );
+};
+
+
+export function FlujoDashboard() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [account, setAccount] = React.useState<FlujoCentralAccount | null>(null);
+  const [sucursales, setSucursales] = React.useState<FlujoSucursal[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  
+  // Form and Dialog state
+  const [isFormOpen, setFormOpen] = React.useState(false);
+  const [editingSucursal, setEditingSucursal] = React.useState<FlujoSucursal | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
+  // Delete dialog state
+  const [sucursalToDelete, setSucursalToDelete] = React.useState<FlujoSucursal | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
+
+  const fetchData = React.useCallback(async () => {
+    if (!user?.prefix) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const summary = await getFlujoSummary(user.prefix);
+      setAccount(summary.centralAccount);
+      setSucursales(summary.sucursales);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de Flujo.'});
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.prefix, toast]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleFormSubmit = async (data: Omit<FlujoSucursal, 'id' | 'prefix' | 'currentBalance'>) => {
+    if (!user?.prefix) return;
+    setIsSubmitting(true);
+    try {
+      if (editingSucursal) {
+        await updateFlujoSucursal(editingSucursal.id, data);
+        toast({ title: 'Éxito', description: 'Sucursal actualizada.' });
+      } else {
+        await addFlujoSucursal({ ...data, prefix: user.prefix });
+        toast({ title: 'Éxito', description: 'Sucursal creada.' });
+      }
+      closeForm();
+      fetchData();
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la sucursal.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleDelete = async () => {
+    if (!sucursalToDelete) return;
+    try {
+        await deleteFlujoSucursal(sucursalToDelete.id);
+        toast({ title: 'Éxito', description: 'Sucursal eliminada.' });
+        closeDeleteDialog();
+        fetchData();
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo eliminar la sucursal.' });
+    }
+  }
+  
+  const openForm = (sucursal: FlujoSucursal | null) => {
+    setEditingSucursal(sucursal);
+    setFormOpen(true);
+  }
+  const closeForm = () => {
+    setEditingSucursal(null);
+    setFormOpen(false);
+  }
+  
+  const openDeleteDialog = (sucursal: FlujoSucursal) => {
+    setSucursalToDelete(sucursal);
+  }
+  const closeDeleteDialog = () => {
+    setSucursalToDelete(null);
+    setDeleteConfirmationText('');
+  }
+
+  if (isLoading) {
+    return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de Flujo...</div>;
+  }
+  
+  const displayAccount = account || { totalEfectivo: 0, cajaChica: 0 };
+  const expectedConfirmationText = sucursalToDelete ? `BORRAR ${sucursalToDelete.name}` : '';
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Panel de Flujo</h1>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <StatCard title="Total Efectivo" value={displayAccount.totalEfectivo} icon={DollarSign} description="Suma de todo el dinero disponible." />
+        <StatCard title="Caja Chica" value={displayAccount.cajaChica} icon={PiggyBank} description="Dinero disponible en la cuenta principal." />
+      </div>
+
+      <Card>
+        <CardHeader>
+            <div className="flex justify-between items-center">
+                <div>
+                    <CardTitle>Sucursales de Flujo</CardTitle>
+                    <CardDescription>Gestiona las diferentes sucursales y sus fondos.</CardDescription>
+                </div>
+                 <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                    <DialogTrigger asChild>
+                        <Button onClick={() => openForm(null)}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Registrar Sucursal
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{editingSucursal ? 'Editar' : 'Registrar'} Sucursal</DialogTitle>
+                        </DialogHeader>
+                        <FlujoSucursalForm 
+                            onSubmit={handleFormSubmit}
+                            sucursal={editingSucursal}
+                            isSubmitting={isSubmitting}
+                        />
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </CardHeader>
+        <CardContent>
+            {sucursales.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {sucursales.map(s => <SucursalCard key={s.id} sucursal={s} onEdit={openForm} onDelete={openDeleteDialog} />)}
+                </div>
+            ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                    <p>No hay sucursales creadas para esta herramienta.</p>
+                </div>
+            )}
+        </CardContent>
+      </Card>
+      
+      <AlertDialog open={!!sucursalToDelete} onOpenChange={(open) => !open && closeDeleteDialog()}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitleComponent>¿Estás seguro de eliminar esta sucursal?</AlertDialogTitleComponent>
+                <AlertDialogDescription>
+                    Esta acción es irreversible y eliminará la sucursal. El balance de la sucursal no se devolverá a la caja chica.
+                    Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input
+                value={deleteConfirmationText}
+                onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                placeholder={expectedConfirmationText}
+                autoFocus
+            />
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDelete}
+                    disabled={deleteConfirmationText !== expectedConfirmationText}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    Sí, eliminar sucursal
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

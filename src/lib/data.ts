@@ -299,3 +299,19 @@ export type TransactionCategory = {
   icon: string;
   type: 'income' | 'expense';
 };
+
+// --- Flujo Tool Models ---
+export type FlujoSucursal = {
+    id: string;
+    prefix: string;
+    name: string;
+    manager: string;
+    currentBalance: number;
+};
+
+export type FlujoCentralAccount = {
+    id: string; // Corresponds to the prefix
+    prefix: string;
+    totalEfectivo: number;
+    cajaChica: number;
+};
