@@ -125,7 +125,7 @@ export async function getFlujoEntriesForWeek(sucursalId: string): Promise<{ entr
         entriesCollectionRef,
         where("sucursalId", "==", sucursalId),
         orderBy("date", "desc"),
-        limit(7) 
+        limit(7)
     );
     const snapshot = await getDocs(q);
 
