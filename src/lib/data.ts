@@ -315,3 +315,15 @@ export type FlujoCentralAccount = {
     totalEfectivo: number;
     cajaChica: number;
 };
+
+export type FlujoEntry = {
+    id: string;
+    sucursalId: string;
+    date: Timestamp;
+    fondo: number;
+    debeEntregar: number;
+    falla: number;
+    recuperado: number;
+    salientes: number;
+    entrantes: number;
+};

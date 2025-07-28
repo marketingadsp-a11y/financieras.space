@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { FlujoSucursalForm } from "./sucursal-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
 const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
   <Card>
@@ -57,7 +58,9 @@ const SucursalCard = ({ sucursal, onEdit, onDelete }: { sucursal: FlujoSucursal,
       </CardContent>
       <CardFooter>
           <Button asChild variant="outline" className="w-full">
-            <p>Ir al Panel <ArrowRight className="ml-2 h-4 w-4" /></p>
+            <Link href={`/tools/flujo/sucursal/${sucursal.id}`}>
+                Ir al Panel <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
           </Button>
       </CardFooter>
     </Card>

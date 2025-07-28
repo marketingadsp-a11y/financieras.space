@@ -11,18 +11,29 @@ import {
   query,
   where,
   getDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { FlujoSucursal, FlujoCentralAccount } from "@/lib/data";
+import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry } from "@/lib/data";
 
 const sucursalesCollectionRef = collection(db, "flujo_sucursales");
 const centralAccountsCollectionRef = collection(db, "flujo_central_accounts");
+const entriesCollectionRef = collection(db, "flujo_entries");
 
 // --- Sucursal Functions ---
 export async function getFlujoSucursales(prefix: string): Promise<FlujoSucursal[]> {
   const q = query(sucursalesCollectionRef, where("prefix", "==", prefix));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as FlujoSucursal[];
+}
+
+export async function getFlujoSucursalById(id: string): Promise<FlujoSucursal | null> {
+    const docRef = doc(db, "flujo_sucursales", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return { ...docSnap.data(), id: docSnap.id } as FlujoSucursal;
+    }
+    return null;
 }
 
 export async function addFlujoSucursal(sucursalData: Omit<FlujoSucursal, 'id' | 'currentBalance'>): Promise<FlujoSucursal> {
@@ -68,4 +79,13 @@ export async function getFlujoSummary(prefix: string) {
   }
 
   return { centralAccount, sucursales };
+}
+
+// --- Flujo Entry Functions ---
+export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id' | 'date'>) {
+    const dataWithTimestamp = {
+        ...entryData,
+        date: Timestamp.now(),
+    };
+    await addDoc(entriesCollectionRef, dataWithTimestamp);
 }
