@@ -18,12 +18,12 @@ import { Loader2 } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 const formSchema = z.object({
-  fondo: z.coerce.number().min(0, "El valor debe ser positivo."),
-  debeEntregar: z.coerce.number().min(0, "El valor debe ser positivo."),
-  falla: z.coerce.number().min(0, "El valor debe ser positivo."),
-  recuperado: z.coerce.number().min(0, "El valor debe ser positivo."),
-  salientes: z.coerce.number().min(0, "El valor debe ser positivo."),
-  entrantes: z.coerce.number().min(0, "El valor debe ser positivo."),
+  fondo: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
+  debeEntregar: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
+  falla: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
+  recuperado: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
+  salientes: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
+  entrantes: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
 });
 
 type SucursalEntryFormProps = {
@@ -45,7 +45,8 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
     });
 
     const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
-        await onSubmit(values);
+        const totalCobrado = (values.fondo ?? 0) + (values.debeEntregar ?? 0) - (values.falla ?? 0) + (values.recuperado ?? 0) - (values.salientes ?? 0) + (values.entrantes ?? 0);
+        await onSubmit({ ...values, totalCobrado });
         form.reset();
     };
 
