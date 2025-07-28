@@ -122,35 +122,27 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
 export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Date): Promise<{ entries: FlujoEntry[], dateRange: string }> {
     const today = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()));
     
-    // Day of week: 0 for Sunday, 6 for Saturday
+    // Day of week: 0 for Sunday, 6 for Saturday. We want to treat Saturday as the start (day 6).
     const dayOfWeek = today.getUTCDay(); 
     
     // Days to subtract to get to the last Saturday
-    // If today is Saturday (6), subtract 0. If Sunday (0), subtract 1. If Monday (1), subtract 2.
-    const daysToSubtract = (dayOfWeek + 1) % 7;
+    // If today is Saturday (6), subtract 0. If Sunday (0), subtract 1. If Monday (1), subtract 2...
+    const daysSinceSaturday = (dayOfWeek + 1) % 7;
 
     const startOfWeek = new Date(today);
-    startOfWeek.setUTCDate(today.getUTCDate() - daysToSubtract);
+    startOfWeek.setUTCDate(today.getUTCDate() - daysSinceSaturday);
     startOfWeek.setUTCHours(0, 0, 0, 0);
 
     // End of the week is 6 days after the start (Friday)
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
     endOfWeek.setUTCHours(23, 59, 59, 999);
+    
+    // Get ALL entries for the sucursal and filter in code
+    const allEntriesQuery = query(entriesCollectionRef, where("sucursalId", "==", sucursalId));
+    const snapshot = await getDocs(allEntriesQuery);
 
-    const startTimestamp = Timestamp.fromDate(startOfWeek);
-    const endTimestamp = Timestamp.fromDate(endOfWeek);
-
-    const q = query(
-        entriesCollectionRef,
-        where("sucursalId", "==", sucursalId),
-        where("date", ">=", startTimestamp),
-        where("date", "<=", endTimestamp),
-        orderBy("date", "asc")
-    );
-
-    const snapshot = await getDocs(q);
-    const entries = snapshot.docs.map(doc => {
+    const allEntries = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
             ...data,
@@ -158,6 +150,14 @@ export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Da
             date: (data.date as Timestamp).toDate()
         }
     }) as FlujoEntry[];
+
+    const entries = allEntries
+        .filter(entry => {
+            const entryDate = entry.date;
+            return entryDate >= startOfWeek && entryDate <= endOfWeek;
+        })
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
+
 
     const dateRange = `Semana del Sábado ${format(startOfWeek, 'dd MMM', { locale: es })} al Viernes ${format(endOfWeek, 'dd MMM', { locale: es })}`;
 
