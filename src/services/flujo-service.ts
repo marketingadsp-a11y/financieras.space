@@ -132,22 +132,26 @@ export async function getFlujoEntriesForWeek(sucursalId: string, currentDate: Da
             date: (data.date as Timestamp).toDate()
         }
     }) as FlujoEntry[];
-
+    
     const today = currentDate;
     today.setHours(0, 0, 0, 0);
 
-    const dayOfWeek = today.getDay(); // 0 (Sun) to 6 (Sat)
-    
-    const daysSinceSaturday = (dayOfWeek < 6) ? dayOfWeek + 1 : 0;
-    
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - daysSinceSaturday);
-    startOfWeek.setHours(0, 0, 0, 0);
+    const dayOfWeek = today.getDay(); // Sunday is 0, Saturday is 6
 
+    // Calculate the start of the week (last Saturday)
+    const startOfWeek = new Date(today);
+    // If today is Sunday (0), we subtract 1 day to get to Saturday.
+    // If today is Monday (1), we subtract 2 days.
+    // ...
+    // If today is Saturday (6), we subtract 0 days.
+    const daysToSubtract = (dayOfWeek + 1) % 7;
+    startOfWeek.setDate(today.getDate() - daysToSubtract);
+
+    // Calculate the end of the week (coming Friday)
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
-
+    
     const entries = allEntries
         .filter(entry => {
             const entryDate = entry.date;
