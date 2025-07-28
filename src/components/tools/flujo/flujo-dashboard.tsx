@@ -51,7 +51,7 @@ const SucursalCard = ({ sucursal, onEdit, onDelete }: { sucursal: FlujoSucursal,
       </CardHeader>
       <CardContent className="flex-grow">
           <div className="rounded-lg bg-muted p-4">
-              <p className="text-xs text-muted-foreground tracking-widest">FONDO ACTUAL</p>
+              <p className="text-xs text-muted-foreground tracking-widest">TOTAL EFECTIVO</p>
               <p className="text-4xl font-bold text-primary">${sucursal.currentBalance.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
           </div>
       </CardContent>
