@@ -88,7 +88,6 @@ export async function getFlujoSummary(prefix: string) {
 
 // --- Flujo Entry Functions ---
 export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
-    
     await runTransaction(db, async (transaction) => {
         const sucursalRef = doc(db, 'flujo_sucursales', entryData.sucursalId);
         const sucursalDoc = await transaction.get(sucursalRef);
@@ -121,12 +120,30 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
 }
 
 export async function getFlujoEntriesForWeek(sucursalId: string): Promise<{ entries: FlujoEntry[], dateRange: string }> {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // Sunday = 0, Saturday = 6
+
+    // Calculate the date of the most recent Saturday
+    const lastSaturday = new Date(today);
+    lastSaturday.setDate(today.getDate() - (dayOfWeek === 6 ? 0 : dayOfWeek + 1));
+    lastSaturday.setHours(0, 0, 0, 0); // Start of the day
+
+    // Calculate the date of the coming Friday
+    const nextFriday = new Date(lastSaturday);
+    nextFriday.setDate(lastSaturday.getDate() + 6);
+    nextFriday.setHours(23, 59, 59, 999); // End of the day
+
+    const startTimestamp = Timestamp.fromDate(lastSaturday);
+    const endTimestamp = Timestamp.fromDate(nextFriday);
+
     const q = query(
         entriesCollectionRef,
         where("sucursalId", "==", sucursalId),
-        orderBy("date", "desc"),
-        limit(7)
+        where("date", ">=", startTimestamp),
+        where("date", "<=", endTimestamp),
+        orderBy("date", "asc")
     );
+    
     const snapshot = await getDocs(q);
 
     const entries = snapshot.docs.map(doc => {
@@ -136,9 +153,9 @@ export async function getFlujoEntriesForWeek(sucursalId: string): Promise<{ entr
             id: doc.id,
             date: (data.date as Timestamp).toDate()
         }
-    }).sort((a, b) => a.date.getTime() - b.date.getTime()) as FlujoEntry[];
+    }) as FlujoEntry[];
 
-    const dateRange = "Últimos 7 días de registros";
+    const dateRange = `Semana del ${format(lastSaturday, "dd 'de' LLLL", { locale: es })} al ${format(nextFriday, "dd 'de' LLLL", { locale: es })}`;
 
     return { entries, dateRange };
 }

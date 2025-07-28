@@ -64,15 +64,26 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const fetchData = React.useCallback(async () => {
       setIsLoading(true);
       try {
-          const [sucursalData, { entries, dateRange }] = await Promise.all([
-              getFlujoSucursalById(sucursalId),
-              getFlujoEntriesForWeek(sucursalId)
-          ]);
+          // Step 1: Fetch sucursal data first.
+          const sucursalData = await getFlujoSucursalById(sucursalId);
+          if (!sucursalData) {
+              throw new Error("No se encontró la sucursal.");
+          }
           setSucursal(sucursalData);
-          setWeeklyEntries(entries);
-          setWeekDateRange(dateRange);
-      } catch (e) {
-          toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar la sucursal o su historial.' });
+
+          // Step 2: Fetch history, but handle errors gracefully.
+          try {
+              const { entries, dateRange } = await getFlujoEntriesForWeek(sucursalId);
+              setWeeklyEntries(entries);
+              setWeekDateRange(dateRange);
+          } catch (historyError) {
+              console.warn("Could not fetch weekly history, might be empty:", historyError);
+              setWeeklyEntries([]); // Ensure it's an empty array on failure
+              setWeekDateRange("No se pudo cargar el historial");
+          }
+
+      } catch (e: any) {
+          toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal o su historial.' });
       } finally {
           setIsLoading(false);
       }
@@ -88,8 +99,8 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
         await addFlujoEntry({ ...data, sucursalId, date: new Date() });
         toast({ title: 'Éxito', description: 'Registro guardado correctamente.' });
         fetchData(); // Refresh data to show new entry in history
-    } catch(e) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el registro.' });
+    } catch(e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo guardar el registro.' });
     } finally {
         setIsSubmitting(false);
     }
