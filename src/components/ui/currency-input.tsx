@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -9,73 +10,84 @@ interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
   onValueChange: (value: number | undefined) => void;
 }
 
-// Helper to parse the string back to a number
-const parse = (value: string): number | undefined => {
-  const cleanValue = value.replace(/,/g, "");
-  if (cleanValue === "" || cleanValue === ".") return undefined;
-  const numberValue = parseFloat(cleanValue);
+// Helper to parse a formatted string into a number
+const parseFormattedValue = (value: string): number | undefined => {
+  if (!value) return undefined;
+  const sanitized = value.replace(/[^0-9.]/g, '');
+  const numberValue = parseFloat(sanitized);
   return isNaN(numberValue) ? undefined : numberValue;
 };
 
-const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ value, onValueChange, className, ...props }, ref) => {
-    const [displayValue, setDisplayValue] = React.useState<string>("");
+// Helper to format a number into a currency string
+const formatToCurrency = (value: number | undefined): string => {
+    if (value === undefined || value === null || isNaN(value)) return '';
+    return new Intl.NumberFormat('es-MX', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(value);
+};
 
+
+const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
+  ({ value: propValue, onValueChange, className, onBlur, ...props }, ref) => {
+    const [internalValue, setInternalValue] = React.useState<string>(() => {
+        if (propValue === undefined || propValue === null) return '';
+        const numValue = typeof propValue === 'string' ? parseFormattedValue(propValue) : propValue;
+        return String(numValue ?? '');
+    });
+
+    // Update internal state only when the prop from the form changes
     React.useEffect(() => {
-      if (value !== undefined && value !== null) {
-        const numericValue = typeof value === 'string' ? parse(value) : value;
-        if (numericValue !== undefined) {
-           const formatted = new Intl.NumberFormat('en-US').format(numericValue);
-           // Handle case where user is typing a decimal
-           if (String(value).endsWith('.') || (String(value).includes('.') && String(value).split('.')[1].length === 1)) {
-               setDisplayValue(String(value));
-           } else {
-               setDisplayValue(new Intl.NumberFormat('en-US', {
-                   minimumFractionDigits: 2,
-                   maximumFractionDigits: 2
-               }).format(numericValue));
-           }
-        } else {
-            setDisplayValue("");
+        const numValue = typeof propValue === 'string' ? parseFormattedValue(propValue) : propValue;
+        const formatted = numValue !== undefined ? String(numValue) : '';
+        if (parseFormattedValue(internalValue) !== numValue) {
+             setInternalValue(formatted);
         }
-      } else {
-        setDisplayValue("");
-      }
-    }, [value]);
+    }, [propValue]);
 
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const inputVal = event.target.value.replace(/[^0-9.]/g, '');
-        const numericValue = parse(inputVal);
-        setDisplayValue(inputVal); 
-        onValueChange(numericValue);
+        const rawValue = event.target.value;
+        const sanitized = rawValue.replace(/[^0-9.]/g, '');
+        
+        // Allow only one decimal point
+        const parts = sanitized.split('.');
+        if (parts.length > 2) {
+            return; 
+        }
+
+        setInternalValue(sanitized);
+        onValueChange(parseFormattedValue(sanitized));
     };
 
-    const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
-        const numericValue = parse(event.target.value);
-        if (numericValue !== undefined) {
-            const formatted = new Intl.NumberFormat("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            }).format(numericValue);
-            setDisplayValue(formatted);
-        } else {
-            setDisplayValue('');
+    const handleInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+        const numericValue = parseFormattedValue(internalValue);
+        const formatted = formatToCurrency(numericValue);
+        setInternalValue(formatted);
+        
+        // Propagate the blur event if a handler is provided
+        if (onBlur) {
+            onBlur(event);
         }
-        if (props.onBlur) {
-            props.onBlur(event);
+    };
+    
+     const handleInputFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+        const numericValue = parseFormattedValue(internalValue);
+        if (numericValue !== undefined) {
+            setInternalValue(String(numericValue));
         }
     };
 
     return (
       <Input
         ref={ref}
-        type="text"
-        inputMode="decimal"
+        type="text" // Use text to allow for formatting characters
+        inputMode="decimal" // Hint for mobile keyboards
         className={cn("font-mono", className)}
-        value={displayValue}
+        value={internalValue}
         onChange={handleChange}
-        onBlur={handleBlur}
+        onBlur={handleInputBlur}
+        onFocus={handleInputFocus}
         {...props}
       />
     );
