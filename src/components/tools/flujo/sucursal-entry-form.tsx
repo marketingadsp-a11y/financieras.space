@@ -16,14 +16,16 @@ import {
 import type { FlujoEntry } from "@/lib/data";
 import { Loader2 } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formSchema = z.object({
-  fondo: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
-  debeEntregar: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
-  falla: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
-  recuperado: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
-  salientes: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
-  entrantes: z.coerce.number().min(0, "El valor debe ser positivo.").default(0),
+  fondo: z.coerce.number().optional(),
+  debeEntregar: z.coerce.number().optional(),
+  falla: z.coerce.number().optional(),
+  recuperado: z.coerce.number().optional(),
+  salientes: z.coerce.number().optional(),
+  entrantes: z.coerce.number().optional(),
 });
 
 type SucursalEntryFormProps = {
@@ -44,9 +46,33 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
         },
     });
 
+    const [totalCobrado, setTotalCobrado] = React.useState(0);
+    const formValues = form.watch();
+
+    React.useEffect(() => {
+        const fondo = formValues.fondo || 0;
+        const debeEntregar = formValues.debeEntregar || 0;
+        const falla = formValues.falla || 0;
+        const recuperado = formValues.recuperado || 0;
+        const salientes = formValues.salientes || 0;
+        const entrantes = formValues.entrantes || 0;
+        
+        const calculatedTotal = fondo + debeEntregar - falla + recuperado - salientes + entrantes;
+        setTotalCobrado(calculatedTotal);
+    }, [formValues]);
+
+
     const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
-        const totalCobrado = (values.fondo ?? 0) + (values.debeEntregar ?? 0) - (values.falla ?? 0) + (values.recuperado ?? 0) - (values.salientes ?? 0) + (values.entrantes ?? 0);
-        await onSubmit({ ...values, totalCobrado });
+        const dataToSubmit = {
+            fondo: values.fondo || 0,
+            debeEntregar: values.debeEntregar || 0,
+            falla: values.falla || 0,
+            recuperado: values.recuperado || 0,
+            salientes: values.salientes || 0,
+            entrantes: values.entrantes || 0,
+            totalCobrado: totalCobrado,
+        };
+        await onSubmit(dataToSubmit);
         form.reset();
     };
 
@@ -62,6 +88,15 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
                     <FormField control={form.control} name="entrantes" render={({ field }) => (<FormItem><FormLabel>Entrantes</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
                 
+                 <Card className="bg-muted/50">
+                    <CardHeader>
+                        <CardTitle className="text-lg">Cálculo del Total Cobrado</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-4xl font-bold text-primary">${totalCobrado.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                    </CardContent>
+                </Card>
+
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                     Guardar Registro
