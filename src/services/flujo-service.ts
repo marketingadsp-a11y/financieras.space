@@ -115,8 +115,10 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
 };
 
 export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
-    const entryDate = new Date();
-    const utcDate = new Date(Date.UTC(entryDate.getUTCFullYear(), entryDate.getUTCMonth(), entryDate.getUTCDate(), 12, 0, 0));
+    const entryDate = new Date(); // Use local date for calculation
+    
+    // Normalize to UTC midday to prevent timezone shifts from changing the date on the server
+    const utcDate = new Date(Date.UTC(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate(), 12, 0, 0));
     
     const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(utcDate);
     
@@ -162,11 +164,10 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
     const today = new Date();
     const { start, end, weekId } = getWeekBoundaries(today);
     
-    // Step 1: Query all entries for the sucursal (no date filter here to avoid index error)
+    // Perform a simple query without date filters to avoid needing an index.
     const q = query(
         entriesCollectionRef,
-        where("sucursalId", "==", sucursalId),
-        orderBy("date", "desc")
+        where("sucursalId", "==", sucursalId)
     );
     const allEntriesSnapshot = await getDocs(q);
     
@@ -176,7 +177,7 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
         date: (docSnap.data().date as Timestamp).toDate()
     })) as FlujoEntry[];
 
-    // Step 2: Filter entries for the current week in the code
+    // Manually filter the entries for the current week in the code.
     const weeklyEntries = allEntries.filter(entry => {
         const entryDate = entry.date;
         return entryDate >= start && entryDate <= end;
@@ -211,8 +212,11 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
 
     const dateRange = `Semana del ${format(start, "dd 'de' LLLL", { locale: es })} al ${format(end, "dd 'de' LLLL", { locale: es })}`;
 
-    return { summary, dateRange, entries: weeklyEntries.sort((a,b) => a.date.getTime() - b.date.getTime()) };
+    // Sort the filtered entries by date before returning.
+    weeklyEntries.sort((a,b) => a.date.getTime() - b.date.getTime());
+    return { summary, dateRange, entries: weeklyEntries };
 }
+
 
 export async function addGastoToSummary(summaryId: string, gasto: { amount: number, description: string }) {
     const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
