@@ -99,8 +99,6 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
     d.setUTCHours(0, 0, 0, 0);
     const day = d.getUTCDay(); // Sunday = 0, Saturday = 6
 
-    // Calculate days to subtract to get to the last Saturday
-    // If today is Saturday (6), subtract 0. If Sunday (0), subtract 1. If Monday (1), subtract 2...
     const diff = day < 6 ? day + 1 : 0;
     const start = new Date(d);
     start.setUTCDate(d.getUTCDate() - diff);
@@ -109,8 +107,8 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
     end.setUTCDate(start.getUTCDate() + 6);
     end.setUTCHours(23, 59, 59, 999);
     
-    const year = getYear(start); // Use the start of the week's year
-    const weekNumber = getISOWeek(start); // Use the start of the week's ISO week
+    const year = getYear(start);
+    const weekNumber = getISOWeek(start);
     const weekId = `${year}-W${weekNumber}`;
 
     return { start, end, weekId };
@@ -135,12 +133,10 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
         let newBalance = sucursalData.currentBalance + entryData.totalCobrado;
         transaction.update(sucursalRef, { currentBalance: newBalance });
         
-        // Add the entry
         const entryRef = doc(collection(db, "flujo_entries"));
         const dataWithTimestamp = { ...entryData, date: Timestamp.fromDate(utcDate), id: entryRef.id };
         transaction.set(entryRef, dataWithTimestamp);
 
-        // Update or create weekly summary
         const summaryDoc = await transaction.get(summaryRef);
         if (!summaryDoc.exists()) {
             const newSummary: FlujoWeeklySummary = {
@@ -166,7 +162,7 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
     const today = new Date();
     const { start, end, weekId } = getWeekBoundaries(today);
     
-    // Step 1: Query all entries for the sucursal
+    // Step 1: Query all entries for the sucursal (no date filter here to avoid index error)
     const q = query(
         entriesCollectionRef,
         where("sucursalId", "==", sucursalId),
@@ -210,7 +206,7 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
             totalCobradoSemanal: weeklyEntries.reduce((acc, e) => acc + e.totalCobrado, 0),
             comisiones: 0,
             gastos: [],
-        } as any;
+        };
     }
 
     const dateRange = `Semana del ${format(start, "dd 'de' LLLL", { locale: es })} al ${format(end, "dd 'de' LLLL", { locale: es })}`;
