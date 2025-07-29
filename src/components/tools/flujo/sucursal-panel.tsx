@@ -32,7 +32,10 @@ const WeeklyHistoryTable = ({ entries }: { entries: FlujoEntry[] }) => {
         return <p className="text-sm text-muted-foreground text-center py-4">No hay registros para esta semana.</p>;
     }
 
-    const formatCurrency = (value: number) => `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formatCurrency = (value?: number) => {
+        const amount = typeof value === 'number' ? value : 0;
+        return `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
 
     return (
         <div className="rounded-md border">
@@ -172,17 +175,26 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const fetchData = React.useCallback(async () => {
       setIsLoading(true);
       try {
+          // Fetch sucursal data first
           const sucursalData = await getFlujoSucursalById(sucursalId);
           if (!sucursalData) throw new Error("No se encontró la sucursal.");
           setSucursal(sucursalData);
-
-          const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId);
-          setWeeklySummary(summary);
-          setWeekDateRange(dateRange);
-          setWeeklyEntries(entries);
+          
+          // Then, fetch summary and entries, this may fail if there are no entries but it won't stop the page from loading
+          try {
+              const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId);
+              setWeeklySummary(summary);
+              setWeekDateRange(dateRange);
+              setWeeklyEntries(entries);
+          } catch(summaryError) {
+              console.warn("Could not fetch weekly summary, probably no entries yet.", summaryError);
+              setWeeklySummary(null);
+              setWeeklyEntries([]);
+              setWeekDateRange("No hay datos para esta semana");
+          }
 
       } catch (e: any) {
-          toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal o su historial.' });
+          toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal.' });
       } finally {
           setIsLoading(false);
       }
@@ -195,7 +207,8 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleFormSubmit = async (data: Omit<FlujoEntry, 'id' | 'sucursalId' | 'date'>) => {
     setIsSubmitting(true);
     try {
-        await addFlujoEntry({ ...data, sucursalId });
+        const entryData = { ...data, sucursalId, date: new Date() };
+        await addFlujoEntry(entryData);
         toast({ title: 'Éxito', description: 'Registro guardado correctamente.' });
         fetchData();
     } catch(e: any) {
@@ -311,3 +324,5 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     </div>
   );
 }
+
+    
