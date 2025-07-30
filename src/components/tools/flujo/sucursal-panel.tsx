@@ -303,20 +303,22 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Panel de Flujo: {sucursal.name}</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Ingreso de Datos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <FlujoSucursalEntryForm
-                        onSubmit={handleFormSubmit}
-                        isSubmitting={isSubmitting}
-                    />
-                </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Ingreso de Datos</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <FlujoSucursalEntryForm
+                            onSubmit={handleFormSubmit}
+                            isSubmitting={isSubmitting}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 lg:col-span-1">
                 {weeklySummary && (
                     <Card>
                         <CardHeader>
