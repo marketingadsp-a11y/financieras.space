@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import type { FlujoEntry } from "@/lib/data";
-import { Loader2 } from "lucide-react";
+import { Loader2, TrendingDown, TrendingUp } from "lucide-react";
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,8 @@ const formSchema = z.object({
   debeEntregar: z.coerce.number().min(0).default(0),
   falla: z.coerce.number().min(0).default(0),
   recuperado: z.coerce.number().min(0).default(0),
-  salientes: z.coerce.number().min(0).default(0),
   entrantes: z.coerce.number().min(0).default(0),
+  salientes: z.coerce.number().min(0).default(0),
 });
 
 type SucursalEntryFormProps = {
@@ -41,8 +41,8 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
             debeEntregar: 0,
             falla: 0,
             recuperado: 0,
-            salientes: 0,
             entrantes: 0,
+            salientes: 0,
         },
     });
 
@@ -79,13 +79,36 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <FormField control={form.control} name="fondo" render={({ field }) => (<FormItem><FormLabel>Fondo (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="debeEntregar" render={({ field }) => (<FormItem><FormLabel>Debe Entregar (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="entrantes" render={({ field }) => (<FormItem><FormLabel>Entrantes (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* SUMAN Card */}
+                    <Card className="bg-green-500/10">
+                        <CardHeader>
+                            <CardTitle className="text-green-800 dark:text-green-300 flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5"/>
+                                Valores que Suman
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <FormField control={form.control} name="fondo" render={({ field }) => (<FormItem><FormLabel>Fondo (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="debeEntregar" render={({ field }) => (<FormItem><FormLabel>Debe Entregar (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="entrantes" render={({ field }) => (<FormItem><FormLabel>Entrantes (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </CardContent>
+                    </Card>
+
+                    {/* RESTAN Card */}
+                    <Card className="bg-red-500/10">
+                         <CardHeader>
+                            <CardTitle className="text-red-800 dark:text-red-300 flex items-center gap-2">
+                                <TrendingDown className="h-5 w-5"/>
+                                Valores que Restan
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                             <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                             <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </CardContent>
+                    </Card>
                 </div>
                 
                  <Card className="bg-muted/50">
