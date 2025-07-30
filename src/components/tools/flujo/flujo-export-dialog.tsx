@@ -29,7 +29,7 @@ type FlujoExportDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   sucursales: FlujoSucursal[];
-  onExport: (sucursalIds: string[], startDate: Date, endDate: Date | null, format: 'pdf' | 'excel') => Promise<void>;
+  onExport: (sucursalIds: string[], startDate: Date | null, endDate: Date | null, format: 'pdf' | 'excel') => Promise<void>;
   isExporting: boolean;
 };
 
@@ -37,8 +37,8 @@ export function FlujoExportDialog({ isOpen, onClose, sucursales, onExport, isExp
   const [selectedSucursalIds, setSelectedSucursalIds] = React.useState<string[]>(['all']);
   const [dateRangeType, setDateRangeType] = React.useState<'current' | 'all' | 'custom'>('current');
   const [customDate, setCustomDate] = React.useState<DateRange | undefined>({
-    from: startOfDay(new Date()),
-    to: new Date(),
+    from: startOfWeek(new Date(), { weekStartsOn: 6 }),
+    to: endOfWeek(new Date(), { weekStartsOn: 6 }),
   });
 
   const handleSucursalSelect = (sucursalId: string) => {
@@ -57,19 +57,19 @@ export function FlujoExportDialog({ isOpen, onClose, sucursales, onExport, isExp
   const isAllSelected = selectedSucursalIds.includes('all');
   
   const handleExportClick = (formatType: 'pdf' | 'excel') => {
-    let start: Date;
-    let end: Date | null;
+    let start: Date | null = null;
+    let end: Date | null = null;
 
     if (dateRangeType === 'current') {
         start = startOfWeek(new Date(), { weekStartsOn: 6 });
         end = endOfWeek(new Date(), { weekStartsOn: 6 });
     } else if (dateRangeType === 'all') {
-        start = new Date(2020, 0, 1);
-        end = null; 
+        start = null; 
+        end = null;
     } else if (dateRangeType === 'custom' && customDate?.from) {
         start = startOfDay(customDate.from);
         end = customDate.to ?? customDate.from;
-    } else {
+    } else { // Default to current week if something is off
         start = startOfWeek(new Date(), { weekStartsOn: 6 });
         end = endOfWeek(new Date(), { weekStartsOn: 6 });
     }

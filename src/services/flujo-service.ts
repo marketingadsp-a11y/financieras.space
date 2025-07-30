@@ -418,7 +418,7 @@ export async function resetWeeklySummary(summaryId: string) {
 // --- EXPORT FUNCTIONS ---
 type WeeklySummaryForExport = FlujoWeeklySummary & { totalEfectivo: number };
 
-export async function getFlujoExportData(prefix: string, sucursalIds: string[], startDate: Date, endDate?: Date | null) {
+export async function getFlujoExportData(prefix: string, sucursalIds: string[], startDate: Date | null, endDate?: Date | null) {
     const allSucursales = await getFlujoSucursales(prefix);
     const sucursalesToExport = sucursalIds.includes('all') ? allSucursales : allSucursales.filter(s => sucursalIds.includes(s.id));
 
@@ -426,7 +426,6 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
         const summariesQuery = query(
             weeklySummariesCollectionRef,
             where("sucursalId", "==", sucursal.id),
-            where("prefix", "==", prefix)
         );
         const summariesSnapshot = await getDocs(summariesQuery);
 
@@ -436,11 +435,13 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
                 const weekStartDate = (data.weekStartDate as Timestamp).toDate();
                 const weekEndDate = (data.weekEndDate as Timestamp).toDate();
                 
-                // An overlap occurs if (StartA <= EndB) and (EndA >= StartB)
-                const overlaps = (startDate <= weekEndDate) && (!endDate || weekStartDate <= endDate);
-
-                if (!overlaps) {
-                    return null;
+                // If a date range is provided, filter by it. Otherwise, include all.
+                if (startDate && endDate) {
+                    // An overlap occurs if (StartA <= EndB) and (EndA >= StartB)
+                    const overlaps = (startDate <= weekEndDate) && (weekStartDate <= endDate);
+                    if (!overlaps) {
+                        return null;
+                    }
                 }
 
                 const totalEfectivo = data.totalCobradoSemanal - data.comisiones - ((data.gastos || []).reduce((a,c) => a+c.amount, 0)) - ((data.ventas || []).reduce((a,c) => a+c.amount, 0));
@@ -463,7 +464,7 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
     });
 
     const exportData = await Promise.all(exportDataPromises);
-    const dateRange = `${format(startDate, 'P', { locale: es })} - ${endDate ? format(endDate, 'P', { locale: es }) : 'Ahora'}`;
+    const dateRange = (startDate && endDate) ? `${format(startDate, 'P', { locale: es })} - ${format(endDate, 'P', { locale: es })}` : 'Todo el historial';
 
     return { sucursales: exportData, dateRange };
 }
