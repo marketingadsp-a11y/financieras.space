@@ -4,16 +4,19 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import type { FlujoSucursal, FlujoCentralAccount } from "@/lib/data";
-import { getFlujoSummary, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal } from "@/services/flujo-service";
+import type { FlujoSucursal, FlujoCentralAccount, FlujoWeeklySummary } from "@/lib/data";
+import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2, ChevronLeft, ChevronRight, History, Wallet, Coins, TrendingUp, TrendingDown, Receipt, CalendarIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FlujoSucursalForm } from "./sucursal-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { format, isSameDay, startOfWeek, addDays } from "date-fns";
+import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
   <Card>
@@ -30,7 +33,21 @@ const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-pr
   </Card>
 );
 
-const SucursalCard = ({ sucursal, onEdit, onDelete }: { sucursal: FlujoSucursal, onEdit: (s: FlujoSucursal) => void, onDelete: (s: FlujoSucursal) => void }) => {
+type SucursalSummary = FlujoSucursal & { summary: FlujoWeeklySummary | null };
+
+const SucursalCard = ({ sucursalSummary, onEdit, onDelete }: { sucursalSummary: SucursalSummary, onEdit: (s: FlujoSucursal) => void, onDelete: (s: FlujoSucursal) => void }) => {
+  const { summary, ...sucursal } = sucursalSummary;
+  const totalCobrado = summary?.totalCobradoSemanal ?? 0;
+  const totalComisiones = summary?.comisiones ?? 0;
+  const totalGastos = summary?.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
+  const totalVentas = summary?.ventas.reduce((acc, v) => acc + v.amount, 0) ?? 0;
+  const totalEfectivo = totalCobrado - totalComisiones - totalGastos - totalVentas;
+
+  const formatCurrency = (value?: number) => {
+    const amount = typeof value === 'number' ? value : 0;
+    return `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  
   return (
     <Card className="group flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
       <CardHeader>
@@ -50,10 +67,16 @@ const SucursalCard = ({ sucursal, onEdit, onDelete }: { sucursal: FlujoSucursal,
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow">
-          <div className="rounded-lg bg-muted p-4">
-              <p className="text-xs text-muted-foreground tracking-widest">TOTAL EFECTIVO</p>
-              <p className="text-4xl font-bold text-primary">${sucursal.currentBalance.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+      <CardContent className="flex-grow space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-3 rounded-lg bg-green-500/10 text-green-700"><p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Cobrado</p><p className="text-lg font-bold">{formatCurrency(totalCobrado)}</p></div>
+              <div className="p-3 rounded-lg bg-orange-500/10 text-orange-700"><p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p><p className="text-lg font-bold">{formatCurrency(totalComisiones)}</p></div>
+              <div className="p-3 rounded-lg bg-red-500/10 text-red-700"><p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Gastos</p><p className="text-lg font-bold">{formatCurrency(totalGastos)}</p></div>
+              <div className="p-3 rounded-lg bg-purple-500/10 text-purple-700"><p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p><p className="text-lg font-bold">{formatCurrency(totalVentas)}</p></div>
+          </div>
+          <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700">
+            <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Efectivo (Semana)</p>
+            <p className="text-2xl font-bold">{formatCurrency(totalEfectivo)}</p>
           </div>
       </CardContent>
       <CardFooter>
@@ -72,7 +95,7 @@ export function FlujoDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [account, setAccount] = React.useState<FlujoCentralAccount | null>(null);
-  const [sucursales, setSucursales] = React.useState<FlujoSucursal[]>([]);
+  const [sucursalSummaries, setSucursalSummaries] = React.useState<SucursalSummary[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   
   // Form and Dialog state
@@ -84,6 +107,11 @@ export function FlujoDashboard() {
   const [sucursalToDelete, setSucursalToDelete] = React.useState<FlujoSucursal | null>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
 
+  // Date filtering state
+  const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
+  const [weekDateRange, setWeekDateRange] = React.useState('');
+
+
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
       setIsLoading(false);
@@ -91,15 +119,16 @@ export function FlujoDashboard() {
     }
     setIsLoading(true);
     try {
-      const summary = await getFlujoSummary(user.prefix);
+      const summary = await getFlujoSummariesForWeek(user.prefix, selectedDate);
       setAccount(summary.centralAccount);
-      setSucursales(summary.sucursales);
+      setSucursalSummaries(summary.sucursalSummaries);
+      setWeekDateRange(summary.dateRange);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de Flujo.'});
     } finally {
       setIsLoading(false);
     }
-  }, [user?.prefix, toast]);
+  }, [user?.prefix, toast, selectedDate]);
 
   React.useEffect(() => {
     fetchData();
@@ -153,8 +182,14 @@ export function FlujoDashboard() {
     setSucursalToDelete(null);
     setDeleteConfirmationText('');
   }
+  
+  const handlePreviousWeek = () => setSelectedDate(prevDate => addDays(prevDate, -7));
+  const handleNextWeek = () => setSelectedDate(prevDate => addDays(prevDate, 7));
+  const handleCurrentWeek = () => setSelectedDate(new Date());
+  const isNextWeekDisabled = isSameDay(startOfWeek(selectedDate, { weekStartsOn: 6 }), startOfWeek(new Date(), { weekStartsOn: 6 })) || selectedDate > new Date();
 
-  if (isLoading) {
+
+  if (isLoading && !account) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de Flujo...</div>;
   }
   
@@ -174,11 +209,23 @@ export function FlujoDashboard() {
 
       <Card>
         <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
                     <CardTitle>Sucursales de Flujo</CardTitle>
                     <CardDescription>Gestiona las diferentes sucursales y sus fondos.</CardDescription>
                 </div>
+                 <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <p className="text-lg font-semibold text-primary">{weekDateRange}</p>
+                    <div className="flex items-center gap-1">
+                        <Button onClick={handlePreviousWeek} variant="outline" size="icon" className="h-8 w-8"><ChevronLeft className="h-4 w-4"/></Button>
+                        <Button onClick={handleCurrentWeek} variant="outline" size="icon" className="h-8 w-8" disabled={isNextWeekDisabled}><History className="h-4 w-4"/></Button>
+                        <Button onClick={handleNextWeek} variant="outline" size="icon" className="h-8 w-8" disabled={isNextWeekDisabled}><ChevronRight className="h-4 w-4"/></Button>
+                    </div>
+                </div>
+            </div>
+        </CardHeader>
+        <CardContent>
+             <div className="flex justify-end mb-4">
                  <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
                     <DialogTrigger asChild>
                         <Button onClick={() => openForm(null)}>
@@ -198,11 +245,11 @@ export function FlujoDashboard() {
                     </DialogContent>
                 </Dialog>
             </div>
-        </CardHeader>
-        <CardContent>
-            {sucursales.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {sucursales.map(s => <SucursalCard key={s.id} sucursal={s} onEdit={openForm} onDelete={openDeleteDialog} />)}
+            {isLoading ? (
+                <div className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando sucursales...</div>
+            ) : sucursalSummaries.length > 0 ? (
+                <div className="space-y-6">
+                    {sucursalSummaries.map(s => <SucursalCard key={s.id} sucursalSummary={s} onEdit={() => openForm(s)} onDelete={() => openDeleteDialog(s)} />)}
                 </div>
             ) : (
                 <div className="text-center py-10 text-muted-foreground">

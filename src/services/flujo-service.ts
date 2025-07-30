@@ -72,30 +72,6 @@ export async function deleteFlujoSucursal(id: string) {
 
 
 // --- Dashboard & Central Account Functions ---
-export async function getFlujoSummary(prefix: string) {
-  const centralAccountDocRef = doc(db, "flujo_central_accounts", prefix);
-  const sucursales = await getFlujoSucursales(prefix);
-
-  const accountSnap = await getDoc(centralAccountDocRef);
-
-  let centralAccount: FlujoCentralAccount;
-  if (accountSnap.exists()) {
-    centralAccount = { id: accountSnap.id, ...accountSnap.data() } as FlujoCentralAccount;
-  } else {
-    // Default structure if it doesn't exist
-    centralAccount = {
-      id: prefix,
-      prefix: prefix,
-      totalEfectivo: 0,
-      cajaChica: 0,
-    };
-  }
-
-  return { centralAccount, sucursales };
-}
-
-// --- Flujo Entry & Weekly Summary Functions ---
-
 const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string } => {
     // Clone the date to avoid modifying the original
     const d = new Date(date.getTime());
@@ -120,6 +96,61 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
     
     return { start: startDate, end: endDate, weekId };
 };
+
+type SucursalSummary = FlujoSucursal & { summary: FlujoWeeklySummary | null };
+
+export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
+    const { start, end, weekId } = getWeekBoundaries(date);
+
+    // Get all sucursales for the prefix
+    const sucursales = await getFlujoSucursales(prefix);
+    const sucursalIds = sucursales.map(s => s.id);
+
+    // Get all weekly summaries for these sucursales for the given week
+    const summaryPromises = sucursalIds.map(id => {
+        const summaryId = `${id}_${weekId}`;
+        return getDoc(doc(db, 'flujo_weekly_summaries', summaryId));
+    });
+    const summarySnapshots = await Promise.all(summaryPromises);
+
+    const summariesMap = new Map<string, FlujoWeeklySummary>();
+    summarySnapshots.forEach(snap => {
+        if (snap.exists()) {
+            const data = snap.data();
+            const summary = {
+                ...data,
+                id: snap.id,
+                weekStartDate: (data.weekStartDate as Timestamp).toDate(),
+                weekEndDate: (data.weekEndDate as Timestamp).toDate(),
+                gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
+                ventas: (data.ventas || []).map((v: any) => ({...v, date: (v.date as Timestamp).toDate()})),
+            } as FlujoWeeklySummary;
+            summariesMap.set(summary.sucursalId, summary);
+        }
+    });
+
+    const sucursalSummaries: SucursalSummary[] = sucursales.map(s => ({
+        ...s,
+        summary: summariesMap.get(s.id) || null
+    }));
+
+    // Get central account info
+    const centralAccountDocRef = doc(db, "flujo_central_accounts", prefix);
+    const accountSnap = await getDoc(centralAccountDocRef);
+    let centralAccount: FlujoCentralAccount;
+    if (accountSnap.exists()) {
+        centralAccount = { id: accountSnap.id, ...accountSnap.data() } as FlujoCentralAccount;
+    } else {
+        centralAccount = { id: prefix, prefix: prefix, totalEfectivo: 0, cajaChica: 0 };
+    }
+    
+    const dateRange = `Semana del ${format(start, "dd 'de' LLLL", { locale: es })} al ${format(end, "dd 'de' LLLL", { locale: es })}`;
+
+    return { centralAccount, sucursalSummaries, dateRange };
+}
+
+
+// --- Flujo Entry & Weekly Summary Functions ---
 
 export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
     const entryDate = entryData.date;
@@ -207,7 +238,7 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Pro
         where("sucursalId", "==", sucursalId), 
         where("date", ">=", start), 
         where("date", "<=", end),
-        orderBy("date", "asc") // Add orderBy to trigger index creation
+        orderBy("date", "asc")
     );
     const weeklyEntriesSnapshot = await getDocs(q);
 
