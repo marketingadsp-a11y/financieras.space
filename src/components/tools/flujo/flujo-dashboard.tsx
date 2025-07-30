@@ -4,7 +4,7 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import type { FlujoSucursal, FlujoCentralAccount, FlujoWeeklySummary } from "@/lib/data";
+import type { FlujoSucursal, FlujoCentralAccount, FlujoWeeklySummary, FlujoCentralTransaction } from "@/lib/data";
 import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal, getFlujoExportData } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { FlujoExportDialog } from "./flujo-export-dialog";
+import { CajaChicaHistory } from "./caja-chica-history";
 
 const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
   <Card>
@@ -206,7 +207,7 @@ export function FlujoDashboard() {
   const handleCurrentWeek = () => setSelectedDate(new Date());
   const isNextWeekDisabled = isSameDay(startOfWeek(selectedDate, { weekStartsOn: 6 }), startOfWeek(new Date(), { weekStartsOn: 6 })) || selectedDate > new Date();
 
-  const handleExport = async (sucursalIds: string[], startDate: Date, endDate: Date | null, formatType: 'pdf' | 'excel') => {
+  const handleExport = async (sucursalIds: string[], startDate: Date | null, endDate: Date | null, formatType: 'pdf' | 'excel') => {
     if (!user?.prefix) return;
     setIsExporting(true);
     try {
@@ -269,7 +270,7 @@ export function FlujoDashboard() {
     return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de Flujo...</div>;
   }
   
-  const displayAccount = account || { totalEfectivo: 0, cajaChica: 0 };
+  const displayAccount = account || { totalEfectivo: 0, cajaChica: 0, transactions: [] };
   const expectedConfirmationText = sucursalToDelete ? `BORRAR ${sucursalToDelete.name}` : '';
   const canExport = hasPermission('flujo', 'CAN_EXPORT');
 
@@ -283,6 +284,8 @@ export function FlujoDashboard() {
         <StatCard title="Caja Chica" value={displayAccount.cajaChica} icon={PiggyBank} description="Dinero en la cuenta principal." />
         <StatCard title="Total Efectivo (Semanal)" value={totalEfectivoSemanal} icon={Wallet} description="Suma de todas las sucursales esta semana." colorClass="text-blue-600" />
       </div>
+
+      <CajaChicaHistory transactions={displayAccount.transactions || []} />
 
       <Card>
         <CardHeader>

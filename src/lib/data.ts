@@ -320,17 +320,30 @@ export type FlujoSucursal = {
     currentBalance: number;
 };
 
+export type FlujoCentralTransaction = {
+    id: string;
+    prefix: string;
+    type: 'transfer_in';
+    amount: number;
+    date: Date;
+    userPerformed: string;
+    sucursalId: string;
+    sucursalName: string;
+}
+
 export type FlujoCentralAccount = {
     id: string; // Corresponds to the prefix
     prefix: string;
     totalEfectivo: number;
     cajaChica: number;
+    transactions?: FlujoCentralTransaction[];
 };
 
 export type FlujoEntry = {
     id: string;
     sucursalId: string;
     date: Date; // Changed from Timestamp to Date for easier use in components
+    type?: 'entry' | 'transfer_out_to_central';
     fondo: number;
     debeEntregar: number;
     falla: number;
@@ -338,6 +351,8 @@ export type FlujoEntry = {
     salientes: number;
     entrantes: number;
     totalCobrado: number; // Calculated field
+    amount: number; // For transfers
+    userPerformed: string;
 };
 
 export type FlujoGasto = {

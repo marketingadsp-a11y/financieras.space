@@ -6,9 +6,9 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta } from "@/lib/data";
-import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary, deleteGastoFromSummary, addVentaToSummary, deleteVentaFromSummary } from "@/services/flujo-service";
+import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary, deleteGastoFromSummary, addVentaToSummary, deleteVentaFromSummary, transferToCentral } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt, GitCommitVertical, FileText, AlertTriangle } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt, GitCommitVertical, FileText, AlertTriangle, Send } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
 import { format, startOfWeek, endOfWeek, addDays, isSameDay, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
@@ -28,16 +28,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TransferToCentralDialog } from "./transfer-to-central-dialog";
 
 
 type UnifiedHistoryItem = {
     id: string;
     date: Date;
-    type: 'flujo' | 'gasto' | 'comision' | 'venta';
+    type: 'flujo' | 'gasto' | 'comision' | 'venta' | 'transfer_out_to_central';
     description: string;
     amount: number;
     details?: string;
-    raw: FlujoEntry | FlujoGasto | FlujoVenta | { comisiones: number };
+    raw: FlujoEntry | FlujoGasto | FlujoVenta | { comisiones: number } | { amount: number };
     userPerformed?: string;
 };
 
@@ -71,6 +72,7 @@ const WeeklyHistoryList = ({
         gasto: { label: 'Gasto', icon: TrendingDown, color: "text-red-500", bg: "bg-red-500/10" },
         comision: { label: 'Comisiones', icon: Coins, color: "text-orange-500", bg: "bg-orange-500/10" },
         venta: { label: 'Venta', icon: Receipt, color: "text-purple-500", bg: "bg-purple-500/10" },
+        transfer_out_to_central: { label: 'Envío a Caja Chica', icon: Send, color: "text-blue-500", bg: "bg-blue-500/10" },
     };
     
     const formatCurrency = (value?: number) => {
@@ -80,6 +82,9 @@ const WeeklyHistoryList = ({
     
     const renderDeleteButton = (item: UnifiedHistoryItem) => {
         if (!canDelete) return null;
+
+        // Transfers cannot be deleted from here to maintain central account consistency
+        if (item.type === 'transfer_out_to_central') return null;
 
         let title = '¿Confirmar Eliminación?';
         let description = 'Esta acción es irreversible.';
@@ -300,6 +305,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     const [showGastosDialog, setShowGastosDialog] = React.useState(false);
     const [showVentasDialog, setShowVentasDialog] = React.useState(false);
     const [showComisionesDialog, setShowComisionesDialog] = React.useState(false);
+    const [showTransferDialog, setShowTransferDialog] = React.useState(false);
     const [showResetDialog, setShowResetDialog] = React.useState(false);
     const [isReseting, setIsReseting] = React.useState(false);
     const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
@@ -320,15 +326,27 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             const combinedHistory: UnifiedHistoryItem[] = [];
             
             entries.forEach(entry => {
-                combinedHistory.push({
-                    id: entry.id,
-                    date: entry.date,
-                    type: 'flujo',
-                    description: `Registro de flujo del día`,
-                    amount: entry.totalCobrado,
-                    details: `Fondo: ${formatCurrency(entry.fondo)} | Debe Entregar: ${formatCurrency(entry.debeEntregar)} | Falla: ${formatCurrency(entry.falla)} | Recuperado: ${formatCurrency(entry.recuperado)} | Entrantes: ${formatCurrency(entry.entrantes)} | Salientes: ${formatCurrency(entry.salientes)}`,
-                    raw: entry
-                });
+                if (entry.type === 'transfer_out_to_central') {
+                     combinedHistory.push({
+                        id: entry.id,
+                        date: entry.date,
+                        type: 'transfer_out_to_central',
+                        description: `Envío a Caja Chica`,
+                        amount: -entry.amount,
+                        raw: entry,
+                        userPerformed: entry.userPerformed,
+                    });
+                } else {
+                    combinedHistory.push({
+                        id: entry.id,
+                        date: entry.date,
+                        type: 'flujo',
+                        description: `Registro de flujo del día`,
+                        amount: entry.totalCobrado,
+                        details: `Fondo: ${formatCurrency(entry.fondo)} | Debe Entregar: ${formatCurrency(entry.debeEntregar)} | Falla: ${formatCurrency(entry.falla)} | Recuperado: ${formatCurrency(entry.recuperado)} | Entrantes: ${formatCurrency(entry.entrantes)} | Salientes: ${formatCurrency(entry.salientes)}`,
+                        raw: entry
+                    });
+                }
             });
 
             if (summary) {
@@ -490,6 +508,25 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
           setShowResetDialog(false);
       }
     }
+
+    const handleTransferSubmit = async (amount: number): Promise<boolean> => {
+        if (!user || !sucursal) return false;
+        try {
+            await transferToCentral({
+                sucursalId: sucursal.id,
+                sucursalName: sucursal.name,
+                prefix: sucursal.prefix,
+                amount: amount,
+                userPerformed: user.name || user.username
+            });
+            toast({ title: "Éxito", description: "Fondos transferidos a la Caja Chica."});
+            fetchData();
+            return true;
+        } catch (e: any) {
+            toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo completar la transferencia."});
+            return false;
+        }
+    }
     
     const handlePreviousWeek = () => {
       setSelectedDate(prevDate => addDays(prevDate, -7));
@@ -620,10 +657,17 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                                     <p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p>
                                     <p className="text-xl font-bold">{formatCurrency(totalVentas)}</p>
                                 </div>
-                                 <div className="col-span-2 p-4 rounded-lg bg-blue-500/10 text-blue-700">
-                                    <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Efectivo</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(totalEfectivo)}</p>
-                                </div>
+                                 <Card className="col-span-2 bg-blue-500/10 text-blue-700 shadow-inner">
+                                    <CardHeader className="p-4">
+                                        <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Efectivo</p>
+                                        <p className="text-2xl font-bold">{formatCurrency(totalEfectivo)}</p>
+                                    </CardHeader>
+                                    <CardFooter className="p-2 border-t">
+                                        <Button variant="ghost" className="w-full h-8 text-blue-700 hover:text-blue-800 hover:bg-blue-500/20" onClick={() => setShowTransferDialog(true)}>
+                                            <Send className="mr-2 h-4 w-4"/> Transferir a Caja Chica
+                                        </Button>
+                                    </CardFooter>
+                                 </Card>
                             </CardContent>
                              <CardFooter>
                                   {canDelete && (
@@ -713,6 +757,15 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                  <Dialog open={showComisionesDialog} onOpenChange={setShowComisionesDialog}>
                     <ComisionesDialog summary={weeklySummary} onSave={handleSaveComisiones} onClose={() => setShowComisionesDialog(false)} />
                 </Dialog>
+            )}
+
+             {weeklySummary && (
+                 <TransferToCentralDialog
+                    isOpen={showTransferDialog}
+                    onClose={() => setShowTransferDialog(false)}
+                    onSubmit={handleTransferSubmit}
+                    maxAmount={totalEfectivo}
+                />
             )}
         </div>
     );
