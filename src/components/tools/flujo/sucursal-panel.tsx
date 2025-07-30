@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
 import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, addDays, isSameDay, startOfDay } from "date-fns";
@@ -29,10 +29,25 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
 
-const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEntry[], canDelete: boolean, onDelete: (entry: FlujoEntry) => void }) => {
-    if (entries.length === 0) {
-        return <p className="text-sm text-muted-foreground text-center py-4">No hay registros para esta semana.</p>;
+type UnifiedHistoryItem = {
+    id: string;
+    date: Date;
+    type: 'flujo' | 'gasto' | 'comision';
+    description: string;
+    amount: number;
+    raw: FlujoEntry | FlujoGasto | { comisiones: number };
+};
+
+const WeeklyHistoryTable = ({ items, canDelete, onDeleteEntry }: { items: UnifiedHistoryItem[], canDelete: boolean, onDeleteEntry: (entry: FlujoEntry) => void }) => {
+    if (items.length === 0) {
+        return <p className="text-sm text-muted-foreground text-center py-4">No hay movimientos para esta semana.</p>;
     }
+
+    const typeInfo = {
+        flujo: { label: 'Flujo', icon: TrendingUp, color: "text-green-600" },
+        gasto: { label: 'Gasto', icon: TrendingDown, color: "text-red-500" },
+        comision: { label: 'Comisiones', icon: Coins, color: "text-orange-500" },
+    };
 
     const formatCurrency = (value?: number) => {
         const amount = typeof value === 'number' ? value : 0;
@@ -45,54 +60,57 @@ const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEn
                 <TableHeader>
                     <TableRow>
                         <TableHead>Fecha</TableHead>
-                        <TableHead className="text-right">Fondo</TableHead>
-                        <TableHead className="text-right">Debe Entregar</TableHead>
-                        <TableHead className="text-right">Falla</TableHead>
-                        <TableHead className="text-right">Recuperado</TableHead>
-                        <TableHead className="text-right">Entrantes</TableHead>
-                        <TableHead className="text-right">Salientes</TableHead>
-                        <TableHead className="text-right">Venta</TableHead>
-                        <TableHead className="text-right font-bold">Total Cobrado</TableHead>
-                         {canDelete && <TableHead className="w-[50px]">Acción</TableHead>}
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead className="text-right">Monto</TableHead>
+                        {canDelete && <TableHead className="w-[50px]">Acción</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {entries.map(entry => (
-                        <TableRow key={entry.id}>
-                            <TableCell className="font-medium whitespace-nowrap">{format(entry.date, 'EEEE dd/MM/yy', { locale: es })}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(entry.fondo)}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(entry.debeEntregar)}</TableCell>
-                            <TableCell className="text-right text-red-500 whitespace-nowrap">{formatCurrency(entry.falla)}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(entry.recuperado)}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(entry.entrantes)}</TableCell>
-                            <TableCell className="text-right text-red-500 whitespace-nowrap">{formatCurrency(entry.salientes)}</TableCell>
-                             <TableCell className="text-right text-red-500 whitespace-nowrap">{formatCurrency(entry.venta)}</TableCell>
-                            <TableCell className="text-right font-bold whitespace-nowrap">{formatCurrency(entry.totalCobrado)}</TableCell>
-                            {canDelete && (
+                    {items.map(item => {
+                        const info = typeInfo[item.type];
+                        const isEntry = item.type === 'flujo';
+                        return (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium whitespace-nowrap">{format(item.date, 'EEEE dd/MM/yy', { locale: es })}</TableCell>
                                 <TableCell>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
-                                                <AlertDialogDescription>
-                                                    Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos correspondientes.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooterComponent>
-                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => onDelete(entry)}>Eliminar</AlertDialogAction>
-                                            </AlertDialogFooterComponent>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                    <div className={cn("flex items-center gap-2 font-medium", info.color)}>
+                                        <info.icon className="h-4 w-4" />
+                                        <span>{info.label}</span>
+                                    </div>
                                 </TableCell>
-                            )}
-                        </TableRow>
-                    ))}
+                                <TableCell>{item.description}</TableCell>
+                                <TableCell className={cn("text-right font-mono", info.color)}>{formatCurrency(item.amount)}</TableCell>
+                                {canDelete && (
+                                    <TableCell>
+                                        {isEntry ? (
+                                             <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
+                                                        <AlertDialogDescription>
+                                                            Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos correspondientes.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooterComponent>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDeleteEntry(item.raw as FlujoEntry)}>Eliminar</AlertDialogAction>
+                                                    </AlertDialogFooterComponent>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        ) : (
+                                            <div></div> // Empty cell for non-deletable items
+                                        )}
+                                    </TableCell>
+                                )}
+                            </TableRow>
+                        )
+                    })}
                 </TableBody>
             </Table>
         </div>
@@ -194,7 +212,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const { toast } = useToast();
   const [sucursal, setSucursal] = React.useState<FlujoSucursal | null>(null);
   const [weeklySummary, setWeeklySummary] = React.useState<FlujoWeeklySummary | null>(null);
-  const [weeklyEntries, setWeeklyEntries] = React.useState<FlujoEntry[]>([]);
+  const [weeklyHistory, setWeeklyHistory] = React.useState<UnifiedHistoryItem[]>([]);
   const [weekDateRange, setWeekDateRange] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -214,7 +232,48 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
           const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId, selectedDate);
           setWeeklySummary(summary);
           setWeekDateRange(dateRange);
-          setWeeklyEntries(entries);
+
+          // Combine all data for history view
+          const combinedHistory: UnifiedHistoryItem[] = [];
+          
+          entries.forEach(entry => {
+              combinedHistory.push({
+                  id: entry.id,
+                  date: entry.date,
+                  type: 'flujo',
+                  description: `Fondo: $${entry.fondo}, Debe: $${entry.debeEntregar}, Falla: $${entry.falla}, Recuperado: $${entry.recuperado}, Salientes: $${entry.salientes}, Entrantes: $${entry.entrantes}, Venta: $${entry.venta}`,
+                  amount: entry.totalCobrado,
+                  raw: entry
+              });
+          });
+
+          if (summary) {
+              summary.gastos.forEach(gasto => {
+                  combinedHistory.push({
+                      id: `gasto-${gasto.id}`,
+                      date: gasto.date,
+                      type: 'gasto',
+                      description: gasto.description,
+                      amount: -gasto.amount, // Negative as it's an expense
+                      raw: gasto
+                  });
+              });
+
+              if (summary.comisiones > 0) {
+                  combinedHistory.push({
+                      id: `comision-${summary.id}`,
+                      date: summary.weekEndDate, // Assign to end of week
+                      type: 'comision',
+                      description: "Comisiones de la semana",
+                      amount: -summary.comisiones, // Negative as it's an expense
+                      raw: { comisiones: summary.comisiones }
+                  });
+              }
+          }
+          
+          combinedHistory.sort((a, b) => a.date.getTime() - b.date.getTime());
+          setWeeklyHistory(combinedHistory);
+
 
       } catch (e: any) {
           toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal.' });
@@ -425,7 +484,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             </div>
         </div>
 
-        {weeklyEntries.length > 0 && (
+        {weeklyHistory.length > 0 && (
             <Card>
                 <CardHeader>
                     <CardTitle>Historial de la Semana</CardTitle>
@@ -435,7 +494,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <WeeklyHistoryTable entries={weeklyEntries} canDelete={canDelete} onDelete={handleDeleteEntry} />
+                    <WeeklyHistoryTable items={weeklyHistory} canDelete={canDelete} onDeleteEntry={handleDeleteEntry} />
                 </CardContent>
             </Card>
         )}
@@ -453,5 +512,3 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     </div>
   );
 }
-
-    
