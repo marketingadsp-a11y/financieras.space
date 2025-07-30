@@ -211,8 +211,7 @@ export function FlujoDashboard() {
         <h1 className="text-3xl font-bold tracking-tight">Panel de Flujo</h1>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <StatCard title="Total Efectivo (Global)" value={displayAccount.totalEfectivo} icon={DollarSign} description="Suma de todo el dinero disponible." />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <StatCard title="Caja Chica" value={displayAccount.cajaChica} icon={PiggyBank} description="Dinero en la cuenta principal." />
         <StatCard title="Total Efectivo (Semanal)" value={totalEfectivoSemanal} icon={Wallet} description="Suma de todas las sucursales esta semana." colorClass="text-blue-600" />
       </div>
@@ -299,3 +298,5 @@ export function FlujoDashboard() {
     </div>
   );
 }
+
+    
