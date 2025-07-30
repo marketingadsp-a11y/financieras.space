@@ -323,12 +323,13 @@ export type FlujoSucursal = {
 export type FlujoCentralTransaction = {
     id: string;
     prefix: string;
-    type: 'transfer_in';
+    type: 'transfer_in' | 'withdrawal';
     amount: number;
     date: Date;
     userPerformed: string;
-    sucursalId: string;
-    sucursalName: string;
+    sucursalId?: string;
+    sucursalName?: string;
+    description?: string;
 }
 
 export type FlujoCentralAccount = {

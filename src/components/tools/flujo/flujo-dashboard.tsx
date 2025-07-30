@@ -5,11 +5,11 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoWeeklySummary, FlujoCentralTransaction } from "@/lib/data";
-import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal, getFlujoExportData } from "@/services/flujo-service";
+import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal, getFlujoExportData, withdrawFromCentral } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2, ChevronLeft, ChevronRight, History, Wallet, Coins, TrendingUp, TrendingDown, Receipt, CalendarIcon, Download } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2, ChevronLeft, ChevronRight, History, Wallet, Coins, TrendingUp, TrendingDown, Receipt, CalendarIcon, Download, MinusCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription as DialogDesc } from "@/components/ui/dialog";
 import { FlujoSucursalForm } from "./sucursal-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -22,16 +22,18 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { FlujoExportDialog } from "./flujo-export-dialog";
 import { CajaChicaHistory } from "./caja-chica-history";
+import { Label } from "@/components/ui/label";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
-const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => {
+const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary', children }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string, children?: React.ReactNode }) => {
     
     if (title === "Total Efectivo (Semanal)") {
         return (
-             <Card className="bg-blue-500/10 text-blue-700 shadow-inner">
+             <Card className="bg-blue-500/10 text-blue-700 shadow-inner flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2"><Icon className="h-4 w-4"/>{title}</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-grow">
                     <p className="text-3xl font-bold">${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                     <p className="text-xs text-blue-700/80">{description}</p>
                 </CardContent>
@@ -41,35 +43,35 @@ const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-pr
 
     if (title === "Caja Chica") {
         return (
-             <Card className="bg-green-500/10 text-green-700 shadow-inner">
+             <Card className="bg-green-500/10 text-green-700 shadow-inner flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2"><Icon className="h-4 w-4"/>{title}</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-grow">
                     <p className="text-3xl font-bold">${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                     <p className="text-xs text-green-700/80">{description}</p>
                 </CardContent>
+                {children && <CardFooter className="p-2 border-t border-green-500/20">{children}</CardFooter>}
             </Card>
         )
     }
 
     return (
-      <Card>
+      <Card className="flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
-        <CardContent>
-        <div className={cn("text-3xl font-bold", colorClass)}>
-            ${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-        </div>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <CardContent className="flex-grow">
+            <div className={cn("text-3xl font-bold", colorClass)}>
+                ${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground">{description}</p>
         </CardContent>
+        {children && <CardFooter className="p-4 pt-0">{children}</CardFooter>}
       </Card>
     )
 };
-
-type SucursalSummary = FlujoSucursal & { summary: FlujoWeeklySummary | null };
 
 const SucursalCard = ({ sucursalSummary, onEdit, onDelete }: { sucursalSummary: SucursalSummary, onEdit: (s: FlujoSucursal) => void, onDelete: (s: FlujoSucursal) => void }) => {
   const { summary, ...sucursal } = sucursalSummary;
@@ -125,6 +127,57 @@ const SucursalCard = ({ sucursalSummary, onEdit, onDelete }: { sucursalSummary: 
 };
 
 
+const WithdrawDialog = ({ isOpen, onClose, onWithdraw, maxAmount }: { isOpen: boolean, onClose: () => void, onWithdraw: (amount: number, description: string) => Promise<void>, maxAmount: number }) => {
+    const [amount, setAmount] = React.useState<number | undefined>();
+    const [description, setDescription] = React.useState("");
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!amount || amount <= 0 || !description) return;
+        if (amount > maxAmount) {
+            alert("No se puede retirar más de lo que hay en Caja Chica.");
+            return;
+        }
+        setIsSubmitting(true);
+        await onWithdraw(amount, description);
+        setIsSubmitting(false);
+        setAmount(undefined);
+        setDescription("");
+        onClose();
+    };
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Retirar de Caja Chica</DialogTitle>
+                    <DialogDesc>Ingresa el monto y la razón del retiro.</DialogDesc>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="withdraw-amount">Monto a Retirar</Label>
+                        <CurrencyInput id="withdraw-amount" value={amount} onValueChange={setAmount} placeholder="0.00" />
+                        <p className="text-xs text-muted-foreground">Disponible: ${maxAmount.toLocaleString()}</p>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="withdraw-desc">Descripción / Motivo</Label>
+                        <Input id="withdraw-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej. Pago a proveedor" />
+                    </div>
+                     <DialogFooter className="pt-4">
+                        <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+                        <Button type="submit" disabled={isSubmitting || !amount || !description}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                            Confirmar Retiro
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+
 export function FlujoDashboard() {
   const { user, hasPermission } = useAuth();
   const { toast } = useToast();
@@ -136,6 +189,7 @@ export function FlujoDashboard() {
   const [isFormOpen, setFormOpen] = React.useState(false);
   const [editingSucursal, setEditingSucursal] = React.useState<FlujoSucursal | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isWithdrawDialogOpen, setWithdrawDialogOpen] = React.useState(false);
   
   // Delete dialog state
   const [sucursalToDelete, setSucursalToDelete] = React.useState<FlujoSucursal | null>(null);
@@ -214,6 +268,22 @@ export function FlujoDashboard() {
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo eliminar la sucursal.' });
     }
+  }
+
+  const handleWithdraw = async (amount: number, description: string) => {
+      if (!user?.prefix || !user.name) return;
+      try {
+          await withdrawFromCentral({
+              prefix: user.prefix,
+              amount,
+              description,
+              userPerformed: user.name
+          });
+          toast({ title: 'Éxito', description: 'Retiro registrado.' });
+          fetchData();
+      } catch (error: any) {
+          toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo registrar el retiro.' });
+      }
   }
   
   const openForm = (sucursal: FlujoSucursal | null) => {
@@ -312,7 +382,11 @@ export function FlujoDashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <StatCard title="Caja Chica" value={displayAccount.cajaChica} icon={PiggyBank} description="Dinero en la cuenta principal." />
+        <StatCard title="Caja Chica" value={displayAccount.cajaChica} icon={PiggyBank} description="Dinero en la cuenta principal.">
+            <Button variant="destructive" className="w-full h-8" onClick={() => setWithdrawDialogOpen(true)}>
+                <MinusCircle className="mr-2 h-4 w-4"/> Retirar Fondos
+            </Button>
+        </StatCard>
         <StatCard title="Total Efectivo (Semanal)" value={totalEfectivoSemanal} icon={Wallet} description="Suma de todas las sucursales esta semana." colorClass="text-blue-600" />
       </div>
 
@@ -406,6 +480,13 @@ export function FlujoDashboard() {
         onExport={handleExport}
         isExporting={isExporting}
       />
+
+       <WithdrawDialog
+            isOpen={isWithdrawDialogOpen}
+            onClose={() => setWithdrawDialogOpen(false)}
+            onWithdraw={handleWithdraw}
+            maxAmount={displayAccount.cajaChica}
+        />
     </div>
   );
 }

@@ -486,6 +486,40 @@ export async function transferToCentral({ sucursalId, sucursalName, prefix, amou
     });
 }
 
+type WithdrawParams = {
+    prefix: string;
+    amount: number;
+    description: string;
+    userPerformed: string;
+};
+
+export async function withdrawFromCentral({ prefix, amount, description, userPerformed }: WithdrawParams) {
+    const centralAccountRef = doc(db, 'flujo_central_accounts', prefix);
+    
+    await runTransaction(db, async (transaction) => {
+        const centralAccountDoc = await transaction.get(centralAccountRef);
+        if (!centralAccountDoc.exists() || (centralAccountDoc.data().cajaChica || 0) < amount) {
+            throw new Error("Fondos insuficientes en la Caja Chica para realizar este retiro.");
+        }
+        
+        const currentBalance = centralAccountDoc.data().cajaChica;
+        const newBalance = currentBalance - amount;
+        
+        transaction.update(centralAccountRef, { cajaChica: newBalance });
+
+        // Log the withdrawal transaction
+        const centralTransactionRef = doc(collection(db, "flujo_central_accounts", prefix, "transactions"));
+        transaction.set(centralTransactionRef, {
+            type: 'withdrawal',
+            amount: amount,
+            date: new Date(),
+            userPerformed,
+            description,
+        });
+    });
+}
+
+
 // --- EXPORT FUNCTIONS ---
 type WeeklySummaryForExport = FlujoWeeklySummary & { totalEfectivo: number };
 
@@ -538,5 +572,3 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
 
     return { sucursales: exportData, dateRange };
 }
-
-    
