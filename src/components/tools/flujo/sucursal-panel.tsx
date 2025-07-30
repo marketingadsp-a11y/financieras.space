@@ -322,7 +322,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             </CardContent>
         </Card>
 
-        {weeklySummary && (
+        {weeklySummary && weeklyEntries.length > 0 && (
             <Card>
                  <CardHeader>
                     <div className="flex justify-between items-start">
@@ -377,18 +377,20 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             </Card>
         )}
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Historial de la Semana</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <span>{weekDateRange}</span>
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <WeeklyHistoryTable entries={weeklyEntries} canDelete={canDelete} onDelete={handleDeleteEntry} />
-            </CardContent>
-        </Card>
+        {weeklyEntries.length > 0 && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Historial de la Semana</CardTitle>
+                    <CardDescription className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>{weekDateRange}</span>
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <WeeklyHistoryTable entries={weeklyEntries} canDelete={canDelete} onDelete={handleDeleteEntry} />
+                </CardContent>
+            </Card>
+        )}
         
         {weeklySummary && (
             <Dialog open={showGastosDialog} onOpenChange={setShowGastosDialog}>

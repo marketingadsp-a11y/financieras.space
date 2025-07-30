@@ -235,7 +235,8 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
             gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
             totalCobradoSemanal: calculatedTotalCobrado, // Always use the calculated total
         } as FlujoWeeklySummary;
-    } else {
+    } else if (weeklyEntries.length > 0) {
+        // Create a summary if entries exist but summary doesn't
         summary = {
             id: summaryId,
             sucursalId,
