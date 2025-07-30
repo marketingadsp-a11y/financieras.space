@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 
 
 const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEntry[], canDelete: boolean, onDelete: (entry: FlujoEntry) => void }) => {
@@ -304,72 +304,76 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Panel de Flujo: {sucursal.name}</h1>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Ingreso de Datos</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <FlujoSucursalEntryForm
-                    onSubmit={handleFormSubmit}
-                    isSubmitting={isSubmitting}
-                />
-            </CardContent>
-        </Card>
-
-        {weeklySummary && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
-                 <CardHeader>
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <CardTitle>Resumen de la Semana</CardTitle>
-                            <CardDescription>Totales calculados para la semana actual ({weekDateRange}).</CardDescription>
-                        </div>
-                        {canDelete && (
-                            <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                        <RefreshCcw className="mr-2 h-4 w-4"/> Reiniciar Semana
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitleComponent>¿Reiniciar Resumen?</AlertDialogTitleComponent>
-                                        <AlertDialogDescription>
-                                            Esta acción eliminará los gastos y pondrá las comisiones en cero para la semana actual. Los registros de flujo no se verán afectados.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooterComponent>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleResetWeek} disabled={isReseting}>
-                                            {isReseting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                            Sí, reiniciar
-                                        </AlertDialogAction>
-                                    </AlertDialogFooterComponent>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
-                    </div>
+                <CardHeader>
+                    <CardTitle>Ingreso de Datos</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                     <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
-                        <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
-                        <p className="text-2xl font-bold">${totalCobrado.toLocaleString('es-MX')}</p>
-                    </div>
-                     <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowComisionesDialog(true)}>
-                        <p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p>
-                        <p className="text-2xl font-bold">${totalComisiones.toLocaleString('es-MX')}</p>
-                    </div>
-                     <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowGastosDialog(true)}>
-                        <p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Gastos</p>
-                        <p className="text-2xl font-bold">${totalGastos.toLocaleString('es-MX')}</p>
-                    </div>
-                     <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700">
-                        <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Final</p>
-                        <p className="text-2xl font-bold">${totalFinal.toLocaleString('es-MX')}</p>
-                    </div>
+                <CardContent>
+                    <FlujoSucursalEntryForm
+                        onSubmit={handleFormSubmit}
+                        isSubmitting={isSubmitting}
+                    />
                 </CardContent>
             </Card>
-        )}
+
+            <div className="space-y-6">
+                {weeklySummary && (
+                    <Card>
+                        <CardHeader>
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                                <div>
+                                    <CardTitle>Resumen de la Semana</CardTitle>
+                                    <CardDescription>{weekDateRange}</CardDescription>
+                                </div>
+                                {canDelete && (
+                                    <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                                                <RefreshCcw className="mr-2 h-4 w-4"/> Reiniciar Semana
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitleComponent>¿Reiniciar Resumen?</AlertDialogTitleComponent>
+                                                <AlertDialogDescription>
+                                                    Esta acción eliminará los gastos y pondrá las comisiones en cero para la semana actual. Los registros de flujo no se verán afectados.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooterComponent>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleResetWeek} disabled={isReseting}>
+                                                    {isReseting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                    Sí, reiniciar
+                                                </AlertDialogAction>
+                                            </AlertDialogFooterComponent>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
+                                <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
+                                <p className="text-2xl font-bold">${totalCobrado.toLocaleString('es-MX')}</p>
+                            </div>
+                            <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowComisionesDialog(true)}>
+                                <p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p>
+                                <p className="text-2xl font-bold">${totalComisiones.toLocaleString('es-MX')}</p>
+                            </div>
+                            <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowGastosDialog(true)}>
+                                <p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Gastos</p>
+                                <p className="text-2xl font-bold">${totalGastos.toLocaleString('es-MX')}</p>
+                            </div>
+                            <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700">
+                                <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Final</p>
+                                <p className="text-2xl font-bold">${totalFinal.toLocaleString('es-MX')}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        </div>
 
         {weeklyEntries.length > 0 && (
             <Card>
