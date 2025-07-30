@@ -7,10 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
 import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format } from "date-fns";
+import { format, addDays, isSameDay, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import {
@@ -287,7 +287,21 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
         setShowResetDialog(false);
     }
   }
+  
+  const handlePreviousWeek = () => {
+    setSelectedDate(prevDate => addDays(prevDate, -7));
+  };
 
+  const handleNextWeek = () => {
+    setSelectedDate(prevDate => addDays(prevDate, 7));
+  };
+  
+  const handleCurrentWeek = () => {
+    setSelectedDate(new Date());
+  }
+
+  const isNextWeekDisabled = isSameDay(startOfDay(selectedDate), startOfDay(new Date())) || selectedDate > new Date();
+  
   const totalGastos = weeklySummary?.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
   const totalComisiones = weeklySummary?.comisiones ?? 0;
   const totalCobrado = weeklySummary?.totalCobradoSemanal ?? 0;
@@ -339,6 +353,15 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             </div>
 
             <div className="space-y-6 lg:col-span-1">
+                 <div className="space-y-2">
+                     <div className="grid grid-cols-2 gap-2">
+                        <Button onClick={handlePreviousWeek} variant="outline"><ChevronLeft className="mr-2 h-4 w-4"/> Anterior</Button>
+                        <Button onClick={handleNextWeek} variant="outline" disabled={isNextWeekDisabled}>Siguiente <ChevronRight className="ml-2 h-4 w-4"/></Button>
+                     </div>
+                      <Button onClick={handleCurrentWeek} variant="ghost" className="w-full" disabled={isNextWeekDisabled}>
+                        <History className="mr-2 h-4 w-4"/> Volver a Semana Actual
+                     </Button>
+                 </div>
                 {weeklySummary ? (
                     <Card>
                         <CardHeader>
@@ -430,3 +453,5 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     </div>
   );
 }
+
+    
