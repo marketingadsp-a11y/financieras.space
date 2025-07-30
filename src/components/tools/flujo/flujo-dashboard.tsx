@@ -25,7 +25,7 @@ const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-pr
       <Icon className="h-4 w-4 text-muted-foreground" />
     </CardHeader>
     <CardContent>
-      <div className="text-3xl font-bold">
+      <div className={cn("text-3xl font-bold", colorClass)}>
         ${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
       </div>
       <p className="text-xs text-muted-foreground">{description}</p>
@@ -131,6 +131,18 @@ export function FlujoDashboard() {
     fetchData();
   }, [fetchData]);
 
+  const totalEfectivoSemanal = React.useMemo(() => {
+    return sucursalSummaries.reduce((acc, s) => {
+        if (!s.summary) return acc;
+        const totalCobrado = s.summary.totalCobradoSemanal ?? 0;
+        const totalComisiones = s.summary.comisiones ?? 0;
+        const totalGastos = s.summary.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
+        const totalVentas = s.summary.ventas.reduce((acc, v) => acc + v.amount, 0) ?? 0;
+        const totalEfectivo = totalCobrado - totalComisiones - totalGastos - totalVentas;
+        return acc + totalEfectivo;
+    }, 0);
+  }, [sucursalSummaries]);
+
   const handleFormSubmit = async (data: Omit<FlujoSucursal, 'id' | 'prefix' | 'currentBalance'>) => {
     if (!user?.prefix) return;
     setIsSubmitting(true);
@@ -199,9 +211,10 @@ export function FlujoDashboard() {
         <h1 className="text-3xl font-bold tracking-tight">Panel de Flujo</h1>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <StatCard title="Total Efectivo" value={displayAccount.totalEfectivo} icon={DollarSign} description="Suma de todo el dinero disponible." />
-        <StatCard title="Caja Chica" value={displayAccount.cajaChica} icon={PiggyBank} description="Dinero disponible en la cuenta principal." />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <StatCard title="Total Efectivo (Global)" value={displayAccount.totalEfectivo} icon={DollarSign} description="Suma de todo el dinero disponible." />
+        <StatCard title="Caja Chica" value={displayAccount.cajaChica} icon={PiggyBank} description="Dinero en la cuenta principal." />
+        <StatCard title="Total Efectivo (Semanal)" value={totalEfectivoSemanal} icon={Wallet} description="Suma de todas las sucursales esta semana." colorClass="text-blue-600" />
       </div>
 
       <Card>
