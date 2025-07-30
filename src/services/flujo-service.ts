@@ -19,7 +19,8 @@ import {
   DocumentSnapshot,
   arrayUnion,
   setDoc,
-  arrayRemove
+  arrayRemove,
+  QueryConstraint
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta } from "@/lib/data";
@@ -414,29 +415,35 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
     const allSucursales = await getFlujoSucursales(prefix);
     const sucursalesToExport = sucursalIds.includes('all') ? allSucursales : allSucursales.filter(s => sucursalIds.includes(s.id));
 
-    let qConstraints = [where("sucursalId", "in", sucursalesToExport.map(s => s.id))];
-    if (startDate) qConstraints.push(where("weekStartDate", ">=", Timestamp.fromDate(startDate)));
-    if (endDate) qConstraints.push(where("weekStartDate", "<=", Timestamp.fromDate(endDate)));
-
-    const summariesQuery = query(weeklySummariesCollectionRef, ...qConstraints);
-    const summariesSnapshot = await getDocs(summariesQuery);
-    
-    const summariesBySucursal: Record<string, WeeklySummaryForExport[]> = {};
-    sucursalesToExport.forEach(s => { summariesBySucursal[s.id] = []; });
-
-    summariesSnapshot.forEach(doc => {
-        const data = doc.data() as FlujoWeeklySummary;
-        const totalEfectivo = data.totalCobradoSemanal - data.comisiones - data.gastos.reduce((a,c) => a+c.amount, 0) - data.ventas.reduce((a,c) => a+c.amount, 0);
-        if (summariesBySucursal[data.sucursalId]) {
-            summariesBySucursal[data.sucursalId].push({ ...data, weekId: doc.id.split('_')[1], totalEfectivo } as any);
+    const exportDataPromises = sucursalesToExport.map(async (sucursal) => {
+        const qConstraints: QueryConstraint[] = [where("sucursalId", "==", sucursal.id)];
+        if (startDate) {
+            qConstraints.push(where("weekStartDate", ">=", Timestamp.fromDate(startDate)));
         }
+        if (endDate) {
+            qConstraints.push(where("weekStartDate", "<=", Timestamp.fromDate(endDate)));
+        }
+
+        const summariesQuery = query(weeklySummariesCollectionRef, ...qConstraints);
+        const summariesSnapshot = await getDocs(summariesQuery);
+
+        const weeklySummaries = summariesSnapshot.docs.map(doc => {
+            const data = doc.data() as FlujoWeeklySummary;
+            const totalEfectivo = data.totalCobradoSemanal - data.comisiones - data.gastos.reduce((a,c) => a+c.amount, 0) - data.ventas.reduce((a,c) => a+c.amount, 0);
+            return { 
+                ...data, 
+                weekId: doc.id.split('_')[1], 
+                totalEfectivo 
+            } as unknown as WeeklySummaryForExport; // Cast needed due to weekId addition
+        });
+        
+        return {
+            ...sucursal,
+            weeklySummaries: weeklySummaries.sort((a,b) => a.weekStartDate > b.weekStartDate ? 1 : -1)
+        };
     });
 
-    const exportData = sucursalesToExport.map(s => ({
-        ...s,
-        weeklySummaries: (summariesBySucursal[s.id] || []).sort((a,b) => a.weekStartDate > b.weekStartDate ? 1 : -1)
-    }));
-
+    const exportData = await Promise.all(exportDataPromises);
     const dateRange = `${format(startDate, 'P', { locale: es })} - ${endDate ? format(endDate, 'P', { locale: es }) : 'Ahora'}`;
 
     return { sucursales: exportData, dateRange };

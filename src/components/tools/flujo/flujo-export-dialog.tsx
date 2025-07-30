@@ -38,7 +38,7 @@ export function FlujoExportDialog({ isOpen, onClose, sucursales, onExport, isExp
   const [dateRangeType, setDateRangeType] = React.useState<'current' | 'all' | 'custom'>('current');
   const [customDate, setCustomDate] = React.useState<DateRange | undefined>({
     from: startOfDay(new Date()),
-    to: addDays(startOfDay(new Date()), 7),
+    to: new Date(),
   });
 
   const handleSucursalSelect = (sucursalId: string) => {
@@ -57,18 +57,27 @@ export function FlujoExportDialog({ isOpen, onClose, sucursales, onExport, isExp
   const isAllSelected = selectedSucursalIds.includes('all');
   
   const handleExportClick = (formatType: 'pdf' | 'excel') => {
-    let start = new Date();
-    let end: Date | null = new Date();
+    let start: Date;
+    let end: Date | null;
 
     if (dateRangeType === 'current') {
         start = new Date();
         end = new Date();
     } else if (dateRangeType === 'all') {
         start = new Date(2020, 0, 1);
-        end = null;
+        end = null; // Use null to indicate "up to now"
     } else if (dateRangeType === 'custom' && customDate?.from) {
         start = customDate.from;
-        end = customDate.to ? addDays(customDate.to, 1) : addDays(customDate.from, 1);
+        end = customDate.to ?? customDate.from; // If no 'to', range is just one day
+    } else {
+        // Fallback or error
+        start = new Date();
+        end = new Date();
+    }
+    
+    // Ensure the `to` date includes the entire day
+    if (end) {
+        end.setHours(23, 59, 59, 999);
     }
 
     onExport(selectedSucursalIds, start, end, formatType);
