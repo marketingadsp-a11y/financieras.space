@@ -244,7 +244,7 @@ export async function deleteSucursalData(sucursalId: string): Promise<void> {
 
 // --- Sucursal Panel Functions ---
 
-export async function getSucursalTransactions(sucursalId: string): Promise<SucursalTransaction[]> {
+export async function getSucursalTransactions(sucursalId: string): Promise<any[]> {
     const q = query(
         sucursalTransactionsCollectionRef,
         where("sucursalId", "==", sucursalId),
@@ -253,10 +253,11 @@ export async function getSucursalTransactions(sucursalId: string): Promise<Sucur
     const snapshot = await getDocs(q);
     const transactions = snapshot.docs.map(doc => {
         const data = doc.data();
-        return { ...data, id: doc.id, date: (data.date as Timestamp).toDate() }
-    }) as SucursalTransaction[];
+        // Convert Timestamp to a serializable format (ISO string)
+        return { ...data, id: doc.id, date: (data.date as Timestamp).toDate().toISOString() }
+    });
     
-    return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+    return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 type SucursalTransactionParams = {
@@ -474,7 +475,7 @@ export async function updateSucursalTransaction(
     // Update the transaction document itself
     const dataToUpdate: any = { ...newTransactionData };
     if (newTransactionData.date) {
-        dataToUpdate.date = Timestamp.fromDate(newTransactionData.date);
+        dataToUpdate.date = Timestamp.fromDate(new Date(newTransactionData.date));
     }
     transaction.update(transactionRef, dataToUpdate);
   });

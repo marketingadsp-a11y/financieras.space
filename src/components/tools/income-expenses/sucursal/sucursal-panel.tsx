@@ -80,7 +80,7 @@ const TransactionRow = ({ tx, onEdit, onDelete, canEditDelete }: { tx: SucursalT
                 <div className={cn("font-semibold", info.color)}>
                    ${tx.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </div>
-                 <p className="text-xs text-muted-foreground">{format(tx.date, "dd MMM yyyy, p", { locale: es })}</p>
+                 <p className="text-xs text-muted-foreground">{format(new Date(tx.date), "dd MMM yyyy, p", { locale: es })}</p>
             </div>
             {canEditDelete && (
                 <AlertDialog>
@@ -145,7 +145,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 getSucursalStats(sucursalId)
             ]);
             setSucursal(sucursalData);
-            setTransactions(transactionsData);
+            setTransactions(transactionsData as SucursalTransaction[]);
             setStats(statsData);
         } catch (e: any) {
             toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudieron cargar los datos de la sucursal.' });
@@ -160,7 +160,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
 
     const filteredTransactions = React.useMemo(() => {
         return transactions.filter(tx => {
-            const txDate = tx.date;
+            const txDate = new Date(tx.date); // Handle ISO strings
             if (startDate && txDate < startDate) return false;
             if (endDate) {
                 const endOfDay = new Date(endDate);
@@ -297,7 +297,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 body: filteredTransactions.map(tx => {
                     const typeLabels = { deposit: 'Ingreso', expense: 'Gasto', transfer_to_central: 'Envío' };
                     return [
-                        format(tx.date, "dd/MM/yy p", { locale: es }),
+                        format(new Date(tx.date), "dd/MM/yy p", { locale: es }),
                         typeLabels[tx.type],
                         tx.category || 'N/A',
                         tx.description,
@@ -396,7 +396,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      {filteredTransactions.length > 0 ? filteredTransactions.map(tx => (
-                        <TransactionRow key={tx.id} tx={tx} onEdit={handleEditClick} onDelete={confirmDelete} canEditDelete={canEditDelete} />
+                        <TransactionRow key={tx.id} tx={tx as SucursalTransaction} onEdit={handleEditClick} onDelete={confirmDelete} canEditDelete={canEditDelete} />
                      )) : (
                         <div className="text-center py-10 text-muted-foreground">No hay transacciones para el rango de fechas seleccionado.</div>
                      )}
