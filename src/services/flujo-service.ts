@@ -115,6 +115,28 @@ export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
             };
         })
     );
+
+    // Fallback for new sucursales that don't have a summary yet
+    const safeSucursalSummaries = sucursalSummaries.map(s => {
+        if (!s.summary) {
+            const { weekId, start, end } = getWeekBoundaries(date);
+            return {
+                ...s,
+                summary: {
+                    id: `${s.id}_${weekId}`,
+                    sucursalId: s.id,
+                    weekStartDate: start,
+                    weekEndDate: end,
+                    totalCobradoSemanal: 0,
+                    comisiones: 0,
+                    gastos: [],
+                    ventas: [],
+                }
+            };
+        }
+        return s;
+    });
+
     
     // Get central account info
     const centralAccountDocRef = doc(db, "flujo_central_accounts", prefix);
@@ -128,7 +150,7 @@ export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
     
     const dateRange = `Semana del ${format(start, "dd 'de' LLLL", { locale: es })} al ${format(end, "dd 'de' LLLL", { locale: es })}`;
 
-    return { centralAccount, sucursalSummaries, dateRange };
+    return { centralAccount, sucursalSummaries: safeSucursalSummaries, dateRange };
 }
 
 
@@ -241,13 +263,17 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Pro
 
     if (summarySnap.exists()) {
         const data = summarySnap.data();
+        // Convert Timestamps to ISO strings to avoid client component errors
+        const safeGastos = (data.gastos || []).map((g: any) => ({ ...g, date: (g.date as Timestamp).toDate().toISOString() }));
+        const safeVentas = (data.ventas || []).map((v: any) => ({ ...v, date: (v.date as Timestamp).toDate().toISOString() }));
+
         summary = {
             ...data,
             id: summarySnap.id,
             weekStartDate: (data.weekStartDate as Timestamp).toDate(),
             weekEndDate: (data.weekEndDate as Timestamp).toDate(),
-            gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate().toISOString()})),
-            ventas: (data.ventas || []).map((v: any) => ({...v, date: (v.date as Timestamp).toDate().toISOString()})),
+            gastos: safeGastos,
+            ventas: safeVentas,
             totalCobradoSemanal: calculatedTotalCobrado,
         } as FlujoWeeklySummary;
     } else {
@@ -401,6 +427,7 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
         // Query summaries for the current sucursal
         const qConstraints: QueryConstraint[] = [
             where("sucursalId", "==", sucursal.id),
+            where("prefix", "==", prefix),
         ];
 
         // This is the corrected query logic.
