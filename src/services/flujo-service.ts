@@ -105,36 +105,17 @@ export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
 
     // Get all sucursales for the prefix
     const sucursales = await getFlujoSucursales(prefix);
-    const sucursalIds = sucursales.map(s => s.id);
 
-    // Get all weekly summaries for these sucursales for the given week
-    const summaryPromises = sucursalIds.map(id => {
-        const summaryId = `${id}_${weekId}`;
-        return getDoc(doc(db, 'flujo_weekly_summaries', summaryId));
-    });
-    const summarySnapshots = await Promise.all(summaryPromises);
-
-    const summariesMap = new Map<string, FlujoWeeklySummary>();
-    summarySnapshots.forEach(snap => {
-        if (snap.exists()) {
-            const data = snap.data();
-            const summary = {
-                ...data,
-                id: snap.id,
-                weekStartDate: (data.weekStartDate as Timestamp).toDate(),
-                weekEndDate: (data.weekEndDate as Timestamp).toDate(),
-                gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
-                ventas: (data.ventas || []).map((v: any) => ({...v, date: (v.date as Timestamp).toDate()})),
-            } as FlujoWeeklySummary;
-            summariesMap.set(summary.sucursalId, summary);
-        }
-    });
-
-    const sucursalSummaries: SucursalSummary[] = sucursales.map(s => ({
-        ...s,
-        summary: summariesMap.get(s.id) || null
-    }));
-
+    const sucursalSummaries = await Promise.all(
+        sucursales.map(async (s) => {
+            const summaryResult = await getFlujoWeeklySummary(s.id, date);
+            return {
+                ...s,
+                summary: summaryResult.summary
+            };
+        })
+    );
+    
     // Get central account info
     const centralAccountDocRef = doc(db, "flujo_central_accounts", prefix);
     const accountSnap = await getDoc(centralAccountDocRef);
@@ -417,9 +398,12 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
 
     const exportDataPromises = sucursalesToExport.map(async (sucursal) => {
         // Query summaries for the current sucursal
-        const qConstraints: QueryConstraint[] = [where("sucursalId", "==", sucursal.id)];
+        const qConstraints: QueryConstraint[] = [
+            where("sucursalId", "==", sucursal.id),
+            where("prefix", "==", prefix), // Ensure we only get summaries for the correct prefix
+        ];
         
-        // This is the corrected logic. We query for any week that overlaps with the selected date range.
+        // Corrected date range logic
         if (endDate) {
             // Find summaries that START BEFORE the END of our range
             qConstraints.push(where("weekStartDate", "<=", Timestamp.fromDate(endDate)));
@@ -432,12 +416,14 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
             .map(doc => {
                 const data = doc.data() as FlujoWeeklySummary;
                 const weekEndDate = (data.weekEndDate as Timestamp).toDate();
+                
                 // Post-filter for summaries that END AFTER the START of our range
                 if (startDate && weekEndDate < startDate) {
                     return null;
                 }
 
-                const totalEfectivo = data.totalCobradoSemanal - data.comisiones - data.gastos.reduce((a,c) => a+c.amount, 0) - data.ventas.reduce((a,c) => a+c.amount, 0);
+                const totalEfectivo = data.totalCobradoSemanal - data.comisiones - (data.gastos?.reduce((a,c) => a+c.amount, 0) ?? 0) - (data.ventas?.reduce((a,c) => a+c.amount, 0) ?? 0);
+                
                 return { 
                     ...data,
                     weekStartDate: (data.weekStartDate as Timestamp).toDate(),

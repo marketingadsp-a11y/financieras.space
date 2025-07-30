@@ -43,8 +43,9 @@ const SucursalCard = ({ sucursalSummary, onEdit, onDelete }: { sucursalSummary: 
   const { summary, ...sucursal } = sucursalSummary;
   const totalCobrado = summary?.totalCobradoSemanal ?? 0;
   const totalComisiones = summary?.comisiones ?? 0;
-  const totalGastos = summary?.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
-  const totalVentas = summary?.ventas.reduce((acc, v) => acc + v.amount, 0) ?? 0;
+  // Safely reduce, defaulting to 0 if the array is missing.
+  const totalGastos = summary?.gastos?.reduce((acc, g) => acc + g.amount, 0) ?? 0;
+  const totalVentas = summary?.ventas?.reduce((acc, v) => acc + v.amount, 0) ?? 0;
   const totalEfectivo = totalCobrado - totalComisiones - totalGastos - totalVentas;
 
   const formatCurrency = (value?: number) => {
@@ -144,8 +145,8 @@ export function FlujoDashboard() {
         if (!s.summary) return acc;
         const totalCobrado = s.summary.totalCobradoSemanal ?? 0;
         const totalComisiones = s.summary.comisiones ?? 0;
-        const totalGastos = s.summary.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
-        const totalVentas = s.summary.ventas.reduce((acc, v) => acc + v.amount, 0) ?? 0;
+        const totalGastos = s.summary.gastos?.reduce((acc, g) => acc + g.amount, 0) ?? 0;
+        const totalVentas = s.summary.ventas?.reduce((acc, v) => acc + v.amount, 0) ?? 0;
         const totalEfectivo = totalCobrado - totalComisiones - totalGastos - totalVentas;
         return acc + totalEfectivo;
     }, 0);
