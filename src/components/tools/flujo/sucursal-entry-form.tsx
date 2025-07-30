@@ -84,8 +84,8 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
                     <FormField control={form.control} name="debeEntregar" render={({ field }) => (<FormItem><FormLabel>Debe Entregar (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="entrantes" render={({ field }) => (<FormItem><FormLabel>Entrantes (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
                 
                  <Card className="bg-muted/50">
