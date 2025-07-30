@@ -15,17 +15,17 @@ import {
 } from "@/components/ui/form";
 import type { FlujoEntry } from "@/lib/data";
 import { Loader2 } from "lucide-react";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 const formSchema = z.object({
-  fondo: z.coerce.number().optional(),
-  debeEntregar: z.coerce.number().optional(),
-  falla: z.coerce.number().optional(),
-  recuperado: z.coerce.number().optional(),
-  salientes: z.coerce.number().optional(),
-  entrantes: z.coerce.number().optional(),
+  fondo: z.coerce.number().min(0).optional(),
+  debeEntregar: z.coerce.number().min(0).optional(),
+  falla: z.coerce.number().min(0).optional(),
+  recuperado: z.coerce.number().min(0).optional(),
+  salientes: z.coerce.number().min(0).optional(),
+  entrantes: z.coerce.number().min(0).optional(),
 });
 
 type SucursalEntryFormProps = {
@@ -80,12 +80,12 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <FormField control={form.control} name="fondo" render={({ field }) => (<FormItem><FormLabel>Fondo</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="debeEntregar" render={({ field }) => (<FormItem><FormLabel>Debe Entregar</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="entrantes" render={({ field }) => (<FormItem><FormLabel>Entrantes</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="fondo" render={({ field }) => (<FormItem><FormLabel>Fondo</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="debeEntregar" render={({ field }) => (<FormItem><FormLabel>Debe Entregar</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="entrantes" render={({ field }) => (<FormItem><FormLabel>Entrantes</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
                 
                  <Card className="bg-muted/50">
