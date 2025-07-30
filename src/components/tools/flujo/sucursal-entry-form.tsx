@@ -37,12 +37,12 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            fondo: undefined,
-            debeEntregar: undefined,
-            falla: undefined,
-            recuperado: undefined,
-            salientes: undefined,
-            entrantes: undefined,
+            fondo: 0,
+            debeEntregar: 0,
+            falla: 0,
+            recuperado: 0,
+            salientes: 0,
+            entrantes: 0,
         },
     });
 
