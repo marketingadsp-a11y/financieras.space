@@ -39,6 +39,20 @@ const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-pr
         )
     }
 
+    if (title === "Caja Chica") {
+        return (
+             <Card className="bg-green-500/10 text-green-700 shadow-inner">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2"><Icon className="h-4 w-4"/>{title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-3xl font-bold">${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-xs text-green-700/80">{description}</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
