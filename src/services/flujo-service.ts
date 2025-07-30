@@ -423,26 +423,23 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
     const sucursalesToExport = sucursalIds.includes('all') ? allSucursales : allSucursales.filter(s => sucursalIds.includes(s.id));
 
     const exportDataPromises = sucursalesToExport.map(async (sucursal) => {
-        // Query summaries for the current sucursal
-        const qConstraints: QueryConstraint[] = [
+        const summariesQuery = query(
+            weeklySummariesCollectionRef,
             where("sucursalId", "==", sucursal.id),
-            where("prefix", "==", prefix),
-        ];
-
-        if (endDate) {
-            qConstraints.push(where("weekStartDate", "<=", Timestamp.fromDate(endDate)));
-        }
-        
-        const summariesQuery = query(weeklySummariesCollectionRef, ...qConstraints);
+            where("prefix", "==", prefix)
+        );
         const summariesSnapshot = await getDocs(summariesQuery);
 
         const weeklySummaries = summariesSnapshot.docs
             .map(doc => {
                 const data = doc.data() as FlujoWeeklySummary;
+                const weekStartDate = (data.weekStartDate as Timestamp).toDate();
                 const weekEndDate = (data.weekEndDate as Timestamp).toDate();
                 
-                // Post-filter for summaries that END AFTER the START of our range
-                if (startDate && weekEndDate < startDate) {
+                // An overlap occurs if (StartA <= EndB) and (EndA >= StartB)
+                const overlaps = (startDate <= weekEndDate) && (!endDate || weekStartDate <= endDate);
+
+                if (!overlaps) {
                     return null;
                 }
 
@@ -450,8 +447,8 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
                 
                 return { 
                     ...data,
-                    weekStartDate: (data.weekStartDate as Timestamp).toDate(),
-                    weekEndDate: weekEndDate,
+                    weekStartDate,
+                    weekEndDate,
                     id: doc.id,
                     weekId: doc.id.split('_')[1] || doc.id, 
                     totalEfectivo 

@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { FlujoSucursal } from "@/lib/data";
 import { Loader2, CalendarIcon, FileSpreadsheet, FileText } from "lucide-react";
-import { addDays, format, startOfDay } from "date-fns";
+import { addDays, format, startOfDay, startOfWeek, endOfWeek } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { es } from "date-fns/locale";
 
@@ -61,26 +61,24 @@ export function FlujoExportDialog({ isOpen, onClose, sucursales, onExport, isExp
     let end: Date | null;
 
     if (dateRangeType === 'current') {
-        start = startOfDay(new Date()); // Ensure we start from beginning of day for consistency
-        end = new Date();
+        start = startOfWeek(new Date(), { weekStartsOn: 6 });
+        end = endOfWeek(new Date(), { weekStartsOn: 6 });
     } else if (dateRangeType === 'all') {
-        start = new Date(2020, 0, 1); // A reasonable "since the beginning of time" date
-        end = null; // Use null to indicate "up to now"
+        start = new Date(2020, 0, 1);
+        end = null; 
     } else if (dateRangeType === 'custom' && customDate?.from) {
         start = startOfDay(customDate.from);
-        end = customDate.to ?? customDate.from; // If no 'to', range is just one day
+        end = customDate.to ?? customDate.from;
     } else {
-        // Fallback or error, default to current week
-        start = startOfWeek(new Date(), { weekStartsOn: 1 });
-        end = endOfWeek(new Date(), { weekStartsOn: 1 });
+        start = startOfWeek(new Date(), { weekStartsOn: 6 });
+        end = endOfWeek(new Date(), { weekStartsOn: 6 });
     }
     
-    // Ensure the `to` date includes the entire day
     if (end) {
         end.setHours(23, 59, 59, 999);
     }
 
-    onExport(selectedSucursalIds, start, end, formatType);
+    onExport(isAllSelected ? sucursales.map(s => s.id) : selectedSucursalIds, start, end, formatType);
   }
 
   return (
