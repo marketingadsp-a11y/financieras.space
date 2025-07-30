@@ -119,14 +119,14 @@ export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
     // Fallback for new sucursales that don't have a summary yet
     const safeSucursalSummaries = sucursalSummaries.map(s => {
         if (!s.summary) {
-            const { weekId, start, end } = getWeekBoundaries(date);
+            const { weekId, start: weekStart, end: weekEnd } = getWeekBoundaries(date);
             return {
                 ...s,
                 summary: {
                     id: `${s.id}_${weekId}`,
                     sucursalId: s.id,
-                    weekStartDate: start,
-                    weekEndDate: end,
+                    weekStartDate: weekStart,
+                    weekEndDate: weekEnd,
                     totalCobradoSemanal: 0,
                     comisiones: 0,
                     gastos: [],
@@ -263,7 +263,6 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Pro
 
     if (summarySnap.exists()) {
         const data = summarySnap.data();
-        // Convert Timestamps to ISO strings to avoid client component errors
         const safeGastos = (data.gastos || []).map((g: any) => ({ ...g, date: (g.date as Timestamp).toDate().toISOString() }));
         const safeVentas = (data.ventas || []).map((v: any) => ({ ...v, date: (v.date as Timestamp).toDate().toISOString() }));
 
@@ -320,7 +319,7 @@ export async function deleteGastoFromSummary(summaryId: string, gastoId: string)
         if (!summaryDoc.exists()) throw new Error("Resumen no encontrado.");
 
         const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
-        const gastoToDelete = currentSummary.gastos.find(g => g.id === gastoId);
+        const gastoToDelete = (currentSummary.gastos || []).find((g: FlujoGasto) => g.id === gastoId);
         
         if (gastoToDelete) {
             const sucursalRef = doc(db, 'flujo_sucursales', currentSummary.sucursalId);
@@ -357,7 +356,7 @@ export async function deleteVentaFromSummary(summaryId: string, ventaId: string)
         if (!summaryDoc.exists()) throw new Error("Resumen no encontrado.");
 
         const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
-        const ventaToDelete = currentSummary.ventas.find(v => v.id === ventaId);
+        const ventaToDelete = (currentSummary.ventas || []).find((v: FlujoVenta) => v.id === ventaId);
         
         if (ventaToDelete) {
             const sucursalRef = doc(db, 'flujo_sucursales', currentSummary.sucursalId);
@@ -402,7 +401,7 @@ export async function resetWeeklySummary(summaryId: string) {
             const sucursalDoc = await transaction.get(sucursalRef);
             
             if (sucursalDoc.exists()) {
-                const totalDeductionsToRevert = (currentSummary.gastos.reduce((sum, g) => sum + g.amount, 0)) + (currentSummary.ventas.reduce((sum, v) => sum + v.amount, 0)) + currentSummary.comisiones;
+                const totalDeductionsToRevert = ((currentSummary.gastos || []).reduce((sum, g) => sum + g.amount, 0)) + ((currentSummary.ventas || []).reduce((sum, v) => sum + v.amount, 0)) + currentSummary.comisiones;
                 const newBalance = sucursalDoc.data().currentBalance + totalDeductionsToRevert;
                 transaction.update(sucursalRef, { currentBalance: newBalance });
             }
@@ -430,10 +429,6 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
             where("prefix", "==", prefix),
         ];
 
-        // This is the corrected query logic.
-        // It fetches all summaries where the week's START is before the desired END date.
-        // And the week's END is after the desired START date.
-        // This correctly finds all overlapping weeks.
         if (endDate) {
             qConstraints.push(where("weekStartDate", "<=", Timestamp.fromDate(endDate)));
         }
@@ -451,18 +446,18 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
                     return null;
                 }
 
-                const totalEfectivo = data.totalCobradoSemanal - data.comisiones - (data.gastos?.reduce((a,c) => a+c.amount, 0) ?? 0) - (data.ventas?.reduce((a,c) => a+c.amount, 0) ?? 0);
+                const totalEfectivo = data.totalCobradoSemanal - data.comisiones - ((data.gastos || []).reduce((a,c) => a+c.amount, 0)) - ((data.ventas || []).reduce((a,c) => a+c.amount, 0));
                 
                 return { 
                     ...data,
                     weekStartDate: (data.weekStartDate as Timestamp).toDate(),
                     weekEndDate: weekEndDate,
                     id: doc.id,
-                    weekId: doc.id.split('_')[1], 
+                    weekId: doc.id.split('_')[1] || doc.id, 
                     totalEfectivo 
                 } as WeeklySummaryForExport;
             })
-            .filter((summary): summary is WeeklySummaryForExport => summary !== null); // Filter out nulls
+            .filter((summary): summary is WeeklySummaryForExport => summary !== null);
         
         return {
             ...sucursal,

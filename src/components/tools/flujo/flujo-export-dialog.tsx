@@ -61,18 +61,18 @@ export function FlujoExportDialog({ isOpen, onClose, sucursales, onExport, isExp
     let end: Date | null;
 
     if (dateRangeType === 'current') {
-        start = new Date();
+        start = startOfDay(new Date()); // Ensure we start from beginning of day for consistency
         end = new Date();
     } else if (dateRangeType === 'all') {
-        start = new Date(2020, 0, 1);
+        start = new Date(2020, 0, 1); // A reasonable "since the beginning of time" date
         end = null; // Use null to indicate "up to now"
     } else if (dateRangeType === 'custom' && customDate?.from) {
-        start = customDate.from;
+        start = startOfDay(customDate.from);
         end = customDate.to ?? customDate.from; // If no 'to', range is just one day
     } else {
-        // Fallback or error
-        start = new Date();
-        end = new Date();
+        // Fallback or error, default to current week
+        start = startOfWeek(new Date(), { weekStartsOn: 1 });
+        end = endOfWeek(new Date(), { weekStartsOn: 1 });
     }
     
     // Ensure the `to` date includes the entire day
