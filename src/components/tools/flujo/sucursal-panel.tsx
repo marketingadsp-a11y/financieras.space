@@ -7,9 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
 import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary, deleteGastoFromSummary } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt, GitCommitVertical, FileText } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, addDays, isSameDay, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -35,84 +34,83 @@ type UnifiedHistoryItem = {
     type: 'flujo' | 'gasto' | 'comision';
     description: string;
     amount: number;
+    details?: string;
     raw: FlujoEntry | FlujoGasto | { comisiones: number };
 };
 
-const WeeklyHistoryTable = ({ items, canDelete, onDeleteEntry }: { items: UnifiedHistoryItem[], canDelete: boolean, onDeleteEntry: (entry: FlujoEntry) => void }) => {
+const WeeklyHistoryTimeline = ({ items, canDelete, onDeleteEntry }: { items: UnifiedHistoryItem[], canDelete: boolean, onDeleteEntry: (entry: FlujoEntry) => void }) => {
     if (items.length === 0) {
-        return <p className="text-sm text-muted-foreground text-center py-4">No hay movimientos para esta semana.</p>;
+        return (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-semibold">Sin Movimientos</h3>
+                <p className="text-sm text-muted-foreground">No hay registros para esta semana.</p>
+            </div>
+        )
     }
 
     const typeInfo = {
-        flujo: { label: 'Flujo', icon: TrendingUp, color: "text-green-600" },
-        gasto: { label: 'Gasto', icon: TrendingDown, color: "text-red-500" },
-        comision: { label: 'Comisiones', icon: Coins, color: "text-orange-500" },
+        flujo: { label: 'Registro de Flujo', icon: GitCommitVertical, color: "text-green-600", border: "border-green-600" },
+        gasto: { label: 'Gasto', icon: TrendingDown, color: "text-red-500", border: "border-red-500" },
+        comision: { label: 'Comisiones', icon: Coins, color: "text-orange-500", border: "border-orange-500" },
     };
-
+    
     const formatCurrency = (value?: number) => {
         const amount = typeof value === 'number' ? value : 0;
         return `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
 
     return (
-        <div className="rounded-md border overflow-x-auto">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Descripción</TableHead>
-                        <TableHead className="text-right">Monto</TableHead>
-                        {canDelete && <TableHead className="w-[50px]">Acción</TableHead>}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {items.map(item => {
-                        const info = typeInfo[item.type];
-                        const isEntry = item.type === 'flujo';
-                        return (
-                            <TableRow key={item.id}>
-                                <TableCell className="font-medium whitespace-nowrap">{format(item.date, 'EEEE dd/MM/yy', { locale: es })}</TableCell>
-                                <TableCell>
-                                    <div className={cn("flex items-center gap-2 font-medium", info.color)}>
-                                        <info.icon className="h-4 w-4" />
-                                        <span>{info.label}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{item.description}</TableCell>
-                                <TableCell className={cn("text-right font-mono", info.color)}>{formatCurrency(item.amount)}</TableCell>
-                                {canDelete && (
-                                    <TableCell>
-                                        {isEntry ? (
-                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
-                                                        <AlertDialogDescription>
-                                                            Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos correspondientes.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooterComponent>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => onDeleteEntry(item.raw as FlujoEntry)}>Eliminar</AlertDialogAction>
-                                                    </AlertDialogFooterComponent>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        ) : (
-                                            <div></div> // Empty cell for non-deletable items
-                                        )}
-                                    </TableCell>
-                                )}
-                            </TableRow>
-                        )
-                    })}
-                </TableBody>
-            </Table>
+        <div className="relative pl-6">
+            <div className="absolute left-[35px] top-0 h-full w-0.5 bg-border -translate-x-1/2" />
+            <div className="space-y-8">
+            {items.map((item, index) => {
+                const info = typeInfo[item.type];
+                const isEntry = item.type === 'flujo';
+
+                return (
+                <div key={`${item.id}-${index}`} className="relative flex items-start group">
+                    <div className="absolute left-[35px] top-4 -translate-x-1/2 rounded-full bg-background p-1">
+                        <div className={cn("rounded-full p-2 bg-muted/50", info.border)}>
+                             <info.icon className={cn("h-5 w-5", info.color)} />
+                        </div>
+                    </div>
+                    <div className="ml-16 w-full">
+                        <div className="flex justify-between items-center mb-1">
+                            <div>
+                                <p className="font-semibold text-base">{info.label}</p>
+                                <p className="text-sm text-muted-foreground">{format(item.date, 'EEEE, dd MMM yyyy - hh:mm a', { locale: es })}</p>
+                            </div>
+                           <div className="flex items-center gap-2">
+                             <p className={cn("font-bold text-lg", info.color)}>{formatCurrency(item.amount)}</p>
+                              {canDelete && isEntry && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
+                                            <AlertDialogDescription>Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooterComponent>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDeleteEntry(item.raw as FlujoEntry)}>Eliminar</AlertDialogAction>
+                                        </AlertDialogFooterComponent>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                           </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground italic">{item.description}</p>
+                         {item.details && <p className="text-xs text-muted-foreground mt-2 font-mono bg-muted/50 p-2 rounded-md">{item.details}</p>}
+                    </div>
+                </div>
+                )
+            })}
+            </div>
         </div>
     );
 }
@@ -226,7 +224,7 @@ const ComisionesDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySu
 
 
 export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   const [sucursal, setSucursal] = React.useState<FlujoSucursal | null>(null);
   const [weeklySummary, setWeeklySummary] = React.useState<FlujoWeeklySummary | null>(null);
@@ -259,8 +257,9 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                   id: entry.id,
                   date: entry.date,
                   type: 'flujo',
-                  description: `Fondo: $${entry.fondo}, Debe: $${entry.debeEntregar}, Falla: $${entry.falla}, Recuperado: $${entry.recuperado}, Salientes: $${entry.salientes}, Entrantes: $${entry.entrantes}, Venta: $${entry.venta}`,
+                  description: `Registro de flujo del día.`,
                   amount: entry.totalCobrado,
+                  details: `Fondo: ${formatCurrency(entry.fondo)} | Debe Entregar: ${formatCurrency(entry.debeEntregar)} | Falla: ${formatCurrency(entry.falla)} | Recuperado: ${formatCurrency(entry.recuperado)} | Entrantes: ${formatCurrency(entry.entrantes)} | Salientes: ${formatCurrency(entry.salientes)} | Venta: ${formatCurrency(entry.venta)}`,
                   raw: entry
               });
           });
@@ -289,7 +288,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
               }
           }
           
-          combinedHistory.sort((a, b) => a.date.getTime() - b.date.getTime());
+          combinedHistory.sort((a, b) => b.date.getTime() - a.date.getTime());
           setWeeklyHistory(combinedHistory);
 
 
@@ -397,6 +396,12 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const totalEfectivo = totalCobrado - totalComisiones - totalGastos;
 
   const canDelete = user ? !user.isToolAdmin && !user.isPlazaUser : false;
+  
+  const formatCurrency = (value?: number) => {
+    const amount = typeof value === 'number' ? value : 0;
+    return `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
 
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de la sucursal...</div>;
@@ -460,9 +465,13 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                             </div>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-4">
-                            <div className="col-span-2 p-4 rounded-lg bg-green-500/10 text-green-700">
+                            <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
-                                <p className="text-2xl font-bold">${totalCobrado.toLocaleString('es-MX')}</p>
+                                <p className="text-xl font-bold">${totalCobrado.toLocaleString('es-MX')}</p>
+                            </div>
+                            <div className="p-4 rounded-lg bg-orange-500/10 text-orange-700">
+                                <p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p>
+                                <p className="text-xl font-bold">${totalVenta.toLocaleString('es-MX')}</p>
                             </div>
                             <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowComisionesDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p>
@@ -471,10 +480,6 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                             <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowGastosDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Gastos</p>
                                 <p className="text-xl font-bold">${totalGastos.toLocaleString('es-MX')}</p>
-                            </div>
-                             <div className="p-4 rounded-lg bg-orange-500/10 text-orange-700">
-                                <p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p>
-                                <p className="text-xl font-bold">${totalVenta.toLocaleString('es-MX')}</p>
                             </div>
                              <div className="col-span-2 p-4 rounded-lg bg-blue-500/10 text-blue-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Efectivo</p>
@@ -518,20 +523,18 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             </div>
         </div>
 
-        {weeklyHistory.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Historial de la Semana</CardTitle>
-                    <CardDescription className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>{weekDateRange}</span>
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <WeeklyHistoryTable items={weeklyHistory} canDelete={canDelete} onDeleteEntry={handleDeleteEntry} />
-                </CardContent>
-            </Card>
-        )}
+        <Card>
+            <CardHeader>
+                <CardTitle>Historial de la Semana</CardTitle>
+                <CardDescription className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    <span>{weekDateRange}</span>
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <WeeklyHistoryTimeline items={weeklyHistory} canDelete={canDelete} onDeleteEntry={handleDeleteEntry} />
+            </CardContent>
+        </Card>
         
         {weeklySummary && (
             <Dialog open={showGastosDialog} onOpenChange={setShowGastosDialog}>
@@ -546,4 +549,3 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     </div>
   );
 }
-
