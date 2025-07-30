@@ -94,23 +94,17 @@ export async function getFlujoSummary(prefix: string) {
 
 // --- Flujo Entry & Weekly Summary Functions ---
 
-// Helper function to get week boundaries from Saturday to Friday
 const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string } => {
-    // We work with the local date passed, assuming server and client are in similar timezones
-    // or that "today" means the calendar date for the user.
     const d = new Date(date);
+    d.setHours(0, 0, 0, 0); // Normalize time
     const day = d.getDay(); // Sunday = 0, ..., Saturday = 6
 
-    let startDate = new Date(d);
     // Adjust to find the last Saturday. Saturday is day 6.
-    const adjustment = day === 6 ? 0 : day + 1;
-    startDate.setDate(d.getDate() - adjustment);
+    const diff = d.getDate() - day - (day < 6 ? 1 : -6);
+    const startDate = new Date(d.setDate(diff));
 
     let endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6); // Friday is 6 days after Saturday
-
-    // Set time to start and end of day for accurate querying with Firestore Timestamps
-    startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
     
     const year = getYear(startDate);
@@ -121,7 +115,7 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
 };
 
 export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
-    const entryDate = new Date(); // Use local date for calculation
+    const entryDate = new Date(); // Use current date for the entry
     
     const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(entryDate);
     
@@ -222,6 +216,7 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
     const summarySnap = await getDoc(summaryRef);
     let summary: FlujoWeeklySummary | null = null;
     
+    // Always calculate from source of truth: the entries themselves.
     const calculatedTotalCobrado = weeklyEntries.reduce((acc, e) => acc + e.totalCobrado, 0);
 
     if (summarySnap.exists()) {
@@ -232,11 +227,10 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
             weekStartDate: (data.weekStartDate as Timestamp).toDate(),
             weekEndDate: (data.weekEndDate as Timestamp).toDate(),
             gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
-            // Always use the calculated total from actual entries for consistency
-            totalCobradoSemanal: calculatedTotalCobrado,
+            totalCobradoSemanal: calculatedTotalCobrado, // Use calculated total
         } as FlujoWeeklySummary;
     } else if (weeklyEntries.length > 0) {
-        // If summary doc doesn't exist but there are entries, create a temporary one
+        // If summary doc doesn't exist but there are entries, create a temporary one to return
         summary = {
             id: summaryId,
             sucursalId,
@@ -280,5 +274,3 @@ export async function resetWeeklySummary(summaryId: string) {
         }
     });
 }
-
-    

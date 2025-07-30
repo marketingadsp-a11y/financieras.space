@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
 const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEntry[], canDelete: boolean, onDelete: (entry: FlujoEntry) => void }) => {
@@ -75,9 +75,9 @@ const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEn
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
                                                 <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
-                                                <AlertDialogDescriptionComponent>
+                                                <AlertDialogDescription>
                                                     Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos correspondientes.
-                                                </AlertDialogDescriptionComponent>
+                                                </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooterComponent>
                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -206,17 +206,10 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
           if (!sucursalData) throw new Error("No se encontró la sucursal.");
           setSucursal(sucursalData);
           
-          try {
-              const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId);
-              setWeeklySummary(summary);
-              setWeekDateRange(dateRange);
-              setWeeklyEntries(entries);
-          } catch(summaryError) {
-              console.warn("Could not fetch weekly summary, probably no entries yet.", summaryError);
-              setWeeklySummary(null);
-              setWeeklyEntries([]);
-              setWeekDateRange("No hay datos para esta semana");
-          }
+          const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId);
+          setWeeklySummary(summary);
+          setWeekDateRange(dateRange);
+          setWeeklyEntries(entries);
 
       } catch (e: any) {
           toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal.' });
@@ -232,7 +225,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleFormSubmit = async (data: Omit<FlujoEntry, 'id' | 'sucursalId' | 'date'>) => {
     setIsSubmitting(true);
     try {
-        const entryData = { ...data, sucursalId, date: new Date() };
+        const entryData = { ...data, sucursalId };
         await addFlujoEntry(entryData);
         toast({ title: 'Éxito', description: 'Registro guardado correctamente.' });
         fetchData();
@@ -322,7 +315,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             </CardContent>
         </Card>
 
-        {weeklySummary && weeklyEntries.length > 0 && (
+        {weeklyEntries.length > 0 && (
             <Card>
                  <CardHeader>
                     <div className="flex justify-between items-start">
@@ -340,9 +333,9 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitleComponent>¿Reiniciar Resumen?</AlertDialogTitleComponent>
-                                        <AlertDialogDescriptionComponent>
+                                        <AlertDialogDescription>
                                             Esta acción eliminará los gastos y pondrá las comisiones en cero para la semana actual. Los registros de flujo no se verán afectados.
-                                        </AlertDialogDescriptionComponent>
+                                        </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooterComponent>
                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
