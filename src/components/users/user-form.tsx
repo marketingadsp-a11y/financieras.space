@@ -34,15 +34,15 @@ import { Trash2 } from "lucide-react";
 const plazaAccessSchema = z.object({
   plazaId: z.string().min(1),
   plazaName: z.string().min(1),
-  permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
+  permissions: z.array(z.string()),
 });
 
 const loanControlPermissionsSchema = z.object({
-    permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
+    permissions: z.array(z.string()),
 });
 
 const flujoPermissionsSchema = z.object({
-    permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
+    permissions: z.array(z.string()),
 });
 
 const baseFormSchema = z.object({
@@ -65,14 +65,14 @@ const refinement = (data: z.infer<typeof baseFormSchema>, ctx: z.RefinementCtx) 
             path: ["plazaAccess"],
         });
     }
-     if (data.accessibleTools.includes('loan-control') && (!data.loanControlPermissions || data.loanControlPermissions.permissions.length === 0)) {
+     if (data.accessibleTools.includes('loan-control') && (!data.loanControlPermissions)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Si se asigna la herramienta 'Control de Préstamo', debe asignar al menos un permiso.",
             path: ["loanControlPermissions"],
         });
     }
-     if (data.accessibleTools.includes('flujo') && (!data.flujoPermissions || data.flujoPermissions.permissions.length === 0)) {
+     if (data.accessibleTools.includes('flujo') && (!data.flujoPermissions)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Si se asigna la herramienta 'Flujo', debe asignar al menos un permiso.",
@@ -446,3 +446,5 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
         </Form>
     );
 }
+
+    
