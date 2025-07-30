@@ -54,10 +54,10 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
         const debeEntregar = Number(formValues.debeEntregar || 0);
         const falla = Number(formValues.falla || 0);
         const recuperado = Number(formValues.recuperado || 0);
-        const salientes = Number(formValues.salientes || 0);
         const entrantes = Number(formValues.entrantes || 0);
+        const salientes = Number(formValues.salientes || 0);
         
-        const calculatedTotal = fondo + debeEntregar - falla + recuperado + salientes + entrantes;
+        const calculatedTotal = fondo + debeEntregar - falla + recuperado + entrantes - salientes;
         setTotalCobrado(calculatedTotal);
     }, [formValues]);
 
@@ -85,7 +85,7 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
                     <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="entrantes" render={({ field }) => (<FormItem><FormLabel>Entrantes (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
                 
                  <Card className="bg-muted/50">
