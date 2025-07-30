@@ -96,23 +96,29 @@ export async function getFlujoSummary(prefix: string) {
 
 // Helper function to get week boundaries from Saturday to Friday
 const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string } => {
-    const d = new Date(date);
-    d.setUTCHours(0, 0, 0, 0);
+    // Use UTC dates to avoid timezone issues
+    const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const day = d.getUTCDay(); // Sunday = 0, Saturday = 6
 
-    const diff = day < 6 ? day + 1 : 0;
-    const start = new Date(d);
-    start.setUTCDate(d.getUTCDate() - diff);
-
-    const end = new Date(start);
-    end.setUTCDate(start.getUTCDate() + 6);
-    end.setUTCHours(23, 59, 59, 999);
+    let startDate = new Date(d);
+    // If today is Saturday (6), this is the start of the new week.
+    // If not, find the last Saturday.
+    if (day !== 6) {
+        startDate.setUTCDate(d.getUTCDate() - (day + 1));
+    }
     
-    const year = getYear(start);
-    const weekNumber = getISOWeek(start);
+    let endDate = new Date(startDate);
+    endDate.setUTCDate(startDate.getUTCDate() + 6); // Friday is 6 days after Saturday
+    
+    // Set time to start and end of day for accurate querying
+    startDate.setUTCHours(0, 0, 0, 0);
+    endDate.setUTCHours(23, 59, 59, 999);
+    
+    const year = getYear(startDate);
+    const weekNumber = getISOWeek(startDate);
     const weekId = `${year}-W${weekNumber}`;
 
-    return { start, end, weekId };
+    return { start: startDate, end: endDate, weekId };
 };
 
 export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
@@ -183,16 +189,12 @@ export async function deleteFlujoEntry(entryId: string) {
             transaction.get(summaryRef)
         ]);
         
-        let newSucursalBalance = sucursalDoc.exists() ? sucursalDoc.data().currentBalance : 0;
-        newSucursalBalance -= entryData.totalCobrado;
-        
-        let newSummaryTotal = summaryDoc.exists() ? summaryDoc.data().totalCobradoSemanal : 0;
-        newSummaryTotal -= entryData.totalCobrado;
-
         if (sucursalDoc.exists()) {
+            let newSucursalBalance = sucursalDoc.data().currentBalance - entryData.totalCobrado;
             transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
         }
         if (summaryDoc.exists()) {
+             let newSummaryTotal = summaryDoc.data().totalCobradoSemanal - entryData.totalCobrado;
             transaction.update(summaryRef, { totalCobradoSemanal: newSummaryTotal });
         }
         transaction.delete(entryRef);
@@ -233,10 +235,9 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
             weekStartDate: (data.weekStartDate as Timestamp).toDate(),
             weekEndDate: (data.weekEndDate as Timestamp).toDate(),
             gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
-            totalCobradoSemanal: calculatedTotalCobrado, // Always use the calculated total
+            totalCobradoSemanal: calculatedTotalCobrado,
         } as FlujoWeeklySummary;
     } else if (weeklyEntries.length > 0) {
-        // Create a summary if entries exist but summary doesn't
         summary = {
             id: summaryId,
             sucursalId,
