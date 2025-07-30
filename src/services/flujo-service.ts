@@ -267,7 +267,8 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Pro
             ventas: (data.ventas || []).map((v: any) => ({...v, date: (v.date as Timestamp).toDate()})),
             totalCobradoSemanal: calculatedTotalCobrado,
         } as FlujoWeeklySummary;
-    } else if (weeklyEntries.length > 0) {
+    } else {
+        // Always create a summary object, even if it's empty, to ensure the UI works for new weeks/sucursales.
         summary = {
             id: summaryId,
             sucursalId,
@@ -405,3 +406,4 @@ export async function resetWeeklySummary(summaryId: string) {
         }
     });
 }
+
