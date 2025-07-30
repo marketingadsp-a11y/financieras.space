@@ -161,6 +161,7 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
             const newSummary: FlujoWeeklySummary = {
                 id: summaryId,
                 sucursalId: entryData.sucursalId,
+                prefix: sucursalData.prefix, // Add prefix to summary
                 weekStartDate: weekStartDate,
                 weekEndDate: weekEndDate,
                 totalCobradoSemanal: entryData.totalCobrado,
@@ -400,15 +401,16 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
         // Query summaries for the current sucursal
         const qConstraints: QueryConstraint[] = [
             where("sucursalId", "==", sucursal.id),
-            where("prefix", "==", prefix), // Ensure we only get summaries for the correct prefix
         ];
-        
-        // Corrected date range logic
+
+        // This is the corrected query logic.
+        // It fetches all summaries where the week's START is before the desired END date.
+        // And the week's END is after the desired START date.
+        // This correctly finds all overlapping weeks.
         if (endDate) {
-            // Find summaries that START BEFORE the END of our range
             qConstraints.push(where("weekStartDate", "<=", Timestamp.fromDate(endDate)));
         }
-         
+        
         const summariesQuery = query(weeklySummariesCollectionRef, ...qConstraints);
         const summariesSnapshot = await getDocs(summariesQuery);
 
