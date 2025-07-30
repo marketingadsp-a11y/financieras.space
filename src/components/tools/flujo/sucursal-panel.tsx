@@ -39,7 +39,19 @@ type UnifiedHistoryItem = {
     userPerformed?: string;
 };
 
-const WeeklyHistoryList = ({ items, canDelete, onDeleteEntry }: { items: UnifiedHistoryItem[], canDelete: boolean, onDeleteEntry: (entry: FlujoEntry) => void }) => {
+const WeeklyHistoryList = ({ 
+    items, 
+    canDelete, 
+    onDeleteEntry,
+    onDeleteGasto,
+    onDeleteComisiones
+}: { 
+    items: UnifiedHistoryItem[], 
+    canDelete: boolean, 
+    onDeleteEntry: (entry: FlujoEntry) => void,
+    onDeleteGasto: (gasto: FlujoGasto) => void,
+    onDeleteComisiones: () => void
+}) => {
     if (items.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -65,7 +77,75 @@ const WeeklyHistoryList = ({ items, canDelete, onDeleteEntry }: { items: Unified
         <div className="space-y-4">
             {items.map((item, index) => {
                 const info = typeInfo[item.type];
-                const isEntry = item.type === 'flujo';
+                
+                const renderDeleteButton = () => {
+                    if (!canDelete) return null;
+
+                    if (item.type === 'flujo') {
+                        return (
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
+                                        <AlertDialogDescription>Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooterComponent>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => onDeleteEntry(item.raw as FlujoEntry)}>Eliminar</AlertDialogAction>
+                                    </AlertDialogFooterComponent>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        );
+                    }
+                     if (item.type === 'gasto') {
+                        return (
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitleComponent>¿Eliminar Gasto?</AlertDialogTitleComponent>
+                                        <AlertDialogDescription>Se eliminará el gasto "{item.description}". Esta acción es irreversible.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooterComponent>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => onDeleteGasto(item.raw as FlujoGasto)}>Eliminar Gasto</AlertDialogAction>
+                                    </AlertDialogFooterComponent>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        );
+                    }
+                     if (item.type === 'comision') {
+                        return (
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitleComponent>¿Eliminar Comisiones?</AlertDialogTitleComponent>
+                                        <AlertDialogDescription>Esto restablecerá las comisiones de la semana a $0.00. Esta acción es irreversible.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooterComponent>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => onDeleteComisiones()}>Eliminar Comisiones</AlertDialogAction>
+                                    </AlertDialogFooterComponent>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        );
+                    }
+                    return null;
+                }
 
                 return (
                  <div key={`${item.id}-${index}`} className="group flex items-center space-x-4 rounded-lg bg-muted/40 p-3">
@@ -76,31 +156,15 @@ const WeeklyHistoryList = ({ items, canDelete, onDeleteEntry }: { items: Unified
                         <p className="text-sm font-medium leading-none">{item.description}</p>
                         <p className="text-xs text-muted-foreground">{item.details}</p>
                     </div>
-                     <div className="flex flex-col items-end space-x-4">
-                        <div className={cn("font-semibold", info.color)}>
-                           {formatCurrency(item.amount)}
+                     <div className="flex items-center space-x-4">
+                        <div className="flex flex-col items-end">
+                            <div className={cn("font-semibold", info.color)}>
+                               {formatCurrency(item.amount)}
+                            </div>
+                            <p className="text-xs text-muted-foreground">{format(item.date, "dd MMM, p", { locale: es })}</p>
                         </div>
-                         <p className="text-xs text-muted-foreground">{format(item.date, "dd MMM, p", { locale: es })}</p>
+                        {renderDeleteButton()}
                     </div>
-                    {canDelete && isEntry && (
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
-                                    <AlertDialogDescription>Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooterComponent>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDeleteEntry(item.raw as FlujoEntry)}>Eliminar</AlertDialogAction>
-                                </AlertDialogFooterComponent>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    )}
                 </div>
                 )
             })}
@@ -331,10 +395,10 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     }
   }
 
-  const handleDeleteGasto = async (gastoId: string) => {
+  const handleDeleteGasto = async (gasto: FlujoGasto) => {
     if (!weeklySummary) return;
     try {
-        await deleteGastoFromSummary(weeklySummary.id, gastoId);
+        await deleteGastoFromSummary(weeklySummary.id, gasto.id);
         toast({ title: 'Éxito', description: 'Gasto eliminado.' });
         fetchData(); 
     } catch(e: any) {
@@ -350,6 +414,17 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
         fetchData();
     } catch(e: any) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar las comisiones.' });
+    }
+  }
+
+  const handleDeleteComisiones = async () => {
+    if (!weeklySummary) return;
+    try {
+      await updateComisionesInSummary(weeklySummary.id, 0);
+      toast({ title: 'Éxito', description: 'Comisiones restablecidas a cero.' });
+      fetchData();
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron eliminar las comisiones.' });
     }
   }
   
@@ -457,7 +532,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                                 <CardDescription>{weekDateRange}</CardDescription>
                             </div>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-4">
+                         <CardContent className="grid grid-cols-2 gap-4">
                             <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
                                 <p className="text-xl font-bold">${totalCobrado.toLocaleString('es-MX')}</p>
@@ -525,7 +600,13 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                 <WeeklyHistoryList items={weeklyHistory} canDelete={canDelete} onDeleteEntry={handleDeleteEntry} />
+                 <WeeklyHistoryList 
+                    items={weeklyHistory} 
+                    canDelete={canDelete} 
+                    onDeleteEntry={handleDeleteEntry}
+                    onDeleteGasto={handleDeleteGasto}
+                    onDeleteComisiones={handleDeleteComisiones}
+                />
             </CardContent>
         </Card>
         
