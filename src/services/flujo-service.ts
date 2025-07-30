@@ -198,23 +198,24 @@ export async function deleteFlujoEntry(entryId: string) {
     });
 }
 
-export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summary: FlujoWeeklySummary | null, dateRange: string, entries: FlujoEntry[] }> {
-    const today = new Date();
-    const { start, end, weekId } = getWeekBoundaries(today);
+export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new Date()): Promise<{ summary: FlujoWeeklySummary | null, dateRange: string, entries: FlujoEntry[] }> {
+    const { start, end, weekId } = getWeekBoundaries(date);
     
+    // Simplificamos la consulta para no requerir índice compuesto.
     const q = query(entriesCollectionRef, where("sucursalId", "==", sucursalId));
     const allEntriesSnapshot = await getDocs(q);
 
-    const allEntries = allEntriesSnapshot.docs.map(docSnap => ({
-        ...docSnap.data(),
-        id: docSnap.id,
-        date: (docSnap.data().date as Timestamp).toDate()
-    })) as FlujoEntry[];
-
-    const weeklyEntries = allEntries.filter(entry => {
-        const entryDate = entry.date;
-        return entryDate >= start && entryDate <= end;
-    });
+    // Filtramos por fecha en el lado del cliente (backend de Next.js)
+    const weeklyEntries = allEntriesSnapshot.docs
+        .map(docSnap => ({
+            ...docSnap.data(),
+            id: docSnap.id,
+            date: (docSnap.data().date as Timestamp).toDate()
+        }) as FlujoEntry)
+        .filter(entry => {
+            const entryDate = entry.date;
+            return entryDate >= start && entryDate <= end;
+        });
 
     const summaryId = `${sucursalId}_${weekId}`;
     const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
@@ -222,6 +223,7 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
     const summarySnap = await getDoc(summaryRef);
     let summary: FlujoWeeklySummary | null = null;
     
+    // Recalculamos el total cobrado a partir de los registros filtrados para asegurar consistencia
     const calculatedTotalCobrado = weeklyEntries.reduce((acc, e) => acc + e.totalCobrado, 0);
 
     if (summarySnap.exists()) {
@@ -232,9 +234,11 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
             weekStartDate: (data.weekStartDate as Timestamp).toDate(),
             weekEndDate: (data.weekEndDate as Timestamp).toDate(),
             gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
+            // Usamos el total recalculado para la vista, aunque el guardado sea incremental
             totalCobradoSemanal: calculatedTotalCobrado,
         } as FlujoWeeklySummary;
     } else if (weeklyEntries.length > 0) {
+         // Si no hay resumen pero sí registros, lo creamos al vuelo para la vista
         summary = {
             id: summaryId,
             sucursalId,

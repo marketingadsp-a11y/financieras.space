@@ -211,7 +211,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
           if (!sucursalData) throw new Error("No se encontró la sucursal.");
           setSucursal(sucursalData);
           
-          const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId);
+          const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId, selectedDate);
           setWeeklySummary(summary);
           setWeekDateRange(dateRange);
           setWeeklyEntries(entries);
@@ -221,7 +221,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       } finally {
           setIsLoading(false);
       }
-  }, [sucursalId, toast]);
+  }, [sucursalId, toast, selectedDate]);
 
   React.useEffect(() => {
     fetchData();
@@ -307,7 +307,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Panel de Flujo: {sucursal.name}</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <div className="lg:col-span-2">
                 <Card>
                     <CardHeader>
@@ -339,38 +339,12 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             </div>
 
             <div className="space-y-6 lg:col-span-1">
-                {weeklySummary && (
+                {weeklySummary ? (
                     <Card>
                         <CardHeader>
-                            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                                <div>
-                                    <CardTitle>Resumen de la Semana</CardTitle>
-                                    <CardDescription>{weekDateRange}</CardDescription>
-                                </div>
-                                {canDelete && (
-                                    <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                                                <RefreshCcw className="mr-2 h-4 w-4"/> Reiniciar Semana
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitleComponent>¿Reiniciar Resumen?</AlertDialogTitleComponent>
-                                                <AlertDialogDescription>
-                                                    Esta acción eliminará los gastos y pondrá las comisiones en cero para la semana actual. Los registros de flujo no se verán afectados.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooterComponent>
-                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                <AlertDialogAction onClick={handleResetWeek} disabled={isReseting}>
-                                                    {isReseting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                                    Sí, reiniciar
-                                                </AlertDialogAction>
-                                            </AlertDialogFooterComponent>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                )}
+                            <div>
+                                <CardTitle>Resumen de la Semana</CardTitle>
+                                <CardDescription>{weekDateRange}</CardDescription>
                             </div>
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -390,6 +364,38 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                                 <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Final</p>
                                 <p className="text-2xl font-bold">${totalFinal.toLocaleString('es-MX')}</p>
                             </div>
+                        </CardContent>
+                         <CardFooter>
+                              {canDelete && (
+                                <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="outline" size="sm" className="w-full">
+                                            <RefreshCcw className="mr-2 h-4 w-4"/> Reiniciar Semana
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitleComponent>¿Reiniciar Resumen?</AlertDialogTitleComponent>
+                                            <AlertDialogDescription>
+                                                Esta acción eliminará los gastos y pondrá las comisiones en cero para la semana actual. Los registros de flujo no se verán afectados.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooterComponent>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleResetWeek} disabled={isReseting}>
+                                                {isReseting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                Sí, reiniciar
+                                            </AlertDialogAction>
+                                        </AlertDialogFooterComponent>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                         </CardFooter>
+                    </Card>
+                ) : (
+                    <Card>
+                        <CardContent className="pt-6 text-center text-muted-foreground">
+                            No hay registros para la semana seleccionada.
                         </CardContent>
                     </Card>
                 )}
