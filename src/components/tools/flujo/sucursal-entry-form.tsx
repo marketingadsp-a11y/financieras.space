@@ -80,35 +80,25 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* SUMAN Card */}
-                    <Card className="bg-green-500/10">
-                        <CardHeader>
-                            <CardTitle className="text-green-800 dark:text-green-300 flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5"/>
-                                Valores que Suman
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
+                    {/* SUMAN Section */}
+                     <div className="p-4 rounded-lg bg-green-500/10">
+                         <TrendingUp className="h-6 w-6 mb-4 text-green-800 dark:text-green-300" />
+                        <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="fondo" render={({ field }) => (<FormItem><FormLabel>Fondo (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="debeEntregar" render={({ field }) => (<FormItem><FormLabel>Debe Entregar (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="entrantes" render={({ field }) => (<FormItem><FormLabel>Entrantes (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
-                    {/* RESTAN Card */}
-                    <Card className="bg-red-500/10">
-                         <CardHeader>
-                            <CardTitle className="text-red-800 dark:text-red-300 flex items-center gap-2">
-                                <TrendingDown className="h-5 w-5"/>
-                                Valores que Restan
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
+                    {/* RESTAN Section */}
+                    <div className="p-4 rounded-lg bg-red-500/10">
+                        <TrendingDown className="h-6 w-6 mb-4 text-red-800 dark:text-red-300" />
+                        <div className="grid grid-cols-2 gap-4">
                              <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                              <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </div>
                 
                  <Card className="bg-muted/50">
