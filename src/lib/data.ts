@@ -326,11 +326,17 @@ export type FlujoEntry = {
     recuperado: number;
     salientes: number;
     entrantes: number;
-    venta: number;
     totalCobrado: number; // Calculated field
 };
 
 export type FlujoGasto = {
+    id: string;
+    amount: number;
+    description: string;
+    date: Date;
+}
+
+export type FlujoVenta = {
     id: string;
     amount: number;
     description: string;
@@ -343,7 +349,7 @@ export type FlujoWeeklySummary = {
     weekStartDate: Date;
     weekEndDate: Date;
     totalCobradoSemanal: number;
-    totalVentaSemanal: number;
     comisiones: number;
     gastos: FlujoGasto[];
+    ventas: FlujoVenta[];
 }

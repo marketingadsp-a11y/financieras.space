@@ -22,7 +22,7 @@ import {
   arrayRemove
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
+import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta } from "@/lib/data";
 import { format, getYear, getISOWeek, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { v4 as uuidv4 } from "uuid";
@@ -121,7 +121,7 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
     return { start: startDate, end: endDate, weekId };
 };
 
-export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
+export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id' | 'venta'>) {
     const entryDate = entryData.date; // Use the date passed from the form
     
     const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(entryDate);
@@ -154,16 +154,15 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
                 weekStartDate: weekStartDate,
                 weekEndDate: weekEndDate,
                 totalCobradoSemanal: entryData.totalCobrado,
-                totalVentaSemanal: entryData.venta,
                 comisiones: 0,
                 gastos: [],
+                ventas: [],
             };
             transaction.set(summaryRef, newSummary);
         } else {
             const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
             transaction.update(summaryRef, {
                 totalCobradoSemanal: currentSummary.totalCobradoSemanal + entryData.totalCobrado,
-                totalVentaSemanal: (currentSummary.totalVentaSemanal || 0) + entryData.venta,
             });
         }
     });
@@ -195,10 +194,8 @@ export async function deleteFlujoEntry(entryId: string) {
         }
         if (summaryDoc.exists()) {
              let newSummaryTotal = summaryDoc.data().totalCobradoSemanal - entryData.totalCobrado;
-             let newVentaTotal = (summaryDoc.data().totalVentaSemanal || 0) - entryData.venta;
             transaction.update(summaryRef, { 
                 totalCobradoSemanal: newSummaryTotal,
-                totalVentaSemanal: newVentaTotal
             });
         }
         transaction.delete(entryRef);
@@ -208,21 +205,14 @@ export async function deleteFlujoEntry(entryId: string) {
 export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new Date()): Promise<{ summary: FlujoWeeklySummary | null, dateRange: string, entries: FlujoEntry[] }> {
     const { start, end, weekId } = getWeekBoundaries(date);
     
-    // Simplificamos la consulta para no requerir índice compuesto.
-    const q = query(entriesCollectionRef, where("sucursalId", "==", sucursalId));
-    const allEntriesSnapshot = await getDocs(q);
+    const q = query(entriesCollectionRef, where("sucursalId", "==", sucursalId), where("date", ">=", start), where("date", "<=", end));
+    const weeklyEntriesSnapshot = await getDocs(q);
 
-    // Filtramos por fecha en el lado del cliente (backend de Next.js)
-    const weeklyEntries = allEntriesSnapshot.docs
-        .map(docSnap => ({
+    const weeklyEntries = weeklyEntriesSnapshot.docs.map(docSnap => ({
             ...docSnap.data(),
             id: docSnap.id,
             date: (docSnap.data().date as Timestamp).toDate()
-        }) as FlujoEntry)
-        .filter(entry => {
-            const entryDate = entry.date;
-            return entryDate >= start && entryDate <= end;
-        });
+    }) as FlujoEntry);
 
     const summaryId = `${sucursalId}_${weekId}`;
     const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
@@ -230,9 +220,7 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new
     const summarySnap = await getDoc(summaryRef);
     let summary: FlujoWeeklySummary | null = null;
     
-    // Recalculamos el total cobrado a partir de los registros filtrados para asegurar consistencia
     const calculatedTotalCobrado = weeklyEntries.reduce((acc, e) => acc + e.totalCobrado, 0);
-    const calculatedTotalVenta = weeklyEntries.reduce((acc, e) => acc + (e.venta || 0), 0);
 
     if (summarySnap.exists()) {
         const data = summarySnap.data();
@@ -242,21 +230,19 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new
             weekStartDate: (data.weekStartDate as Timestamp).toDate(),
             weekEndDate: (data.weekEndDate as Timestamp).toDate(),
             gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
-            // Usamos el total recalculado para la vista, aunque el guardado sea incremental
+            ventas: (data.ventas || []).map((v: any) => ({...v, date: (v.date as Timestamp).toDate()})),
             totalCobradoSemanal: calculatedTotalCobrado,
-            totalVentaSemanal: calculatedTotalVenta,
         } as FlujoWeeklySummary;
     } else if (weeklyEntries.length > 0) {
-         // Si no hay resumen pero sí registros, lo creamos al vuelo para la vista
         summary = {
             id: summaryId,
             sucursalId,
             weekStartDate: start,
             weekEndDate: end,
             totalCobradoSemanal: calculatedTotalCobrado,
-            totalVentaSemanal: calculatedTotalVenta,
             comisiones: 0,
             gastos: [],
+            ventas: [],
         };
     }
 
@@ -267,11 +253,19 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new
 }
 
 
-export async function addGastoToSummary(summaryId: string, gasto: { amount: number, description: string }) {
+export async function addGastoToSummary(summaryId: string, gasto: { amount: number, description: string }, sucursalId: string) {
     const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+    const sucursalRef = doc(db, 'flujo_sucursales', sucursalId);
     const newGasto: FlujoGasto = { ...gasto, id: uuidv4(), date: new Date() };
-    await updateDoc(summaryRef, {
-        gastos: arrayUnion(newGasto)
+
+    await runTransaction(db, async(transaction) => {
+        const sucursalDoc = await transaction.get(sucursalRef);
+        if (!sucursalDoc.exists()) throw new Error("Sucursal no encontrada.");
+        
+        const newBalance = sucursalDoc.data().currentBalance - gasto.amount;
+        
+        transaction.update(summaryRef, { gastos: arrayUnion(newGasto) });
+        transaction.update(sucursalRef, { currentBalance: newBalance });
     });
 }
 
@@ -285,16 +279,73 @@ export async function deleteGastoFromSummary(summaryId: string, gastoId: string)
         const gastoToDelete = currentSummary.gastos.find(g => g.id === gastoId);
         
         if (gastoToDelete) {
-             transaction.update(summaryRef, {
-                gastos: arrayRemove(gastoToDelete)
-            });
+            const sucursalRef = doc(db, 'flujo_sucursales', currentSummary.sucursalId);
+            const sucursalDoc = await transaction.get(sucursalRef);
+            if (sucursalDoc.exists()) {
+                const newBalance = sucursalDoc.data().currentBalance + gastoToDelete.amount;
+                transaction.update(sucursalRef, { currentBalance: newBalance });
+            }
+            transaction.update(summaryRef, { gastos: arrayRemove(gastoToDelete) });
         }
     });
 }
 
-export async function updateComisionesInSummary(summaryId: string, comisiones: number) {
+export async function addVentaToSummary(summaryId: string, venta: { amount: number, description: string }, sucursalId: string) {
     const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
-    await updateDoc(summaryRef, { comisiones });
+    const sucursalRef = doc(db, 'flujo_sucursales', sucursalId);
+    const newVenta: FlujoVenta = { ...venta, id: uuidv4(), date: new Date() };
+
+    await runTransaction(db, async(transaction) => {
+        const sucursalDoc = await transaction.get(sucursalRef);
+        if (!sucursalDoc.exists()) throw new Error("Sucursal no encontrada.");
+        
+        const newBalance = sucursalDoc.data().currentBalance - venta.amount;
+        
+        transaction.update(summaryRef, { ventas: arrayUnion(newVenta) });
+        transaction.update(sucursalRef, { currentBalance: newBalance });
+    });
+}
+
+export async function deleteVentaFromSummary(summaryId: string, ventaId: string) {
+    const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+     await runTransaction(db, async (transaction) => {
+        const summaryDoc = await transaction.get(summaryRef);
+        if (!summaryDoc.exists()) throw new Error("Resumen no encontrado.");
+
+        const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
+        const ventaToDelete = currentSummary.ventas.find(v => v.id === ventaId);
+        
+        if (ventaToDelete) {
+            const sucursalRef = doc(db, 'flujo_sucursales', currentSummary.sucursalId);
+            const sucursalDoc = await transaction.get(sucursalRef);
+            if (sucursalDoc.exists()) {
+                const newBalance = sucursalDoc.data().currentBalance + ventaToDelete.amount;
+                transaction.update(sucursalRef, { currentBalance: newBalance });
+            }
+            transaction.update(summaryRef, { ventas: arrayRemove(ventaToDelete) });
+        }
+    });
+}
+
+
+export async function updateComisionesInSummary(summaryId: string, comisiones: number, sucursalId: string) {
+    const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+    const sucursalRef = doc(db, 'flujo_sucursales', sucursalId);
+
+    await runTransaction(db, async (transaction) => {
+        const summaryDoc = await transaction.get(summaryRef);
+        const sucursalDoc = await transaction.get(sucursalRef);
+
+        if (!summaryDoc.exists() || !sucursalDoc.exists()) {
+            throw new Error("No se encontró el resumen o la sucursal.");
+        }
+        
+        const oldComisiones = summaryDoc.data().comisiones || 0;
+        const newBalance = sucursalDoc.data().currentBalance + oldComisiones - comisiones;
+
+        transaction.update(sucursalRef, { currentBalance: newBalance });
+        transaction.update(summaryRef, { comisiones });
+    });
 }
 
 export async function resetWeeklySummary(summaryId: string) {
@@ -302,8 +353,19 @@ export async function resetWeeklySummary(summaryId: string) {
     await runTransaction(db, async (transaction) => {
         const summaryDoc = await transaction.get(summaryRef);
         if (summaryDoc.exists()) {
+            const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
+            const sucursalRef = doc(db, 'flujo_sucursales', currentSummary.sucursalId);
+            const sucursalDoc = await transaction.get(sucursalRef);
+            
+            if (sucursalDoc.exists()) {
+                const totalDeductionsToRevert = (currentSummary.gastos.reduce((sum, g) => sum + g.amount, 0)) + (currentSummary.ventas.reduce((sum, v) => sum + v.amount, 0)) + currentSummary.comisiones;
+                const newBalance = sucursalDoc.data().currentBalance + totalDeductionsToRevert;
+                transaction.update(sucursalRef, { currentBalance: newBalance });
+            }
+
             transaction.update(summaryRef, {
                 gastos: [],
+                ventas: [],
                 comisiones: 0,
             });
         }

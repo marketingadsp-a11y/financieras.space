@@ -4,12 +4,12 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
-import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary, deleteGastoFromSummary } from "@/services/flujo-service";
+import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta } from "@/lib/data";
+import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary, deleteGastoFromSummary, addVentaToSummary, deleteVentaFromSummary } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt, GitCommitVertical, FileText } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
-import { format, addDays, isSameDay, startOfDay } from "date-fns";
+import { format, startOfWeek, endOfWeek, addDays, isSameDay, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,11 +31,11 @@ import { cn } from "@/lib/utils";
 type UnifiedHistoryItem = {
     id: string;
     date: Date;
-    type: 'flujo' | 'gasto' | 'comision';
+    type: 'flujo' | 'gasto' | 'comision' | 'venta';
     description: string;
     amount: number;
     details?: string;
-    raw: FlujoEntry | FlujoGasto | { comisiones: number };
+    raw: FlujoEntry | FlujoGasto | FlujoVenta | { comisiones: number };
     userPerformed?: string;
 };
 
@@ -44,13 +44,15 @@ const WeeklyHistoryList = ({
     canDelete, 
     onDeleteEntry,
     onDeleteGasto,
-    onDeleteComisiones
+    onDeleteComisiones,
+    onDeleteVenta
 }: { 
     items: UnifiedHistoryItem[], 
     canDelete: boolean, 
     onDeleteEntry: (entry: FlujoEntry) => void,
     onDeleteGasto: (gasto: FlujoGasto) => void,
-    onDeleteComisiones: () => void
+    onDeleteComisiones: () => void,
+    onDeleteVenta: (venta: FlujoVenta) => void,
 }) => {
     if (items.length === 0) {
         return (
@@ -66,87 +68,71 @@ const WeeklyHistoryList = ({
         flujo: { label: 'Registro de Flujo', icon: GitCommitVertical, color: "text-green-600", bg: "bg-green-500/10" },
         gasto: { label: 'Gasto', icon: TrendingDown, color: "text-red-500", bg: "bg-red-500/10" },
         comision: { label: 'Comisiones', icon: Coins, color: "text-orange-500", bg: "bg-orange-500/10" },
+        venta: { label: 'Venta', icon: Receipt, color: "text-purple-500", bg: "bg-purple-500/10" },
     };
     
     const formatCurrency = (value?: number) => {
         const amount = typeof value === 'number' ? value : 0;
         return `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
+    
+    const renderDeleteButton = (item: UnifiedHistoryItem) => {
+        if (!canDelete) return null;
+
+        let title = '¿Confirmar Eliminación?';
+        let description = 'Esta acción es irreversible.';
+        let onConfirm = () => {};
+
+        switch (item.type) {
+            case 'flujo':
+                title = '¿Eliminar Registro de Flujo?';
+                description = 'Se eliminará el registro del día y se ajustarán los saldos.';
+                onConfirm = () => onDeleteEntry(item.raw as FlujoEntry);
+                break;
+            case 'gasto':
+                title = '¿Eliminar Gasto?';
+                description = `Se eliminará el gasto "${item.description}". Esta acción es irreversible.`;
+                onConfirm = () => onDeleteGasto(item.raw as FlujoGasto);
+                break;
+            case 'venta':
+                title = '¿Eliminar Venta?';
+                description = `Se eliminará la venta "${item.description}". Esta acción es irreversible.`;
+                onConfirm = () => onDeleteVenta(item.raw as FlujoVenta);
+                break;
+            case 'comision':
+                title = '¿Eliminar Comisiones?';
+                description = 'Esto restablecerá las comisiones de la semana a $0.00.';
+                onConfirm = () => onDeleteComisiones();
+                break;
+            default:
+                return null;
+        }
+
+        return (
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitleComponent>{title}</AlertDialogTitleComponent>
+                        <AlertDialogDescription>{description}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooterComponent>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={onConfirm}>Eliminar</AlertDialogAction>
+                    </AlertDialogFooterComponent>
+                </AlertDialogContent>
+            </AlertDialog>
+        );
+    }
 
     return (
         <div className="space-y-4">
             {items.map((item, index) => {
                 const info = typeInfo[item.type];
-                
-                const renderDeleteButton = () => {
-                    if (!canDelete) return null;
-
-                    if (item.type === 'flujo') {
-                        return (
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
-                                        <AlertDialogDescription>Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooterComponent>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => onDeleteEntry(item.raw as FlujoEntry)}>Eliminar</AlertDialogAction>
-                                    </AlertDialogFooterComponent>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        );
-                    }
-                     if (item.type === 'gasto') {
-                        return (
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitleComponent>¿Eliminar Gasto?</AlertDialogTitleComponent>
-                                        <AlertDialogDescription>Se eliminará el gasto "{item.description}". Esta acción es irreversible.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooterComponent>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => onDeleteGasto(item.raw as FlujoGasto)}>Eliminar Gasto</AlertDialogAction>
-                                    </AlertDialogFooterComponent>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        );
-                    }
-                     if (item.type === 'comision') {
-                        return (
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitleComponent>¿Eliminar Comisiones?</AlertDialogTitleComponent>
-                                        <AlertDialogDescription>Esto restablecerá las comisiones de la semana a $0.00. Esta acción es irreversible.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooterComponent>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => onDeleteComisiones()}>Eliminar Comisiones</AlertDialogAction>
-                                    </AlertDialogFooterComponent>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        );
-                    }
-                    return null;
-                }
-
                 return (
                  <div key={`${item.id}-${index}`} className="group flex items-center space-x-4 rounded-lg bg-muted/40 p-3">
                     <div className={cn("flex h-10 w-10 items-center justify-center rounded-full", info.bg)}>
@@ -163,7 +149,7 @@ const WeeklyHistoryList = ({
                             </div>
                             <p className="text-xs text-muted-foreground">{format(item.date, "dd MMM, p", { locale: es })}</p>
                         </div>
-                        {renderDeleteButton()}
+                        {renderDeleteButton(item)}
                     </div>
                 </div>
                 )
@@ -172,47 +158,66 @@ const WeeklyHistoryList = ({
     );
 }
 
-const GastosDialog = ({ summary, onSave, onDelete, onClose, canDelete }: { summary: FlujoWeeklySummary, onSave: (gasto: { amount: number, description: string }) => Promise<void>, onDelete: (gastoId: string) => Promise<void>, onClose: () => void, canDelete: boolean }) => {
+const ManagementDialog = ({
+  title,
+  description,
+  items,
+  onSave,
+  onDelete,
+  onClose,
+  canDelete,
+}: {
+  title: string;
+  description: string;
+  items: (FlujoGasto | FlujoVenta)[];
+  onSave: (item: { amount: number; description: string }) => Promise<void>;
+  onDelete: (itemId: string) => Promise<void>;
+  onClose: () => void;
+  canDelete: boolean;
+}) => {
     const [amount, setAmount] = React.useState<number | undefined>();
-    const [description, setDescription] = React.useState('');
+    const [itemDescription, setItemDescription] = React.useState('');
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [gastoToDelete, setGastoToDelete] = React.useState<FlujoGasto | null>(null);
 
     const handleSubmit = async () => {
-        if (!amount || !description) return;
+        if (!amount || !itemDescription) return;
         setIsSubmitting(true);
-        await onSave({ amount, description });
+        await onSave({ amount, description: itemDescription });
         setIsSubmitting(false);
         setAmount(undefined);
-        setDescription('');
+        setItemDescription('');
+    };
+    
+    const handleDeleteClick = async (itemId: string) => {
+        await onDelete(itemId);
     };
 
     return (
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Gestión de Gastos de la Semana</DialogTitle>
-                <DialogDescription>Añade los gastos realizados durante esta semana. Se descontarán del total cobrado.</DialogDescription>
+                <DialogTitle>{title}</DialogTitle>
+                <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4 items-end">
                     <div className="col-span-3 sm:col-span-1">
-                        <Label htmlFor="gasto-amount">Monto</Label>
-                        <Input id="gasto-amount" type="number" value={amount || ''} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0.00" />
+                        <Label htmlFor="item-amount">Monto</Label>
+                        <Input id="item-amount" type="number" value={amount || ''} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0.00" />
                     </div>
                     <div className="col-span-3 sm:col-span-2">
-                        <Label htmlFor="gasto-desc">Descripción</Label>
-                        <Input id="gasto-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej. Gasolina, Papelería" />
+                        <Label htmlFor="item-desc">Descripción</Label>
+                        <Input id="item-desc" value={itemDescription} onChange={(e) => setItemDescription(e.target.value)} placeholder="Ej. Gasolina, Papelería" />
                     </div>
                 </div>
-                 <Button onClick={handleSubmit} disabled={isSubmitting || !amount || !description}>
+                 <Button onClick={handleSubmit} disabled={isSubmitting || !amount || !itemDescription}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
-                        Agregar Gasto
+                        Agregar
                     </Button>
             </div>
             <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-                <h4 className="text-sm font-medium">Gastos Registrados</h4>
-                {summary.gastos.length > 0 ? (
-                    summary.gastos.map(g => (
+                <h4 className="text-sm font-medium">Registrados</h4>
+                {items.length > 0 ? (
+                    items.map(g => (
                         <div key={g.id} className="group flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
                             <span className="flex-1">{g.description}</span>
                             <span className="font-mono mx-2">${g.amount.toLocaleString('es-MX')}</span>
@@ -223,12 +228,12 @@ const GastosDialog = ({ summary, onSave, onDelete, onClose, canDelete }: { summa
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
-                                            <AlertDialogTitleComponent>Eliminar Gasto</AlertDialogTitleComponent>
-                                            <AlertDialogDescription>¿Estás seguro de que deseas eliminar este gasto? Esta acción es irreversible.</AlertDialogDescription>
+                                            <AlertDialogTitleComponent>Eliminar Registro</AlertDialogTitleComponent>
+                                            <AlertDialogDescription>¿Estás seguro de que deseas eliminar este registro? Esta acción es irreversible.</AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooterComponent>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => onDelete(g.id)}>Eliminar</AlertDialogAction>
+                                            <AlertDialogAction onClick={() => handleDeleteClick(g.id)}>Eliminar</AlertDialogAction>
                                         </AlertDialogFooterComponent>
                                     </AlertDialogContent>
                                 </AlertDialog>
@@ -236,7 +241,7 @@ const GastosDialog = ({ summary, onSave, onDelete, onClose, canDelete }: { summa
                         </div>
                     ))
                 ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">No hay gastos registrados.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No hay registros.</p>
                 )}
             </div>
              <DialogFooter>
@@ -244,7 +249,8 @@ const GastosDialog = ({ summary, onSave, onDelete, onClose, canDelete }: { summa
             </DialogFooter>
         </DialogContent>
     )
-}
+};
+
 
 const ComisionesDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySummary, onSave: (amount: number) => Promise<void>, onClose: () => void }) => {
     const [amount, setAmount] = React.useState<number | undefined>(summary.comisiones > 0 ? summary.comisiones : undefined);
@@ -290,6 +296,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showGastosDialog, setShowGastosDialog] = React.useState(false);
+  const [showVentasDialog, setShowVentasDialog] = React.useState(false);
   const [showComisionesDialog, setShowComisionesDialog] = React.useState(false);
   const [showResetDialog, setShowResetDialog] = React.useState(false);
   const [isReseting, setIsReseting] = React.useState(false);
@@ -306,7 +313,6 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
           setWeeklySummary(summary);
           setWeekDateRange(dateRange);
 
-          // Combine all data for history view
           const combinedHistory: UnifiedHistoryItem[] = [];
           
           entries.forEach(entry => {
@@ -316,7 +322,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                   type: 'flujo',
                   description: `Registro de flujo del día`,
                   amount: entry.totalCobrado,
-                  details: `Fondo: ${formatCurrency(entry.fondo)} | Debe Entregar: ${formatCurrency(entry.debeEntregar)} | Falla: ${formatCurrency(entry.falla)} | Recuperado: ${formatCurrency(entry.recuperado)} | Entrantes: ${formatCurrency(entry.entrantes)} | Salientes: ${formatCurrency(entry.salientes)} | Venta: ${formatCurrency(entry.venta)}`,
+                  details: `Fondo: ${formatCurrency(entry.fondo)} | Debe Entregar: ${formatCurrency(entry.debeEntregar)} | Falla: ${formatCurrency(entry.falla)} | Recuperado: ${formatCurrency(entry.recuperado)} | Entrantes: ${formatCurrency(entry.entrantes)} | Salientes: ${formatCurrency(entry.salientes)}`,
                   raw: entry
               });
           });
@@ -328,18 +334,29 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                       date: gasto.date,
                       type: 'gasto',
                       description: `Gasto: ${gasto.description}`,
-                      amount: -gasto.amount, // Negative as it's an expense
+                      amount: -gasto.amount,
                       raw: gasto
+                  });
+              });
+              
+              summary.ventas.forEach(venta => {
+                  combinedHistory.push({
+                      id: `venta-${venta.id}`,
+                      date: venta.date,
+                      type: 'venta',
+                      description: `Venta: ${venta.description}`,
+                      amount: -venta.amount,
+                      raw: venta
                   });
               });
 
               if (summary.comisiones > 0) {
                   combinedHistory.push({
                       id: `comision-${summary.id}`,
-                      date: summary.weekEndDate, // Assign to end of week
+                      date: summary.weekEndDate,
                       type: 'comision',
                       description: "Comisiones de la semana",
-                      amount: -summary.comisiones, // Negative as it's an expense
+                      amount: -summary.comisiones,
                       raw: { comisiones: summary.comisiones }
                   });
               }
@@ -360,7 +377,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     fetchData();
   }, [fetchData]);
 
-  const handleFormSubmit = async (data: Omit<FlujoEntry, 'id' | 'sucursalId' | 'date'>) => {
+  const handleFormSubmit = async (data: Omit<FlujoEntry, 'id' | 'sucursalId' | 'date' | 'venta'>) => {
     setIsSubmitting(true);
     try {
         const entryData = { ...data, sucursalId, date: selectedDate };
@@ -387,7 +404,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleSaveGasto = async (gasto: { amount: number, description: string }) => {
     if (!weeklySummary) return;
     try {
-        await addGastoToSummary(weeklySummary.id, gasto);
+        await addGastoToSummary(weeklySummary.id, gasto, sucursalId);
         toast({ title: 'Éxito', description: 'Gasto agregado.' });
         fetchData(); 
     } catch(e: any) {
@@ -405,11 +422,33 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el gasto.' });
     }
   }
+  
+    const handleSaveVenta = async (venta: { amount: number, description: string }) => {
+    if (!weeklySummary) return;
+    try {
+        await addVentaToSummary(weeklySummary.id, venta, sucursalId);
+        toast({ title: 'Éxito', description: 'Venta agregada.' });
+        fetchData(); 
+    } catch(e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la venta.' });
+    }
+  }
+
+  const handleDeleteVenta = async (venta: FlujoVenta) => {
+    if (!weeklySummary) return;
+    try {
+        await deleteVentaFromSummary(weeklySummary.id, venta.id);
+        toast({ title: 'Éxito', description: 'Venta eliminada.' });
+        fetchData(); 
+    } catch(e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la venta.' });
+    }
+  }
 
   const handleSaveComisiones = async (amount: number) => {
      if (!weeklySummary) return;
       try {
-        await updateComisionesInSummary(weeklySummary.id, amount);
+        await updateComisionesInSummary(weeklySummary.id, amount, sucursalId);
         toast({ title: 'Éxito', description: 'Comisiones guardadas.' });
         fetchData();
     } catch(e: any) {
@@ -420,7 +459,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleDeleteComisiones = async () => {
     if (!weeklySummary) return;
     try {
-      await updateComisionesInSummary(weeklySummary.id, 0);
+      await updateComisionesInSummary(weeklySummary.id, 0, sucursalId);
       toast({ title: 'Éxito', description: 'Comisiones restablecidas a cero.' });
       fetchData();
     } catch (e: any) {
@@ -458,10 +497,10 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const isNextWeekDisabled = isSameDay(startOfDay(selectedDate), startOfDay(new Date())) || selectedDate > new Date();
   
   const totalGastos = weeklySummary?.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
+  const totalVentas = weeklySummary?.ventas.reduce((acc, v) => acc + v.amount, 0) ?? 0;
   const totalComisiones = weeklySummary?.comisiones ?? 0;
   const totalCobrado = weeklySummary?.totalCobradoSemanal ?? 0;
-  const totalVenta = weeklySummary?.totalVentaSemanal ?? 0;
-  const totalEfectivo = totalCobrado - totalComisiones - totalGastos;
+  const totalEfectivo = totalCobrado - totalComisiones - totalGastos - totalVentas;
 
   const canDelete = user ? !user.isToolAdmin && !user.isPlazaUser : false;
   
@@ -493,7 +532,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant={"outline"}
-                                        className={cn("w-full sm:w-[280px] justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}
+                                        className={cn("w-full sm:w-auto", !selectedDate && "text-muted-foreground")}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
@@ -533,21 +572,21 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                             </div>
                         </CardHeader>
                          <CardContent className="grid grid-cols-2 gap-4">
-                            <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
+                            <div className="p-4 rounded-lg bg-green-500/10 text-green-700 col-span-2">
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
                                 <p className="text-xl font-bold">${totalCobrado.toLocaleString('es-MX')}</p>
                             </div>
-                            <div className="p-4 rounded-lg bg-orange-500/10 text-orange-700">
-                                <p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p>
-                                <p className="text-xl font-bold">${totalVenta.toLocaleString('es-MX')}</p>
-                            </div>
-                            <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowComisionesDialog(true)}>
+                            <div className="p-4 rounded-lg bg-orange-500/10 text-orange-700 cursor-pointer hover:bg-orange-500/20" onClick={() => setShowComisionesDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p>
                                 <p className="text-xl font-bold">${totalComisiones.toLocaleString('es-MX')}</p>
                             </div>
                             <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowGastosDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Gastos</p>
                                 <p className="text-xl font-bold">${totalGastos.toLocaleString('es-MX')}</p>
+                            </div>
+                             <div className="p-4 rounded-lg bg-purple-500/10 text-purple-700 cursor-pointer hover:bg-purple-500/20" onClick={() => setShowVentasDialog(true)}>
+                                <p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p>
+                                <p className="text-xl font-bold">${totalVentas.toLocaleString('es-MX')}</p>
                             </div>
                              <div className="col-span-2 p-4 rounded-lg bg-blue-500/10 text-blue-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Efectivo</p>
@@ -566,7 +605,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                                         <AlertDialogHeader>
                                             <AlertDialogTitleComponent>¿Reiniciar Resumen?</AlertDialogTitleComponent>
                                             <AlertDialogDescription>
-                                                Esta acción eliminará los gastos y pondrá las comisiones en cero para la semana actual. Los registros de flujo no se verán afectados.
+                                                Esta acción eliminará los gastos, ventas y pondrá las comisiones en cero para la semana actual. Los registros de flujo no se verán afectados.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooterComponent>
@@ -606,15 +645,39 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                     onDeleteEntry={handleDeleteEntry}
                     onDeleteGasto={handleDeleteGasto}
                     onDeleteComisiones={handleDeleteComisiones}
+                    onDeleteVenta={handleDeleteVenta}
                 />
             </CardContent>
         </Card>
         
         {weeklySummary && (
             <Dialog open={showGastosDialog} onOpenChange={setShowGastosDialog}>
-                <GastosDialog summary={weeklySummary} onSave={handleSaveGasto} onDelete={handleDeleteGasto} onClose={() => setShowGastosDialog(false)} canDelete={canDelete} />
+                <ManagementDialog
+                    title="Gestión de Gastos de la Semana"
+                    description="Añade los gastos realizados durante esta semana. Se descontarán del total cobrado."
+                    items={weeklySummary.gastos}
+                    onSave={handleSaveGasto}
+                    onDelete={(gastoId) => handleDeleteGasto({ id: gastoId, amount: 0, description: '', date: new Date()})}
+                    onClose={() => setShowGastosDialog(false)}
+                    canDelete={canDelete}
+                />
             </Dialog>
         )}
+        
+        {weeklySummary && (
+            <Dialog open={showVentasDialog} onOpenChange={setShowVentasDialog}>
+                <ManagementDialog
+                    title="Gestión de Ventas de la Semana"
+                    description="Añade las ventas realizadas durante esta semana. Se descontarán del total cobrado."
+                    items={weeklySummary.ventas}
+                    onSave={handleSaveVenta}
+                    onDelete={(ventaId) => handleDeleteVenta({ id: ventaId, amount: 0, description: '', date: new Date()})}
+                    onClose={() => setShowVentasDialog(false)}
+                    canDelete={canDelete}
+                />
+            </Dialog>
+        )}
+
         {weeklySummary && (
              <Dialog open={showComisionesDialog} onOpenChange={setShowComisionesDialog}>
                 <ComisionesDialog summary={weeklySummary} onSave={handleSaveComisiones} onClose={() => setShowComisionesDialog(false)} />
