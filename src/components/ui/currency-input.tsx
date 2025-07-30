@@ -6,88 +6,77 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
-  value: number | string | undefined;
+  value: number | undefined;
   onValueChange: (value: number | undefined) => void;
 }
 
-// Helper to parse a formatted string into a number
-const parseFormattedValue = (value: string): number | undefined => {
-  if (!value) return undefined;
-  const sanitized = value.replace(/[^0-9.]/g, '');
-  const numberValue = parseFloat(sanitized);
-  return isNaN(numberValue) ? undefined : numberValue;
-};
-
-// Helper to format a number into a currency string
-const formatToCurrency = (value: number | undefined): string => {
-    if (value === undefined || value === null || isNaN(value)) return '';
-    return new Intl.NumberFormat('es-MX', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(value);
-};
-
-
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ value: propValue, onValueChange, className, onBlur, ...props }, ref) => {
-    const [internalValue, setInternalValue] = React.useState<string>(() => {
-        if (propValue === undefined || propValue === null) return '';
-        const numValue = typeof propValue === 'string' ? parseFormattedValue(propValue) : propValue;
-        return String(numValue ?? '');
-    });
+  ({ value: propValue, onValueChange, className, ...props }, ref) => {
+    
+    // Function to format a number into a currency string (e.g., 1000 -> "1,000.00")
+    const formatValue = (num: number | undefined): string => {
+        if (num === undefined || num === null || isNaN(num)) return '';
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(num);
+    };
 
-    // Update internal state only when the prop from the form changes
+    // Function to parse a string into a number (e.g., "1,000.00" -> 1000)
+    const parseValue = (str: string): number | undefined => {
+      const sanitized = str.replace(/[^0-9.]/g, '');
+      const num = parseFloat(sanitized);
+      return isNaN(num) ? undefined : num;
+    };
+    
+    const [displayValue, setDisplayValue] = React.useState(() => formatValue(propValue));
+
+    // When the prop value changes (e.g., from form reset), update the display value
     React.useEffect(() => {
-        const numValue = typeof propValue === 'string' ? parseFormattedValue(propValue) : propValue;
-        const formatted = numValue !== undefined ? String(numValue) : '';
-        if (parseFormattedValue(internalValue) !== numValue) {
-             setInternalValue(formatted);
+        const numericPropValue = typeof propValue === 'string' ? parseValue(propValue) : propValue;
+        const numericDisplayValue = parseValue(displayValue);
+
+        if (numericPropValue !== numericDisplayValue) {
+            setDisplayValue(formatValue(numericPropValue));
         }
     }, [propValue]);
 
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const rawValue = event.target.value;
-        const sanitized = rawValue.replace(/[^0-9.]/g, '');
-        
-        // Allow only one decimal point
-        const parts = sanitized.split('.');
-        if (parts.length > 2) {
-            return; 
-        }
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const input = e.target.value;
+      const numericValue = parseValue(input);
 
-        setInternalValue(sanitized);
-        onValueChange(parseFormattedValue(sanitized));
-    };
-
-    const handleInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
-        const numericValue = parseFormattedValue(internalValue);
-        const formatted = formatToCurrency(numericValue);
-        setInternalValue(formatted);
-        
-        // Propagate the blur event if a handler is provided
-        if (onBlur) {
-            onBlur(event);
-        }
+      // Format the display value with commas as user types
+      if (input.endsWith('.') || input.endsWith('.0') || input.endsWith('.00') || !input.includes('.')) {
+          const parts = input.split('.');
+          const integerPart = parts[0].replace(/,/g, '');
+          const formattedInteger = new Intl.NumberFormat('en-US').format(Number(integerPart) || 0).replace(/,/g, '');
+          if(Number(integerPart) === 0 && input !== "0" && input !== ".") {
+             setDisplayValue(input.replace(/,/g, ''));
+          } else {
+             setDisplayValue(new Intl.NumberFormat('en-US').format(Number(integerPart)).replace(/,/g, ',') + (parts[1] !== undefined ? `.${parts[1]}`: ''));
+          }
+      } else {
+          setDisplayValue(input);
+      }
+      
+      onValueChange(numericValue);
     };
     
-     const handleInputFocus = (event: React.FocusEvent<HTMLInputElement>) => {
-        const numericValue = parseFormattedValue(internalValue);
-        if (numericValue !== undefined) {
-            setInternalValue(String(numericValue));
-        }
+    const handleBlur = () => {
+        const numericValue = parseValue(displayValue);
+        setDisplayValue(formatValue(numericValue));
     };
 
     return (
       <Input
         ref={ref}
-        type="text" // Use text to allow for formatting characters
-        inputMode="decimal" // Hint for mobile keyboards
+        type="text"
+        inputMode="decimal"
         className={cn("font-mono", className)}
-        value={internalValue}
+        value={displayValue}
         onChange={handleChange}
-        onBlur={handleInputBlur}
-        onFocus={handleInputFocus}
+        onBlur={handleBlur}
         {...props}
       />
     );
