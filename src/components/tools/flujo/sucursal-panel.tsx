@@ -364,6 +364,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const totalGastos = weeklySummary?.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
   const totalComisiones = weeklySummary?.comisiones ?? 0;
   const totalCobrado = weeklySummary?.totalCobradoSemanal ?? 0;
+  const totalVenta = weeklySummary?.totalVentaSemanal ?? 0;
   const totalFinal = totalCobrado - totalComisiones - totalGastos;
 
   const canDelete = user ? !user.isToolAdmin && !user.isPlazaUser : false;
@@ -429,22 +430,26 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                                 <CardDescription>{weekDateRange}</CardDescription>
                             </div>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
+                        <CardContent className="grid grid-cols-2 gap-4">
+                            <div className="col-span-2 p-4 rounded-lg bg-green-500/10 text-green-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
                                 <p className="text-2xl font-bold">${totalCobrado.toLocaleString('es-MX')}</p>
                             </div>
                             <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowComisionesDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p>
-                                <p className="text-2xl font-bold">${totalComisiones.toLocaleString('es-MX')}</p>
+                                <p className="text-xl font-bold">${totalComisiones.toLocaleString('es-MX')}</p>
                             </div>
                             <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowGastosDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Gastos</p>
-                                <p className="text-2xl font-bold">${totalGastos.toLocaleString('es-MX')}</p>
+                                <p className="text-xl font-bold">${totalGastos.toLocaleString('es-MX')}</p>
+                            </div>
+                             <div className="p-4 rounded-lg bg-orange-500/10 text-orange-700">
+                                <p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p>
+                                <p className="text-xl font-bold">${totalVenta.toLocaleString('es-MX')}</p>
                             </div>
                             <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Final</p>
-                                <p className="text-2xl font-bold">${totalFinal.toLocaleString('es-MX')}</p>
+                                <p className="text-xl font-bold">${totalFinal.toLocaleString('es-MX')}</p>
                             </div>
                         </CardContent>
                          <CardFooter>

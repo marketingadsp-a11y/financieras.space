@@ -153,6 +153,7 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
                 weekStartDate: weekStartDate,
                 weekEndDate: weekEndDate,
                 totalCobradoSemanal: entryData.totalCobrado,
+                totalVentaSemanal: entryData.venta,
                 comisiones: 0,
                 gastos: [],
             };
@@ -161,6 +162,7 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
             const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
             transaction.update(summaryRef, {
                 totalCobradoSemanal: currentSummary.totalCobradoSemanal + entryData.totalCobrado,
+                totalVentaSemanal: (currentSummary.totalVentaSemanal || 0) + entryData.venta,
             });
         }
     });
@@ -192,7 +194,11 @@ export async function deleteFlujoEntry(entryId: string) {
         }
         if (summaryDoc.exists()) {
              let newSummaryTotal = summaryDoc.data().totalCobradoSemanal - entryData.totalCobrado;
-            transaction.update(summaryRef, { totalCobradoSemanal: newSummaryTotal });
+             let newVentaTotal = (summaryDoc.data().totalVentaSemanal || 0) - entryData.venta;
+            transaction.update(summaryRef, { 
+                totalCobradoSemanal: newSummaryTotal,
+                totalVentaSemanal: newVentaTotal
+            });
         }
         transaction.delete(entryRef);
     });
@@ -225,6 +231,7 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new
     
     // Recalculamos el total cobrado a partir de los registros filtrados para asegurar consistencia
     const calculatedTotalCobrado = weeklyEntries.reduce((acc, e) => acc + e.totalCobrado, 0);
+    const calculatedTotalVenta = weeklyEntries.reduce((acc, e) => acc + (e.venta || 0), 0);
 
     if (summarySnap.exists()) {
         const data = summarySnap.data();
@@ -236,6 +243,7 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new
             gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
             // Usamos el total recalculado para la vista, aunque el guardado sea incremental
             totalCobradoSemanal: calculatedTotalCobrado,
+            totalVentaSemanal: calculatedTotalVenta,
         } as FlujoWeeklySummary;
     } else if (weeklyEntries.length > 0) {
          // Si no hay resumen pero sí registros, lo creamos al vuelo para la vista
@@ -245,6 +253,7 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new
             weekStartDate: start,
             weekEndDate: end,
             totalCobradoSemanal: calculatedTotalCobrado,
+            totalVentaSemanal: calculatedTotalVenta,
             comisiones: 0,
             gastos: [],
         };

@@ -343,6 +343,7 @@ export type FlujoWeeklySummary = {
     weekStartDate: Date;
     weekEndDate: Date;
     totalCobradoSemanal: number;
+    totalVentaSemanal: number;
     comisiones: number;
     gastos: FlujoGasto[];
 }
