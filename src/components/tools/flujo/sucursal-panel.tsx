@@ -370,8 +370,9 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
 
 
       } catch (e: any) {
-          if (e.message && (e.message.includes('requires an index') || e.message.includes('index is currently building'))) {
-            setFirestoreError(e.message);
+          if (e.message && (e.message.includes('requires an index'))) {
+              const isBuilding = e.message.includes('currently building');
+              setFirestoreError(isBuilding ? 'building' : e.message);
           } else {
             toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal.' });
           }
@@ -422,7 +423,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleDeleteGasto = async (gasto: FlujoGasto) => {
     if (!weeklySummary) return;
     try {
-        await deleteGastoFromSummary(weeklySummary.id, gasto.id, sucursalId);
+        await deleteGastoFromSummary(weeklySummary.id, gasto.id);
         toast({ title: 'Éxito', description: 'Gasto eliminado.' });
         fetchData(); 
     } catch(e: any) {
@@ -444,7 +445,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleDeleteVenta = async (venta: FlujoVenta) => {
     if (!weeklySummary) return;
     try {
-        await deleteVentaFromSummary(weeklySummary.id, venta.id, sucursalId);
+        await deleteVentaFromSummary(weeklySummary.id, venta.id);
         toast({ title: 'Éxito', description: 'Venta eliminada.' });
         fetchData(); 
     } catch(e: any) {
@@ -501,7 +502,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     setSelectedDate(new Date());
   }
 
-  const isNextWeekDisabled = isSameDay(startOfDay(selectedDate), startOfDay(new Date())) || selectedDate > new Date();
+  const isNextWeekDisabled = isSameDay(startOfWeek(selectedDate, { weekStartsOn: 6 }), startOfWeek(new Date(), { weekStartsOn: 6 })) || selectedDate > new Date();
   
   const totalGastos = weeklySummary?.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
   const totalVentas = weeklySummary?.ventas.reduce((acc, v) => acc + v.amount, 0) ?? 0;
@@ -522,7 +523,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   }
   
   if (firestoreError) {
-    const isBuilding = firestoreError.includes('index is currently building');
+    const isBuilding = firestoreError === 'building';
     return (
         <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -533,7 +534,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                  {isBuilding ? (
                    <p>El índice necesario para esta vista se está creando. Esto puede tardar unos minutos. Por favor, espera un poco y <a href="#" onClick={() => window.location.reload()} className="font-bold underline">actualiza la página</a>.</p>
                 ) : (
-                   <p>Se requiere un índice de Firestore. Por favor, crea el índice usando el enlace que aparece en la consola de desarrollador de tu navegador y luego actualiza esta página.</p>
+                   <p>Se requiere un índice de Firestore para realizar esta consulta. Por favor, crea el índice usando el enlace que aparece en la consola de desarrollador de tu navegador y luego actualiza esta página.</p>
                 )}
                 <p className="mt-2 text-xs font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded-md overflow-x-auto whitespace-pre-wrap">{firestoreError}</p>
             </AlertDescription>
@@ -548,7 +549,10 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
 
   return (
     <div className="space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Panel de Flujo: {sucursal.name}</h1>
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Panel de Flujo: {sucursal.name}</h1>
+            <p className="text-xl font-semibold text-primary mt-1">{weekDateRange}</p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <div className="lg:col-span-2">
@@ -596,15 +600,14 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                         <CardHeader>
                             <div>
                                 <CardTitle>Resumen de la Semana</CardTitle>
-                                <CardDescription>{weekDateRange}</CardDescription>
                             </div>
                         </CardHeader>
                          <CardContent className="grid grid-cols-2 gap-4">
-                            <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
+                            <div className="col-span-1 p-4 rounded-lg bg-green-500/10 text-green-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
                                 <p className="text-xl font-bold">{formatCurrency(totalCobrado)}</p>
                             </div>
-                            <div className="p-4 rounded-lg bg-orange-500/10 text-orange-700 cursor-pointer hover:bg-orange-500/20" onClick={() => setShowComisionesDialog(true)}>
+                            <div className="col-span-1 p-4 rounded-lg bg-orange-500/10 text-orange-700 cursor-pointer hover:bg-orange-500/20" onClick={() => setShowComisionesDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p>
                                 <p className="text-xl font-bold">{formatCurrency(totalComisiones)}</p>
                             </div>
@@ -662,8 +665,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             <CardHeader>
                 <CardTitle>Historial de la Semana</CardTitle>
                 <CardDescription className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    <span>{weekDateRange}</span>
+                    <span>Movimientos registrados para este período.</span>
                 </CardDescription>
             </CardHeader>
             <CardContent>
