@@ -38,7 +38,7 @@ const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEn
     };
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -57,15 +57,15 @@ const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEn
                 <TableBody>
                     {entries.map(entry => (
                         <TableRow key={entry.id}>
-                            <TableCell className="font-medium">{format(entry.date, 'EEEE dd/MM/yy', { locale: es })}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(entry.fondo)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(entry.debeEntregar)}</TableCell>
-                            <TableCell className="text-right text-red-500">{formatCurrency(entry.falla)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(entry.recuperado)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(entry.entrantes)}</TableCell>
-                            <TableCell className="text-right text-red-500">{formatCurrency(entry.salientes)}</TableCell>
-                             <TableCell className="text-right text-red-500">{formatCurrency(entry.venta)}</TableCell>
-                            <TableCell className="text-right font-bold">{formatCurrency(entry.totalCobrado)}</TableCell>
+                            <TableCell className="font-medium whitespace-nowrap">{format(entry.date, 'EEEE dd/MM/yy', { locale: es })}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(entry.fondo)}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(entry.debeEntregar)}</TableCell>
+                            <TableCell className="text-right text-red-500 whitespace-nowrap">{formatCurrency(entry.falla)}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(entry.recuperado)}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(entry.entrantes)}</TableCell>
+                            <TableCell className="text-right text-red-500 whitespace-nowrap">{formatCurrency(entry.salientes)}</TableCell>
+                             <TableCell className="text-right text-red-500 whitespace-nowrap">{formatCurrency(entry.venta)}</TableCell>
+                            <TableCell className="text-right font-bold whitespace-nowrap">{formatCurrency(entry.totalCobrado)}</TableCell>
                             {canDelete && (
                                 <TableCell>
                                     <AlertDialog>
@@ -316,7 +316,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             </CardContent>
         </Card>
 
-        {weeklyEntries.length > 0 && (
+        {weeklySummary && (
             <Card>
                  <CardHeader>
                     <div className="flex justify-between items-start">
