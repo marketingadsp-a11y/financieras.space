@@ -121,13 +121,12 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
     return { start: startDate, end: endDate, weekId };
 };
 
-export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id' | 'venta'>) {
-    const entryDate = entryData.date; // Use the date passed from the form
+export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
+    const entryDate = entryData.date;
     
     const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(entryDate);
     
     await runTransaction(db, async (transaction) => {
-        // --- 1. ALL READS FIRST ---
         const summaryId = `${entryData.sucursalId}_${weekId}`;
         const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
         const sucursalRef = doc(db, 'flujo_sucursales', entryData.sucursalId);
@@ -138,12 +137,10 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id' | 'venta'>)
 
         if (!sucursalDoc.exists()) throw new Error('La sucursal no existe.');
         
-        // --- 2. PREPARE DATA & CALCULATIONS ---
         const sucursalData = sucursalDoc.data() as FlujoSucursal;
         let newBalance = sucursalData.currentBalance + entryData.totalCobrado;
         const dataWithTimestamp = { ...entryData, date: Timestamp.fromDate(entryDate), id: entryRef.id };
 
-        // --- 3. ALL WRITES LAST ---
         transaction.set(entryRef, dataWithTimestamp);
         transaction.update(sucursalRef, { currentBalance: newBalance });
 
@@ -202,10 +199,16 @@ export async function deleteFlujoEntry(entryId: string) {
     });
 }
 
-export async function getFlujoWeeklySummary(sucursalId: string, date: Date = new Date()): Promise<{ summary: FlujoWeeklySummary | null, dateRange: string, entries: FlujoEntry[] }> {
+export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Promise<{ summary: FlujoWeeklySummary | null, dateRange: string, entries: FlujoEntry[] }> {
     const { start, end, weekId } = getWeekBoundaries(date);
     
-    const q = query(entriesCollectionRef, where("sucursalId", "==", sucursalId), where("date", ">=", start), where("date", "<=", end));
+    const q = query(
+        entriesCollectionRef, 
+        where("sucursalId", "==", sucursalId), 
+        where("date", ">=", start), 
+        where("date", "<=", end),
+        orderBy("date", "asc") // Add orderBy to trigger index creation
+    );
     const weeklyEntriesSnapshot = await getDocs(q);
 
     const weeklyEntries = weeklyEntriesSnapshot.docs.map(docSnap => ({
