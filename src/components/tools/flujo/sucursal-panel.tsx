@@ -305,7 +305,6 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
         <Card>
             <CardHeader>
                 <CardTitle>Ingreso de Datos</CardTitle>
-                <CardDescription>Añade un nuevo registro de flujo para el día de hoy.</CardDescription>
             </CardHeader>
             <CardContent>
                 <FlujoSucursalEntryForm
