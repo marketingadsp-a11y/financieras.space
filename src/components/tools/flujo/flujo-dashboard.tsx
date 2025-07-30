@@ -23,20 +23,37 @@ import * as XLSX from "xlsx";
 import { FlujoExportDialog } from "./flujo-export-dialog";
 import { CajaChicaHistory } from "./caja-chica-history";
 
-const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      <Icon className="h-4 w-4 text-muted-foreground" />
-    </CardHeader>
-    <CardContent>
-      <div className={cn("text-3xl font-bold", colorClass)}>
-        ${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-      </div>
-      <p className="text-xs text-muted-foreground">{description}</p>
-    </CardContent>
-  </Card>
-);
+const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => {
+    
+    if (title === "Total Efectivo (Semanal)") {
+        return (
+             <Card className="bg-blue-500/10 text-blue-700 shadow-inner">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2"><Icon className="h-4 w-4"/>{title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-3xl font-bold">${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-xs text-blue-700/80">{description}</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+        <div className={cn("text-3xl font-bold", colorClass)}>
+            ${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+        </div>
+        <p className="text-xs text-muted-foreground">{description}</p>
+        </CardContent>
+      </Card>
+    )
+};
 
 type SucursalSummary = FlujoSucursal & { summary: FlujoWeeklySummary | null };
 
