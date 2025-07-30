@@ -9,7 +9,7 @@ import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, delete
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2, ChevronLeft, ChevronRight, History, Wallet, Coins, TrendingUp, TrendingDown, Receipt, CalendarIcon, Download, MinusCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription as DialogDesc } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription as DialogDesc, DialogFooter } from "@/components/ui/dialog";
 import { FlujoSucursalForm } from "./sucursal-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -395,31 +395,10 @@ export function FlujoDashboard() {
       <Card>
         <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                <div>
+                <div className="flex-grow">
                     <CardTitle>Sucursales de Flujo</CardTitle>
-                    <div className="flex items-center gap-2 mt-2">
-                        {canExport && <Button variant="outline" size="sm" onClick={() => setExportDialogOpen(true)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>}
-                        <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                            <DialogTrigger asChild>
-                                <Button size="sm" onClick={() => openForm(null)}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Registrar Sucursal
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>{editingSucursal ? 'Editar' : 'Registrar'} Sucursal</DialogTitle>
-                                </DialogHeader>
-                                <FlujoSucursalForm 
-                                    onSubmit={handleFormSubmit}
-                                    sucursal={editingSucursal}
-                                    isSubmitting={isSubmitting}
-                                />
-                            </DialogContent>
-                        </Dialog>
-                    </div>
                 </div>
-                 <div className="flex flex-col sm:flex-row items-center gap-2">
+                 <div className="flex items-center gap-2">
                     <p className="text-lg font-semibold text-primary">{weekDateRange}</p>
                     <div className="flex items-center gap-1">
                         <Button onClick={handlePreviousWeek} variant="outline" size="icon" className="h-8 w-8"><ChevronLeft className="h-4 w-4"/></Button>
@@ -427,6 +406,27 @@ export function FlujoDashboard() {
                         <Button onClick={handleNextWeek} variant="outline" size="icon" className="h-8 w-8" disabled={isNextWeekDisabled}><ChevronRight className="h-4 w-4"/></Button>
                     </div>
                 </div>
+            </div>
+            <div className="flex items-center gap-2 mt-4">
+                {canExport && <Button variant="outline" size="sm" onClick={() => setExportDialogOpen(true)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>}
+                <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="sm" onClick={() => openForm(null)}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Registrar Sucursal
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{editingSucursal ? 'Editar' : 'Registrar'} Sucursal</DialogTitle>
+                        </DialogHeader>
+                        <FlujoSucursalForm 
+                            onSubmit={handleFormSubmit}
+                            sucursal={editingSucursal}
+                            isSubmitting={isSubmitting}
+                        />
+                    </DialogContent>
+                </Dialog>
             </div>
         </CardHeader>
         <CardContent>
