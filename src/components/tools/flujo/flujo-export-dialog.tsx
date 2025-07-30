@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { FlujoSucursal } from "@/lib/data";
 import { Loader2, CalendarIcon, FileSpreadsheet, FileText } from "lucide-react";
-import { addDays, format } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { es } from "date-fns/locale";
 
@@ -37,8 +37,8 @@ export function FlujoExportDialog({ isOpen, onClose, sucursales, onExport, isExp
   const [selectedSucursalIds, setSelectedSucursalIds] = React.useState<string[]>(['all']);
   const [dateRangeType, setDateRangeType] = React.useState<'current' | 'all' | 'custom'>('current');
   const [customDate, setCustomDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 7),
+    from: startOfDay(new Date()),
+    to: addDays(startOfDay(new Date()), 7),
   });
 
   const handleSucursalSelect = (sucursalId: string) => {
@@ -68,7 +68,7 @@ export function FlujoExportDialog({ isOpen, onClose, sucursales, onExport, isExp
         end = null;
     } else if (dateRangeType === 'custom' && customDate?.from) {
         start = customDate.from;
-        end = customDate.to || customDate.from;
+        end = customDate.to ? addDays(customDate.to, 1) : addDays(customDate.from, 1);
     }
 
     onExport(selectedSucursalIds, start, end, formatType);
