@@ -87,7 +87,7 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
                     {/* SUMAN Section */}
                      <div className="p-4 rounded-lg bg-green-500/10">
                          <TrendingUp className="h-6 w-6 mb-4 text-green-800 dark:text-green-300" />
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <FormField control={form.control} name="fondo" render={({ field }) => (<FormItem><FormLabel>Fondo (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="debeEntregar" render={({ field }) => (<FormItem><FormLabel>Debe Entregar (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado (+)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -98,7 +98,7 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
                     {/* RESTAN Section */}
                     <div className="p-4 rounded-lg bg-red-500/10 space-y-4">
                         <TrendingDown className="h-6 w-6 text-red-800 dark:text-red-300" />
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                              <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                              <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
