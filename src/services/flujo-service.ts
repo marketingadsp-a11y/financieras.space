@@ -164,25 +164,24 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
 }
 
 export async function deleteFlujoEntry(entryId: string) {
+    const entryRef = doc(db, 'flujo_entries', entryId);
+
     await runTransaction(db, async (transaction) => {
         // 1. Get all documents needed
-        const entryRef = doc(db, 'flujo_entries', entryId);
         const entryDoc = await transaction.get(entryRef);
-
-        if (!entryDoc.exists()) {
-            throw new Error("El registro a eliminar no existe.");
-        }
+        if (!entryDoc.exists()) throw new Error("El registro a eliminar no existe.");
+        
         const entryData = entryDoc.data() as FlujoEntry;
-
         const sucursalRef = doc(db, 'flujo_sucursales', entryData.sucursalId);
         const sucursalDoc = await transaction.get(sucursalRef);
         
-        const { weekId } = getWeekBoundaries(entryData.date);
+        const entryDate = (entryData.date as any).toDate(); // Convert timestamp to Date
+        const { weekId } = getWeekBoundaries(entryDate);
         const summaryId = `${entryData.sucursalId}_${weekId}`;
         const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
         const summaryDoc = await transaction.get(summaryRef);
         
-        // 2. Perform calculations
+        // 2. Perform all calculations based on existing data
         let newSucursalBalance = sucursalDoc.exists() ? sucursalDoc.data().currentBalance : 0;
         newSucursalBalance -= entryData.totalCobrado;
         
@@ -190,13 +189,13 @@ export async function deleteFlujoEntry(entryId: string) {
         newSummaryTotal -= entryData.totalCobrado;
 
         // 3. Perform all writes
-        transaction.delete(entryRef);
-        if(sucursalDoc.exists()) {
+        if (sucursalDoc.exists()) {
             transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
         }
-        if(summaryDoc.exists()) {
+        if (summaryDoc.exists()) {
             transaction.update(summaryRef, { totalCobradoSemanal: newSummaryTotal });
         }
+        transaction.delete(entryRef);
     });
 }
 
