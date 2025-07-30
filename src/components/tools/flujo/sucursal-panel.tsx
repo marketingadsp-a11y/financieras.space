@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta } from "@/lib/data";
 import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary, deleteGastoFromSummary, addVentaToSummary, deleteVentaFromSummary } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt, GitCommitVertical, FileText } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt, GitCommitVertical, FileText, AlertTriangle } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
 import { format, startOfWeek, endOfWeek, addDays, isSameDay, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
@@ -26,6 +26,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 type UnifiedHistoryItem = {
@@ -301,9 +302,11 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const [showResetDialog, setShowResetDialog] = React.useState(false);
   const [isReseting, setIsReseting] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
+  const [firestoreError, setFirestoreError] = React.useState<string | null>(null);
 
   const fetchData = React.useCallback(async () => {
       setIsLoading(true);
+      setFirestoreError(null);
       try {
           const sucursalData = await getFlujoSucursalById(sucursalId);
           if (!sucursalData) throw new Error("No se encontró la sucursal.");
@@ -367,7 +370,11 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
 
 
       } catch (e: any) {
-          toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal.' });
+          if (e.message && e.message.includes('The query requires an index')) {
+            setFirestoreError(e.message);
+          } else {
+            toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal.' });
+          }
       } finally {
           setIsLoading(false);
       }
@@ -513,6 +520,20 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de la sucursal...</div>;
   }
+  
+  if (firestoreError) {
+    return (
+        <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Error de Base de Datos</AlertTitle>
+            <AlertDescription>
+                <p>Se requiere un índice de Firestore para realizar esta consulta. Por favor, crea el índice usando el enlace que aparece en la consola de desarrollador de tu navegador y luego actualiza esta página.</p>
+                <p className="mt-2 text-xs font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded-md overflow-x-auto whitespace-pre-wrap">{firestoreError}</p>
+            </AlertDescription>
+        </Alert>
+    );
+  }
+
 
   if (!sucursal) {
     return <div className="text-center py-10">No se encontró la sucursal.</div>;
@@ -574,23 +595,23 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                          <CardContent className="grid grid-cols-2 gap-4">
                             <div className="p-4 rounded-lg bg-green-500/10 text-green-700 col-span-2">
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
-                                <p className="text-xl font-bold">${totalCobrado.toLocaleString('es-MX')}</p>
+                                <p className="text-xl font-bold">{formatCurrency(totalCobrado)}</p>
                             </div>
                             <div className="p-4 rounded-lg bg-orange-500/10 text-orange-700 cursor-pointer hover:bg-orange-500/20" onClick={() => setShowComisionesDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p>
-                                <p className="text-xl font-bold">${totalComisiones.toLocaleString('es-MX')}</p>
+                                <p className="text-xl font-bold">{formatCurrency(totalComisiones)}</p>
                             </div>
                             <div className="p-4 rounded-lg bg-red-500/10 text-red-700 cursor-pointer hover:bg-red-500/20" onClick={() => setShowGastosDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Gastos</p>
-                                <p className="text-xl font-bold">${totalGastos.toLocaleString('es-MX')}</p>
+                                <p className="text-xl font-bold">{formatCurrency(totalGastos)}</p>
                             </div>
                              <div className="p-4 rounded-lg bg-purple-500/10 text-purple-700 cursor-pointer hover:bg-purple-500/20" onClick={() => setShowVentasDialog(true)}>
                                 <p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p>
-                                <p className="text-xl font-bold">${totalVentas.toLocaleString('es-MX')}</p>
+                                <p className="text-xl font-bold">{formatCurrency(totalVentas)}</p>
                             </div>
                              <div className="col-span-2 p-4 rounded-lg bg-blue-500/10 text-blue-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Efectivo</p>
-                                <p className="text-2xl font-bold">${totalEfectivo.toLocaleString('es-MX')}</p>
+                                <p className="text-2xl font-bold">{formatCurrency(totalEfectivo)}</p>
                             </div>
                         </CardContent>
                          <CardFooter>
