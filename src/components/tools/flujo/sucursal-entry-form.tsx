@@ -50,14 +50,13 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
     const formValues = form.watch();
 
     React.useEffect(() => {
-        const fondo = formValues.fondo || 0;
-        const debeEntregar = formValues.debeEntregar || 0;
-        const falla = formValues.falla || 0;
-        const recuperado = formValues.recuperado || 0;
-        const salientes = formValues.salientes || 0;
-        const entrantes = formValues.entrantes || 0;
+        const fondo = Number(formValues.fondo || 0);
+        const debeEntregar = Number(formValues.debeEntregar || 0);
+        const falla = Number(formValues.falla || 0);
+        const recuperado = Number(formValues.recuperado || 0);
+        const salientes = Number(formValues.salientes || 0);
+        const entrantes = Number(formValues.entrantes || 0);
         
-        // Corrected formula based on user feedback
         const calculatedTotal = fondo + debeEntregar - falla + recuperado + salientes + entrantes;
         setTotalCobrado(calculatedTotal);
     }, [formValues]);
