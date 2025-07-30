@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -673,9 +674,9 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                         items={weeklyHistory} 
                         canDelete={canDelete} 
                         onDeleteEntry={handleDeleteEntry}
-                        onDeleteGasto={(gasto) => handleDeleteGasto(gasto)}
+                        onDeleteGasto={(gasto) => handleDeleteGasto(gasto.raw as FlujoGasto)}
                         onDeleteComisiones={handleDeleteComisiones}
-                        onDeleteVenta={(venta) => handleDeleteVenta(venta)}
+                        onDeleteVenta={(venta) => handleDeleteVenta(venta.raw as FlujoVenta)}
                     />
                 </CardContent>
             </Card>

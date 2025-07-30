@@ -24,7 +24,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta } from "@/lib/data";
-import { format, getYear, getISOWeek, startOfWeek, endOfWeek, addDays } from "date-fns";
+import { format, getYear, getISOWeek, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { v4 as uuidv4 } from "uuid";
 
@@ -263,8 +263,8 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Pro
 
     if (summarySnap.exists()) {
         const data = summarySnap.data();
-        const safeGastos = (data.gastos || []).map((g: any) => ({ ...g, date: (g.date as Timestamp).toDate().toISOString() }));
-        const safeVentas = (data.ventas || []).map((v: any) => ({ ...v, date: (v.date as Timestamp).toDate().toISOString() }));
+        const safeGastos = (data.gastos || []).map((g: any) => ({ ...g, date: (g.date as Timestamp).toDate() }));
+        const safeVentas = (data.ventas || []).map((v: any) => ({ ...v, date: (v.date as Timestamp).toDate() }));
 
         summary = {
             ...data,
