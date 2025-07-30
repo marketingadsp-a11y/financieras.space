@@ -384,7 +384,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     fetchData();
   }, [fetchData]);
 
-  const handleFormSubmit = async (data: Omit<FlujoEntry, 'id' | 'sucursalId' | 'date' | 'venta'>) => {
+  const handleFormSubmit = async (data: Omit<FlujoEntry, 'id' | 'sucursalId' | 'date'>) => {
     setIsSubmitting(true);
     try {
         const entryData = { ...data, sucursalId, date: selectedDate };
@@ -422,7 +422,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleDeleteGasto = async (gasto: FlujoGasto) => {
     if (!weeklySummary) return;
     try {
-        await deleteGastoFromSummary(weeklySummary.id, gasto.id);
+        await deleteGastoFromSummary(weeklySummary.id, gasto.id, sucursalId);
         toast({ title: 'Éxito', description: 'Gasto eliminado.' });
         fetchData(); 
     } catch(e: any) {
@@ -444,7 +444,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleDeleteVenta = async (venta: FlujoVenta) => {
     if (!weeklySummary) return;
     try {
-        await deleteVentaFromSummary(weeklySummary.id, venta.id);
+        await deleteVentaFromSummary(weeklySummary.id, venta.id, sucursalId);
         toast({ title: 'Éxito', description: 'Venta eliminada.' });
         fetchData(); 
     } catch(e: any) {
@@ -530,7 +530,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
               {isBuilding ? 'Índice de Base de Datos en Construcción' : 'Error de Base de Datos'}
             </AlertTitle>
             <AlertDescription>
-                {isBuilding ? (
+                 {isBuilding ? (
                    <p>El índice necesario para esta vista se está creando. Esto puede tardar unos minutos. Por favor, espera un poco y <a href="#" onClick={() => window.location.reload()} className="font-bold underline">actualiza la página</a>.</p>
                 ) : (
                    <p>Se requiere un índice de Firestore. Por favor, crea el índice usando el enlace que aparece en la consola de desarrollador de tu navegador y luego actualiza esta página.</p>
@@ -600,7 +600,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                             </div>
                         </CardHeader>
                          <CardContent className="grid grid-cols-2 gap-4">
-                            <div className="p-4 rounded-lg bg-green-500/10 text-green-700 col-span-2">
+                            <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
                                 <p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Total Cobrado</p>
                                 <p className="text-xl font-bold">{formatCurrency(totalCobrado)}</p>
                             </div>
@@ -671,9 +671,9 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                     items={weeklyHistory} 
                     canDelete={canDelete} 
                     onDeleteEntry={handleDeleteEntry}
-                    onDeleteGasto={handleDeleteGasto}
+                    onDeleteGasto={(gasto) => handleDeleteGasto(gasto)}
                     onDeleteComisiones={handleDeleteComisiones}
-                    onDeleteVenta={handleDeleteVenta}
+                    onDeleteVenta={(venta) => handleDeleteVenta(venta)}
                 />
             </CardContent>
         </Card>
