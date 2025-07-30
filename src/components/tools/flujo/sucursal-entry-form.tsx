@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import type { FlujoEntry } from "@/lib/data";
-import { Loader2, TrendingDown, TrendingUp } from "lucide-react";
+import { Loader2, TrendingDown, TrendingUp, Receipt } from "lucide-react";
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ const formSchema = z.object({
   recuperado: z.coerce.number().min(0).default(0),
   entrantes: z.coerce.number().min(0).default(0),
   salientes: z.coerce.number().min(0).default(0),
+  venta: z.coerce.number().min(0).default(0),
 });
 
 type SucursalEntryFormProps = {
@@ -43,6 +44,7 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
             recuperado: 0,
             entrantes: 0,
             salientes: 0,
+            venta: 0,
         },
     });
 
@@ -56,8 +58,9 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
         const recuperado = Number(formValues.recuperado || 0);
         const entrantes = Number(formValues.entrantes || 0);
         const salientes = Number(formValues.salientes || 0);
+        const venta = Number(formValues.venta || 0);
         
-        const calculatedTotal = fondo + debeEntregar - falla + recuperado + entrantes - salientes;
+        const calculatedTotal = fondo + debeEntregar - falla + recuperado + entrantes - salientes - venta;
         setTotalCobrado(calculatedTotal);
     }, [formValues]);
 
@@ -70,6 +73,7 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
             recuperado: values.recuperado || 0,
             salientes: values.salientes || 0,
             entrantes: values.entrantes || 0,
+            venta: values.venta || 0,
             totalCobrado: totalCobrado,
         };
         await onSubmit(dataToSubmit);
@@ -92,12 +96,19 @@ export function FlujoSucursalEntryForm({ onSubmit, isSubmitting }: SucursalEntry
                     </div>
 
                     {/* RESTAN Section */}
-                    <div className="p-4 rounded-lg bg-red-500/10">
-                        <TrendingDown className="h-6 w-6 mb-4 text-red-800 dark:text-red-300" />
+                    <div className="p-4 rounded-lg bg-red-500/10 space-y-4">
+                        <TrendingDown className="h-6 w-6 text-red-800 dark:text-red-300" />
                         <div className="grid grid-cols-2 gap-4">
                              <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                              <FormField control={form.control} name="salientes" render={({ field }) => (<FormItem><FormLabel>Salientes (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
+                         <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Receipt className="h-5 w-5 text-orange-600" />
+                                <h4 className="font-semibold text-orange-700">Venta</h4>
+                            </div>
+                            <FormField control={form.control} name="venta" render={({ field }) => (<FormItem><FormLabel className="sr-only">Venta (-)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                         </div>
                     </div>
                 </div>
                 

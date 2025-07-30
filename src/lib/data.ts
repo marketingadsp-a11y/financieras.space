@@ -326,6 +326,7 @@ export type FlujoEntry = {
     recuperado: number;
     salientes: number;
     entrantes: number;
+    venta: number;
     totalCobrado: number; // Calculated field
 };
 

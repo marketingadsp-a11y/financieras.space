@@ -49,6 +49,7 @@ const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEn
                         <TableHead className="text-right">Recuperado</TableHead>
                         <TableHead className="text-right">Entrantes</TableHead>
                         <TableHead className="text-right">Salientes</TableHead>
+                        <TableHead className="text-right">Venta</TableHead>
                         <TableHead className="text-right font-bold">Total Cobrado</TableHead>
                          {canDelete && <TableHead className="w-[50px]">Acción</TableHead>}
                     </TableRow>
@@ -63,6 +64,7 @@ const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEn
                             <TableCell className="text-right">{formatCurrency(entry.recuperado)}</TableCell>
                             <TableCell className="text-right">{formatCurrency(entry.entrantes)}</TableCell>
                             <TableCell className="text-right text-red-500">{formatCurrency(entry.salientes)}</TableCell>
+                             <TableCell className="text-right text-red-500">{formatCurrency(entry.venta)}</TableCell>
                             <TableCell className="text-right font-bold">{formatCurrency(entry.totalCobrado)}</TableCell>
                             {canDelete && (
                                 <TableCell>
