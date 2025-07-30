@@ -40,7 +40,7 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control';
+  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo';
   prefix?: string;
   createdBy?: string;
   sucursalAccess?: SucursalAccess[]; // Array of sucursal access objects
@@ -77,6 +77,11 @@ export const LOAN_CONTROL_PERMISSIONS = {
 } as const;
 export type LoanControlPermission = keyof typeof LOAN_CONTROL_PERMISSIONS;
 
+export const FLUJO_PERMISSIONS = {
+  CAN_DELETE: 'Eliminar registros de Flujo',
+} as const;
+export type FlujoPermission = keyof typeof FLUJO_PERMISSIONS;
+
 
 export type PlazaAccess = {
   plazaId: string;
@@ -86,6 +91,10 @@ export type PlazaAccess = {
 
 export type LoanControlPermissions = {
     permissions: LoanControlPermission[];
+}
+
+export type FlujoPermissions = {
+    permissions: FlujoPermission[];
 }
 
 export type PlazaUser = {
@@ -98,6 +107,7 @@ export type PlazaUser = {
   accessibleTools: string[];
   prefix?: string;
   loanControlPermissions?: LoanControlPermissions;
+  flujoPermissions?: FlujoPermissions;
 };
 
 export type Customer = {

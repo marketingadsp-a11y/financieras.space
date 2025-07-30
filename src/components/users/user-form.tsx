@@ -27,8 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission } from "@/lib/data";
-import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS } from "@/lib/data";
+import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission, FlujoPermission } from "@/lib/data";
+import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS, FLUJO_PERMISSIONS } from "@/lib/data";
 import { Trash2 } from "lucide-react";
 
 const plazaAccessSchema = z.object({
@@ -41,6 +41,10 @@ const loanControlPermissionsSchema = z.object({
     permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
 });
 
+const flujoPermissionsSchema = z.object({
+    permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
+});
+
 const baseFormSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   username: z.string().min(2, "El nombre de usuario es requerido."),
@@ -50,6 +54,7 @@ const baseFormSchema = z.object({
   accessibleTools: z.array(z.string()).min(1, "Debe asignar acceso a al menos una herramienta."),
   plazaAccess: z.array(plazaAccessSchema),
   loanControlPermissions: loanControlPermissionsSchema.optional(),
+  flujoPermissions: flujoPermissionsSchema.optional(),
 });
 
 const refinement = (data: z.infer<typeof baseFormSchema>, ctx: z.RefinementCtx) => {
@@ -65,6 +70,13 @@ const refinement = (data: z.infer<typeof baseFormSchema>, ctx: z.RefinementCtx) 
             code: z.ZodIssueCode.custom,
             message: "Si se asigna la herramienta 'Control de Préstamo', debe asignar al menos un permiso.",
             path: ["loanControlPermissions"],
+        });
+    }
+     if (data.accessibleTools.includes('flujo') && (!data.flujoPermissions || data.flujoPermissions.permissions.length === 0)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Si se asigna la herramienta 'Flujo', debe asignar al menos un permiso.",
+            path: ["flujoPermissions"],
         });
     }
 };
@@ -88,6 +100,8 @@ type UserFormProps = {
 
 const allPlazaPermissions = Object.entries(PERMISSIONS) as [Permission, string][];
 const allLoanControlPermissions = Object.entries(LOAN_CONTROL_PERMISSIONS) as [LoanControlPermission, string][];
+const allFlujoPermissions = Object.entries(FLUJO_PERMISSIONS) as [FlujoPermission, string][];
+
 
 export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools, isSuperAdminView = false }: UserFormProps) {
     const isEditing = !!user;
@@ -107,6 +121,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
             accessibleTools: user?.accessibleTools || [],
             plazaAccess: user?.plazaAccess || [],
             loanControlPermissions: user?.loanControlPermissions || { permissions: [] },
+            flujoPermissions: user?.flujoPermissions || { permissions: [] },
         },
     });
 
@@ -135,6 +150,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
     
     const showPlazaManagement = watchAccessibleTools.includes('cartera-vencida');
     const showLoanControlManagement = watchAccessibleTools.includes('loan-control');
+    const showFlujoManagement = watchAccessibleTools.includes('flujo');
 
     return (
         <Form {...form}>
@@ -277,6 +293,47 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
                                     ))}
                                 </div>
                                 <FormMessage>{form.formState.errors.loanControlPermissions?.message || (form.formState.errors.loanControlPermissions as any)?.root?.message}</FormMessage>
+                                </FormItem>
+                            )}
+                         />
+                    </div>
+                )}
+
+                {showFlujoManagement && (
+                    <div className="space-y-4 pt-4">
+                         <h3 className="text-lg font-medium">Permisos para Flujo</h3>
+                         <FormField
+                            control={form.control}
+                            name="flujoPermissions.permissions"
+                            render={() => (
+                                <FormItem>
+                                <FormDescription>Selecciona las acciones que este usuario podrá realizar en la herramienta "Flujo".</FormDescription>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {allFlujoPermissions.map(([key, label]) => (
+                                        <FormField
+                                        key={key}
+                                        control={form.control}
+                                        name="flujoPermissions.permissions"
+                                        render={({ field }) => (
+                                            <FormItem key={key} className="flex flex-row items-start space-x-3 space-y-0 rounded-lg border p-4">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(key)}
+                                                        onCheckedChange={(checked) => {
+                                                            const newValue = field.value || [];
+                                                            return checked
+                                                                ? field.onChange([...newValue, key])
+                                                                : field.onChange(newValue.filter(value => value !== key));
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal flex-1 cursor-pointer">{label}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage>{form.formState.errors.flujoPermissions?.message || (form.formState.errors.flujoPermissions as any)?.root?.message}</FormMessage>
                                 </FormItem>
                             )}
                          />
