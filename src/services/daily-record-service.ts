@@ -26,6 +26,16 @@ function getDailyRecordDocRef(plazaId: string, date: Date) {
     return doc(db, "daily_records", docId);
 }
 
+// Helper to convert Firestore Timestamps in entries to JS Dates
+const convertEntryTimestamps = (entries: any[]): DailyRecordEntry[] => {
+  if (!entries || !Array.isArray(entries)) return [];
+  return entries.map(e => ({
+    ...e,
+    date: e.date?.toDate ? e.date.toDate() : (e.date instanceof Date ? e.date : new Date()),
+  }));
+};
+
+
 export async function getDailyRecord(plazaId: string, date: Date): Promise<DailyRecord | null> {
     const recordDocRef = getDailyRecordDocRef(plazaId, date);
     const docSnap = await getDoc(recordDocRef);
@@ -36,8 +46,7 @@ export async function getDailyRecord(plazaId: string, date: Date): Promise<Daily
             ...data,
             id: docSnap.id,
             date: (data.date as Timestamp).toDate(),
-            // Ensure entries have Date objects
-            entries: (data.entries || []).map((e: any) => ({...e, date: e.date.toDate()})),
+            entries: convertEntryTimestamps(data.entries || []),
         } as DailyRecord;
     }
 
@@ -200,11 +209,7 @@ export async function getAllDailyRecordsByPlaza(plazaId: string): Promise<DailyR
 
     querySnapshot.forEach(doc => {
         const record = doc.data() as DailyRecord;
-        const entriesFromRecord = (record.entries || []).map((e: any) => ({
-            ...e,
-            date: e.date.toDate() // Convert Timestamp to Date
-        }));
-        allEntries = allEntries.concat(entriesFromRecord);
+        allEntries = allEntries.concat(convertEntryTimestamps(record.entries));
     });
 
     return allEntries;
