@@ -17,6 +17,7 @@ import {
   limit,
   DocumentSnapshot,
   arrayUnion,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
@@ -117,7 +118,6 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
 export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
     const entryDate = new Date(); // Use local date for calculation
     
-    // Normalize to UTC midday to prevent timezone shifts from changing the date on the server
     const utcDate = new Date(Date.UTC(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate(), 12, 0, 0));
     
     const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(utcDate);
@@ -167,28 +167,28 @@ export async function deleteFlujoEntry(entryId: string) {
     const entryRef = doc(db, 'flujo_entries', entryId);
 
     await runTransaction(db, async (transaction) => {
-        // 1. Get all documents needed
         const entryDoc = await transaction.get(entryRef);
         if (!entryDoc.exists()) throw new Error("El registro a eliminar no existe.");
         
         const entryData = entryDoc.data() as FlujoEntry;
         const sucursalRef = doc(db, 'flujo_sucursales', entryData.sucursalId);
-        const sucursalDoc = await transaction.get(sucursalRef);
         
-        const entryDate = (entryData.date as any).toDate(); // Convert timestamp to Date
+        const entryDate = (entryData.date as any).toDate(); 
         const { weekId } = getWeekBoundaries(entryDate);
         const summaryId = `${entryData.sucursalId}_${weekId}`;
         const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
-        const summaryDoc = await transaction.get(summaryRef);
         
-        // 2. Perform all calculations based on existing data
+        const [sucursalDoc, summaryDoc] = await Promise.all([
+            transaction.get(sucursalRef),
+            transaction.get(summaryRef)
+        ]);
+        
         let newSucursalBalance = sucursalDoc.exists() ? sucursalDoc.data().currentBalance : 0;
         newSucursalBalance -= entryData.totalCobrado;
         
         let newSummaryTotal = summaryDoc.exists() ? summaryDoc.data().totalCobradoSemanal : 0;
         newSummaryTotal -= entryData.totalCobrado;
 
-        // 3. Perform all writes
         if (sucursalDoc.exists()) {
             transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
         }
@@ -203,30 +203,28 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
     const today = new Date();
     const { start, end, weekId } = getWeekBoundaries(today);
     
-    // Perform a simple query without date filters to avoid needing an index.
     const q = query(
         entriesCollectionRef,
-        where("sucursalId", "==", sucursalId)
+        where("sucursalId", "==", sucursalId),
+        where("date", ">=", start),
+        where("date", "<=", end)
     );
-    const allEntriesSnapshot = await getDocs(q);
+    const weeklyEntriesSnapshot = await getDocs(q);
     
-    const allEntries = allEntriesSnapshot.docs.map(docSnap => ({
+    const weeklyEntries = weeklyEntriesSnapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id,
         date: (docSnap.data().date as Timestamp).toDate()
     })) as FlujoEntry[];
-
-    // Manually filter the entries for the current week in the code.
-    const weeklyEntries = allEntries.filter(entry => {
-        const entryDate = entry.date;
-        return entryDate >= start && entryDate <= end;
-    });
 
     const summaryId = `${sucursalId}_${weekId}`;
     const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
     
     const summarySnap = await getDoc(summaryRef);
     let summary: FlujoWeeklySummary | null = null;
+    
+    const calculatedTotalCobrado = weeklyEntries.reduce((acc, e) => acc + e.totalCobrado, 0);
+
     if (summarySnap.exists()) {
         const data = summarySnap.data();
         summary = {
@@ -235,15 +233,15 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
             weekStartDate: (data.weekStartDate as Timestamp).toDate(),
             weekEndDate: (data.weekEndDate as Timestamp).toDate(),
             gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
+            totalCobradoSemanal: calculatedTotalCobrado, // Always use the calculated total
         } as FlujoWeeklySummary;
     } else {
-        // If no summary doc exists, create a temporary one for display
         summary = {
             id: summaryId,
             sucursalId,
             weekStartDate: start,
             weekEndDate: end,
-            totalCobradoSemanal: weeklyEntries.reduce((acc, e) => acc + e.totalCobrado, 0),
+            totalCobradoSemanal: calculatedTotalCobrado,
             comisiones: 0,
             gastos: [],
         };
@@ -251,7 +249,6 @@ export async function getFlujoWeeklySummary(sucursalId: string): Promise<{ summa
 
     const dateRange = `Semana del ${format(start, "dd 'de' LLLL", { locale: es })} al ${format(end, "dd 'de' LLLL", { locale: es })}`;
 
-    // Sort the filtered entries by date before returning.
     weeklyEntries.sort((a,b) => a.date.getTime() - b.date.getTime());
     return { summary, dateRange, entries: weeklyEntries };
 }
@@ -268,4 +265,17 @@ export async function addGastoToSummary(summaryId: string, gasto: { amount: numb
 export async function updateComisionesInSummary(summaryId: string, comisiones: number) {
     const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
     await updateDoc(summaryRef, { comisiones });
+}
+
+export async function resetWeeklySummary(summaryId: string) {
+    const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+    await runTransaction(db, async (transaction) => {
+        const summaryDoc = await transaction.get(summaryRef);
+        if (summaryDoc.exists()) {
+            transaction.update(summaryRef, {
+                gastos: [],
+                comisiones: 0,
+            });
+        }
+    });
 }

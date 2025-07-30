@@ -5,9 +5,9 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
-import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry } from "@/services/flujo-service";
+import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Calendar, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, Calendar, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -119,7 +119,7 @@ const GastosDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySummar
                 <div className="grid grid-cols-3 gap-4 items-end">
                     <div className="col-span-3 sm:col-span-1">
                         <Label htmlFor="gasto-amount">Monto</Label>
-                        <Input id="gasto-amount" type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0.00" />
+                        <Input id="gasto-amount" type="number" value={amount || ''} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0.00" />
                     </div>
                     <div className="col-span-3 sm:col-span-2">
                         <Label htmlFor="gasto-desc">Descripción</Label>
@@ -171,7 +171,7 @@ const ComisionesDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySu
             </DialogHeader>
             <div className="space-y-2 py-4">
                 <Label htmlFor="comision-amount">Monto de Comisiones</Label>
-                <Input id="comision-amount" type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0.00" autoFocus/>
+                <Input id="comision-amount" type="number" value={amount || ''} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0.00" autoFocus/>
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={onClose}>Cancelar</Button>
@@ -196,16 +196,16 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showGastosDialog, setShowGastosDialog] = React.useState(false);
   const [showComisionesDialog, setShowComisionesDialog] = React.useState(false);
+  const [showResetDialog, setShowResetDialog] = React.useState(false);
+  const [isReseting, setIsReseting] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
       setIsLoading(true);
       try {
-          // Fetch sucursal data first
           const sucursalData = await getFlujoSucursalById(sucursalId);
           if (!sucursalData) throw new Error("No se encontró la sucursal.");
           setSucursal(sucursalData);
           
-          // Then, fetch summary and entries, this may fail if there are no entries but it won't stop the page from loading
           try {
               const { summary, dateRange, entries } = await getFlujoWeeklySummary(sucursalId);
               setWeeklySummary(summary);
@@ -258,7 +258,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     try {
         await addGastoToSummary(weeklySummary.id, gasto);
         toast({ title: 'Éxito', description: 'Gasto agregado.' });
-        fetchData(); // Refresh summary data
+        fetchData(); 
     } catch(e: any) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el gasto.' });
     }
@@ -269,12 +269,27 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       try {
         await updateComisionesInSummary(weeklySummary.id, amount);
         toast({ title: 'Éxito', description: 'Comisiones guardadas.' });
-        fetchData(); // Refresh summary data
+        fetchData();
     } catch(e: any) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar las comisiones.' });
     }
   }
   
+  const handleResetWeek = async () => {
+    if (!weeklySummary) return;
+    setIsReseting(true);
+    try {
+        await resetWeeklySummary(weeklySummary.id);
+        toast({ title: "Éxito", description: "Resumen de la semana reiniciado."});
+        fetchData();
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo reiniciar el resumen."});
+    } finally {
+        setIsReseting(false);
+        setShowResetDialog(false);
+    }
+  }
+
   const totalGastos = weeklySummary?.gastos.reduce((acc, g) => acc + g.amount, 0) ?? 0;
   const totalComisiones = weeklySummary?.comisiones ?? 0;
   const totalCobrado = weeklySummary?.totalCobradoSemanal ?? 0;
@@ -310,8 +325,36 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
         {weeklySummary && (
             <Card>
                  <CardHeader>
-                    <CardTitle>Resumen de la Semana</CardTitle>
-                    <CardDescription>Totales calculados para la semana actual ({weekDateRange}).</CardDescription>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>Resumen de la Semana</CardTitle>
+                            <CardDescription>Totales calculados para la semana actual ({weekDateRange}).</CardDescription>
+                        </div>
+                        {canDelete && (
+                            <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                        <RefreshCcw className="mr-2 h-4 w-4"/> Reiniciar Semana
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitleComponent>¿Reiniciar Resumen?</AlertDialogTitleComponent>
+                                        <AlertDialogDescriptionComponent>
+                                            Esta acción eliminará los gastos y pondrá las comisiones en cero para la semana actual. Los registros de flujo no se verán afectados.
+                                        </AlertDialogDescriptionComponent>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooterComponent>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleResetWeek} disabled={isReseting}>
+                                            {isReseting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                            Sí, reiniciar
+                                        </AlertDialogAction>
+                                    </AlertDialogFooterComponent>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                      <div className="p-4 rounded-lg bg-green-500/10 text-green-700">
