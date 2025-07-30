@@ -67,16 +67,13 @@ const SucursalCard = ({ sucursalSummary, onEdit, onDelete }: { sucursalSummary: 
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-3 rounded-lg bg-green-500/10 text-green-700"><p className="text-sm font-medium flex items-center gap-2"><TrendingUp/> Cobrado</p><p className="text-lg font-bold">{formatCurrency(totalCobrado)}</p></div>
-              <div className="p-3 rounded-lg bg-orange-500/10 text-orange-700"><p className="text-sm font-medium flex items-center gap-2"><Coins/> Comisiones</p><p className="text-lg font-bold">{formatCurrency(totalComisiones)}</p></div>
-              <div className="p-3 rounded-lg bg-red-500/10 text-red-700"><p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Gastos</p><p className="text-lg font-bold">{formatCurrency(totalGastos)}</p></div>
-              <div className="p-3 rounded-lg bg-purple-500/10 text-purple-700"><p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p><p className="text-lg font-bold">{formatCurrency(totalVentas)}</p></div>
-          </div>
-          <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700">
-            <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Efectivo (Semana)</p>
-            <p className="text-2xl font-bold">{formatCurrency(totalEfectivo)}</p>
+      <CardContent className="flex-grow">
+          <div className="flex flex-wrap items-center gap-4">
+              <div className="p-2 rounded-lg bg-green-500/10 text-green-700 flex-1 min-w-[120px]"><p className="text-xs font-medium flex items-center gap-1"><TrendingUp/> Cobrado</p><p className="text-md font-bold">{formatCurrency(totalCobrado)}</p></div>
+              <div className="p-2 rounded-lg bg-orange-500/10 text-orange-700 flex-1 min-w-[120px]"><p className="text-xs font-medium flex items-center gap-1"><Coins/> Comisiones</p><p className="text-md font-bold">{formatCurrency(totalComisiones)}</p></div>
+              <div className="p-2 rounded-lg bg-red-500/10 text-red-700 flex-1 min-w-[120px]"><p className="text-xs font-medium flex items-center gap-1"><TrendingDown/> Gastos</p><p className="text-md font-bold">{formatCurrency(totalGastos)}</p></div>
+              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-700 flex-1 min-w-[120px]"><p className="text-xs font-medium flex items-center gap-1"><Receipt/> Venta</p><p className="text-md font-bold">{formatCurrency(totalVentas)}</p></div>
+              <div className="p-3 rounded-lg bg-blue-500/10 text-blue-700 flex-grow text-center"><p className="text-sm font-medium flex items-center justify-center gap-2"><Wallet/> Total Efectivo</p><p className="text-xl font-bold">{formatCurrency(totalEfectivo)}</p></div>
           </div>
       </CardContent>
       <CardFooter>
