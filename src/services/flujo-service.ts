@@ -246,8 +246,8 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Pro
             id: summarySnap.id,
             weekStartDate: (data.weekStartDate as Timestamp).toDate(),
             weekEndDate: (data.weekEndDate as Timestamp).toDate(),
-            gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate()})),
-            ventas: (data.ventas || []).map((v: any) => ({...v, date: (v.date as Timestamp).toDate()})),
+            gastos: (data.gastos || []).map((g: any) => ({...g, date: (g.date as Timestamp).toDate().toISOString()})),
+            ventas: (data.ventas || []).map((v: any) => ({...v, date: (v.date as Timestamp).toDate().toISOString()})),
             totalCobradoSemanal: calculatedTotalCobrado,
         } as FlujoWeeklySummary;
     } else {

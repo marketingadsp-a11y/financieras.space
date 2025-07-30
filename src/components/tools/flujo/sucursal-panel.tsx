@@ -148,7 +148,7 @@ const WeeklyHistoryList = ({
                             <div className={cn("font-semibold", info.color)}>
                                {formatCurrency(item.amount)}
                             </div>
-                            <p className="text-xs text-muted-foreground">{format(item.date, "dd MMM, p", { locale: es })}</p>
+                            <p className="text-xs text-muted-foreground">{format(new Date(item.date), "dd MMM, p", { locale: es })}</p>
                         </div>
                         {renderDeleteButton(item)}
                     </div>
@@ -334,7 +334,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                 summary.gastos.forEach(gasto => {
                     combinedHistory.push({
                         id: `gasto-${gasto.id}`,
-                        date: gasto.date,
+                        date: new Date(gasto.date), // Convert ISO string back to Date
                         type: 'gasto',
                         description: `Gasto: ${gasto.description}`,
                         amount: -gasto.amount,
@@ -345,7 +345,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                 summary.ventas.forEach(venta => {
                     combinedHistory.push({
                         id: `venta-${venta.id}`,
-                        date: venta.date,
+                        date: new Date(venta.date), // Convert ISO string back to Date
                         type: 'venta',
                         description: `Venta: ${venta.description}`,
                         amount: -venta.amount,
