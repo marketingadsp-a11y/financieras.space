@@ -397,7 +397,27 @@ export function FlujoDashboard() {
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
                     <CardTitle>Sucursales de Flujo</CardTitle>
-                    <CardDescription>Gestiona las diferentes sucursales y sus fondos.</CardDescription>
+                    <div className="flex items-center gap-2 mt-2">
+                        {canExport && <Button variant="outline" size="sm" onClick={() => setExportDialogOpen(true)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>}
+                        <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" onClick={() => openForm(null)}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Registrar Sucursal
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>{editingSucursal ? 'Editar' : 'Registrar'} Sucursal</DialogTitle>
+                                </DialogHeader>
+                                <FlujoSucursalForm 
+                                    onSubmit={handleFormSubmit}
+                                    sucursal={editingSucursal}
+                                    isSubmitting={isSubmitting}
+                                />
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                 </div>
                  <div className="flex flex-col sm:flex-row items-center gap-2">
                     <p className="text-lg font-semibold text-primary">{weekDateRange}</p>
@@ -410,27 +430,6 @@ export function FlujoDashboard() {
             </div>
         </CardHeader>
         <CardContent>
-             <div className="flex justify-end gap-2 mb-4">
-                 {canExport && <Button variant="outline" onClick={() => setExportDialogOpen(true)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>}
-                 <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                    <DialogTrigger asChild>
-                        <Button onClick={() => openForm(null)}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Registrar Sucursal
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>{editingSucursal ? 'Editar' : 'Registrar'} Sucursal</DialogTitle>
-                        </DialogHeader>
-                        <FlujoSucursalForm 
-                            onSubmit={handleFormSubmit}
-                            sucursal={editingSucursal}
-                            isSubmitting={isSubmitting}
-                        />
-                    </DialogContent>
-                </Dialog>
-            </div>
             {isLoading ? (
                 <div className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando sucursales...</div>
             ) : sucursalSummaries.length > 0 ? (
