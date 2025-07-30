@@ -19,6 +19,7 @@ import {
   DocumentSnapshot,
   arrayUnion,
   setDoc,
+  arrayRemove
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
@@ -271,6 +272,23 @@ export async function addGastoToSummary(summaryId: string, gasto: { amount: numb
     const newGasto: FlujoGasto = { ...gasto, id: uuidv4(), date: new Date() };
     await updateDoc(summaryRef, {
         gastos: arrayUnion(newGasto)
+    });
+}
+
+export async function deleteGastoFromSummary(summaryId: string, gastoId: string) {
+    const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+     await runTransaction(db, async (transaction) => {
+        const summaryDoc = await transaction.get(summaryRef);
+        if (!summaryDoc.exists()) throw new Error("Resumen no encontrado.");
+
+        const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
+        const gastoToDelete = currentSummary.gastos.find(g => g.id === gastoId);
+        
+        if (gastoToDelete) {
+             transaction.update(summaryRef, {
+                gastos: arrayRemove(gastoToDelete)
+            });
+        }
     });
 }
 

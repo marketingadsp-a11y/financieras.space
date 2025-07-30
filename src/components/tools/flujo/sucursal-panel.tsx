@@ -5,7 +5,7 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
-import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary } from "@/services/flujo-service";
+import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary, deleteGastoFromSummary } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw, ChevronLeft, ChevronRight, History, Receipt } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
@@ -117,10 +117,11 @@ const WeeklyHistoryTable = ({ items, canDelete, onDeleteEntry }: { items: Unifie
     );
 }
 
-const GastosDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySummary, onSave: (gasto: { amount: number, description: string }) => Promise<void>, onClose: () => void }) => {
+const GastosDialog = ({ summary, onSave, onDelete, onClose, canDelete }: { summary: FlujoWeeklySummary, onSave: (gasto: { amount: number, description: string }) => Promise<void>, onDelete: (gastoId: string) => Promise<void>, onClose: () => void, canDelete: boolean }) => {
     const [amount, setAmount] = React.useState<number | undefined>();
     const [description, setDescription] = React.useState('');
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [gastoToDelete, setGastoToDelete] = React.useState<FlujoGasto | null>(null);
 
     const handleSubmit = async () => {
         if (!amount || !description) return;
@@ -157,9 +158,26 @@ const GastosDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySummar
                 <h4 className="text-sm font-medium">Gastos Registrados</h4>
                 {summary.gastos.length > 0 ? (
                     summary.gastos.map(g => (
-                        <div key={g.id} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
-                            <span>{g.description}</span>
-                            <span className="font-mono">${g.amount.toLocaleString('es-MX')}</span>
+                        <div key={g.id} className="group flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
+                            <span className="flex-1">{g.description}</span>
+                            <span className="font-mono mx-2">${g.amount.toLocaleString('es-MX')}</span>
+                             {canDelete && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100"><Trash2 className="h-4 w-4"/></Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitleComponent>Eliminar Gasto</AlertDialogTitleComponent>
+                                            <AlertDialogDescription>¿Estás seguro de que deseas eliminar este gasto? Esta acción es irreversible.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooterComponent>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDelete(g.id)}>Eliminar</AlertDialogAction>
+                                        </AlertDialogFooterComponent>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
                         </div>
                     ))
                 ) : (
@@ -321,6 +339,17 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     }
   }
 
+  const handleDeleteGasto = async (gastoId: string) => {
+    if (!weeklySummary) return;
+    try {
+        await deleteGastoFromSummary(weeklySummary.id, gastoId);
+        toast({ title: 'Éxito', description: 'Gasto eliminado.' });
+        fetchData(); 
+    } catch(e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar el gasto.' });
+    }
+  }
+
   const handleSaveComisiones = async (amount: number) => {
      if (!weeklySummary) return;
       try {
@@ -365,7 +394,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const totalComisiones = weeklySummary?.comisiones ?? 0;
   const totalCobrado = weeklySummary?.totalCobradoSemanal ?? 0;
   const totalVenta = weeklySummary?.totalVentaSemanal ?? 0;
-  const totalFinal = totalCobrado - totalComisiones - totalGastos;
+  const totalEfectivo = totalCobrado - totalComisiones - totalGastos;
 
   const canDelete = user ? !user.isToolAdmin && !user.isPlazaUser : false;
 
@@ -447,9 +476,9 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                                 <p className="text-sm font-medium flex items-center gap-2"><Receipt/> Venta</p>
                                 <p className="text-xl font-bold">${totalVenta.toLocaleString('es-MX')}</p>
                             </div>
-                            <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700">
-                                <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Final</p>
-                                <p className="text-xl font-bold">${totalFinal.toLocaleString('es-MX')}</p>
+                             <div className="col-span-2 p-4 rounded-lg bg-blue-500/10 text-blue-700">
+                                <p className="text-sm font-medium flex items-center gap-2"><Wallet/> Total Efectivo</p>
+                                <p className="text-2xl font-bold">${totalEfectivo.toLocaleString('es-MX')}</p>
                             </div>
                         </CardContent>
                          <CardFooter>
@@ -506,7 +535,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
         
         {weeklySummary && (
             <Dialog open={showGastosDialog} onOpenChange={setShowGastosDialog}>
-                <GastosDialog summary={weeklySummary} onSave={handleSaveGasto} onClose={() => setShowGastosDialog(false)} />
+                <GastosDialog summary={weeklySummary} onSave={handleSaveGasto} onDelete={handleDeleteGasto} onClose={() => setShowGastosDialog(false)} canDelete={canDelete} />
             </Dialog>
         )}
         {weeklySummary && (
@@ -517,3 +546,4 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     </div>
   );
 }
+
