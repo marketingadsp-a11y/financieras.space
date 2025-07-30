@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -23,7 +22,7 @@ import {
   QueryConstraint
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta } from "@/lib/data";
+import type { FlujoSucursal, FlujoCentralAccount, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta, FlujoCentralTransaction } from "@/lib/data";
 import { format, getYear, getISOWeek, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { v4 as uuidv4 } from "uuid";
@@ -142,10 +141,28 @@ export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
     const centralAccountDocRef = doc(db, "flujo_central_accounts", prefix);
     const accountSnap = await getDoc(centralAccountDocRef);
     let centralAccount: FlujoCentralAccount;
+
     if (accountSnap.exists()) {
-        centralAccount = { id: accountSnap.id, ...accountSnap.data() } as FlujoCentralAccount;
+        const centralAccountData = accountSnap.data();
+        const transactionsQuery = query(
+            collection(db, "flujo_central_accounts", prefix, "transactions"),
+            orderBy("date", "desc"),
+            limit(10)
+        );
+        const transactionsSnapshot = await getDocs(transactionsQuery);
+        const transactions = transactionsSnapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            date: (doc.data().date as Timestamp).toDate(),
+        })) as FlujoCentralTransaction[];
+        
+        centralAccount = {
+            id: accountSnap.id,
+            ...centralAccountData,
+            transactions,
+        } as FlujoCentralAccount;
     } else {
-        centralAccount = { id: prefix, prefix: prefix, totalEfectivo: 0, cajaChica: 0 };
+        centralAccount = { id: prefix, prefix: prefix, totalEfectivo: 0, cajaChica: 0, transactions: [] };
     }
     
     const dateRange = `Semana del ${format(start, "dd 'de' LLLL", { locale: es })} al ${format(end, "dd 'de' LLLL", { locale: es })}`;
@@ -180,8 +197,7 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
         transaction.update(sucursalRef, { currentBalance: newBalance });
 
         if (!summaryDoc.exists()) {
-            const newSummary: FlujoWeeklySummary = {
-                id: summaryId,
+            const newSummary: Omit<FlujoWeeklySummary, 'id'> & {id?:string} = {
                 sucursalId: entryData.sucursalId,
                 prefix: sucursalData.prefix, // Add prefix to summary
                 weekStartDate: weekStartDate,
@@ -259,7 +275,7 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Pro
     const summarySnap = await getDoc(summaryRef);
     let summary: FlujoWeeklySummary | null = null;
     
-    const calculatedTotalCobrado = weeklyEntries.reduce((acc, e) => acc + e.totalCobrado, 0);
+    const calculatedTotalCobrado = weeklyEntries.reduce((acc, e) => acc + (e.totalCobrado || 0), 0);
 
     if (summarySnap.exists()) {
         const data = summarySnap.data();
@@ -415,6 +431,61 @@ export async function resetWeeklySummary(summaryId: string) {
     });
 }
 
+type TransferParams = {
+    sucursalId: string;
+    sucursalName: string;
+    prefix: string;
+    amount: number;
+    userPerformed: string;
+};
+
+export async function transferToCentral({ sucursalId, sucursalName, prefix, amount, userPerformed }: TransferParams) {
+    const sucursalRef = doc(db, 'flujo_sucursales', sucursalId);
+    const centralAccountRef = doc(db, 'flujo_central_accounts', prefix);
+    const entryRef = doc(collection(db, "flujo_entries"));
+
+    await runTransaction(db, async (transaction) => {
+        const sucursalDoc = await transaction.get(sucursalRef);
+        if (!sucursalDoc.exists() || sucursalDoc.data().currentBalance < amount) {
+            throw new Error("Fondos insuficientes en la sucursal para la transferencia.");
+        }
+        
+        const centralAccountDoc = await transaction.get(centralAccountRef);
+        const centralAccountData = centralAccountDoc.exists() ? centralAccountDoc.data() : { cajaChica: 0 };
+        
+        // 1. Update Sucursal Balance
+        const newSucursalBalance = sucursalDoc.data().currentBalance - amount;
+        transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
+        
+        // 2. Update Central Account Balance
+        const newCentralBalance = (centralAccountData.cajaChica || 0) + amount;
+        transaction.set(centralAccountRef, { cajaChica: newCentralBalance, prefix: prefix }, { merge: true });
+
+        // 3. Create a 'transfer_out_to_central' entry for the sucursal
+        const transferEntry: Partial<FlujoEntry> = {
+            id: entryRef.id,
+            sucursalId,
+            date: new Date(),
+            type: 'transfer_out_to_central',
+            amount: amount,
+            userPerformed,
+            totalCobrado: -amount, // It's an expense from the sucursal's POV
+        };
+        transaction.set(entryRef, transferEntry);
+
+        // 4. Create a transaction record for the central account
+        const centralTransactionRef = doc(collection(db, "flujo_central_accounts", prefix, "transactions"));
+        transaction.set(centralTransactionRef, {
+            type: 'transfer_in',
+            amount: amount,
+            date: new Date(),
+            userPerformed,
+            sucursalId,
+            sucursalName,
+        });
+    });
+}
+
 // --- EXPORT FUNCTIONS ---
 type WeeklySummaryForExport = FlujoWeeklySummary & { totalEfectivo: number };
 
@@ -423,10 +494,10 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
     const sucursalesToExport = sucursalIds.includes('all') ? allSucursales : allSucursales.filter(s => sucursalIds.includes(s.id));
 
     const exportDataPromises = sucursalesToExport.map(async (sucursal) => {
-        const summariesQuery = query(
-            weeklySummariesCollectionRef,
-            where("sucursalId", "==", sucursal.id),
-        );
+        let constraints: QueryConstraint[] = [where("sucursalId", "==", sucursal.id)];
+        
+        // Firestore queries on different fields with ranges are tricky. It's often better to filter in-code if the dataset isn't enormous.
+        const summariesQuery = query(weeklySummariesCollectionRef, ...constraints);
         const summariesSnapshot = await getDocs(summariesQuery);
 
         const weeklySummaries = summariesSnapshot.docs
@@ -435,9 +506,8 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
                 const weekStartDate = (data.weekStartDate as Timestamp).toDate();
                 const weekEndDate = (data.weekEndDate as Timestamp).toDate();
                 
-                // If a date range is provided, filter by it. Otherwise, include all.
-                if (startDate && endDate) {
-                    // An overlap occurs if (StartA <= EndB) and (EndA >= StartB)
+                // If a date range is provided, filter by it.
+                 if (startDate && endDate) {
                     const overlaps = (startDate <= weekEndDate) && (weekStartDate <= endDate);
                     if (!overlaps) {
                         return null;
@@ -468,3 +538,5 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
 
     return { sucursales: exportData, dateRange };
 }
+
+    
