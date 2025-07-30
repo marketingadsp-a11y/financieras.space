@@ -370,7 +370,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
 
 
       } catch (e: any) {
-          if (e.message && e.message.includes('The query requires an index')) {
+          if (e.message && (e.message.includes('requires an index') || e.message.includes('index is currently building'))) {
             setFirestoreError(e.message);
           } else {
             toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo cargar la sucursal.' });
@@ -522,12 +522,19 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   }
   
   if (firestoreError) {
+    const isBuilding = firestoreError.includes('index is currently building');
     return (
         <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Error de Base de Datos</AlertTitle>
+            <AlertTitle>
+              {isBuilding ? 'Índice de Base de Datos en Construcción' : 'Error de Base de Datos'}
+            </AlertTitle>
             <AlertDescription>
-                <p>Se requiere un índice de Firestore para realizar esta consulta. Por favor, crea el índice usando el enlace que aparece en la consola de desarrollador de tu navegador y luego actualiza esta página.</p>
+                {isBuilding ? (
+                   <p>El índice necesario para esta vista se está creando. Esto puede tardar unos minutos. Por favor, espera un poco y <a href="#" onClick={() => window.location.reload()} className="font-bold underline">actualiza la página</a>.</p>
+                ) : (
+                   <p>Se requiere un índice de Firestore. Por favor, crea el índice usando el enlace que aparece en la consola de desarrollador de tu navegador y luego actualiza esta página.</p>
+                )}
                 <p className="mt-2 text-xs font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded-md overflow-x-auto whitespace-pre-wrap">{firestoreError}</p>
             </AlertDescription>
         </Alert>
