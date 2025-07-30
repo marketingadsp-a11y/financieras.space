@@ -5,7 +5,7 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
-import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary } from "@/services/flujo-service";
+import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, Calendar, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2 } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
@@ -25,9 +25,10 @@ import {
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 
 
-const WeeklyHistoryTable = ({ entries }: { entries: FlujoEntry[] }) => {
+const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEntry[], canDelete: boolean, onDelete: (entry: FlujoEntry) => void }) => {
     if (entries.length === 0) {
         return <p className="text-sm text-muted-foreground text-center py-4">No hay registros para esta semana.</p>;
     }
@@ -47,9 +48,10 @@ const WeeklyHistoryTable = ({ entries }: { entries: FlujoEntry[] }) => {
                         <TableHead className="text-right">Debe Entregar</TableHead>
                         <TableHead className="text-right">Falla</TableHead>
                         <TableHead className="text-right">Recuperado</TableHead>
-                        <TableHead className="text-right">Salientes</TableHead>
                         <TableHead className="text-right">Entrantes</TableHead>
+                        <TableHead className="text-right">Salientes</TableHead>
                         <TableHead className="text-right font-bold">Total Cobrado</TableHead>
+                         {canDelete && <TableHead className="w-[50px]">Acción</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -60,9 +62,32 @@ const WeeklyHistoryTable = ({ entries }: { entries: FlujoEntry[] }) => {
                             <TableCell className="text-right">{formatCurrency(entry.debeEntregar)}</TableCell>
                             <TableCell className="text-right text-red-500">{formatCurrency(entry.falla)}</TableCell>
                             <TableCell className="text-right">{formatCurrency(entry.recuperado)}</TableCell>
-                            <TableCell className="text-right text-red-500">{formatCurrency(entry.salientes)}</TableCell>
                             <TableCell className="text-right">{formatCurrency(entry.entrantes)}</TableCell>
+                            <TableCell className="text-right text-red-500">{formatCurrency(entry.salientes)}</TableCell>
                             <TableCell className="text-right font-bold">{formatCurrency(entry.totalCobrado)}</TableCell>
+                            {canDelete && (
+                                <TableCell>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
+                                                <AlertDialogDescriptionComponent>
+                                                    Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos correspondientes.
+                                                </AlertDialogDescriptionComponent>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooterComponent>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => onDelete(entry)}>Eliminar</AlertDialogAction>
+                                            </AlertDialogFooterComponent>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TableCell>
+                            )}
                         </TableRow>
                     ))}
                 </TableBody>
@@ -95,7 +120,7 @@ const GastosDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySummar
                 <div className="grid grid-cols-3 gap-4 items-end">
                     <div className="col-span-3 sm:col-span-1">
                         <Label htmlFor="gasto-amount">Monto</Label>
-                        <CurrencyInput id="gasto-amount" value={amount} onValueChange={setAmount} placeholder="0.00" />
+                        <Input id="gasto-amount" type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0.00" />
                     </div>
                     <div className="col-span-3 sm:col-span-2">
                         <Label htmlFor="gasto-desc">Descripción</Label>
@@ -147,7 +172,7 @@ const ComisionesDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySu
             </DialogHeader>
             <div className="space-y-2 py-4">
                 <Label htmlFor="comision-amount">Monto de Comisiones</Label>
-                <CurrencyInput id="comision-amount" value={amount} onValueChange={setAmount} placeholder="0.00" autoFocus/>
+                <Input id="comision-amount" type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0.00" autoFocus/>
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={onClose}>Cancelar</Button>
@@ -162,6 +187,7 @@ const ComisionesDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySu
 
 
 export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [sucursal, setSucursal] = React.useState<FlujoSucursal | null>(null);
   const [weeklySummary, setWeeklySummary] = React.useState<FlujoWeeklySummary | null>(null);
@@ -217,6 +243,16 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
         setIsSubmitting(false);
     }
   };
+
+  const handleDeleteEntry = async (entry: FlujoEntry) => {
+    try {
+        await deleteFlujoEntry(entry.id);
+        toast({ title: "Éxito", description: "Registro eliminado y saldos ajustados." });
+        fetchData();
+    } catch(e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message || 'No se pudo eliminar el registro.' });
+    }
+  }
   
   const handleSaveGasto = async (gasto: { amount: number, description: string }) => {
     if (!weeklySummary) return;
@@ -245,6 +281,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const totalCobrado = weeklySummary?.totalCobradoSemanal ?? 0;
   const totalFinal = totalCobrado - totalComisiones - totalGastos;
 
+  const canDelete = user ? !user.isToolAdmin && !user.isPlazaUser : false;
 
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de la sucursal...</div>;
@@ -307,7 +344,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <WeeklyHistoryTable entries={weeklyEntries} />
+                <WeeklyHistoryTable entries={weeklyEntries} canDelete={canDelete} onDelete={handleDeleteEntry} />
             </CardContent>
         </Card>
         
@@ -324,5 +361,3 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     </div>
   );
 }
-
-    

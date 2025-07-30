@@ -123,12 +123,12 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
     const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(utcDate);
     
     await runTransaction(db, async (transaction) => {
+        // --- 1. ALL READS FIRST ---
         const summaryId = `${entryData.sucursalId}_${weekId}`;
         const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
         const sucursalRef = doc(db, 'flujo_sucursales', entryData.sucursalId);
         const entryRef = doc(collection(db, "flujo_entries"));
-
-        // --- 1. ALL READS FIRST ---
+        
         const sucursalDoc = await transaction.get(sucursalRef);
         const summaryDoc = await transaction.get(summaryRef);
 
@@ -159,6 +159,43 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
             transaction.update(summaryRef, {
                 totalCobradoSemanal: currentSummary.totalCobradoSemanal + entryData.totalCobrado,
             });
+        }
+    });
+}
+
+export async function deleteFlujoEntry(entryId: string) {
+    await runTransaction(db, async (transaction) => {
+        // 1. Get all documents needed
+        const entryRef = doc(db, 'flujo_entries', entryId);
+        const entryDoc = await transaction.get(entryRef);
+
+        if (!entryDoc.exists()) {
+            throw new Error("El registro a eliminar no existe.");
+        }
+        const entryData = entryDoc.data() as FlujoEntry;
+
+        const sucursalRef = doc(db, 'flujo_sucursales', entryData.sucursalId);
+        const sucursalDoc = await transaction.get(sucursalRef);
+        
+        const { weekId } = getWeekBoundaries(entryData.date);
+        const summaryId = `${entryData.sucursalId}_${weekId}`;
+        const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+        const summaryDoc = await transaction.get(summaryRef);
+        
+        // 2. Perform calculations
+        let newSucursalBalance = sucursalDoc.exists() ? sucursalDoc.data().currentBalance : 0;
+        newSucursalBalance -= entryData.totalCobrado;
+        
+        let newSummaryTotal = summaryDoc.exists() ? summaryDoc.data().totalCobradoSemanal : 0;
+        newSummaryTotal -= entryData.totalCobrado;
+
+        // 3. Perform all writes
+        transaction.delete(entryRef);
+        if(sucursalDoc.exists()) {
+            transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
+        }
+        if(summaryDoc.exists()) {
+            transaction.update(summaryRef, { totalCobradoSemanal: newSummaryTotal });
         }
     });
 }
