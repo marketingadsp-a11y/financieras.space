@@ -125,21 +125,24 @@ export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
     await runTransaction(db, async (transaction) => {
         const summaryId = `${entryData.sucursalId}_${weekId}`;
         const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
-        
         const sucursalRef = doc(db, 'flujo_sucursales', entryData.sucursalId);
+        const entryRef = doc(collection(db, "flujo_entries"));
+
+        // --- 1. ALL READS FIRST ---
         const sucursalDoc = await transaction.get(sucursalRef);
+        const summaryDoc = await transaction.get(summaryRef);
 
         if (!sucursalDoc.exists()) throw new Error('La sucursal no existe.');
+        
+        // --- 2. PREPARE DATA & CALCULATIONS ---
         const sucursalData = sucursalDoc.data() as FlujoSucursal;
-        
         let newBalance = sucursalData.currentBalance + entryData.totalCobrado;
-        transaction.update(sucursalRef, { currentBalance: newBalance });
-        
-        const entryRef = doc(collection(db, "flujo_entries"));
         const dataWithTimestamp = { ...entryData, date: Timestamp.fromDate(utcDate), id: entryRef.id };
-        transaction.set(entryRef, dataWithTimestamp);
 
-        const summaryDoc = await transaction.get(summaryRef);
+        // --- 3. ALL WRITES LAST ---
+        transaction.set(entryRef, dataWithTimestamp);
+        transaction.update(sucursalRef, { currentBalance: newBalance });
+
         if (!summaryDoc.exists()) {
             const newSummary: FlujoWeeklySummary = {
                 id: summaryId,
