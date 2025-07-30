@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto } from "@/lib/data";
 import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, Calendar, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, Wallet, TrendingUp, TrendingDown, Coins, PlusCircle, Trash2, RefreshCcw } from "lucide-react";
 import { FlujoSucursalEntryForm } from "./sucursal-entry-form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -24,6 +24,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 
 const WeeklyHistoryTable = ({ entries, canDelete, onDelete }: { entries: FlujoEntry[], canDelete: boolean, onDelete: (entry: FlujoEntry) => void }) => {
@@ -199,6 +202,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const [showComisionesDialog, setShowComisionesDialog] = React.useState(false);
   const [showResetDialog, setShowResetDialog] = React.useState(false);
   const [isReseting, setIsReseting] = React.useState(false);
+  const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
 
   const fetchData = React.useCallback(async () => {
       setIsLoading(true);
@@ -226,7 +230,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
   const handleFormSubmit = async (data: Omit<FlujoEntry, 'id' | 'sucursalId' | 'date'>) => {
     setIsSubmitting(true);
     try {
-        const entryData = { ...data, sucursalId };
+        const entryData = { ...data, sucursalId, date: selectedDate };
         await addFlujoEntry(entryData);
         toast({ title: 'Éxito', description: 'Registro guardado correctamente.' });
         fetchData();
@@ -307,7 +311,23 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
             <div className="lg:col-span-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Ingreso de Datos</CardTitle>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <CardTitle>Ingreso de Datos</CardTitle>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn("w-full sm:w-[280px] justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar mode="single" selected={selectedDate} onSelect={(date) => date && setSelectedDate(date)} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <FlujoSucursalEntryForm
@@ -381,7 +401,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                 <CardHeader>
                     <CardTitle>Historial de la Semana</CardTitle>
                     <CardDescription className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
+                        <CalendarIcon className="h-4 w-4" />
                         <span>{weekDateRange}</span>
                     </CardDescription>
                 </CardHeader>

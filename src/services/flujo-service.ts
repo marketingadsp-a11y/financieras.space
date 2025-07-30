@@ -104,7 +104,7 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
     const dayOfWeek = d.getUTCDay(); // Sunday = 0, Saturday = 6
 
     // Calculate the difference to get to the last Saturday
-    const diffToSaturday = (dayOfWeek < 6) ? (dayOfWeek + 1) : 0;
+    const diffToSaturday = (dayOfWeek + 1) % 7;
     const startDate = new Date(d.getTime());
     startDate.setUTCDate(d.getUTCDate() - diffToSaturday);
 
@@ -121,7 +121,7 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
 };
 
 export async function addFlujoEntry(entryData: Omit<FlujoEntry, 'id'>) {
-    const entryDate = new Date(); // Use current date for the entry
+    const entryDate = entryData.date; // Use the date passed from the form
     
     const { start: weekStartDate, end: weekEndDate, weekId } = getWeekBoundaries(entryDate);
     
