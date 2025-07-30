@@ -5,18 +5,22 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoWeeklySummary } from "@/lib/data";
-import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal } from "@/services/flujo-service";
+import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal, getFlujoExportData } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2, ChevronLeft, ChevronRight, History, Wallet, Coins, TrendingUp, TrendingDown, Receipt, CalendarIcon } from "lucide-react";
+import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2, ChevronLeft, ChevronRight, History, Wallet, Coins, TrendingUp, TrendingDown, Receipt, CalendarIcon, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FlujoSucursalForm } from "./sucursal-form";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { FlujoExportDialog } from "./flujo-export-dialog";
 
 const StatCard = ({ title, value, icon: Icon, description, colorClass = 'text-primary' }: { title: string; value: number; icon: React.ElementType, description: string, colorClass?: string }) => (
   <Card>
@@ -67,7 +71,7 @@ const SucursalCard = ({ sucursalSummary, onEdit, onDelete }: { sucursalSummary: 
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow">
+      <CardContent>
           <div className="flex flex-wrap items-center gap-4">
               <div className="p-2 rounded-lg bg-green-500/10 text-green-700 flex-1 min-w-[120px]"><p className="text-xs font-medium flex items-center gap-1"><TrendingUp/> Cobrado</p><p className="text-md font-bold">{formatCurrency(totalCobrado)}</p></div>
               <div className="p-2 rounded-lg bg-orange-500/10 text-orange-700 flex-1 min-w-[120px]"><p className="text-xs font-medium flex items-center gap-1"><Coins/> Comisiones</p><p className="text-md font-bold">{formatCurrency(totalComisiones)}</p></div>
@@ -89,7 +93,7 @@ const SucursalCard = ({ sucursalSummary, onEdit, onDelete }: { sucursalSummary: 
 
 
 export function FlujoDashboard() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   const [account, setAccount] = React.useState<FlujoCentralAccount | null>(null);
   const [sucursalSummaries, setSucursalSummaries] = React.useState<SucursalSummary[]>([]);
@@ -107,6 +111,10 @@ export function FlujoDashboard() {
   // Date filtering state
   const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
   const [weekDateRange, setWeekDateRange] = React.useState('');
+  
+  // Export state
+  const [isExporting, setIsExporting] = React.useState(false);
+  const [isExportDialogOpen, setExportDialogOpen] = React.useState(false);
 
 
   const fetchData = React.useCallback(async () => {
@@ -197,6 +205,64 @@ export function FlujoDashboard() {
   const handleCurrentWeek = () => setSelectedDate(new Date());
   const isNextWeekDisabled = isSameDay(startOfWeek(selectedDate, { weekStartsOn: 6 }), startOfWeek(new Date(), { weekStartsOn: 6 })) || selectedDate > new Date();
 
+  const handleExport = async (sucursalIds: string[], startDate: Date, endDate: Date | null, formatType: 'pdf' | 'excel') => {
+    if (!user?.prefix) return;
+    setIsExporting(true);
+    try {
+        const data = await getFlujoExportData(user.prefix, sucursalIds, startDate, endDate);
+        if (formatType === 'pdf') generatePDF(data);
+        else generateExcel(data);
+        toast({ title: 'Éxito', description: 'Reporte generado.' });
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo generar el reporte.' });
+    } finally {
+        setIsExporting(false);
+        setExportDialogOpen(false);
+    }
+  }
+  
+  const generatePDF = (data: Awaited<ReturnType<typeof getFlujoExportData>>) => {
+      const doc = new jsPDF();
+      const { sucursales, dateRange } = data;
+      doc.text(`Reporte de Flujo`, 14, 16);
+      doc.text(`Periodo: ${dateRange}`, 14, 22);
+
+      sucursales.forEach((sucursal, index) => {
+          if (index > 0) doc.addPage();
+          doc.text(`Sucursal: ${sucursal.name} (${sucursal.manager})`, 14, 16);
+          const body = sucursal.weeklySummaries.map(s => ([
+              s.weekId,
+              `$${s.totalCobradoSemanal.toLocaleString()}`,
+              `$${s.comisiones.toLocaleString()}`,
+              `$${s.gastos.reduce((a,c) => a+c.amount, 0).toLocaleString()}`,
+              `$${s.ventas.reduce((a,c) => a+c.amount, 0).toLocaleString()}`,
+              `$${s.totalEfectivo.toLocaleString()}`,
+          ]));
+          autoTable(doc, {
+              head: [['Semana', 'Cobrado', 'Comisiones', 'Gastos', 'Venta', 'Total Efectivo']],
+              body,
+              startY: 20
+          });
+      });
+      doc.save('Reporte_Flujo.pdf');
+  }
+
+  const generateExcel = (data: Awaited<ReturnType<typeof getFlujoExportData>>) => {
+      const wb = XLSX.utils.book_new();
+      data.sucursales.forEach(sucursal => {
+          const ws_data = sucursal.weeklySummaries.map(s => ({
+              'Semana': s.weekId,
+              'Cobrado': s.totalCobradoSemanal,
+              'Comisiones': s.comisiones,
+              'Gastos': s.gastos.reduce((a,c) => a+c.amount, 0),
+              'Venta': s.ventas.reduce((a,c) => a+c.amount, 0),
+              'Total Efectivo': s.totalEfectivo,
+          }));
+          const ws = XLSX.utils.json_to_sheet(ws_data);
+          XLSX.utils.book_append_sheet(wb, ws, sucursal.name.substring(0, 30));
+      });
+      XLSX.writeFile(wb, 'Reporte_Flujo.xlsx');
+  }
 
   if (isLoading && !account) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="mr-2 h-8 w-8 animate-spin" />Cargando datos de Flujo...</div>;
@@ -204,6 +270,7 @@ export function FlujoDashboard() {
   
   const displayAccount = account || { totalEfectivo: 0, cajaChica: 0 };
   const expectedConfirmationText = sucursalToDelete ? `BORRAR ${sucursalToDelete.name}` : '';
+  const canExport = hasPermission('flujo', 'CAN_EXPORT');
 
   return (
     <div className="space-y-6">
@@ -234,7 +301,8 @@ export function FlujoDashboard() {
             </div>
         </CardHeader>
         <CardContent>
-             <div className="flex justify-end mb-4">
+             <div className="flex justify-end gap-2 mb-4">
+                 {canExport && <Button variant="outline" onClick={() => setExportDialogOpen(true)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>}
                  <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
                     <DialogTrigger asChild>
                         <Button onClick={() => openForm(null)}>
@@ -283,7 +351,7 @@ export function FlujoDashboard() {
                 placeholder={expectedConfirmationText}
                 autoFocus
             />
-            <AlertDialogFooter>
+            <AlertDialogFooterComponent>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                     onClick={handleDelete}
@@ -292,11 +360,17 @@ export function FlujoDashboard() {
                 >
                     Sí, eliminar sucursal
                 </AlertDialogAction>
-            </AlertDialogFooter>
+            </AlertDialogFooterComponent>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FlujoExportDialog 
+        isOpen={isExportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        sucursales={sucursalSummaries}
+        onExport={handleExport}
+        isExporting={isExporting}
+      />
     </div>
   );
 }
-
-    

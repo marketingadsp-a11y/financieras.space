@@ -79,6 +79,7 @@ export type LoanControlPermission = keyof typeof LOAN_CONTROL_PERMISSIONS;
 
 export const FLUJO_PERMISSIONS = {
   CAN_DELETE: 'Eliminar registros de Flujo',
+  CAN_EXPORT: 'Exportar Reportes',
 } as const;
 export type FlujoPermission = keyof typeof FLUJO_PERMISSIONS;
 
