@@ -93,7 +93,7 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
     
     const year = getYear(startDate);
     const weekNumber = getISOWeek(startDate);
-    const weekId = `${year}-W${weekNumber}`;
+    const weekId = `${year}-W${String(weekNumber).padStart(2, '0')}`;
     
     return { start: startDate, end: endDate, weekId };
 };
@@ -416,26 +416,38 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
     const sucursalesToExport = sucursalIds.includes('all') ? allSucursales : allSucursales.filter(s => sucursalIds.includes(s.id));
 
     const exportDataPromises = sucursalesToExport.map(async (sucursal) => {
+        // Query summaries for the current sucursal
         const qConstraints: QueryConstraint[] = [where("sucursalId", "==", sucursal.id)];
-        if (startDate) {
-            qConstraints.push(where("weekStartDate", ">=", Timestamp.fromDate(startDate)));
-        }
+        
+        // This is the corrected logic. We query for any week that overlaps with the selected date range.
         if (endDate) {
+            // Find summaries that START BEFORE the END of our range
             qConstraints.push(where("weekStartDate", "<=", Timestamp.fromDate(endDate)));
         }
-
+         
         const summariesQuery = query(weeklySummariesCollectionRef, ...qConstraints);
         const summariesSnapshot = await getDocs(summariesQuery);
 
-        const weeklySummaries = summariesSnapshot.docs.map(doc => {
-            const data = doc.data() as FlujoWeeklySummary;
-            const totalEfectivo = data.totalCobradoSemanal - data.comisiones - data.gastos.reduce((a,c) => a+c.amount, 0) - data.ventas.reduce((a,c) => a+c.amount, 0);
-            return { 
-                ...data, 
-                weekId: doc.id.split('_')[1], 
-                totalEfectivo 
-            } as unknown as WeeklySummaryForExport; // Cast needed due to weekId addition
-        });
+        const weeklySummaries = summariesSnapshot.docs
+            .map(doc => {
+                const data = doc.data() as FlujoWeeklySummary;
+                const weekEndDate = (data.weekEndDate as Timestamp).toDate();
+                // Post-filter for summaries that END AFTER the START of our range
+                if (startDate && weekEndDate < startDate) {
+                    return null;
+                }
+
+                const totalEfectivo = data.totalCobradoSemanal - data.comisiones - data.gastos.reduce((a,c) => a+c.amount, 0) - data.ventas.reduce((a,c) => a+c.amount, 0);
+                return { 
+                    ...data,
+                    weekStartDate: (data.weekStartDate as Timestamp).toDate(),
+                    weekEndDate: weekEndDate,
+                    id: doc.id,
+                    weekId: doc.id.split('_')[1], 
+                    totalEfectivo 
+                } as WeeklySummaryForExport;
+            })
+            .filter((summary): summary is WeeklySummaryForExport => summary !== null); // Filter out nulls
         
         return {
             ...sucursal,
