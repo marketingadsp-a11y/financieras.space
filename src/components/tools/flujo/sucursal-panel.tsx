@@ -36,9 +36,10 @@ type UnifiedHistoryItem = {
     amount: number;
     details?: string;
     raw: FlujoEntry | FlujoGasto | { comisiones: number };
+    userPerformed?: string;
 };
 
-const WeeklyHistoryTimeline = ({ items, canDelete, onDeleteEntry }: { items: UnifiedHistoryItem[], canDelete: boolean, onDeleteEntry: (entry: FlujoEntry) => void }) => {
+const WeeklyHistoryList = ({ items, canDelete, onDeleteEntry }: { items: UnifiedHistoryItem[], canDelete: boolean, onDeleteEntry: (entry: FlujoEntry) => void }) => {
     if (items.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -50,9 +51,9 @@ const WeeklyHistoryTimeline = ({ items, canDelete, onDeleteEntry }: { items: Uni
     }
 
     const typeInfo = {
-        flujo: { label: 'Registro de Flujo', icon: GitCommitVertical, color: "text-green-600", border: "border-green-600" },
-        gasto: { label: 'Gasto', icon: TrendingDown, color: "text-red-500", border: "border-red-500" },
-        comision: { label: 'Comisiones', icon: Coins, color: "text-orange-500", border: "border-orange-500" },
+        flujo: { label: 'Registro de Flujo', icon: GitCommitVertical, color: "text-green-600", bg: "bg-green-500/10" },
+        gasto: { label: 'Gasto', icon: TrendingDown, color: "text-red-500", bg: "bg-red-500/10" },
+        comision: { label: 'Comisiones', icon: Coins, color: "text-orange-500", bg: "bg-orange-500/10" },
     };
     
     const formatCurrency = (value?: number) => {
@@ -61,56 +62,48 @@ const WeeklyHistoryTimeline = ({ items, canDelete, onDeleteEntry }: { items: Uni
     };
 
     return (
-        <div className="relative pl-6">
-            <div className="absolute left-[35px] top-0 h-full w-0.5 bg-border -translate-x-1/2" />
-            <div className="space-y-8">
+        <div className="space-y-4">
             {items.map((item, index) => {
                 const info = typeInfo[item.type];
                 const isEntry = item.type === 'flujo';
 
                 return (
-                <div key={`${item.id}-${index}`} className="relative flex items-start group">
-                    <div className="absolute left-[35px] top-4 -translate-x-1/2 rounded-full bg-background p-1">
-                        <div className={cn("rounded-full p-2 bg-muted/50", info.border)}>
-                             <info.icon className={cn("h-5 w-5", info.color)} />
-                        </div>
+                 <div key={`${item.id}-${index}`} className="group flex items-center space-x-4 rounded-lg bg-muted/40 p-3">
+                    <div className={cn("flex h-10 w-10 items-center justify-center rounded-full", info.bg)}>
+                        <info.icon className={cn("h-5 w-5", info.color)} />
                     </div>
-                    <div className="ml-16 w-full">
-                        <div className="flex justify-between items-center mb-1">
-                            <div>
-                                <p className="font-semibold text-base">{info.label}</p>
-                                <p className="text-sm text-muted-foreground">{format(item.date, 'EEEE, dd MMM yyyy - hh:mm a', { locale: es })}</p>
-                            </div>
-                           <div className="flex items-center gap-2">
-                             <p className={cn("font-bold text-lg", info.color)}>{formatCurrency(item.amount)}</p>
-                              {canDelete && isEntry && (
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
-                                            <AlertDialogDescription>Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooterComponent>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => onDeleteEntry(item.raw as FlujoEntry)}>Eliminar</AlertDialogAction>
-                                        </AlertDialogFooterComponent>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            )}
-                           </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground italic">{item.description}</p>
-                         {item.details && <p className="text-xs text-muted-foreground mt-2 font-mono bg-muted/50 p-2 rounded-md">{item.details}</p>}
+                    <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium leading-none">{item.description}</p>
+                        <p className="text-xs text-muted-foreground">{item.details}</p>
                     </div>
+                     <div className="flex flex-col items-end space-x-4">
+                        <div className={cn("font-semibold", info.color)}>
+                           {formatCurrency(item.amount)}
+                        </div>
+                         <p className="text-xs text-muted-foreground">{format(item.date, "dd MMM, p", { locale: es })}</p>
+                    </div>
+                    {canDelete && isEntry && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitleComponent>¿Confirmar Eliminación?</AlertDialogTitleComponent>
+                                    <AlertDialogDescription>Esta acción es irreversible. Se eliminará el registro y se ajustarán los saldos.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooterComponent>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onDeleteEntry(item.raw as FlujoEntry)}>Eliminar</AlertDialogAction>
+                                </AlertDialogFooterComponent>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                 </div>
                 )
             })}
-            </div>
         </div>
     );
 }
@@ -190,13 +183,13 @@ const GastosDialog = ({ summary, onSave, onDelete, onClose, canDelete }: { summa
 }
 
 const ComisionesDialog = ({ summary, onSave, onClose }: { summary: FlujoWeeklySummary, onSave: (amount: number) => Promise<void>, onClose: () => void }) => {
-    const [amount, setAmount] = React.useState<number | undefined>(summary.comisiones || undefined);
+    const [amount, setAmount] = React.useState<number | undefined>(summary.comisiones > 0 ? summary.comisiones : undefined);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const handleSubmit = async () => {
-        if (amount === undefined) return;
+        const finalAmount = typeof amount === 'number' ? amount : 0;
         setIsSubmitting(true);
-        await onSave(amount);
+        await onSave(finalAmount);
         setIsSubmitting(false);
         onClose();
     };
@@ -257,7 +250,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                   id: entry.id,
                   date: entry.date,
                   type: 'flujo',
-                  description: `Registro de flujo del día.`,
+                  description: `Registro de flujo del día`,
                   amount: entry.totalCobrado,
                   details: `Fondo: ${formatCurrency(entry.fondo)} | Debe Entregar: ${formatCurrency(entry.debeEntregar)} | Falla: ${formatCurrency(entry.falla)} | Recuperado: ${formatCurrency(entry.recuperado)} | Entrantes: ${formatCurrency(entry.entrantes)} | Salientes: ${formatCurrency(entry.salientes)} | Venta: ${formatCurrency(entry.venta)}`,
                   raw: entry
@@ -270,7 +263,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                       id: `gasto-${gasto.id}`,
                       date: gasto.date,
                       type: 'gasto',
-                      description: gasto.description,
+                      description: `Gasto: ${gasto.description}`,
                       amount: -gasto.amount, // Negative as it's an expense
                       raw: gasto
                   });
@@ -532,7 +525,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                 <WeeklyHistoryTimeline items={weeklyHistory} canDelete={canDelete} onDeleteEntry={handleDeleteEntry} />
+                 <WeeklyHistoryList items={weeklyHistory} canDelete={canDelete} onDeleteEntry={handleDeleteEntry} />
             </CardContent>
         </Card>
         
