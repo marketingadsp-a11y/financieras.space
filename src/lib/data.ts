@@ -354,6 +354,7 @@ export type FlujoEntry = {
     totalCobrado: number; // Calculated field
     amount: number; // For transfers
     userPerformed: string;
+    centralTransactionId?: string; // Link to the central transaction
 };
 
 export type FlujoGasto = {

@@ -31,6 +31,7 @@ const sucursalesCollectionRef = collection(db, "flujo_sucursales");
 const centralAccountsCollectionRef = collection(db, "flujo_central_accounts");
 const entriesCollectionRef = collection(db, "flujo_entries");
 const weeklySummariesCollectionRef = collection(db, "flujo_weekly_summaries");
+const centralTransactionsCollectionRef = (prefix: string) => collection(db, "flujo_central_accounts", prefix, "transactions");
 
 
 // --- Sucursal Functions ---
@@ -145,7 +146,7 @@ export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
     if (accountSnap.exists()) {
         const centralAccountData = accountSnap.data();
         const transactionsQuery = query(
-            collection(db, "flujo_central_accounts", prefix, "transactions"),
+            centralTransactionsCollectionRef(prefix),
             orderBy("date", "desc"),
             limit(10)
         );
@@ -442,8 +443,7 @@ type TransferParams = {
 export async function transferToCentral({ sucursalId, sucursalName, prefix, amount, userPerformed }: TransferParams) {
     const sucursalRef = doc(db, 'flujo_sucursales', sucursalId);
     const centralAccountRef = doc(db, 'flujo_central_accounts', prefix);
-    const entryRef = doc(collection(db, "flujo_entries"));
-
+    
     await runTransaction(db, async (transaction) => {
         const sucursalDoc = await transaction.get(sucursalRef);
         if (!sucursalDoc.exists() || sucursalDoc.data().currentBalance < amount) {
@@ -461,20 +461,8 @@ export async function transferToCentral({ sucursalId, sucursalName, prefix, amou
         const newCentralBalance = (centralAccountData.cajaChica || 0) + amount;
         transaction.set(centralAccountRef, { cajaChica: newCentralBalance, prefix: prefix }, { merge: true });
 
-        // 3. Create a 'transfer_out_to_central' entry for the sucursal
-        const transferEntry: Partial<FlujoEntry> = {
-            id: entryRef.id,
-            sucursalId,
-            date: new Date(),
-            type: 'transfer_out_to_central',
-            amount: amount,
-            userPerformed,
-            totalCobrado: -amount, // It's an expense from the sucursal's POV
-        };
-        transaction.set(entryRef, transferEntry);
-
-        // 4. Create a transaction record for the central account
-        const centralTransactionRef = doc(collection(db, "flujo_central_accounts", prefix, "transactions"));
+        // 3. Create a transaction record for the central account
+        const centralTransactionRef = doc(centralTransactionsCollectionRef(prefix));
         transaction.set(centralTransactionRef, {
             type: 'transfer_in',
             amount: amount,
@@ -483,6 +471,21 @@ export async function transferToCentral({ sucursalId, sucursalName, prefix, amou
             sucursalId,
             sucursalName,
         });
+
+        // 4. Create a 'transfer_out_to_central' entry for the sucursal
+        const transferEntryRef = doc(collection(db, "flujo_entries"));
+        const transferEntry: Partial<FlujoEntry> = {
+            id: transferEntryRef.id,
+            sucursalId,
+            date: new Date(),
+            type: 'transfer_out_to_central',
+            amount: amount,
+            userPerformed,
+            totalCobrado: -amount, // It's an expense from the sucursal's POV
+            centralTransactionId: centralTransactionRef.id, // Link to central transaction
+        };
+        transaction.set(transferEntryRef, transferEntry);
+
     });
 }
 
@@ -508,7 +511,7 @@ export async function withdrawFromCentral({ prefix, amount, description, userPer
         transaction.update(centralAccountRef, { cajaChica: newBalance });
 
         // Log the withdrawal transaction
-        const centralTransactionRef = doc(collection(db, "flujo_central_accounts", prefix, "transactions"));
+        const centralTransactionRef = doc(centralTransactionsCollectionRef(prefix));
         transaction.set(centralTransactionRef, {
             type: 'withdrawal',
             amount: amount,
@@ -520,7 +523,7 @@ export async function withdrawFromCentral({ prefix, amount, description, userPer
 }
 
 export async function deleteCentralTransaction(prefix: string, txId: string): Promise<void> {
-  const transactionRef = doc(db, "flujo_central_accounts", prefix, "transactions", txId);
+  const transactionRef = doc(centralTransactionsCollectionRef(prefix), txId);
 
   await runTransaction(db, async (transaction) => {
     const txDoc = await transaction.get(transactionRef);
@@ -544,21 +547,34 @@ export async function deleteCentralTransaction(prefix: string, txId: string): Pr
     } else if (txData.type === 'transfer_in') {
       newCentralBalance -= txData.amount;
 
-      // If it was a transfer from a sucursal, revert that too
-      if (txData.sucursalId) {
-        const sucursalRef = doc(db, 'flujo_sucursales', txData.sucursalId);
+      // Find and delete the corresponding sucursal entry
+      const sucursalEntryQuery = query(
+        entriesCollectionRef,
+        where("centralTransactionId", "==", txId)
+      );
+      const sucursalEntrySnapshot = await getDocs(sucursalEntryQuery);
+      
+      if (!sucursalEntrySnapshot.empty) {
+        const sucursalEntryDoc = sucursalEntrySnapshot.docs[0];
+        const sucursalEntryData = sucursalEntryDoc.data() as FlujoEntry;
+        
+        // Revert sucursal balance
+        const sucursalRef = doc(db, 'flujo_sucursales', sucursalEntryData.sucursalId);
         const sucursalDoc = await transaction.get(sucursalRef);
         if (sucursalDoc.exists()) {
-          const newSucursalBalance = (sucursalDoc.data().currentBalance || 0) + txData.amount;
+          const newSucursalBalance = (sucursalDoc.data().currentBalance || 0) + sucursalEntryData.amount;
           transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
         }
+        
+        // Delete the sucursal entry log
+        transaction.delete(sucursalEntryDoc.ref);
       }
     }
 
     // Update central account balance
     transaction.update(centralAccountRef, { cajaChica: newCentralBalance });
     
-    // Delete the transaction log
+    // Delete the central transaction log
     transaction.delete(transactionRef);
   });
 }
@@ -574,7 +590,9 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
     const exportDataPromises = sucursalesToExport.map(async (sucursal) => {
         let constraints: QueryConstraint[] = [where("sucursalId", "==", sucursal.id)];
         
-        // Firestore queries on different fields with ranges are tricky. It's often better to filter in-code if the dataset isn't enormous.
+        if(startDate) constraints.push(where("weekStartDate", ">=", startDate));
+        if(endDate) constraints.push(where("weekStartDate", "<=", endDate));
+        
         const summariesQuery = query(weeklySummariesCollectionRef, ...constraints);
         const summariesSnapshot = await getDocs(summariesQuery);
 
@@ -584,14 +602,6 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
                 const weekStartDate = (data.weekStartDate as Timestamp).toDate();
                 const weekEndDate = (data.weekEndDate as Timestamp).toDate();
                 
-                // If a date range is provided, filter by it.
-                 if (startDate && endDate) {
-                    const overlaps = (startDate <= weekEndDate) && (weekStartDate <= endDate);
-                    if (!overlaps) {
-                        return null;
-                    }
-                }
-
                 const totalEfectivo = data.totalCobradoSemanal - data.comisiones - ((data.gastos || []).reduce((a,c) => a+c.amount, 0)) - ((data.ventas || []).reduce((a,c) => a+c.amount, 0));
                 
                 return { 
@@ -602,8 +612,7 @@ export async function getFlujoExportData(prefix: string, sucursalIds: string[], 
                     weekId: doc.id.split('_')[1] || doc.id, 
                     totalEfectivo 
                 } as WeeklySummaryForExport;
-            })
-            .filter((summary): summary is WeeklySummaryForExport => summary !== null);
+            });
         
         return {
             ...sucursal,
