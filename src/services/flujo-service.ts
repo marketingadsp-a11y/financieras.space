@@ -519,6 +519,50 @@ export async function withdrawFromCentral({ prefix, amount, description, userPer
     });
 }
 
+export async function deleteCentralTransaction(prefix: string, txId: string): Promise<void> {
+  const transactionRef = doc(db, "flujo_central_accounts", prefix, "transactions", txId);
+
+  await runTransaction(db, async (transaction) => {
+    const txDoc = await transaction.get(transactionRef);
+    if (!txDoc.exists()) {
+      throw new Error("La transacción no existe o ya fue eliminada.");
+    }
+    const txData = txDoc.data() as FlujoCentralTransaction;
+
+    const centralAccountRef = doc(db, "flujo_central_accounts", prefix);
+    const centralAccountDoc = await transaction.get(centralAccountRef);
+    if (!centralAccountDoc.exists()) {
+      throw new Error("La cuenta central no existe.");
+    }
+    const centralAccountData = centralAccountDoc.data() as FlujoCentralAccount;
+
+    let newCentralBalance = centralAccountData.cajaChica;
+    
+    // Revert the transaction's effect
+    if (txData.type === 'withdrawal') {
+      newCentralBalance += txData.amount;
+    } else if (txData.type === 'transfer_in') {
+      newCentralBalance -= txData.amount;
+
+      // If it was a transfer from a sucursal, revert that too
+      if (txData.sucursalId) {
+        const sucursalRef = doc(db, 'flujo_sucursales', txData.sucursalId);
+        const sucursalDoc = await transaction.get(sucursalRef);
+        if (sucursalDoc.exists()) {
+          const newSucursalBalance = (sucursalDoc.data().currentBalance || 0) + txData.amount;
+          transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
+        }
+      }
+    }
+
+    // Update central account balance
+    transaction.update(centralAccountRef, { cajaChica: newCentralBalance });
+    
+    // Delete the transaction log
+    transaction.delete(transactionRef);
+  });
+}
+
 
 // --- EXPORT FUNCTIONS ---
 type WeeklySummaryForExport = FlujoWeeklySummary & { totalEfectivo: number };

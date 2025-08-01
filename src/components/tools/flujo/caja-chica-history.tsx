@@ -4,11 +4,14 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDown, ArrowUp, Send, TrendingDown } from "lucide-react";
+import { ArrowDown, ArrowUp, Send, TrendingDown, MoreHorizontal, Trash2 } from "lucide-react";
 import type { FlujoCentralTransaction } from "@/lib/data";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const transactionTypes = {
   transfer_in: { label: "Recepción", icon: ArrowDown, color: "text-green-500", badge: "secondary" },
@@ -16,11 +19,15 @@ const transactionTypes = {
 };
 
 
-export function CajaChicaHistory({ transactions }: { transactions: FlujoCentralTransaction[] }) {
+export function CajaChicaHistory({ transactions, onDelete }: { transactions: FlujoCentralTransaction[], onDelete: (txId: string) => Promise<void> }) {
   if (transactions.length === 0) {
     return null; // Don't render the card if there are no transactions
   }
   
+  const handleDelete = async (txId: string) => {
+      await onDelete(txId);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -36,6 +43,7 @@ export function CajaChicaHistory({ transactions }: { transactions: FlujoCentralT
               <TableHead>Origen/Descripción</TableHead>
               <TableHead>Realizado Por</TableHead>
               <TableHead className="text-right">Monto</TableHead>
+              <TableHead className="w-[50px]"><span className="sr-only">Acciones</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -65,6 +73,35 @@ export function CajaChicaHistory({ transactions }: { transactions: FlujoCentralT
                   <TableCell className="text-muted-foreground">{tx.userPerformed}</TableCell>
                   <TableCell className={cn("text-right font-semibold", typeInfo.color)}>
                      {tx.type === 'withdrawal' ? '-' : ''}${tx.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell>
+                    <AlertDialog>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                 <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                         <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción es irreversible y revertirá la transacción. El balance de la sucursal (si aplica) y de la caja chica se ajustarán.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(tx.id)}>Sí, eliminar transacción</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               )

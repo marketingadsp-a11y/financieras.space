@@ -5,7 +5,7 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { FlujoSucursal, FlujoCentralAccount, FlujoWeeklySummary, FlujoCentralTransaction } from "@/lib/data";
-import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal, getFlujoExportData, withdrawFromCentral } from "@/services/flujo-service";
+import { getFlujoSummariesForWeek, addFlujoSucursal, updateFlujoSucursal, deleteFlujoSucursal, getFlujoExportData, withdrawFromCentral, deleteCentralTransaction } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowRight, DollarSign, PiggyBank, Building, Edit, Trash2, ChevronLeft, ChevronRight, History, Wallet, Coins, TrendingUp, TrendingDown, Receipt, CalendarIcon, Download, MinusCircle } from "lucide-react";
@@ -286,6 +286,17 @@ export function FlujoDashboard() {
       }
   }
   
+  const handleDeleteCentralTransaction = async (txId: string) => {
+      if (!user?.prefix) return;
+      try {
+        await deleteCentralTransaction(user.prefix, txId);
+        toast({ title: 'Éxito', description: 'Transacción eliminada.' });
+        fetchData();
+      } catch (error: any) {
+          toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo eliminar la transacción.' });
+      }
+  }
+
   const openForm = (sucursal: FlujoSucursal | null) => {
     setEditingSucursal(sucursal);
     setFormOpen(true);
@@ -390,7 +401,7 @@ export function FlujoDashboard() {
         <StatCard title="Total Efectivo (Semanal)" value={totalEfectivoSemanal} icon={Wallet} description="Suma de todas las sucursales esta semana." colorClass="text-blue-600" />
       </div>
 
-      <CajaChicaHistory transactions={displayAccount.transactions || []} />
+      <CajaChicaHistory transactions={displayAccount.transactions || []} onDelete={handleDeleteCentralTransaction} />
 
       <Card>
         <CardHeader>
