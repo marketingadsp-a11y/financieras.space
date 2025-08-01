@@ -410,27 +410,72 @@ export async function updateComisionesInSummary(summaryId: string, comisiones: n
 
 export async function resetWeeklySummary(summaryId: string) {
     const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+    
     await runTransaction(db, async (transaction) => {
         const summaryDoc = await transaction.get(summaryRef);
-        if (summaryDoc.exists()) {
-            const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
-            const sucursalRef = doc(db, 'flujo_sucursales', currentSummary.sucursalId);
-            const sucursalDoc = await transaction.get(sucursalRef);
-            
-            if (sucursalDoc.exists()) {
-                const totalDeductionsToRevert = ((currentSummary.gastos || []).reduce((sum, g) => sum + g.amount, 0)) + ((currentSummary.ventas || []).reduce((sum, v) => sum + v.amount, 0)) + currentSummary.comisiones;
-                const newBalance = sucursalDoc.data().currentBalance + totalDeductionsToRevert;
-                transaction.update(sucursalRef, { currentBalance: newBalance });
-            }
+        if (!summaryDoc.exists()) return; // No summary to reset
 
-            transaction.update(summaryRef, {
-                gastos: [],
-                ventas: [],
-                comisiones: 0,
-            });
+        const currentSummary = summaryDoc.data() as FlujoWeeklySummary;
+        const { sucursalId, prefix, weekStartDate, weekEndDate } = currentSummary;
+
+        const sucursalRef = doc(db, 'flujo_sucursales', sucursalId);
+        const centralAccountRef = doc(db, 'flujo_central_accounts', prefix);
+
+        const sucursalDoc = await transaction.get(sucursalRef);
+        const centralAccountDoc = await transaction.get(centralAccountRef);
+
+        if (!sucursalDoc.exists()) throw new Error("La sucursal asociada no existe.");
+
+        // 1. Calculate total deductions to revert
+        const totalGastos = (currentSummary.gastos || []).reduce((sum, g) => sum + g.amount, 0);
+        const totalVentas = (currentSummary.ventas || []).reduce((sum, v) => sum + v.amount, 0);
+        const totalComisiones = currentSummary.comisiones || 0;
+        let totalDeductionsToRevert = totalGastos + totalVentas + totalComisiones;
+
+        // 2. Find and revert transfers
+        const transfersQuery = query(
+            entriesCollectionRef,
+            where("sucursalId", "==", sucursalId),
+            where("type", "==", "transfer_out_to_central"),
+            where("date", ">=", weekStartDate),
+            where("date", "<=", weekEndDate)
+        );
+        const transfersSnapshot = await getDocs(transfersQuery);
+
+        let centralBalanceAdjustment = 0;
+
+        for (const transferDoc of transfersSnapshot.docs) {
+            const transferData = transferDoc.data() as FlujoEntry;
+            totalDeductionsToRevert += transferData.amount; // Add transfer amount back to sucursal
+            centralBalanceAdjustment -= transferData.amount; // Subtract from central account
+
+            // Delete the corresponding central transaction
+            if (transferData.centralTransactionId) {
+                const centralTxRef = doc(centralTransactionsCollectionRef(prefix), transferData.centralTransactionId);
+                transaction.delete(centralTxRef);
+            }
+            // Delete the sucursal's transfer entry
+            transaction.delete(transferDoc.ref);
         }
+
+        // 3. Update balances
+        const newSucursalBalance = sucursalDoc.data().currentBalance + totalDeductionsToRevert;
+        transaction.update(sucursalRef, { currentBalance: newSucursalBalance });
+
+        if (centralAccountDoc.exists()) {
+            const newCentralBalance = (centralAccountDoc.data().cajaChica || 0) + centralBalanceAdjustment;
+            transaction.update(centralAccountRef, { cajaChica: newCentralBalance });
+        }
+
+        // 4. Reset the weekly summary fields
+        transaction.update(summaryRef, {
+            gastos: [],
+            ventas: [],
+            comisiones: 0,
+        });
     });
 }
+
 
 type TransferParams = {
     sucursalId: string;
