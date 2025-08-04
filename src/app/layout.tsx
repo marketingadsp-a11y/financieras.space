@@ -9,6 +9,7 @@ import React, { Suspense } from "react";
 function AppNameUpdater() {
   const [appName, setAppName] = React.useState("Panel de Administración");
   const [faviconUrl, setFaviconUrl] = React.useState("/favicon.ico"); // Default favicon
+  const [manifestUrl, setManifestUrl] = React.useState("/manifest.json");
 
   React.useEffect(() => {
     const handleStorageChange = () => {
@@ -23,6 +24,12 @@ function AppNameUpdater() {
            setFaviconUrl(updatedLogoUrl);
        } else {
            setFaviconUrl('/favicon.ico');
+       }
+
+       const pwaManifest = localStorage.getItem('pwaManifest');
+       if (pwaManifest) {
+         const blob = new Blob([pwaManifest], { type: 'application/json' });
+         setManifestUrl(URL.createObjectURL(blob));
        }
     };
     
@@ -40,6 +47,8 @@ function AppNameUpdater() {
         <title>{appName}</title>
         <meta name="description" content="Gestión de administradores y herramientas." />
         <link rel="icon" href={faviconUrl} sizes="any" />
+        <link rel="manifest" href={manifestUrl} />
+        <meta name="theme-color" content="#ffffff" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
