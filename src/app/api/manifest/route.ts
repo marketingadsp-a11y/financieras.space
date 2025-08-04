@@ -6,7 +6,7 @@ export async function GET() {
     try {
         const settings = await getAppSettings();
 
-        // Use settings from DB, or provide sensible defaults
+        // Get app name from localStorage as a fallback, but prioritize DB settings
         const appName = settings?.pwaSettings?.shortName || "Panel";
         const iconUrl = settings?.pwaSettings?.iconUrl;
 

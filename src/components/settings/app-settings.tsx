@@ -25,13 +25,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { AppWindow, Wrench, LifeBuoy, Loader2, Palette, Smartphone } from "lucide-react";
+import { AppWindow, Wrench, LifeBuoy, Loader2, Palette, Smartphone, Upload } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { allTools, type Tool } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { getAppSettings, saveAppSettings } from "@/services/app-settings-service";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
+import { uploadFile } from "@/services/storage-service";
+
 
 const toolSettingsSchema = z.object({
   id: z.string(),
@@ -45,7 +47,6 @@ const supportInfoSchema = z.object({
 });
 
 const pwaSettingsSchema = z.object({
-  shortName: z.string().optional(),
   iconUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
 });
 
@@ -63,7 +64,9 @@ export function AppSettings() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = React.useState(true);
-  
+  const [iconFile, setIconFile] = React.useState<File | null>(null);
+  const [iconPreview, setIconPreview] = React.useState<string | null>(null);
+
   const form = useForm<AppSettingsFormValues>({
     resolver: zodResolver(appSettingsSchema),
     defaultValues: {
@@ -75,7 +78,6 @@ export function AppSettings() {
             content: ""
         },
         pwaSettings: {
-            shortName: "",
             iconUrl: "",
         }
     },
@@ -110,52 +112,64 @@ export function AppSettings() {
                 content: settings?.supportInfo?.content || "Contacta a tu administrador para más información."
             },
             pwaSettings: {
-                shortName: settings?.pwaSettings?.shortName || "",
                 iconUrl: settings?.pwaSettings?.iconUrl || "",
             },
         });
+        if (settings?.pwaSettings?.iconUrl) {
+            setIconPreview(settings.pwaSettings.iconUrl);
+        }
         setIsLoading(false);
     }
     fetchSettings();
   }, [form]);
+  
+  const handleIconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIconFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setIconPreview(previewUrl);
+    }
+  }
 
   const onSubmit = async (data: AppSettingsFormValues) => {
     try {
-      // Save non-PWA settings to localStorage
+      let iconUrl = form.getValues("pwaSettings.iconUrl");
+      if (iconFile) {
+        toast({ title: 'Subiendo ícono...', description: 'Por favor espera.' });
+        iconUrl = await uploadFile(iconFile, `pwa/icon-${Date.now()}`);
+      }
+      
       localStorage.setItem("appName", data.appName);
       localStorage.setItem("footerText", data.footerText || "");
       if (data.toolSettings && user?.isSuperAdmin) {
         localStorage.setItem("toolSettings", JSON.stringify(data.toolSettings));
       }
       
-      // Save PWA and Support settings to Firestore
       await saveAppSettings({
          supportInfo: data.supportInfo,
          pwaSettings: {
-            shortName: data.pwaSettings?.shortName || data.appName.substring(0, 12),
-            iconUrl: data.pwaSettings?.iconUrl || "",
+            shortName: data.appName.substring(0, 12),
+            iconUrl: iconUrl || "",
          }
       });
       
-      // Trigger a storage event to notify other components (like layout) of changes
       window.dispatchEvent(new Event("storage"));
 
       toast({
         title: "Éxito",
         description: "La configuración de la aplicación ha sido actualizada.",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudo guardar la configuración de la aplicación.",
+        description: error.message || "No se pudo guardar la configuración de la aplicación.",
       });
     }
   };
   
-  const watchPwaIconUrl = form.watch("pwaSettings.iconUrl");
   const watchAppName = form.watch("appName");
-
 
     if (isLoading) {
         return <Card><CardContent className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-8 w-8 animate-spin" /> Cargando configuración...</CardContent></Card>
@@ -195,6 +209,9 @@ export function AppSettings() {
                             <FormControl>
                                 <Input placeholder="Ej. Mi Panel Financiero" {...field} />
                             </FormControl>
+                            <FormDescriptionComponent>
+                                Este nombre se usará en el título de la página y como nombre de la PWA.
+                            </FormDescriptionComponent>
                             <FormMessage />
                             </FormItem>
                         )}
@@ -225,48 +242,30 @@ export function AppSettings() {
                         <div className="p-2 bg-green-500/10 rounded-lg"><Smartphone className="h-6 w-6 text-green-600"/></div>
                         <div>
                             <p className="font-semibold text-base">Ajustes de PWA (App Instalable)</p>
-                            <p className="text-sm text-muted-foreground font-normal">Personaliza el nombre y el ícono de la app al instalarse.</p>
+                            <p className="text-sm text-muted-foreground font-normal">Personaliza el ícono de la app al instalarse.</p>
                         </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="p-6 border-t">
                       <div className="space-y-6">
-                         <FormField
-                            control={form.control}
-                            name="pwaSettings.shortName"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Nombre Corto de la App</FormLabel>
-                                <FormControl>
-                                    <Input maxLength={12} placeholder="Ej. Panel" {...field} />
-                                </FormControl>
-                                <FormDescriptionComponent>Máximo 12 caracteres. Se muestra bajo el ícono de la app.</FormDescriptionComponent>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name="pwaSettings.iconUrl"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Ícono de la App (URL)</FormLabel>
-                             <div className="flex items-center gap-4">
-                                <Avatar className="h-20 w-20 border rounded-lg">
-                                    <AvatarImage src={watchPwaIconUrl} alt={watchAppName} />
-                                    <AvatarFallback className="text-2xl rounded-lg bg-muted">{watchAppName?.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-grow">
-                                    <FormControl>
-                                        <Input placeholder="https://ejemplo.com/icon-512x512.png" {...field} />
-                                    </FormControl>
-                                    <FormDescriptionComponent className="mt-2">Pega una URL a una imagen PNG (512x512px recomendado).</FormDescriptionComponent>
-                                </div>
-                            </div>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
+                        <FormItem>
+                          <FormLabel>Ícono de la App</FormLabel>
+                          <div className="flex items-center gap-4">
+                              <Avatar className="h-20 w-20 border rounded-lg">
+                                  <AvatarImage src={iconPreview || ''} alt={watchAppName} />
+                                  <AvatarFallback className="text-2xl rounded-lg bg-muted">{watchAppName?.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-grow">
+                                  <FormControl>
+                                      <Input type="file" accept="image/png, image/jpeg" onChange={handleIconFileChange} />
+                                  </FormControl>
+                                  <FormDescriptionComponent className="mt-2">
+                                      Sube una imagen PNG o JPG (512x512px recomendado).
+                                  </FormDescriptionComponent>
+                              </div>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
                       </div>
                   </AccordionContent>
                 </AccordionItem>
