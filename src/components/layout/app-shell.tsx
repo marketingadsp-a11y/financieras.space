@@ -30,7 +30,8 @@ import {
   Swords,
   UserSquare2,
   LifeBuoy,
-  ArrowRight
+  ArrowRight,
+  Home
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -845,6 +846,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <ImpersonationBar />
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
           <SidebarTrigger />
+           <Button variant="outline" size="sm" asChild>
+                <Link href="/tools">
+                    <Home className="mr-2 h-4 w-4" />
+                    Inicio
+                </Link>
+            </Button>
           <div className="flex-1" />
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
