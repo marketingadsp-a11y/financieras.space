@@ -15,9 +15,15 @@ export type ToolSetting = {
   color: string;
 }
 
+export type PwaSettings = {
+    shortName?: string;
+    iconUrl?: string;
+}
+
 export type AppSettings = {
   supportInfo?: SupportInfo;
   toolSettings?: ToolSetting[];
+  pwaSettings?: PwaSettings;
 }
 
 const SETTINGS_DOC_ID = "--app-settings--";

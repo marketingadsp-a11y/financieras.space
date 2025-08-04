@@ -44,13 +44,17 @@ const supportInfoSchema = z.object({
     content: z.string().min(10, "El contenido es requerido.").optional(),
 });
 
+const pwaSettingsSchema = z.object({
+  shortName: z.string().optional(),
+  iconUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
+});
+
 const appSettingsSchema = z.object({
   appName: z.string().min(3, "El nombre de la aplicación debe tener al menos 3 caracteres."),
   footerText: z.string().optional(),
   toolSettings: z.array(toolSettingsSchema).optional(),
   supportInfo: supportInfoSchema.optional(),
-  pwaShortName: z.string().optional(),
-  pwaIconUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
+  pwaSettings: pwaSettingsSchema.optional(),
 });
 
 type AppSettingsFormValues = z.infer<typeof appSettingsSchema>;
@@ -70,19 +74,23 @@ export function AppSettings() {
             title: "",
             content: ""
         },
-        pwaShortName: "",
-        pwaIconUrl: "",
+        pwaSettings: {
+            shortName: "",
+            iconUrl: "",
+        }
     },
   });
   
   React.useEffect(() => {
     const fetchSettings = async () => {
         setIsLoading(true);
+        // Fetch from DB
+        const settings = await getAppSettings();
+
+        // Fetch from localStorage (for non-PWA settings)
         const storedAppName = localStorage.getItem("appName") || "Panel de Administración";
         const storedFooterText = localStorage.getItem("footerText") || "";
         const storedToolSettings = JSON.parse(localStorage.getItem("toolSettings") || "[]");
-        const storedPwaShortName = localStorage.getItem("pwaShortName") || "";
-        const storedPwaIconUrl = localStorage.getItem("pwaIconUrl") || "";
         
         const toolSettings = allTools.map(tool => {
             const storedSetting = storedToolSettings.find((s: any) => s.id === tool.id);
@@ -93,8 +101,6 @@ export function AppSettings() {
             }
         });
         
-        const settings = await getAppSettings();
-        
         form.reset({
             appName: storedAppName,
             footerText: storedFooterText,
@@ -103,8 +109,10 @@ export function AppSettings() {
                 title: settings?.supportInfo?.title || "Página de Soporte",
                 content: settings?.supportInfo?.content || "Contacta a tu administrador para más información."
             },
-            pwaShortName: storedPwaShortName,
-            pwaIconUrl: storedPwaIconUrl,
+            pwaSettings: {
+                shortName: settings?.pwaSettings?.shortName || "",
+                iconUrl: settings?.pwaSettings?.iconUrl || "",
+            },
         });
         setIsLoading(false);
     }
@@ -113,38 +121,23 @@ export function AppSettings() {
 
   const onSubmit = async (data: AppSettingsFormValues) => {
     try {
+      // Save non-PWA settings to localStorage
       localStorage.setItem("appName", data.appName);
       localStorage.setItem("footerText", data.footerText || "");
-      localStorage.setItem("pwaShortName", data.pwaShortName || data.appName.substring(0, 12));
-      localStorage.setItem("pwaIconUrl", data.pwaIconUrl || "");
-
-       // Create and save a dynamic manifest.json
-      const manifest = {
-        theme_color: "#007bff",
-        background_color: "#ffffff",
-        display: "standalone",
-        scope: "/",
-        start_url: "/",
-        name: data.appName,
-        short_name: data.pwaShortName || data.appName.substring(0, 12),
-        description: `${data.appName} - Panel de Administración`,
-        icons: [
-          { src: data.pwaIconUrl || '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: data.pwaIconUrl || '/icon-256x256.png', sizes: '256x256', type: 'image/png' },
-          { src: data.pwaIconUrl || '/icon-384x384.png', sizes: '384x384', type: 'image/png' },
-          { src: data.pwaIconUrl || '/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-        ],
-      };
-      localStorage.setItem('pwaManifest', JSON.stringify(manifest));
-
       if (data.toolSettings && user?.isSuperAdmin) {
         localStorage.setItem("toolSettings", JSON.stringify(data.toolSettings));
       }
       
+      // Save PWA and Support settings to Firestore
       await saveAppSettings({
          supportInfo: data.supportInfo,
+         pwaSettings: {
+            shortName: data.pwaSettings?.shortName || data.appName.substring(0, 12),
+            iconUrl: data.pwaSettings?.iconUrl || "",
+         }
       });
       
+      // Trigger a storage event to notify other components (like layout) of changes
       window.dispatchEvent(new Event("storage"));
 
       toast({
@@ -160,7 +153,7 @@ export function AppSettings() {
     }
   };
   
-  const watchPwaIconUrl = form.watch("pwaIconUrl");
+  const watchPwaIconUrl = form.watch("pwaSettings.iconUrl");
   const watchAppName = form.watch("appName");
 
 
@@ -240,7 +233,7 @@ export function AppSettings() {
                       <div className="space-y-6">
                          <FormField
                             control={form.control}
-                            name="pwaShortName"
+                            name="pwaSettings.shortName"
                             render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Nombre Corto de la App</FormLabel>
@@ -254,7 +247,7 @@ export function AppSettings() {
                         />
                         <FormField
                         control={form.control}
-                        name="pwaIconUrl"
+                        name="pwaSettings.iconUrl"
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Ícono de la App (URL)</FormLabel>
