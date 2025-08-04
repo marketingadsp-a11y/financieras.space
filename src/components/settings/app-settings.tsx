@@ -124,7 +124,7 @@ export function AppSettings() {
         background_color: "#ffffff",
         display: "standalone",
         scope: "/",
-        start_url": "/",
+        start_url: "/",
         name: data.appName,
         short_name: data.pwaShortName || data.appName.substring(0, 12),
         description: `${data.appName} - Panel de Administración`,
