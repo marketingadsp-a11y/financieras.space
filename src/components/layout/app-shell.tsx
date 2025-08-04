@@ -29,9 +29,11 @@ import {
   ShieldAlert,
   Swords,
   UserSquare2,
-  LifeBuoy
+  LifeBuoy,
+  ArrowRight
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 
 
 import { cn } from "@/lib/utils";
@@ -545,55 +547,104 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
 
 
   const renderAdminNav = () => {
-        const accessibleUserTools = customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
-        
-        return (
-            <>
-                 <SidebarGroup>
-                    <SidebarGroupLabel>HERRAMIENTAS</SidebarGroupLabel>
-                    <SidebarMenu>
-                        {accessibleUserTools.map((item) => (
-                            <SidebarMenuItem key={item.id}>
-                                <Link href={item.href}>
-                                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.name}>
-                                        <span>
-                                            <item.icon />
-                                            <span>{item.name}</span>
-                                        </span>
-                                    </SidebarMenuButton>
-                                </Link>
-                            </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
-                </SidebarGroup>
-                <SidebarSeparator />
-                <SidebarGroup>
-                    <SidebarGroupLabel>AJUSTES</SidebarGroupLabel>
-                    <SidebarMenu>
-                         <SidebarMenuItem>
-                            <Link href="/settings/users">
-                                <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/users')} tooltip="Gestionar Usuarios">
+    const accessibleUserTools = customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
+    
+    // Main tools view as a grid of cards
+    if (pathname === '/tools') {
+      return (
+        <div className="p-4 space-y-4">
+          <SidebarGroupLabel>HERRAMIENTAS</SidebarGroupLabel>
+          <div className="grid grid-cols-2 gap-3">
+            {accessibleUserTools.map((tool) => (
+              <Link href={tool.href} key={tool.id} className="group">
+                <Card 
+                  className="h-full flex flex-col items-center justify-center text-center p-3 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg hover:border-primary"
+                >
+                  <CardHeader className="p-2">
+                    <div 
+                      className="p-3 rounded-lg w-fit transition-transform duration-300 group-hover:scale-110"
+                      style={{ backgroundColor: `${tool.color}1A`}}
+                    >
+                      <tool.icon className="h-6 w-6" style={{ color: tool.color }}/>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <p className="text-xs font-semibold leading-tight">{tool.name}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          <SidebarSeparator />
+          <SidebarGroupLabel>AJUSTES</SidebarGroupLabel>
+           <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href="/settings/users">
+                    <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/users')} tooltip="Gestionar Usuarios">
+                        <span><Users /><span>Gestionar Usuarios</span></span>
+                    </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/settings/company-profile">
+                    <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/company-profile')} tooltip="Perfil de Empresa">
+                         <span><Briefcase /><span>Perfil de Empresa</span></span>
+                    </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
+      );
+    }
+
+    // Default list view for sub-pages
+    return (
+        <>
+            <SidebarGroup>
+                <SidebarGroupLabel>HERRAMIENTAS</SidebarGroupLabel>
+                <SidebarMenu>
+                    {accessibleUserTools.map((item) => (
+                        <SidebarMenuItem key={item.id}>
+                            <Link href={item.href}>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.name}>
                                     <span>
-                                        <Users />
-                                        <span>Gestionar Usuarios</span>
+                                        <item.icon />
+                                        <span>{item.name}</span>
                                     </span>
                                 </SidebarMenuButton>
                             </Link>
                         </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <Link href="/settings/company-profile">
-                                <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/company-profile')} tooltip="Perfil de Empresa">
-                                    <span>
-                                        <Briefcase />
-                                        <span>Perfil de Empresa</span>
-                                    </span>
-                                </SidebarMenuButton>
-                            </Link>
-                        </SidebarMenuItem>
-                    </SidebarMenu>
-                </SidebarGroup>
-            </>
-        )
+                    ))}
+                </SidebarMenu>
+            </SidebarGroup>
+            <SidebarSeparator />
+            <SidebarGroup>
+                <SidebarGroupLabel>AJUSTES</SidebarGroupLabel>
+                <SidebarMenu>
+                      <SidebarMenuItem>
+                        <Link href="/settings/users">
+                            <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/users')} tooltip="Gestionar Usuarios">
+                                <span>
+                                    <Users />
+                                    <span>Gestionar Usuarios</span>
+                                </span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <Link href="/settings/company-profile">
+                            <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/company-profile')} tooltip="Perfil de Empresa">
+                                <span>
+                                    <Briefcase />
+                                    <span>Perfil de Empresa</span>
+                                </span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroup>
+        </>
+    )
   }
 
   const renderNavItems = (items: NavItem[]) => {
@@ -726,7 +777,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
-  const showBackButton = (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath) && !user.isSuperAdmin;
+  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath) && !user.isSuperAdmin;
 
   return (
     <SidebarProvider>
@@ -842,3 +893,4 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
