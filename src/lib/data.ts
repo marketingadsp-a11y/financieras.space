@@ -393,3 +393,14 @@ export type FlujoWeeklySummary = {
     gastos: FlujoGasto[];
     ventas: FlujoVenta[];
 }
+
+export type SupportTicket = {
+    id: string;
+    userId: string;
+    userName: string;
+    userPrefix: string;
+    description: string;
+    contactPhone: string;
+    status: 'new' | 'in-progress' | 'resolved';
+    createdAt: number; // Using Unix timestamp
+}

@@ -31,7 +31,8 @@ import {
   UserSquare2,
   LifeBuoy,
   ArrowRight,
-  Home
+  Home,
+  Ticket
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -103,6 +104,7 @@ const superAdminNavItems: NavItem[] = [
         { href: "/settings", label: "Aplicación", icon: AppWindow, superAdminOnly: true },
         { href: "/settings/company-profile", label: "Perfil de Empresa", icon: Briefcase, superAdminOnly: true },
         { href: "/settings/super-admins", label: "Super Admins", icon: UserCog, superAdminOnly: true },
+        { href: "/settings/support-tickets", label: "Tickets de Soporte", icon: Ticket, superAdminOnly: true },
     ]
   },
 ];
