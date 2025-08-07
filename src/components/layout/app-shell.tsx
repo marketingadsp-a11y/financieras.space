@@ -779,6 +779,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath) && !user.isSuperAdmin;
+  
+  const isGlobalAdmin = !user.isSuperAdmin && !user.isToolAdmin && !user.isPlazaUser;
+
 
   return (
     <SidebarProvider>
@@ -869,7 +872,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-muted-foreground font-normal">{getUserRoleLabel()}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {!user.isSuperAdmin && (
+              {isGlobalAdmin && (
                 <>
                   <DropdownMenuItem asChild>
                     <Link href="/settings/users">
@@ -900,4 +903,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
