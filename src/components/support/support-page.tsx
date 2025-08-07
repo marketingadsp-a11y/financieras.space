@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -6,7 +5,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { LifeBuoy, Loader2, Send } from "lucide-react";
+import { LifeBuoy, Loader2, Send, Ticket } from "lucide-react";
 import { getAppSettings, type SupportInfo } from "@/services/app-settings-service";
 import { addSupportTicket } from "@/services/support-ticket-service";
 import { useAuth } from "@/context/auth-context";
