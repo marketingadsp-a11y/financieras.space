@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { LifeBuoy, Loader2, Send, Ticket } from "lucide-react";
 import { getAppSettings, type SupportInfo } from "@/services/app-settings-service";
-import { addSupportTicket } from "@/services/support-ticket-service";
+import { addSupportTicket, getSupportTicketsByUserId } from "@/services/support-ticket-service";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import type { SupportTicket } from "@/lib/data";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 const supportFormSchema = z.object({
     description: z.string().min(10, "La descripción debe tener al menos 10 caracteres.").max(500, "La descripción no puede exceder los 500 caracteres."),
@@ -110,67 +115,130 @@ const SupportRequestDialog = ({ open, onOpenChange, onSuccess }: { open: boolean
     )
 }
 
+const MyTicketsList = ({ tickets }: { tickets: SupportTicket[] }) => {
+    
+    const getStatusVariant = (status: SupportTicket['status']) => {
+        switch (status) {
+            case 'new': return 'destructive';
+            case 'in-progress': return 'default';
+            case 'resolved': return 'secondary';
+            default: return 'outline';
+        }
+    };
+    
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Mis Solicitudes de Soporte</CardTitle>
+                <CardDescription>Aquí puedes ver el historial y estado de tus tickets.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead>Estado</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {tickets.length > 0 ? (
+                            tickets.map(ticket => (
+                                <TableRow key={ticket.id}>
+                                    <TableCell className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true, locale: es })}</TableCell>
+                                    <TableCell className="max-w-sm whitespace-pre-wrap">{ticket.description}</TableCell>
+                                    <TableCell><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="h-24 text-center">
+                                    No has enviado ninguna solicitud de soporte.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    )
+}
+
 
 export function SupportPage() {
+    const { user } = useAuth();
     const [supportInfo, setSupportInfo] = React.useState<SupportInfo | null>(null);
+    const [myTickets, setMyTickets] = React.useState<SupportTicket[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
 
-    React.useEffect(() => {
-        const fetchSupportInfo = async () => {
-            setIsLoading(true);
-            try {
-                const settings = await getAppSettings();
-                setSupportInfo(settings?.supportInfo || { title: "Soporte", content: "No hay información de soporte disponible." });
-            } catch (error) {
-                console.error("Failed to fetch support info", error);
-                setSupportInfo({ title: "Error", content: "No se pudo cargar la información de soporte." });
-            } finally {
-                setIsLoading(false);
-            }
+    const fetchData = React.useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const settingsPromise = getAppSettings();
+            const ticketsPromise = user ? getSupportTicketsByUserId(user.id) : Promise.resolve([]);
+            
+            const [settings, tickets] = await Promise.all([settingsPromise, ticketsPromise]);
+
+            setSupportInfo(settings?.supportInfo || { title: "Soporte", content: "No hay información de soporte disponible." });
+            setMyTickets(tickets);
+
+        } catch (error) {
+            console.error("Failed to fetch support page data", error);
+            setSupportInfo({ title: "Error", content: "No se pudo cargar la información de soporte." });
+        } finally {
+            setIsLoading(false);
         }
-        fetchSupportInfo();
-    }, []);
+    }, [user]);
+
+    React.useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     return (
-        <>
-        <Card>
-            <CardHeader>
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-lg w-fit">
-                        <LifeBuoy className="h-8 w-8 text-primary" />
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                            <LifeBuoy className="h-8 w-8 text-primary" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-2xl">{supportInfo?.title || ""}</CardTitle>
+                            <CardDescription>Información y contacto para asistencia técnica.</CardDescription>
+                        </div>
                     </div>
-                    <div>
-                        <CardTitle className="text-2xl">{supportInfo?.title || ""}</CardTitle>
-                        <CardDescription>Información y contacto para asistencia técnica.</CardDescription>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-40">
-                        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                        <span>Cargando información...</span>
-                    </div>
-                ) : (
-                    <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
-                        <p>{supportInfo?.content}</p>
-                    </div>
-                )}
-            </CardContent>
-            <CardFooter>
-                 <Button onClick={() => setIsDialogOpen(true)}>
-                    <Ticket className="mr-2 h-4 w-4" />
-                    Solicitar Soporte
-                </Button>
-            </CardFooter>
-        </Card>
+                </CardHeader>
+                <CardContent>
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-40">
+                            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                            <span>Cargando información...</span>
+                        </div>
+                    ) : (
+                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
+                            <p>{supportInfo?.content}</p>
+                        </div>
+                    )}
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={() => setIsDialogOpen(true)}>
+                        <Ticket className="mr-2 h-4 w-4" />
+                        Solicitar Soporte
+                    </Button>
+                </CardFooter>
+            </Card>
 
-        <SupportRequestDialog 
-            open={isDialogOpen}
-            onOpenChange={setIsDialogOpen}
-            onSuccess={() => setIsDialogOpen(false)}
-        />
-        </>
+            <MyTicketsList tickets={myTickets} />
+
+            <SupportRequestDialog 
+                open={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+                onSuccess={() => {
+                    setIsDialogOpen(false);
+                    fetchData(); // Refresh tickets list after submission
+                }}
+            />
+        </div>
     );
 }

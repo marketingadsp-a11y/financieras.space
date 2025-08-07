@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { SupportTicket } from "@/lib/data";
 
@@ -22,6 +22,17 @@ export async function getSupportTickets(): Promise<SupportTicket[]> {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SupportTicket[];
 }
+
+export async function getSupportTicketsByUserId(userId: string): Promise<SupportTicket[]> {
+    const q = query(
+        ticketsCollectionRef, 
+        where("userId", "==", userId), 
+        orderBy("createdAt", "desc")
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as SupportTicket[];
+}
+
 
 export async function updateSupportTicketStatus(ticketId: string, status: SupportTicket['status']): Promise<void> {
     const ticketDoc = doc(db, "supportTickets", ticketId);
