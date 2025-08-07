@@ -68,6 +68,8 @@ export const PERMISSIONS = {
   CAN_IMPORT: 'Importar Clientes',
   CAN_EXPORT: 'Exportar Datos',
   CAN_DELETE_ALL: 'Eliminar Todos los Clientes',
+  CAN_SEND_WHATSAPP: 'Enviar WhatsApp',
+  CAN_SEND_SMS: 'Enviar SMS',
 } as const;
 export type Permission = keyof typeof PERMISSIONS;
 

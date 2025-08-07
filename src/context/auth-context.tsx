@@ -9,7 +9,7 @@ import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-adm
 import { getToolAdminByUsername, getToolAdminById } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
-import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission } from '@/lib/data';
+import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission, Permission } from '@/lib/data';
 import { getCustomizedTools } from '@/lib/data';
 
 interface User {
@@ -273,7 +273,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const hasPermission = (id: string, permission: string): boolean => {
     if (!user) return false;
     
-    // SuperAdmins and regular Admins (not tool/plaza users) have all permissions for their tools.
     if (user.isSuperAdmin || (!user.isToolAdmin && !user.isPlazaUser)) {
       return true;
     }
@@ -287,17 +286,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (user.isPlazaUser) {
-      const toolId = user.accessibleTools?.find(t => t === id); // id would be the toolId in this context
-      if (toolId === 'cartera-vencida') {
-        const plazaAccess = user.plazaAccess?.find(p => p.plazaId === id); // This check is incorrect, id is not plazaId here
-        return !!plazaAccess?.permissions.includes(permission as any);
-      }
-      if (toolId === 'loan-control') {
-        return !!user.loanControlPermissions?.permissions.includes(permission as LoanControlPermission);
-      }
-      if (toolId === 'flujo') {
-        return !!user.flujoPermissions?.permissions.includes(permission as FlujoPermission);
-      }
+        // Find the tool context based on the current path, as 'id' is ambiguous here
+        const currentPathToolId = getCustomizedTools().find(t => pathname.startsWith(t.href))?.id;
+
+        if (currentPathToolId === 'cartera-vencida') {
+            const plazaAccess = user.plazaAccess?.find(p => p.plazaId === id);
+            return !!plazaAccess?.permissions.includes(permission as Permission);
+        }
+        if (currentPathToolId === 'loan-control') {
+            return !!user.loanControlPermissions?.permissions.includes(permission as LoanControlPermission);
+        }
+        if (currentPathToolId === 'flujo') {
+            return !!user.flujoPermissions?.permissions.includes(permission as FlujoPermission);
+        }
     }
     return false;
   }

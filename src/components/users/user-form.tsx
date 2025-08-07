@@ -58,27 +58,14 @@ const baseFormSchema = z.object({
 });
 
 const refinement = (data: z.infer<typeof baseFormSchema>, ctx: z.RefinementCtx) => {
-    if (data.accessibleTools.includes('cartera-vencida') && data.plazaAccess.length === 0) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Si se asigna la herramienta 'Cartera Vencida', debe asignar acceso a al menos una plaza.",
-            path: ["plazaAccess"],
-        });
-    }
-     if (data.accessibleTools.includes('loan-control') && (!data.loanControlPermissions)) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Si se asigna la herramienta 'Control de Préstamo', debe asignar al menos un permiso.",
-            path: ["loanControlPermissions"],
-        });
-    }
-     if (data.accessibleTools.includes('flujo') && (!data.flujoPermissions)) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Si se asigna la herramienta 'Flujo', debe asignar al menos un permiso.",
-            path: ["flujoPermissions"],
-        });
-    }
+    // This validation is no longer needed as plaza access is not mandatory for cartera vencida.
+    // if (data.accessibleTools.includes('cartera-vencida') && data.plazaAccess.length === 0) {
+    //     ctx.addIssue({
+    //         code: z.ZodIssueCode.custom,
+    //         message: "Si se asigna la herramienta 'Cartera Vencida', debe asignar acceso a al menos una plaza.",
+    //         path: ["plazaAccess"],
+    //     });
+    // }
 };
 
 const editFormSchema = baseFormSchema.partial().omit({ username: true }).superRefine(refinement);

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DollarSign, Pencil, User, Phone, MessageCircle, Trash2, Mail } from "lucide-react";
 import type { Customer } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
 
 type CustomerCardProps = {
   customer: Customer;
@@ -20,6 +21,11 @@ type CustomerCardProps = {
 };
 
 export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms, promoterColor, groupColor, whatsappLink }: CustomerCardProps) {
+  const { hasPermission } = useAuth();
+  
+  const canSendWhatsapp = hasPermission(customer.plazaId, 'CAN_SEND_WHATSAPP');
+  const canSendSms = hasPermission(customer.plazaId, 'CAN_SEND_SMS');
+
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
       case 'Pendiente':
@@ -114,14 +120,18 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
                 <DollarSign className="mr-2 h-4 w-4"/> Abonar
             </Button>
           </div>
-           <Button variant="outline" size="sm" className="w-full border-green-600 text-green-700 hover:bg-green-100 hover:text-green-800" asChild>
-              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsAppClick} aria-disabled={!whatsappLink}>
-                <MessageCircle className="mr-2 h-4 w-4"/> Enviar WhatsApp
-              </a>
-          </Button>
-          <Button variant="outline" size="sm" className="w-full border-blue-600 text-blue-700 hover:bg-blue-100 hover:text-blue-800" onClick={() => onSendSms(customer)} disabled={!customer.phone}>
-                <Mail className="mr-2 h-4 w-4"/> Enviar SMS
-          </Button>
+          {canSendWhatsapp && (
+            <Button variant="outline" size="sm" className="w-full border-green-600 text-green-700 hover:bg-green-100 hover:text-green-800" asChild>
+                <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsAppClick} aria-disabled={!whatsappLink}>
+                  <MessageCircle className="mr-2 h-4 w-4"/> Enviar WhatsApp
+                </a>
+            </Button>
+          )}
+          {canSendSms && (
+            <Button variant="outline" size="sm" className="w-full border-blue-600 text-blue-700 hover:bg-blue-100 hover:text-blue-800" onClick={() => onSendSms(customer)} disabled={!customer.phone}>
+                  <Mail className="mr-2 h-4 w-4"/> Enviar SMS
+            </Button>
+          )}
       </CardFooter>
     </Card>
   );
