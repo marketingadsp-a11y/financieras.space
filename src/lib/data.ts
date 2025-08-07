@@ -68,10 +68,15 @@ export const PERMISSIONS = {
   CAN_IMPORT: 'Importar Clientes',
   CAN_EXPORT: 'Exportar Datos',
   CAN_DELETE_ALL: 'Eliminar Todos los Clientes',
+} as const;
+export type Permission = keyof typeof PERMISSIONS;
+
+export const OVERDUE_PORTFOLIO_PERMISSIONS = {
   CAN_SEND_WHATSAPP: 'Enviar WhatsApp',
   CAN_SEND_SMS: 'Enviar SMS',
 } as const;
-export type Permission = keyof typeof PERMISSIONS;
+export type OverduePortfolioPermission = keyof typeof OVERDUE_PORTFOLIO_PERMISSIONS;
+
 
 export const LOAN_CONTROL_PERMISSIONS = {
   CAN_EDIT_PLAZA_NAMES: 'Editar Nombres de Plazas',
@@ -100,6 +105,10 @@ export type FlujoPermissions = {
     permissions: FlujoPermission[];
 }
 
+export type OverduePortfolioPermissions = {
+    permissions: OverduePortfolioPermission[];
+}
+
 export type PlazaUser = {
   id: string;
   name: string;
@@ -111,6 +120,7 @@ export type PlazaUser = {
   prefix?: string;
   loanControlPermissions?: LoanControlPermissions;
   flujoPermissions?: FlujoPermissions;
+  overduePortfolioPermissions?: OverduePortfolioPermissions;
 };
 
 export type Customer = {

@@ -9,7 +9,7 @@ import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-adm
 import { getToolAdminByUsername, getToolAdminById } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
-import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission, Permission } from '@/lib/data';
+import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission, Permission, OverduePortfolioPermissions, OverduePortfolioPermission } from '@/lib/data';
 import { getCustomizedTools } from '@/lib/data';
 
 interface User {
@@ -24,6 +24,7 @@ interface User {
   sucursalAccess?: SucursalAccess[];
   loanControlPermissions?: LoanControlPermissions;
   flujoPermissions?: FlujoPermissions;
+  overduePortfolioPermissions?: OverduePortfolioPermissions;
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
   linkedAdmins?: LinkedAdminAccess[];
@@ -173,7 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const plazaUser = await getPlazaUserByUsername(usernamePart, prefix);
       if (plazaUser && plazaUser.password === pass && plazaUser.status === "Activo") {
-         const userData: User = { id: plazaUser.id, username: plazaUser.username, name: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, accessibleTools: plazaUser.accessibleTools, prefix: plazaUser.prefix, loanControlPermissions: plazaUser.loanControlPermissions, flujoPermissions: plazaUser.flujoPermissions };
+         const userData: User = { id: plazaUser.id, username: plazaUser.username, name: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, accessibleTools: plazaUser.accessibleTools, prefix: plazaUser.prefix, loanControlPermissions: plazaUser.loanControlPermissions, flujoPermissions: plazaUser.flujoPermissions, overduePortfolioPermissions: plazaUser.overduePortfolioPermissions };
          handleSuccessfulLogin(userData);
          return true;
       } else if (plazaUser && plazaUser.status === "Inactivo") {
@@ -286,12 +287,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (user.isPlazaUser) {
-        // Find the tool context based on the current path, as 'id' is ambiguous here
         const currentPathToolId = getCustomizedTools().find(t => pathname.startsWith(t.href))?.id;
 
         if (currentPathToolId === 'cartera-vencida') {
-            const plazaAccess = user.plazaAccess?.find(p => p.plazaId === id);
-            return !!plazaAccess?.permissions.includes(permission as Permission);
+             // For cartera-vencida, permissions are not tied to a specific plazaId
+            return !!user.overduePortfolioPermissions?.permissions.includes(permission as OverduePortfolioPermission);
         }
         if (currentPathToolId === 'loan-control') {
             return !!user.loanControlPermissions?.permissions.includes(permission as LoanControlPermission);

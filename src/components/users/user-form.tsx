@@ -27,8 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission, FlujoPermission } from "@/lib/data";
-import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS, FLUJO_PERMISSIONS } from "@/lib/data";
+import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission, FlujoPermission, OverduePortfolioPermission } from "@/lib/data";
+import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS, FLUJO_PERMISSIONS, OVERDUE_PORTFOLIO_PERMISSIONS } from "@/lib/data";
 import { Trash2 } from "lucide-react";
 
 const plazaAccessSchema = z.object({
@@ -45,6 +45,10 @@ const flujoPermissionsSchema = z.object({
     permissions: z.array(z.string()),
 });
 
+const overduePortfolioPermissionsSchema = z.object({
+    permissions: z.array(z.string()),
+});
+
 const baseFormSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   username: z.string().min(2, "El nombre de usuario es requerido."),
@@ -55,24 +59,14 @@ const baseFormSchema = z.object({
   plazaAccess: z.array(plazaAccessSchema),
   loanControlPermissions: loanControlPermissionsSchema.optional(),
   flujoPermissions: flujoPermissionsSchema.optional(),
+  overduePortfolioPermissions: overduePortfolioPermissionsSchema.optional(),
 });
 
-const refinement = (data: z.infer<typeof baseFormSchema>, ctx: z.RefinementCtx) => {
-    // This validation is no longer needed as plaza access is not mandatory for cartera vencida.
-    // if (data.accessibleTools.includes('cartera-vencida') && data.plazaAccess.length === 0) {
-    //     ctx.addIssue({
-    //         code: z.ZodIssueCode.custom,
-    //         message: "Si se asigna la herramienta 'Cartera Vencida', debe asignar acceso a al menos una plaza.",
-    //         path: ["plazaAccess"],
-    //     });
-    // }
-};
 
-const editFormSchema = baseFormSchema.partial().omit({ username: true }).superRefine(refinement);
-
+const editFormSchema = baseFormSchema.partial().omit({ username: true });
 const createFormSchema = baseFormSchema.extend({
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
-}).superRefine(refinement);
+});
 
 
 type UserFormProps = {
@@ -88,6 +82,7 @@ type UserFormProps = {
 const allPlazaPermissions = Object.entries(PERMISSIONS) as [Permission, string][];
 const allLoanControlPermissions = Object.entries(LOAN_CONTROL_PERMISSIONS) as [LoanControlPermission, string][];
 const allFlujoPermissions = Object.entries(FLUJO_PERMISSIONS) as [FlujoPermission, string][];
+const allOverduePortfolioPermissions = Object.entries(OVERDUE_PORTFOLIO_PERMISSIONS) as [OverduePortfolioPermission, string][];
 
 
 export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools, isSuperAdminView = false }: UserFormProps) {
@@ -109,6 +104,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
             plazaAccess: user?.plazaAccess || [],
             loanControlPermissions: user?.loanControlPermissions || { permissions: [] },
             flujoPermissions: user?.flujoPermissions || { permissions: [] },
+            overduePortfolioPermissions: user?.overduePortfolioPermissions || { permissions: [] },
         },
     });
 
@@ -135,7 +131,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
     const assignedPlazaIds = fields.map(field => field.plazaId);
     const availablePlazas = plazasForSelectedPrefix.filter(p => !assignedPlazaIds.includes(p.id));
     
-    const showPlazaManagement = watchAccessibleTools.includes('cartera-vencida');
+    const showOverduePortfolioManagement = watchAccessibleTools.includes('cartera-vencida');
     const showLoanControlManagement = watchAccessibleTools.includes('loan-control');
     const showFlujoManagement = watchAccessibleTools.includes('flujo');
 
@@ -245,6 +241,48 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
                     />
                 </div>
 
+                {showOverduePortfolioManagement && (
+                    <div className="space-y-4 pt-4">
+                        <h3 className="text-lg font-medium">Permisos para Cartera Vencida</h3>
+                        <FormField
+                            control={form.control}
+                            name="overduePortfolioPermissions.permissions"
+                            render={() => (
+                                <FormItem>
+                                <FormDescription>Selecciona las acciones que este usuario podrá realizar en "Cartera Vencida".</FormDescription>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {allOverduePortfolioPermissions.map(([key, label]) => (
+                                        <FormField
+                                        key={key}
+                                        control={form.control}
+                                        name="overduePortfolioPermissions.permissions"
+                                        render={({ field }) => (
+                                            <FormItem key={key} className="flex flex-row items-start space-x-3 space-y-0 rounded-lg border p-4">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(key)}
+                                                        onCheckedChange={(checked) => {
+                                                            const newValue = field.value || [];
+                                                            return checked
+                                                                ? field.onChange([...newValue, key])
+                                                                : field.onChange(newValue.filter(value => value !== key));
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal flex-1 cursor-pointer">{label}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage>{form.formState.errors.overduePortfolioPermissions?.message || (form.formState.errors.overduePortfolioPermissions as any)?.root?.message}</FormMessage>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                )}
+
+
                 {showLoanControlManagement && (
                     <div className="space-y-4 pt-4">
                          <h3 className="text-lg font-medium">Permisos para Control de Préstamo</h3>
@@ -328,101 +366,7 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
                 )}
 
 
-                {showPlazaManagement && (
-                    <div className="space-y-4 pt-4">
-                        <div className="flex justify-between items-center">
-                        <div>
-                            <h3 className="text-lg font-medium">Accesos y Permisos (Cartera Vencida)</h3>
-                            <p className="text-sm text-muted-foreground">Asigna las plazas y los permisos que tendrá el usuario.</p>
-                            <FormMessage>{form.formState.errors.plazaAccess?.message || (form.formState.errors.plazaAccess as any)?.root?.message}</FormMessage>
-                        </div>
-                        <Select onValueChange={(plazaId) => {
-                                const plaza = allPlazas.find(p => p.id === plazaId);
-                                if(plaza) {
-                                append({ plazaId: plaza.id, plazaName: plaza.name, permissions: [] });
-                                }
-                            }} value="">
-                            <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Asignar plaza..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {availablePlazas.length > 0 ? (
-                                    availablePlazas.map(plaza => (
-                                        <SelectItem key={plaza.id} value={plaza.id}>{plaza.name}</SelectItem>
-                                    ))
-                                ) : (
-                                    <div className="p-2 text-sm text-muted-foreground">No hay más plazas para asignar.</div>
-                                )}
-                            </SelectContent>
-                        </Select>
-                        </div>
-
-                        <Accordion type="multiple" className="w-full space-y-2" defaultValue={fields.map((_, i) => `item-${i}`)}>
-                            {fields.map((field, index) => (
-                                <AccordionItem key={field.id} value={`item-${index}`} className="border rounded-md px-4 bg-muted/20">
-                                    <div className="flex items-center">
-                                    <AccordionTrigger className="flex-1 text-base">{field.plazaName}</AccordionTrigger>
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                    </div>
-                                    <AccordionContent>
-                                        <FormField
-                                        control={form.control}
-                                        name={`plazaAccess.${index}.permissions`}
-                                        render={() => (
-                                            <FormItem>
-                                            <div className="mb-4">
-                                                <FormLabel className="text-base">Permisos para {field.plazaName}</FormLabel>
-                                                <FormDescription>
-                                                Selecciona las acciones que este usuario podrá realizar en esta plaza.
-                                                </FormDescription>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                            {allPlazaPermissions.map(([key, label]) => (
-                                                <FormField
-                                                key={key}
-                                                control={form.control}
-                                                name={`plazaAccess.${index}.permissions`}
-                                                render={({ field }) => {
-                                                    return (
-                                                    <FormItem
-                                                        key={key}
-                                                        className="flex flex-row items-start space-x-3 space-y-0"
-                                                    >
-                                                        <FormControl>
-                                                        <Checkbox
-                                                            checked={field.value?.includes(key)}
-                                                            onCheckedChange={(checked) => {
-                                                            return checked
-                                                                ? field.onChange([...(field.value || []), key])
-                                                                : field.onChange(
-                                                                    (field.value || []).filter(
-                                                                    (value) => value !== key
-                                                                    )
-                                                                )
-                                                            }}
-                                                        />
-                                                        </FormControl>
-                                                        <FormLabel className="font-normal">
-                                                        {label}
-                                                        </FormLabel>
-                                                    </FormItem>
-                                                    )
-                                                }}
-                                                />
-                                            ))}
-                                            </div>
-                                            <FormMessage>{form.formState.errors.plazaAccess?.[index]?.permissions?.message}</FormMessage>
-                                            </FormItem>
-                                        )}
-                                        />
-                                    </AccordionContent>
-                                </AccordionItem>
-                            ))}
-                        </Accordion>
-                    </div>
-                )}
+                
               </ScrollArea>
               <div className="pt-6">
                 <Button type="submit" className="w-full">
@@ -435,3 +379,4 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
 }
 
     
+

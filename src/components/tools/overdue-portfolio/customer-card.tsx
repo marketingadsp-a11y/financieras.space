@@ -23,8 +23,8 @@ type CustomerCardProps = {
 export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms, promoterColor, groupColor, whatsappLink }: CustomerCardProps) {
   const { hasPermission } = useAuth();
   
-  const canSendWhatsapp = hasPermission(customer.plazaId, 'CAN_SEND_WHATSAPP');
-  const canSendSms = hasPermission(customer.plazaId, 'CAN_SEND_SMS');
+  const canSendWhatsapp = hasPermission('cartera-vencida', 'CAN_SEND_WHATSAPP');
+  const canSendSms = hasPermission('cartera-vencida', 'CAN_SEND_SMS');
 
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
