@@ -284,11 +284,9 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
 
         const centralAccountRef = doc(db, "centralAccounts", sucursalData.prefix);
         const centralAccountDoc = await transaction.get(centralAccountRef);
-        // !! CRITICAL FIX: Do not throw error if central account doesn't exist. Create it. !!
-        let centralAccountData: CentralAccount;
+        let centralAccountData: Partial<CentralAccount>;
         if (!centralAccountDoc.exists()) {
              centralAccountData = {
-                id: sucursalData.prefix,
                 prefix: sucursalData.prefix,
                 currentBalance: 0,
                 assignedCapital: 0,
@@ -317,14 +315,14 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         
         if (type === 'deposit') {
             newSucursalBalance += amount;
-            centralAccountData.totalBranchBalance += amount;
+            centralAccountData.totalBranchBalance = (centralAccountData.totalBranchBalance || 0) + amount;
         } else if (type === 'expense') {
             newSucursalBalance -= amount;
-            centralAccountData.totalBranchBalance -= amount;
+            centralAccountData.totalBranchBalance = (centralAccountData.totalBranchBalance || 0) - amount;
         } else if (type === 'transfer_to_central') {
             newSucursalBalance -= amount;
-            centralAccountData.currentBalance += amount; // Add to central account
-            centralAccountData.totalBranchBalance -= amount; // Remove from total in branches
+            centralAccountData.currentBalance = (centralAccountData.currentBalance || 0) + amount; // Add to central account
+            centralAccountData.totalBranchBalance = (centralAccountData.totalBranchBalance || 0) - amount; // Remove from total in branches
 
             // Log the "deposit" on the central account's side
             const centralTransactionRef = doc(centralAccountTransactionsCollectionRef);
@@ -480,3 +478,5 @@ export async function updateSucursalTransaction(
     transaction.update(transactionRef, dataToUpdate);
   });
 }
+
+    
