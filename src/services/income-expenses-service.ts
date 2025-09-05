@@ -297,7 +297,7 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
         }
 
         // --- VALIDATIONS ---
-        if ((type === 'expense' || type === 'transfer_to_central') && sucursalData.currentBalance < amount) {
+        if (type === 'transfer_to_central' && sucursalData.currentBalance < amount) {
             throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
         }
 
