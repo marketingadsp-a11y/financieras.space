@@ -6,10 +6,11 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SucursalesTable } from "./sucursales-table";
 import { SucursalForm } from "./sucursal-form";
+import { AdjustBalanceDialog } from "./adjust-balance-dialog";
 import type { Sucursal } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getSucursales, addSucursal, updateSucursal, deleteSucursal } from "@/services/income-expenses-service";
+import { getSucursales, addSucursal, updateSucursal, deleteSucursal, adjustSucursalBalance } from "@/services/income-expenses-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 
@@ -18,7 +19,9 @@ export function SucursalesManagement() {
   const [sucursales, setSucursales] = React.useState<Sucursal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isAdjustDialogOpen, setIsAdjustDialogOpen] = React.useState(false);
   const [editingSucursal, setEditingSucursal] = React.useState<Sucursal | null>(null);
+  const [adjustingSucursal, setAdjustingSucursal] = React.useState<Sucursal | null>(null);
   const { toast } = useToast();
 
   const fetchSucursales = React.useCallback(async () => {
@@ -86,10 +89,27 @@ export function SucursalesManagement() {
       });
     }
   };
+
+  const handleAdjustBalance = async (sucursalId: string, newBalance: number) => {
+    try {
+      await adjustSucursalBalance(sucursalId, newBalance);
+      toast({ title: "Éxito", description: "Balance de la sucursal ajustado."});
+      await fetchSucursales();
+      return true;
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo ajustar el balance." });
+      return false;
+    }
+  };
   
   const handleEditClick = (sucursal: Sucursal) => {
       setEditingSucursal(sucursal);
       setIsFormOpen(true);
+  }
+
+  const handleAdjustClick = (sucursal: Sucursal) => {
+      setAdjustingSucursal(sucursal);
+      setIsAdjustDialogOpen(true);
   }
 
   const handleOpenChange = (open: boolean) => {
@@ -135,11 +155,21 @@ export function SucursalesManagement() {
             <span>Cargando sucursales...</span>
           </div>
         ) : (
-          <SucursalesTable data={sucursales} onEdit={handleEditClick} onDelete={handleDelete} />
+          <SucursalesTable 
+            data={sucursales} 
+            onEdit={handleEditClick} 
+            onDelete={handleDelete}
+            onAdjustBalance={handleAdjustClick}
+          />
         )}
       </CardContent>
+      
+      <AdjustBalanceDialog 
+        sucursal={adjustingSucursal}
+        isOpen={isAdjustDialogOpen}
+        onClose={() => setIsAdjustDialogOpen(false)}
+        onSave={handleAdjustBalance}
+      />
     </Card>
   );
 }
-
-    

@@ -71,6 +71,11 @@ export async function deleteSucursal(id: string) {
   await deleteDoc(sucursalDocRef);
 }
 
+export async function adjustSucursalBalance(sucursalId: string, newBalance: number) {
+    const sucursalRef = doc(db, "sucursales", sucursalId);
+    await updateDoc(sucursalRef, { currentBalance: newBalance });
+}
+
 
 // --- Dashboard & Central Account Functions ---
 export async function getIncomeExpensesSummary(prefix: string) {
@@ -296,11 +301,6 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             centralAccountData = centralAccountDoc.data() as CentralAccount;
         }
 
-        // --- VALIDATIONS ---
-        if (type === 'transfer_to_central' && sucursalData.currentBalance < amount) {
-            throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
-        }
-
         // --- PREPARE DATA ---
         const now = Timestamp.now();
         const sucursalTransactionRef = doc(sucursalTransactionsCollectionRef);
@@ -320,6 +320,9 @@ export async function performSucursalTransaction(params: SucursalTransactionPara
             newSucursalBalance -= amount;
             centralAccountData.totalBranchBalance = (centralAccountData.totalBranchBalance || 0) - amount;
         } else if (type === 'transfer_to_central') {
+            if (sucursalData.currentBalance < amount) {
+                throw new Error("Fondos insuficientes en la Caja Chica para esta operación.");
+            }
             newSucursalBalance -= amount;
             centralAccountData.currentBalance = (centralAccountData.currentBalance || 0) + amount; // Add to central account
             centralAccountData.totalBranchBalance = (centralAccountData.totalBranchBalance || 0) - amount; // Remove from total in branches
@@ -478,5 +481,3 @@ export async function updateSucursalTransaction(
     transaction.update(transactionRef, dataToUpdate);
   });
 }
-
-    

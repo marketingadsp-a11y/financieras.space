@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2, Building, DollarSign, PiggyBank, Briefcase } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Building, DollarSign, PiggyBank, Briefcase, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +18,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Sucursal } from "@/lib/data";
@@ -38,9 +39,10 @@ type SucursalTableProps = {
     data: Sucursal[];
     onEdit: (sucursal: Sucursal) => void;
     onDelete: (id: string) => void;
+    onAdjustBalance: (sucursal: Sucursal) => void;
 }
 
-export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) {
+export function SucursalesTable({ data, onEdit, onDelete, onAdjustBalance }: SucursalTableProps) {
   const [filter, setFilter] = React.useState("");
   
   const filteredData = data.filter((s) =>
@@ -103,11 +105,15 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                               <DropdownMenuItem onSelect={() => onEdit(sucursal)}>
-                                <Pencil className="mr-2 h-4 w-4" /> Editar
+                                <Pencil className="mr-2 h-4 w-4" /> Editar Datos
                               </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => onAdjustBalance(sucursal)}>
+                                <Settings2 className="mr-2 h-4 w-4" /> Ajustar Saldo
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
-                                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar Sucursal
                                 </DropdownMenuItem>
                               </AlertDialogTrigger>
                             </DropdownMenuContent>
@@ -142,5 +148,3 @@ export function SucursalesTable({ data, onEdit, onDelete }: SucursalTableProps) 
     </>
   );
 }
-
-    
