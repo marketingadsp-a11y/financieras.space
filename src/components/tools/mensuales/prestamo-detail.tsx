@@ -15,6 +15,8 @@ import { es } from "date-fns/locale";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,11 +54,16 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
         initial_loan: { label: "Préstamo Inicial", color: "text-primary" },
         pago_interes: { label: "Pago a Interés", color: "text-orange-500" },
         pago_capital: { label: "Abono a Capital", color: "text-green-600" },
+        payment: { label: "Abono Recibido", color: "text-emerald-600"},
         default: { label: "Movimiento", color: "text-muted-foreground" },
     };
 
     const info = typeInfo[movimiento.type as keyof typeof typeInfo] || typeInfo.default;
-    const notes = movimiento.notes;
+    let notes = movimiento.notes;
+
+    if (movimiento.type === 'payment' && movimiento.interestPaid !== undefined && movimiento.capitalPaid !== undefined) {
+        notes = `Desglose: $${movimiento.interestPaid.toLocaleString('es-MX')} a interés, $${movimiento.capitalPaid.toLocaleString('es-MX')} a capital.`;
+    }
 
     return (
          <div className="flex items-center justify-between p-3 border-b">
@@ -87,19 +94,17 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
             const clienteData = await getClienteById(clienteId);
             setCliente(clienteData);
 
-            if (clienteData && clienteData.oficinaId) {
+            if (clienteData) {
                 const [movimientosData, oficinaData] = await Promise.all([
                     getMovimientosByCliente(clienteId),
-                    getOficinaById(clienteData.oficinaId),
+                    clienteData.oficinaId ? getOficinaById(clienteData.oficinaId) : Promise.resolve(null),
                 ]);
                 setMovimientos(movimientosData);
                 setOficina(oficinaData);
-            } else if (clienteData) {
-                 const movimientosData = await getMovimientosByCliente(clienteId);
-                 setMovimientos(movimientosData);
-                 setOficina(null);
             } else {
-                 setCliente(null); // Ensure client is null if not found
+                 setCliente(null);
+                 setMovimientos([]);
+                 setOficina(null);
             }
 
         } catch (error) {
@@ -141,6 +146,80 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         }
     };
 
+    const handleExportPDF = () => {
+        if (!cliente) {
+            toast({ variant: "destructive", title: "Error", description: "No hay datos del cliente para exportar." });
+            return;
+        }
+
+        const doc = new jsPDF();
+        const dateStr = format(new Date(), "PPP p", { locale: es });
+
+        // --- PDF Header ---
+        doc.setFontSize(18);
+        doc.text(`Detalle de Préstamo: ${cliente.name}`, 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`ID Cliente: ${cliente.displayId}`, 14, 28);
+        doc.text(`Exportado el: ${dateStr}`, 14, 34);
+
+        // --- Loan Details Table ---
+        const detailsBody = [
+            ["Oficina", oficina?.name || 'N/A'],
+            ["Monto Original", `$${cliente.loanAmount.toLocaleString('es-MX')}`],
+            ["Saldo Actual", `$${cliente.currentBalance.toLocaleString('es-MX')}`],
+            ["Tasa de Interés", `${cliente.interestRateValue}% mensual`],
+            ["Día de Pago", `${cliente.paymentDay} de cada mes`],
+            ["Estado", cliente.status],
+        ];
+        autoTable(doc, {
+            startY: 42,
+            head: [['Concepto', 'Valor']],
+            body: detailsBody,
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185] },
+        });
+
+        // --- Movements History Table ---
+        if (movimientos.length > 0) {
+            const lastY = (doc as any).lastAutoTable.finalY + 15;
+            doc.setFontSize(14);
+            doc.text("Historial de Movimientos", 14, lastY);
+            
+            const movementsBody = movimientos.map(mov => {
+                const typeInfo = {
+                    initial_loan: 'Préstamo Inicial',
+                    charge_interest: 'Cargo de Interés',
+                    pago_interes: 'Pago a Interés',
+                    pago_capital: 'Abono a Capital',
+                    payment: 'Abono Recibido',
+                }[mov.type] || 'Movimiento';
+                
+                let notes = mov.notes || '';
+                if (mov.type === 'payment' && mov.interestPaid !== undefined && mov.capitalPaid !== undefined) {
+                    notes = `Interés: $${mov.interestPaid.toLocaleString()} | Capital: $${mov.capitalPaid.toLocaleString()}`;
+                }
+
+                return [
+                    format(mov.date, "dd/MM/yy p", { locale: es }),
+                    typeInfo,
+                    notes,
+                    `$${mov.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+                ];
+            });
+
+            autoTable(doc, {
+                startY: lastY + 6,
+                head: [['Fecha', 'Tipo', 'Notas', 'Monto']],
+                body: movementsBody,
+                headStyles: { fillColor: [41, 128, 185] },
+                columnStyles: { 3: { halign: 'right' } }
+            });
+        }
+        
+        doc.save(`Reporte_Prestamo_${cliente.name.replace(/\s/g, '_')}.pdf`);
+    };
+
 
     const stats = React.useMemo(() => {
         return movimientos.reduce((acc, mov) => {
@@ -148,6 +227,10 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                 acc.totalCapitalPaid += mov.amount;
             } else if (mov.type === 'pago_interes') {
                 acc.totalInterestPaid += mov.amount;
+            } else if (mov.type === 'payment' && mov.capitalPaid) {
+                acc.totalCapitalPaid += mov.capitalPaid;
+            } else if (mov.type === 'payment' && mov.interestPaid) {
+                acc.totalInterestPaid += mov.interestPaid;
             }
             return acc;
         }, { totalCapitalPaid: 0, totalInterestPaid: 0 });
@@ -163,8 +246,8 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                 <h2 className="text-xl font-semibold">Cliente no encontrado</h2>
                 <p className="text-muted-foreground">El préstamo que buscas no existe o fue eliminado.</p>
                  <Button variant="outline" asChild className="mt-4">
-                    <Link href="/tools/mensuales">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Dashboard
+                    <Link href="/tools/mensuales/clientes">
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Listado de Clientes
                     </Link>
                 </Button>
             </div>
@@ -249,7 +332,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="border-t pt-4">
+                <CardFooter className="border-t pt-4 flex gap-2">
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive">
@@ -272,6 +355,9 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
+                     <Button variant="outline" onClick={handleExportPDF}>
+                        <FileText className="mr-2 h-4 w-4" /> Exportar a PDF
+                    </Button>
                 </CardFooter>
             </Card>
         </div>
