@@ -243,7 +243,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                 <p className="text-muted-foreground">El préstamo que buscas no existe o fue eliminado.</p>
                  <Button variant="outline" asChild className="mt-4">
                     <Link href="/tools/mensuales/clientes">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Listado de Clientes
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Prestamos
                     </Link>
                 </Button>
             </div>
@@ -263,7 +263,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         <div className="space-y-6">
             <Button variant="outline" asChild>
                 <Link href="/tools/mensuales/clientes">
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Listado de Clientes
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Prestamos
                 </Link>
             </Button>
             <Card>
