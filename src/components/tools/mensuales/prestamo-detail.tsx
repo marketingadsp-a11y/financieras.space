@@ -55,7 +55,7 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
         pago_capital: { label: "Abono a Capital", color: "text-green-600" },
     };
 
-    const info = typeInfo[movimiento.type];
+    const info = typeInfo[movimiento.type as keyof typeof typeInfo];
     const notes = movimiento.notes || (movimiento.type === 'payment' 
         ? `Desglose: $${(movimiento.interestPaid || 0).toLocaleString()} a interés, $${(movimiento.capitalPaid || 0).toLocaleString()} a capital.`
         : '');
