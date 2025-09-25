@@ -79,6 +79,11 @@ export function OficinasManagement() {
     setEditingOficina(oficina);
     setIsFormOpen(true);
   };
+  
+  const handleAddNew = () => {
+    setEditingOficina(null);
+    setIsFormOpen(true);
+  }
 
   const handleOpenChange = (open: boolean) => {
     setIsFormOpen(open);
@@ -99,7 +104,7 @@ export function OficinasManagement() {
           </div>
           <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-              <Button size="sm">
+               <Button size="sm" onClick={handleAddNew}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Agregar Oficina
               </Button>
