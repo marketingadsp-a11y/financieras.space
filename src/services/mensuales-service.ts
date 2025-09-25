@@ -179,39 +179,39 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         const clienteData = clienteDoc.data() as ClienteMensual;
         let currentBalance = clienteData.currentBalance;
         let interestToPay = clienteData.monthlyInterestCharge;
-        let capitalPayment = 0;
-        let interestPayment = 0;
-
+        
         if (paymentAmount < interestToPay) {
             throw new Error(`El abono debe ser de al menos $${interestToPay.toLocaleString('es-MX')} para cubrir el interés mensual.`);
         }
         
         let remainingPayment = paymentAmount;
-        
-        // 1. Pay the interest first
-        interestPayment = Math.min(remainingPayment, interestToPay);
-        remainingPayment -= interestPayment;
-        
-        // 2. Any remaining amount goes to capital
-        capitalPayment = remainingPayment;
-        if (capitalPayment > 0) {
-             currentBalance -= capitalPayment;
-        }
-        
         const now = new Date();
         
-        // 3. Create a single consolidated payment movement
-        const paymentMovement: Omit<MovimientoMensual, 'id'> = {
+        // 1. Log interest payment
+        const interestPaymentMovement: Omit<MovimientoMensual, 'id'> = {
             clienteId,
             date: now,
-            type: 'payment',
-            amount: paymentAmount, // Store the total payment amount
-            interestPaid: interestPayment,
-            capitalPaid: capitalPayment,
+            type: 'pago_interes',
+            amount: interestToPay,
         };
-        transaction.set(doc(movimientosCollectionRef), paymentMovement);
+        transaction.set(doc(movimientosCollectionRef), interestPaymentMovement);
+        
+        remainingPayment -= interestToPay;
+        
+        // 2. Log capital payment if any remains
+        if (remainingPayment > 0) {
+            const capitalPayment = remainingPayment;
+            currentBalance -= capitalPayment;
 
-
+            const capitalPaymentMovement: Omit<MovimientoMensual, 'id'> = {
+                clienteId,
+                date: now,
+                type: 'pago_capital',
+                amount: capitalPayment,
+            };
+            transaction.set(doc(movimientosCollectionRef), capitalPaymentMovement);
+        }
+        
         const updates: Partial<ClienteMensual> = {
             currentBalance: currentBalance,
             lastPaymentDate: now,

@@ -50,16 +50,13 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
     const typeInfo: { [key: string]: { label: string; color: string } } = {
         charge_interest: { label: "Cargo de Interés", color: "text-amber-600" },
         initial_loan: { label: "Préstamo Inicial", color: "text-primary" },
-        payment: { label: "Abono Recibido", color: "text-green-600" },
         pago_interes: { label: "Pago a Interés", color: "text-orange-500" },
         pago_capital: { label: "Abono a Capital", color: "text-green-600" },
         default: { label: "Movimiento", color: "text-muted-foreground" },
     };
 
     const info = typeInfo[movimiento.type as keyof typeof typeInfo] || typeInfo.default;
-    const notes = movimiento.notes || (movimiento.type === 'payment' 
-        ? `Desglose: $${(movimiento.interestPaid || 0).toLocaleString()} a interés, $${(movimiento.capitalPaid || 0).toLocaleString()} a capital.`
-        : '');
+    const notes = movimiento.notes;
 
     return (
          <div className="flex items-center justify-between p-3 border-b">
@@ -90,13 +87,17 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
             const clienteData = await getClienteById(clienteId);
             setCliente(clienteData);
 
-            if (clienteData) {
+            if (clienteData && clienteData.oficinaId) {
                 const [movimientosData, oficinaData] = await Promise.all([
                     getMovimientosByCliente(clienteId),
                     getOficinaById(clienteData.oficinaId),
                 ]);
                 setMovimientos(movimientosData);
                 setOficina(oficinaData);
+            } else if (clienteData) {
+                 const movimientosData = await getMovimientosByCliente(clienteId);
+                 setMovimientos(movimientosData);
+                 setOficina(null);
             } else {
                  setCliente(null); // Ensure client is null if not found
             }
@@ -143,9 +144,10 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
 
     const stats = React.useMemo(() => {
         return movimientos.reduce((acc, mov) => {
-            if (mov.type === 'payment') {
-                acc.totalCapitalPaid += (mov.capitalPaid || 0);
-                acc.totalInterestPaid += (mov.interestPaid || 0);
+            if (mov.type === 'pago_capital') {
+                acc.totalCapitalPaid += mov.amount;
+            } else if (mov.type === 'pago_interes') {
+                acc.totalInterestPaid += mov.amount;
             }
             return acc;
         }, { totalCapitalPaid: 0, totalInterestPaid: 0 });
