@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -25,9 +25,10 @@ import type { ClienteMensual, OficinaMensual } from "@/lib/data";
 type ClientesTableProps = {
   data: ClienteMensual[];
   oficinas: OficinaMensual[];
+  onPaymentClick: (cliente: ClienteMensual) => void;
 };
 
-export function ClientesTable({ data, oficinas }: ClientesTableProps) {
+export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableProps) {
 
   const oficinaMap = new Map(oficinas.map(o => [o.id, o.name]));
 
@@ -81,6 +82,9 @@ export function ClientesTable({ data, oficinas }: ClientesTableProps) {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => onPaymentClick(cliente)} disabled={cliente.status === 'liquidado'}>
+                                    <DollarSign className="mr-2 h-4 w-4" /> Abonar
+                                </DropdownMenuItem>
                                 <DropdownMenuItem>
                                     <Pencil className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>

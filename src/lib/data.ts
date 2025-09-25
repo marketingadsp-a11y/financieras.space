@@ -40,7 +40,7 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo';
+  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales';
   prefix?: string;
   createdBy?: string;
   sucursalAccess?: SucursalAccess[]; // Array of sucursal access objects
@@ -460,7 +460,7 @@ export type MovimientoMensual = {
     id: string;
     clienteId: string;
     date: Date;
-    type: 'charge_interest' | 'pay_interest' | 'pay_principal';
+    type: 'charge_interest' | 'pay_interest' | 'pay_capital';
     amount: number;
     notes?: string;
 };

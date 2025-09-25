@@ -5,14 +5,15 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { OficinaMensual, ClienteMensual, InterestRate } from "@/lib/data";
-import { getOficinas, getClientes, addCliente } from "@/services/mensuales-service";
+import { getOficinas, getClientes, addCliente, addPaymentToCliente } from "@/services/mensuales-service";
 import { getInterestRates } from "@/services/interest-rate-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle, DollarSign } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ClientesTable } from "./clientes-table";
 import { PrestamoForm } from "./prestamo-form";
+import { PagoForm } from "./pago-form";
 
 export function MensualesDashboard() {
   const { user } = useAuth();
@@ -21,7 +22,10 @@ export function MensualesDashboard() {
   const [interestRates, setInterestRates] = React.useState<InterestRate[]>([]);
   const [clientes, setClientes] = React.useState<ClienteMensual[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  
+  const [isPrestamoFormOpen, setIsPrestamoFormOpen] = React.useState(false);
+  const [isPagoFormOpen, setIsPagoFormOpen] = React.useState(false);
+  const [selectedCliente, setSelectedCliente] = React.useState<ClienteMensual | null>(null);
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
@@ -72,12 +76,32 @@ export function MensualesDashboard() {
       };
       await addCliente(dataToSave);
       toast({ title: "Éxito", description: "Préstamo registrado correctamente." });
-      setIsFormOpen(false);
+      setIsPrestamoFormOpen(false);
       fetchData(); // Refresh data
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo registrar el préstamo." });
     }
   };
+  
+  const handleOpenPagoForm = (cliente: ClienteMensual) => {
+    setSelectedCliente(cliente);
+    setIsPagoFormOpen(true);
+  }
+  
+  const handlePaymentSubmit = async (amount: number) => {
+    if (!selectedCliente) return;
+
+    try {
+        await addPaymentToCliente(selectedCliente.id, amount);
+        toast({ title: "Éxito", description: "Abono registrado correctamente." });
+        setIsPagoFormOpen(false);
+        setSelectedCliente(null);
+        fetchData();
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Error", description: error.message || "No se pudo registrar el abono." });
+    }
+  };
+
 
   return (
     <div className="space-y-6">
@@ -86,7 +110,7 @@ export function MensualesDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Préstamos Mensuales</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <Dialog open={isPrestamoFormOpen} onOpenChange={setIsPrestamoFormOpen}>
             <DialogTrigger asChild>
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -122,10 +146,22 @@ export function MensualesDashboard() {
               <span>Cargando préstamos...</span>
             </div>
           ) : (
-            <ClientesTable data={clientes} oficinas={oficinas} />
+            <ClientesTable data={clientes} oficinas={oficinas} onPaymentClick={handleOpenPagoForm}/>
           )}
         </CardContent>
       </Card>
+      
+      <Dialog open={isPagoFormOpen} onOpenChange={setIsPagoFormOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Registrar Abono para {selectedCliente?.name}</DialogTitle>
+                 <DialogDescription>
+                    El interés mensual de <span className="font-bold">${(selectedCliente?.monthlyInterestCharge || 0).toLocaleString('es-MX')}</span> se cobrará primero. El resto se irá a capital.
+                </DialogDescription>
+            </DialogHeader>
+            <PagoForm cliente={selectedCliente} onSubmit={handlePaymentSubmit}/>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
