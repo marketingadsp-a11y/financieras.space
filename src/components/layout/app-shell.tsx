@@ -32,7 +32,8 @@ import {
   LifeBuoy,
   ArrowRight,
   Home,
-  Ticket
+  Ticket,
+  CalendarClock
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -140,6 +141,11 @@ const dailyControlNavItems: NavItem[] = [
 
 const dailyControlSettingsItems: NavItem[] = [
     { href: "/tools/daily-control/categories", label: "Gestionar Categorías", icon: ListTree },
+];
+
+const mensualesNavItems: NavItem[] = [
+    { href: "/tools/mensuales", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/tools/mensuales/oficinas", label: "Oficinas", icon: Building },
 ];
 
 function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
@@ -346,6 +352,7 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
   const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
   const isFlujoPath = pathname.startsWith('/tools/flujo');
+  const isMensualesPath = pathname.startsWith('/tools/mensuales');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -543,6 +550,28 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                             </SidebarMenuButton>
                         </Link>
                     </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroup>
+        )
+    }
+
+    if (isMensualesPath) {
+        return (
+             <SidebarGroup>
+                <SidebarGroupLabel>MENSUALES</SidebarGroupLabel>
+                <SidebarMenu>
+                    {mensualesNavItems.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                            <Link href={item.href!}>
+                                <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                                    <span>
+                                        <item.icon />
+                                        <span>{item.label}</span>
+                                    </span>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    ))}
                 </SidebarMenu>
             </SidebarGroup>
         )
@@ -761,6 +790,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isLoanControlPath = pathname.startsWith('/tools/loan-control');
   const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
   const isFlujoPath = pathname.startsWith('/tools/flujo');
+  const isMensualesPath = pathname.startsWith('/tools/mensuales');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return customTools.find(tool => tool.id === 'cartera-vencida');
@@ -768,6 +798,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (isLoanControlPath) return customTools.find(tool => tool.id === 'loan-control');
     if (isIncomeExpensesPath) return customTools.find(tool => tool.id === 'income-expenses');
     if (isFlujoPath) return customTools.find(tool => tool.id === 'flujo');
+    if (isMensualesPath) return customTools.find(tool => tool.id === 'mensuales');
     return null;
   }
 
@@ -780,7 +811,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return 'Admin';
   }
 
-  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath) && !user.isSuperAdmin;
+  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath) && !user.isSuperAdmin;
   
   const isGlobalAdmin = !user.isSuperAdmin && !user.isToolAdmin && !user.isPlazaUser;
 
