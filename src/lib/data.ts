@@ -1,7 +1,6 @@
 
-
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -434,6 +433,13 @@ export type OficinaMensual = {
     name: string;
 };
 
+export type InterestRate = {
+    id: string;
+    prefix: string;
+    value: number; // e.g., 5 for 5%
+};
+
+
 export type ClienteMensual = {
     id: string;
     oficinaId: string;
@@ -455,4 +461,3 @@ export type MovimientoMensual = {
     amount: number;
     notes?: string;
 };
-

@@ -33,7 +33,8 @@ import {
   ArrowRight,
   Home,
   Ticket,
-  CalendarClock
+  CalendarClock,
+  Percent,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -146,6 +147,7 @@ const dailyControlSettingsItems: NavItem[] = [
 const mensualesNavItems: NavItem[] = [
     { href: "/tools/mensuales", label: "Dashboard", icon: LayoutDashboard },
     { href: "/tools/mensuales/oficinas", label: "Oficinas", icon: Building },
+    { href: "/tools/mensuales/interes", label: "Interés", icon: Percent },
 ];
 
 function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
@@ -166,6 +168,7 @@ function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
                         name: pa.plazaName,
                         pendingDebt: 0, // Not needed for nav
                         recoveryRate: 0, // Not needed for nav
+                        toolContext: 'overdue-portfolio', // Assuming, might need adjustment
                     })) || [];
                      setPlazas(userPlazas.sort((a,b) => a.name.localeCompare(b.name)));
                 } else {
@@ -563,7 +566,7 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                     {mensualesNavItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
                             <Link href={item.href!}>
-                                <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
                                     <span>
                                         <item.icon />
                                         <span>{item.label}</span>
