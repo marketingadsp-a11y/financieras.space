@@ -146,6 +146,24 @@ export async function addCliente(cliente: Omit<ClienteMensual, 'id' | 'displayId
     return { ...clienteWithDisplayId, id: clienteDocRef.id };
 }
 
+export async function deleteCliente(clienteId: string): Promise<void> {
+    const batch = writeBatch(db);
+
+    // 1. Delete the client document
+    const clienteRef = doc(db, "mensuales_clientes", clienteId);
+    batch.delete(clienteRef);
+
+    // 2. Find and delete all associated movements
+    const q = query(movimientosCollectionRef, where("clienteId", "==", clienteId));
+    const snapshot = await getDocs(q);
+    snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    // 3. Commit the batch
+    await batch.commit();
+}
+
 
 export async function addPaymentToCliente(clienteId: string, paymentAmount: number): Promise<void> {
     const clienteRef = doc(db, "mensuales_clientes", clienteId);

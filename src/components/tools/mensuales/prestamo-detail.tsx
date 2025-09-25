@@ -3,16 +3,28 @@
 
 import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
-import { getClienteById, getMovimientosByCliente, getOficinaById } from "@/services/mensuales-service";
+import { getClienteById, getMovimientosByCliente, getOficinaById, deleteCliente } from "@/services/mensuales-service";
 import type { ClienteMensual, MovimientoMensual, OficinaMensual } from "@/lib/data";
-import { Loader2, ArrowLeft, User, DollarSign, Percent, Calendar, Briefcase, FileText } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Loader2, ArrowLeft, User, DollarSign, Percent, Calendar, Briefcase, FileText, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const StatCard = ({ title, value, isCurrency = true, colorClass = "text-foreground" }: { title: string; value: number; isCurrency?: boolean; colorClass?: string; }) => (
     <div className="p-4 bg-muted/50 rounded-lg">
@@ -47,10 +59,12 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
 
 export function PrestamoDetail({ clienteId }: { clienteId: string }) {
     const { toast } = useToast();
+    const router = useRouter();
     const [cliente, setCliente] = React.useState<ClienteMensual | null>(null);
     const [oficina, setOficina] = React.useState<OficinaMensual | null>(null);
     const [movimientos, setMovimientos] = React.useState<MovimientoMensual[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [isDeleting, setIsDeleting] = React.useState(false);
 
     React.useEffect(() => {
         const fetchData = async () => {
@@ -77,6 +91,20 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         };
         fetchData();
     }, [clienteId, toast]);
+
+    const handleDelete = async () => {
+        if (!cliente) return;
+        setIsDeleting(true);
+        try {
+            await deleteCliente(cliente.id);
+            toast({ title: "Éxito", description: "El préstamo y todos sus movimientos han sido eliminados." });
+            router.push('/tools/mensuales');
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el préstamo." });
+            setIsDeleting(false);
+        }
+    };
+
 
     const stats = React.useMemo(() => {
         return movimientos.reduce((acc, mov) => {
@@ -157,6 +185,30 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                         </div>
                     </div>
                 </CardContent>
+                <CardFooter className="border-t pt-4">
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar Préstamo
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro de eliminar este préstamo?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción es irreversible. Se eliminará permanentemente el préstamo de <strong>{cliente.name}</strong> y todo su historial de movimientos.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Sí, eliminar
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </CardFooter>
             </Card>
         </div>
     )
