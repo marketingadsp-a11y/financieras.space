@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -292,17 +291,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                              <Badge variant={getStatusVariant(cliente.status) as any} className="text-base capitalize h-10">{cliente.status}</Badge>
                         </div>
                     </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                     {/* Resumen Financiero */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <StatCard title="Monto Original Prestado" value={cliente.loanAmount} />
-                        <StatCard title="Total Pagado a Intereses" value={stats.totalInterestPaid} colorClass="text-orange-500"/>
-                        <StatCard title="Total Pagado a Capital" value={stats.totalCapitalPaid} colorClass="text-green-600"/>
-                        <StatCard title="Saldo Actual" value={cliente.currentBalance} colorClass="text-blue-600"/>
-                    </div>
-                     {/* Detalles del Préstamo */}
-                    <div>
+                     <div className="pt-6">
                         <h3 className="text-lg font-semibold mb-2">Información del Préstamo</h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 p-4 border rounded-lg">
                            <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Oficina</p><p className="font-medium">{oficina?.name || 'N/A'}</p></div></div>
@@ -332,7 +321,16 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                             </div>
                         </div>
                     </div>
-
+                </CardHeader>
+                <CardContent className="space-y-6">
+                     {/* Resumen Financiero */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <StatCard title="Monto Original Prestado" value={cliente.loanAmount} />
+                        <StatCard title="Total Pagado a Intereses" value={stats.totalInterestPaid} colorClass="text-orange-500"/>
+                        <StatCard title="Total Pagado a Capital" value={stats.totalCapitalPaid} colorClass="text-green-600"/>
+                        <StatCard title="Saldo Actual" value={cliente.currentBalance} colorClass="text-blue-600"/>
+                    </div>
+                   
                     {/* Historial de Movimientos */}
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Historial de Movimientos</h3>
@@ -379,3 +377,5 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         </div>
     )
 }
+
+    
