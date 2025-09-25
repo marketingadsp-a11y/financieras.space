@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -200,7 +201,7 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
                    <ul className="list-disc pl-5 mt-2 space-y-1">
                     {duplicateClients.map(c => (
                         <li key={c.id} className="text-xs">
-                           <span className="font-semibold">{oficinaMap.get(c.oficinaId) || 'N/A'}</span> - Saldo: <span className="font-bold">${c.currentBalance.toLocaleString()}</span> ({c.status})
+                           <span className="font-bold">{c.name}</span> - <span className="font-semibold">{oficinaMap.get(c.oficinaId) || 'N/A'}</span> - Saldo: <span className="font-bold">${c.currentBalance.toLocaleString()}</span> ({c.status})
                         </li>
                     ))}
                    </ul>
