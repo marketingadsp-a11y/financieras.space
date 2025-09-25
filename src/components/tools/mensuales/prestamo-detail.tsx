@@ -271,7 +271,6 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                     <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                         <div>
                             <CardTitle className="text-3xl">{cliente.name}</CardTitle>
-                            <CardDescription>Detalles del préstamo y historial de movimientos.</CardDescription>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                            <Dialog open={isPagoFormOpen} onOpenChange={setIsPagoFormOpen}>
