@@ -424,7 +424,7 @@ export type SupportTicket = {
     contactPhone: string;
     status: 'new' | 'in-progress' | 'resolved';
     createdAt: number; // Using Unix timestamp
-}
+};
 
 // --- Mensuales Tool Models ---
 export type OficinaMensual = {
@@ -452,6 +452,7 @@ export type ClienteMensual = {
     interestRateValue: number;
     monthlyInterestCharge: number;
     currentBalance: number;
+    unpaidInterest: number; // New field for accumulated interest
     lastInterestChargedDate?: Date;
     lastPaymentDate?: Date;
     status: 'vigente' | 'vencido' | 'liquidado';
@@ -461,7 +462,9 @@ export type MovimientoMensual = {
     id: string;
     clienteId: string;
     date: Date;
-    type: 'charge_interest' | 'initial_loan' | 'pago_capital' | 'pago_interes';
+    type: 'charge_interest' | 'initial_loan' | 'pago_capital' | 'pago_interes' | 'payment';
     amount: number;
     notes?: string;
+    interestPaid?: number;
+    capitalPaid?: number;
 };

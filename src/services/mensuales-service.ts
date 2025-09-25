@@ -1,3 +1,4 @@
+
 "use server";
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, getDoc, orderBy } from "firebase/firestore";
@@ -73,6 +74,7 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
             interestRateValue: data.interestRateValue || 0,
             monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
+            unpaidInterest: data.unpaidInterest || 0,
             status: data.status || 'vigente',
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
@@ -104,6 +106,7 @@ export async function searchClientesByName(name: string, prefix: string): Promis
             interestRateValue: data.interestRateValue || 0,
             monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
+            unpaidInterest: data.unpaidInterest || 0,
             status: data.status || 'vigente',
         } as ClienteMensual;
     });
@@ -130,6 +133,7 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
             interestRateValue: data.interestRateValue || 0,
             monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
+            unpaidInterest: data.unpaidInterest || 0,
             status: data.status || 'vigente',
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
@@ -163,7 +167,7 @@ export async function addCliente(cliente: Omit<ClienteMensual, 'id' | 'displayId
         notes: 'Préstamo inicial registrado'
     };
     
-    const clienteWithDisplayId = { ...cliente, displayId, name: cliente.name.toUpperCase() };
+    const clienteWithDisplayId = { ...cliente, displayId, name: cliente.name.toUpperCase(), unpaidInterest: 0 };
 
     const clienteDocRef = doc(collection(db, "mensuales_clientes"));
     const movimientoDocRef = doc(collection(db, "mensuales_movimientos"));
@@ -205,51 +209,53 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         }
 
         const clienteData = clienteDoc.data() as ClienteMensual;
+        
         let currentBalance = clienteData.currentBalance;
-        let interestToPay = clienteData.monthlyInterestCharge;
+        let interestToCover = (clienteData.unpaidInterest || 0) + clienteData.monthlyInterestCharge;
         
-        if (paymentAmount < interestToPay) {
-            throw new Error(`El abono debe ser de al menos $${interestToPay.toLocaleString('es-MX')} para cubrir el interés mensual.`);
-        }
-        
+        let interestPaid = 0;
+        let capitalPaid = 0;
         let remainingPayment = paymentAmount;
-        const now = new Date();
         
-        // 1. Log interest payment
-        const interestPaymentMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
-            date: now,
-            type: 'pago_interes',
-            amount: interestToPay,
-        };
-        const interestMovRef = doc(movimientosCollectionRef);
-        transaction.set(interestMovRef, { ...interestPaymentMovement, clienteId });
-        
-        remainingPayment -= interestToPay;
-        
-        // 2. Log capital payment if any remains
+        // Step 1: Pay off interest first
         if (remainingPayment > 0) {
-            const capitalPayment = remainingPayment;
-            currentBalance -= capitalPayment;
+            interestPaid = Math.min(remainingPayment, interestToCover);
+            remainingPayment -= interestPaid;
+        }
 
-            const capitalPaymentMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
-                date: now,
-                type: 'pago_capital',
-                amount: capitalPayment,
-            };
-            const capitalMovRef = doc(movimientosCollectionRef);
-            transaction.set(capitalMovRef, { ...capitalPaymentMovement, clienteId });
+        // Step 2: Any remaining amount goes to capital
+        if (remainingPayment > 0) {
+            capitalPaid = remainingPayment;
+            currentBalance -= capitalPaid;
         }
         
+        // Step 3: Calculate the new unpaid interest
+        const newUnpaidInterest = interestToCover - interestPaid;
+
         const updates: Partial<ClienteMensual> = {
             currentBalance: currentBalance,
-            lastPaymentDate: now,
+            unpaidInterest: newUnpaidInterest,
+            lastPaymentDate: new Date(),
             status: currentBalance <= 0 ? 'liquidado' : 'vigente',
         };
-        
-        if (currentBalance <= 0) {
+
+        if (updates.currentBalance !== undefined && updates.currentBalance <= 0) {
             updates.currentBalance = 0;
+            updates.unpaidInterest = 0; // Clear any remaining unpaid interest if loan is liquidated
         }
 
+        // Create a single movement record for the entire payment
+        const paymentMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
+            date: new Date(),
+            type: 'payment',
+            amount: paymentAmount,
+            interestPaid: interestPaid,
+            capitalPaid: capitalPaid,
+            notes: `Abono de $${paymentAmount.toLocaleString()}. Interés cubierto: $${interestPaid.toLocaleString()}. Capital cubierto: $${capitalPaid.toLocaleString()}.`
+        };
+
+        const movRef = doc(movimientosCollectionRef);
+        transaction.set(movRef, { ...paymentMovement, clienteId });
         transaction.update(clienteRef, updates);
     });
 }

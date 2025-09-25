@@ -58,9 +58,13 @@ export function PagoForm({ onSubmit, cliente }: PagoFormProps) {
                 <span className="text-muted-foreground">Saldo Actual:</span>
                 <span className="font-bold text-destructive">${(cliente.currentBalance || 0).toLocaleString('es-MX')}</span>
             </div>
-            <div className="flex justify-between text-sm">
+             <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Interés Mensual a Cubrir:</span>
                 <span className="font-medium">${(cliente.monthlyInterestCharge || 0).toLocaleString('es-MX')}</span>
+            </div>
+             <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Interés Acumulado:</span>
+                <span className="font-medium text-amber-600">${(cliente.unpaidInterest || 0).toLocaleString('es-MX')}</span>
             </div>
         </div>
 
