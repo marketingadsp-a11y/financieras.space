@@ -1,5 +1,5 @@
 
-"use server";
+'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, getDoc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -8,6 +8,116 @@ import type { OficinaMensual, ClienteMensual, MovimientoMensual } from "@/lib/da
 const oficinasCollectionRef = collection(db, "mensuales_oficinas");
 const clientesCollectionRef = collection(db, "mensuales_clientes");
 const movimientosCollectionRef = collection(db, "mensuales_movimientos");
+
+
+// This function will automatically charge interest if a payment cycle has passed.
+async function chargeInterestIfNeeded(cliente: ClienteMensual): Promise<ClienteMensual> {
+    if (cliente.status === 'liquidado' || !cliente.registrationDate) {
+        return cliente;
+    }
+
+    const clienteRef = doc(db, 'mensuales_clientes', cliente.id);
+    let updatedCliente = { ...cliente };
+
+    await runTransaction(db, async (transaction) => {
+        const now = new Date();
+        const lastCharge = cliente.lastInterestChargedDate || cliente.registrationDate;
+        let cursorDate = new Date(lastCharge);
+        
+        let monthsToCharge = 0;
+
+        // Iterate from the last charge date to now
+        while (cursorDate < now) {
+            const nextChargeDay = new Date(cursorDate.getFullYear(), cursorDate.getMonth(), cliente.paymentDay + 1);
+            if (cursorDate.getDate() < cliente.paymentDay + 1) {
+                 // We are in the month of the last charge, but before the cut-off day
+                 // Let's see if the cut-off day for THIS month has passed
+                 const thisMonthCutoff = new Date(now.getFullYear(), now.getMonth(), cliente.paymentDay + 1);
+                 if (now >= thisMonthCutoff && lastCharge < thisMonthCutoff) {
+                     monthsToCharge = 1;
+                 }
+            } else {
+                 // We are after the cut-off day of the last charge month
+                 const nextMonthCutoff = new Date(cursorDate.getFullYear(), cursorDate.getMonth() + 1, cliente.paymentDay + 1);
+                 if (now >= nextMonthCutoff) {
+                     monthsToCharge++;
+                 }
+            }
+            
+            if (monthsToCharge > 0) {
+                 // Calculate how many months have passed since the last charge
+                let monthsPassed = (now.getFullYear() - lastCharge.getFullYear()) * 12;
+                monthsPassed -= lastCharge.getMonth();
+                monthsPassed += now.getMonth();
+                
+                const lastChargeCutoff = new Date(lastCharge.getFullYear(), lastCharge.getMonth(), cliente.paymentDay + 1);
+                if (now >= lastChargeCutoff && lastCharge < lastChargeCutoff) {
+                     // We passed the cutoff for the month of the last charge
+                } else if (now.getDate() >= cliente.paymentDay + 1) {
+                    // We're past this month's cutoff
+                }
+
+                 // A simple way to check: has the paymentDay + 1 passed for a month we haven't charged yet?
+                let chargeDate = new Date(lastCharge);
+                const updates: Partial<ClienteMensual> = {};
+                const movementsToAdd: any[] = [];
+
+                while(true) {
+                    let nextCutoff = new Date(chargeDate.getFullYear(), chargeDate.getMonth(), cliente.paymentDay + 1);
+                    if (chargeDate.getDate() >= cliente.paymentDay + 1) {
+                         // If last charge was on or after cutoff, look at next month's cutoff
+                         nextCutoff = new Date(chargeDate.getFullYear(), chargeDate.getMonth() + 1, cliente.paymentDay + 1);
+                    }
+                    
+                    if (now >= nextCutoff) {
+                        const newUnpaidInterest = (updatedCliente.unpaidInterest || 0) + updatedCliente.monthlyInterestCharge;
+                        updates.unpaidInterest = newUnpaidInterest;
+                        updates.lastInterestChargedDate = now;
+                        updatedCliente.unpaidInterest = newUnpaidInterest;
+
+                        movementsToAdd.push({
+                            clienteId: cliente.id,
+                            date: new Date(),
+                            type: 'charge_interest',
+                            amount: cliente.monthlyInterestCharge,
+                            notes: `Cargo de interés mensual`
+                        });
+                        
+                        chargeDate = nextCutoff; // Move cursor to the date we just charged
+                    } else {
+                        break; // We are up to date
+                    }
+                }
+                
+                if (movementsToAdd.length > 0) {
+                    transaction.update(clienteRef, updates);
+                    movementsToAdd.forEach(mov => {
+                        const movRef = doc(movimientosCollectionRef);
+                        transaction.set(movRef, mov);
+                    });
+                }
+            }
+            break; // Exit loop, for now we simplify to charge one month at a time if needed.
+        }
+    });
+
+    // Refetch the data after transaction to return the most up-to-date state
+    const finalDoc = await getDoc(clienteRef);
+    if(finalDoc.exists()) {
+        const data = finalDoc.data();
+         return {
+            id: finalDoc.id,
+            ...data,
+            registrationDate: data.registrationDate?.toDate(),
+            lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
+            lastPaymentDate: data.lastPaymentDate?.toDate(),
+        } as ClienteMensual;
+    }
+
+    return updatedCliente;
+}
+
+
 
 export async function getOficinas(prefix: string): Promise<OficinaMensual[]> {
     const q = query(oficinasCollectionRef, where("prefix", "==", prefix));
@@ -59,10 +169,10 @@ export async function deleteOficina(id: string) {
 export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
     const q = query(clientesCollectionRef, where("prefix", "==", prefix));
     const snapshot = await getDocs(q);
-    const clientes = snapshot.docs.map(doc => {
+    
+    const clientesPromises = snapshot.docs.map(async doc => {
         const data = doc.data();
-        // This is a safe conversion, ensuring all fields are checked and have defaults.
-        return {
+        const cliente = {
             id: doc.id,
             displayId: data.displayId || "0000",
             name: data.name || "",
@@ -80,7 +190,11 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
         } as ClienteMensual;
-    }) as ClienteMensual[];
+        return chargeInterestIfNeeded(cliente);
+    });
+    
+    const clientes = await Promise.all(clientesPromises);
+
     return clientes.sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -122,8 +236,7 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
 
     if (clienteSnap.exists()) {
         const data = clienteSnap.data();
-        // This is a safe conversion, ensuring all fields are checked and have defaults.
-        return {
+        let cliente = {
             id: clienteSnap.id,
             displayId: data.displayId || "0000",
             name: data.name || "",
@@ -141,6 +254,10 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
         } as ClienteMensual;
+
+        cliente = await chargeInterestIfNeeded(cliente);
+
+        return cliente;
     }
     return null;
 }
@@ -222,33 +339,30 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
     const clienteRef = doc(db, "mensuales_clientes", clienteId);
 
     await runTransaction(db, async (transaction) => {
-        const clienteDoc = await transaction.get(clienteRef);
+        let clienteDoc = await transaction.get(clienteRef);
         if (!clienteDoc.exists()) {
             throw new Error("El cliente no existe.");
         }
-
-        const clienteData = clienteDoc.data() as ClienteMensual;
         
+        let clienteData = (await chargeInterestIfNeeded(clienteDoc.data() as ClienteMensual)) as ClienteMensual;
+
         let currentBalance = clienteData.currentBalance;
-        const interestToPay = (clienteData.unpaidInterest || 0) + clienteData.monthlyInterestCharge;
+        const interestToPay = clienteData.unpaidInterest; // This now includes current month's charge
         
         let interestPaid = 0;
         let capitalPaid = 0;
         let remainingPayment = paymentAmount;
         
-        // Step 1: Pay off interest first
         if (remainingPayment > 0) {
             interestPaid = Math.min(remainingPayment, interestToPay);
             remainingPayment -= interestPaid;
         }
 
-        // Step 2: Any remaining amount goes to capital
         if (remainingPayment > 0) {
             capitalPaid = remainingPayment;
             currentBalance -= capitalPaid;
         }
         
-        // Step 3: Calculate the new unpaid interest
         const newUnpaidInterest = interestToPay - interestPaid;
 
         const updates: Partial<ClienteMensual> = {
@@ -260,36 +374,32 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
 
         if (updates.currentBalance !== undefined && updates.currentBalance <= 0) {
             updates.currentBalance = 0;
-            updates.unpaidInterest = 0; // Clear any remaining unpaid interest if loan is liquidated
+            updates.unpaidInterest = 0; 
         }
 
-        const batch: { ref: any, data: any }[] = [];
-
-        // Create movement for interest paid
+        transaction.update(clienteRef, updates);
+        
         if (interestPaid > 0) {
             const interestMov: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
                 date: new Date(),
                 type: 'pago_interes',
                 amount: interestPaid,
-                notes: `Pago a interés del abono total de $${paymentAmount.toLocaleString('es-MX')}`
+                notes: `Parte de un abono total de $${paymentAmount.toLocaleString('es-MX')}`
             };
-            batch.push({ ref: doc(movimientosCollectionRef), data: { ...interestMov, clienteId } });
+            const movRef = doc(movimientosCollectionRef);
+            transaction.set(movRef, { ...interestMov, clienteId });
         }
 
-        // Create movement for capital paid
         if (capitalPaid > 0) {
             const capitalMov: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
                 date: new Date(),
                 type: 'pago_capital',
                 amount: capitalPaid,
-                notes: `Abono a capital del abono total de $${paymentAmount.toLocaleString('es-MX')}`
+                notes: `Parte de un abono total de $${paymentAmount.toLocaleString('es-MX')}`
             };
-            batch.push({ ref: doc(movimientosCollectionRef), data: { ...capitalMov, clienteId } });
+             const movRef = doc(movimientosCollectionRef);
+            transaction.set(movRef, { ...capitalMov, clienteId });
         }
-
-        // Commit updates and new movements
-        transaction.update(clienteRef, updates);
-        batch.forEach(item => transaction.set(item.ref, item.data));
     });
 }
 
