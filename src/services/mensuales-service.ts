@@ -283,40 +283,43 @@ export async function addCliente(cliente: Omit<ClienteMensual, 'id' | 'displayId
 export async function updateCliente(id: string, updates: Partial<ClienteMensual>): Promise<void> {
     const clienteRef = doc(db, 'mensuales_clientes', id);
 
-    await runTransaction(db, async (transaction) => {
-        const clienteDoc = await transaction.get(clienteRef);
-        if (!clienteDoc.exists()) {
-            throw new Error("El cliente a actualizar no existe.");
-        }
+    // If registrationDate is being changed, it's a special case that requires recalculation.
+    if (updates.registrationDate) {
+        await runTransaction(db, async (transaction) => {
+            const clienteDoc = await transaction.get(clienteRef);
+            if (!clienteDoc.exists()) {
+                throw new Error("El cliente a actualizar no existe.");
+            }
 
-        const dataToUpdate: Record<string, any> = { ...updates };
-        
-        // If registrationDate is being changed, trigger a full recalculation
-        if (updates.registrationDate) {
-            dataToUpdate.registrationDate = Timestamp.fromDate(updates.registrationDate);
-
-            // 1. Reset interest fields and status
-            dataToUpdate.unpaidInterest = 0;
-            dataToUpdate.lastInterestChargedDate = Timestamp.fromDate(updates.registrationDate);
-            dataToUpdate.status = 'vigente'; // Reset status to be recalculated
+            // 1. Reset interest fields and status to a clean slate before recalculation
+            const resetUpdates: Record<string, any> = {
+                registrationDate: Timestamp.fromDate(updates.registrationDate!),
+                unpaidInterest: 0,
+                lastInterestChargedDate: Timestamp.fromDate(updates.registrationDate!),
+                status: 'vigente', // Reset status to be recalculated
+            };
             
             // 2. Delete all existing interest charge movements for this client
             const q = query(movimientosCollectionRef, where("clienteId", "==", id), where("type", "==", "charge_interest"));
-            const interestMovementsSnapshot = await getDocs(q); // Important: getDocs outside transaction
+            const interestMovementsSnapshot = await getDocs(q); // Read outside transaction if possible, but for consistency we do it here.
             interestMovementsSnapshot.forEach(movDoc => {
                 transaction.delete(movDoc.ref);
             });
-        }
-        
-        transaction.update(clienteRef, dataToUpdate);
-    });
 
-    // After transaction, explicitly call chargeInterestIfNeeded if date was changed
-    if (updates.registrationDate) {
+            // 3. Apply the reset updates to the client
+            transaction.update(clienteRef, resetUpdates);
+        });
+
+        // 4. After the transaction commits, fetch the cleaned client and run the charge logic
         const updatedClienteSnap = await getDoc(clienteRef);
         if(updatedClienteSnap.exists()){
+            // This will now correctly calculate all interest from the new registration date
             await chargeInterestIfNeeded(updatedClienteSnap.data() as ClienteMensual);
         }
+    } else {
+        // For any other simple update, just apply it.
+        const dataToUpdate: Record<string, any> = { ...updates };
+        await updateDoc(clienteRef, dataToUpdate);
     }
 }
 
@@ -349,7 +352,13 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
             throw new Error("El cliente no existe.");
         }
         
-        let clienteData = (await chargeInterestIfNeeded(clienteDoc.data() as ClienteMensual, transaction)) as ClienteMensual;
+        // Cannot pass transaction to chargeInterestIfNeeded if it performs reads after writes.
+        // So we get a pre-charged version first.
+        const preChargedCliente = await chargeInterestIfNeeded(clienteDoc.data() as ClienteMensual);
+
+        // Now, get the most up-to-date version inside the transaction
+        const freshClienteDoc = await transaction.get(clienteRef);
+        let clienteData = freshClienteDoc.data() as ClienteMensual;
 
         let currentBalance = clienteData.currentBalance;
         const interestToPay = clienteData.unpaidInterest;
