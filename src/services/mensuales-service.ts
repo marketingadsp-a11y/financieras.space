@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, getDoc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { OficinaMensual, ClienteMensual, MovimientoMensual } from "@/lib/data";
 
@@ -61,9 +61,39 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
     return clientes.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function getClienteById(id: string): Promise<ClienteMensual | null> {
+    const clienteRef = doc(db, "mensuales_clientes", id);
+    const clienteSnap = await getDoc(clienteRef);
+
+    if (clienteSnap.exists()) {
+        const data = clienteSnap.data();
+        return {
+            ...data,
+            id: clienteSnap.id,
+            lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
+            lastPaymentDate: data.lastPaymentDate?.toDate(),
+        } as ClienteMensual;
+    }
+    return null;
+}
+
 export async function addCliente(cliente: Omit<ClienteMensual, 'id'>): Promise<ClienteMensual> {
-    const docRef = await addDoc(clientesCollectionRef, cliente);
-    return { ...cliente, id: docRef.id };
+    const initialMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
+        date: new Date(),
+        type: 'initial_loan',
+        amount: cliente.loanAmount,
+        notes: 'Préstamo inicial registrado'
+    };
+
+    const clienteDocRef = doc(collection(db, "mensuales_clientes"));
+    const movimientoDocRef = doc(collection(db, "mensuales_movimientos"));
+    
+    await runTransaction(db, async (transaction) => {
+        transaction.set(clienteDocRef, { ...cliente, id: clienteDocRef.id });
+        transaction.set(movimientoDocRef, { ...initialMovement, clienteId: clienteDocRef.id });
+    });
+    
+    return { ...cliente, id: clienteDocRef.id };
 }
 
 
@@ -89,9 +119,6 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
 
         // Check if interest for the current month has already been charged.
         if (!lastChargeDate || (lastChargeDate.getMonth() !== now.getMonth() || lastChargeDate.getFullYear() !== now.getFullYear())) {
-            // Add interest to the balance if it hasn't been charged this month.
-            currentBalance += interestToPay;
-            
             // Log the interest charge movement
             const interestChargeMovement: Omit<MovimientoMensual, 'id'> = {
                 clienteId,
@@ -101,7 +128,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
                 notes: 'Cargo de interés mensual automático'
             };
             transaction.set(doc(movimientosCollectionRef), interestChargeMovement);
-            transaction.update(clienteRef, { lastInterestChargedDate: now, currentBalance });
+            transaction.update(clienteRef, { lastInterestChargedDate: now });
         }
         
         let remainingPayment = paymentAmount;
@@ -127,7 +154,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
              const capitalPaymentMovement: Omit<MovimientoMensual, 'id'> = {
                 clienteId,
                 date: now,
-                type: 'pay_principal',
+                type: 'pay_capital',
                 amount: capitalPayment,
             };
             transaction.set(doc(movimientosCollectionRef), capitalPaymentMovement);
@@ -145,4 +172,18 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
 
         transaction.update(clienteRef, updates);
     });
+}
+
+export async function getMovimientosByCliente(clienteId: string): Promise<MovimientoMensual[]> {
+    const q = query(movimientosCollectionRef, where("clienteId", "==", clienteId), orderBy("date", "desc"));
+    const snapshot = await getDocs(q);
+    const movimientos = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return { 
+            ...data, 
+            id: doc.id,
+            date: data.date.toDate(),
+        }
+    }) as MovimientoMensual[];
+    return movimientos;
 }

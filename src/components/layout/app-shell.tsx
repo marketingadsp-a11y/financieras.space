@@ -35,6 +35,7 @@ import {
   Ticket,
   CalendarClock,
   Percent,
+  History,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"

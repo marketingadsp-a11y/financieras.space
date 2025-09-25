@@ -460,7 +460,7 @@ export type MovimientoMensual = {
     id: string;
     clienteId: string;
     date: Date;
-    type: 'charge_interest' | 'pay_interest' | 'pay_capital';
+    type: 'charge_interest' | 'pay_interest' | 'pay_capital' | 'initial_loan';
     amount: number;
     notes?: string;
 };

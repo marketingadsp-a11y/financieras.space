@@ -2,7 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2, DollarSign } from "lucide-react";
+import Link from "next/link";
+import { MoreHorizontal, DollarSign, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -85,11 +86,10 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
                                 <DropdownMenuItem onSelect={() => onPaymentClick(cliente)} disabled={cliente.status === 'liquidado'}>
                                     <DollarSign className="mr-2 h-4 w-4" /> Abonar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <Pencil className="mr-2 h-4 w-4" /> Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/tools/mensuales/prestamo/${cliente.id}`}>
+                                        <History className="mr-2 h-4 w-4" /> Ver Detalles
+                                    </Link>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
