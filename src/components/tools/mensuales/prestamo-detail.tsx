@@ -45,6 +45,18 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
 
     const info = typeInfo[movimiento.type];
 
+    if (!info) {
+        return (
+             <div className="flex items-center justify-between p-3 border-b">
+                <div>
+                    <p className="font-semibold text-destructive">Movimiento Desconocido</p>
+                    <p className="text-xs text-muted-foreground">{format(movimiento.date, "PPP p", { locale: es })}</p>
+                </div>
+                <p className="text-lg font-mono">${movimiento.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+            </div>
+        )
+    }
+
     return (
         <div className="flex items-center justify-between p-3 border-b">
             <div>
@@ -76,7 +88,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                 if (clienteData) {
                     const [movimientosData, oficinaData] = await Promise.all([
                         getMovimientosByCliente(clienteId),
-                        getOficinaById(clienteData.oficinaId),
+                        clienteData.oficinaId ? getOficinaById(clienteData.oficinaId) : Promise.resolve(null),
                     ]);
                     setMovimientos(movimientosData);
                     setOficina(oficinaData);
