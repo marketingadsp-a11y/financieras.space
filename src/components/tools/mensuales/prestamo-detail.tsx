@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -48,34 +49,25 @@ const StatCard = ({ title, value, isCurrency = true, colorClass = "text-foregrou
 const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
     const typeInfo = {
         charge_interest: { label: "Cargo de Interés", color: "text-amber-600" },
-        pay_interest: { label: "Pago a Interés", color: "text-blue-600" },
-        pay_capital: { label: "Abono a Capital", color: "text-green-600" },
         initial_loan: { label: "Préstamo Inicial", color: "text-primary" },
+        payment: { label: "Abono Recibido", color: "text-green-600" },
     };
 
     const info = typeInfo[movimiento.type];
-
-    if (!info) {
-        return (
-             <div className="flex items-center justify-between p-3 border-b">
-                <div>
-                    <p className="font-semibold text-destructive">Movimiento Desconocido</p>
-                    <p className="text-xs text-muted-foreground">{format(movimiento.date, "PPP p", { locale: es })}</p>
-                </div>
-                <p className="text-lg font-mono">${movimiento.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-            </div>
-        )
-    }
+    const notes = movimiento.notes || (movimiento.type === 'payment' 
+        ? `Desglose: $${(movimiento.interestPaid || 0).toLocaleString()} a interés, $${(movimiento.capitalPaid || 0).toLocaleString()} a capital.`
+        : '');
 
     return (
-        <div className="flex items-center justify-between p-3 border-b">
+         <div className="flex items-center justify-between p-3 border-b">
             <div>
                 <p className={cn("font-semibold", info.color)}>{info.label}</p>
+                 {notes && <p className="text-xs text-muted-foreground">{notes}</p>}
                 <p className="text-xs text-muted-foreground">{format(movimiento.date, "PPP p", { locale: es })}</p>
             </div>
             <p className={cn("text-lg font-mono", info.color)}>${movimiento.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
         </div>
-    );
+    )
 };
 
 
@@ -98,7 +90,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
             if (clienteData) {
                 const [movimientosData, oficinaData] = await Promise.all([
                     getMovimientosByCliente(clienteId),
-                    clienteData.oficinaId ? getOficinaById(clienteData.oficinaId) : Promise.resolve(null),
+                    getOficinaById(clienteData.oficinaId),
                 ]);
                 setMovimientos(movimientosData);
                 setOficina(oficinaData);
@@ -148,10 +140,9 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
 
     const stats = React.useMemo(() => {
         return movimientos.reduce((acc, mov) => {
-            if (mov.type === 'pay_capital') {
-                acc.totalCapitalPaid += mov.amount;
-            } else if (mov.type === 'pay_interest') {
-                acc.totalInterestPaid += mov.amount;
+            if (mov.type === 'payment') {
+                acc.totalCapitalPaid += (mov.capitalPaid || 0);
+                acc.totalInterestPaid += (mov.interestPaid || 0);
             }
             return acc;
         }, { totalCapitalPaid: 0, totalInterestPaid: 0 });

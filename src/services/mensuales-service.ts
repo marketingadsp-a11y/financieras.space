@@ -188,7 +188,6 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
 
         // Check if interest for the current month has already been charged.
         if (!lastChargeDate || (lastChargeDate.getMonth() !== now.getMonth() || lastChargeDate.getFullYear() !== now.getFullYear())) {
-            // Log the interest charge movement
             const interestChargeMovement: Omit<MovimientoMensual, 'id'> = {
                 clienteId,
                 date: now,
@@ -199,8 +198,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
             transaction.set(doc(movimientosCollectionRef), interestChargeMovement);
             transaction.update(clienteRef, { lastInterestChargedDate: now });
         }
-
-        // Validate that the payment covers at least the monthly interest
+        
         if (paymentAmount < interestToPay) {
             throw new Error(`El abono debe ser de al menos $${interestToPay.toLocaleString('es-MX')} para cubrir el interés mensual.`);
         }
@@ -211,28 +209,23 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         interestPayment = Math.min(remainingPayment, interestToPay);
         remainingPayment -= interestPayment;
         
-        if (interestPayment > 0) {
-            const interestPaymentMovement: Omit<MovimientoMensual, 'id'> = {
-                clienteId,
-                date: now,
-                type: 'pay_interest',
-                amount: interestPayment,
-            };
-            transaction.set(doc(movimientosCollectionRef), interestPaymentMovement);
-        }
-
         // 2. Any remaining amount goes to capital
         capitalPayment = remainingPayment;
         if (capitalPayment > 0) {
              currentBalance -= capitalPayment;
-             const capitalPaymentMovement: Omit<MovimientoMensual, 'id'> = {
-                clienteId,
-                date: now,
-                type: 'pay_capital',
-                amount: capitalPayment,
-            };
-            transaction.set(doc(movimientosCollectionRef), capitalPaymentMovement);
         }
+        
+        // 3. Create a single consolidated payment movement
+        const paymentMovement: Omit<MovimientoMensual, 'id'> = {
+            clienteId,
+            date: now,
+            type: 'payment',
+            amount: paymentAmount, // Store the total payment amount
+            interestPaid: interestPayment,
+            capitalPaid: capitalPayment,
+        };
+        transaction.set(doc(movimientosCollectionRef), paymentMovement);
+
 
         const updates: Partial<ClienteMensual> = {
             currentBalance: currentBalance,

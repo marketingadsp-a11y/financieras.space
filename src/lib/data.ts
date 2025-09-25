@@ -461,7 +461,9 @@ export type MovimientoMensual = {
     id: string;
     clienteId: string;
     date: Date;
-    type: 'charge_interest' | 'pay_interest' | 'pay_capital' | 'initial_loan';
+    type: 'charge_interest' | 'initial_loan' | 'payment';
     amount: number;
+    interestPaid?: number; // Part of 'amount' that went to interest
+    capitalPaid?: number; // Part of 'amount' that went to capital
     notes?: string;
 };
