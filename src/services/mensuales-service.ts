@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, getDoc, orderBy } from "firebase/firestore";
@@ -11,7 +12,7 @@ const movimientosCollectionRef = collection(db, "mensuales_movimientos");
 
 
 // This function will automatically charge interest if a payment cycle has passed.
-async function chargeInterestIfNeeded(cliente: ClienteMensual): Promise<ClienteMensual> {
+async function chargeInterestIfNeeded(cliente: ClienteMensual, transaction?: FirebaseFirestore.Transaction): Promise<ClienteMensual> {
     if (cliente.status === 'liquidado' || !cliente.registrationDate) {
         return cliente;
     }
@@ -22,55 +23,69 @@ async function chargeInterestIfNeeded(cliente: ClienteMensual): Promise<ClienteM
     // Determine the last charge date, defaulting to registration date
     const lastChargeDate = cliente.lastInterestChargedDate || cliente.registrationDate;
 
-    // Use a transaction to ensure atomic updates
-    await runTransaction(db, async (transaction) => {
-        const now = new Date();
-        let chargeDateCursor = new Date(lastChargeDate);
-        let interestToCharge = 0;
+    // Use a function that can work with or without a transaction
+    const updateFn = transaction ? transaction.update.bind(transaction) : updateDoc;
 
-        // Loop through months between last charge and now
-        while(chargeDateCursor < now) {
-            const nextChargeCutoff = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth(), cliente.paymentDay + 1);
+    const now = new Date();
+    let chargeDateCursor = new Date(lastChargeDate);
+    let interestToCharge = 0;
+    let newMovements: Omit<MovimientoMensual, 'id' | 'clienteId'>[] = [];
+    let newLastChargedDate = lastChargeDate;
 
-            if (now >= nextChargeCutoff && lastChargeDate < nextChargeCutoff) {
-                // It's time to charge for this cycle
-                interestToCharge += cliente.monthlyInterestCharge;
-                chargeDateCursor = nextChargeCutoff; // Move cursor to the date we just evaluated
-            } else {
-                // Not yet time to charge for the current cycle
-                break;
-            }
-        }
-        
-        if (interestToCharge > 0) {
-            const newUnpaidInterest = (updatedClienteData.unpaidInterest || 0) + interestToCharge;
-            const monthsOverdue = newUnpaidInterest / updatedClienteData.monthlyInterestCharge;
+    // Loop through months between last charge and now
+    while(chargeDateCursor < now) {
+        const nextChargeCutoff = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth(), cliente.paymentDay + 1);
+
+        if (now >= nextChargeCutoff && lastChargeDate < nextChargeCutoff) {
+            interestToCharge += cliente.monthlyInterestCharge;
+            newLastChargedDate = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth() + 1, cliente.paymentDay);
             
-            const newStatus = monthsOverdue >= 3 ? 'vencido' : 'vigente';
-
-            const updates: Partial<ClienteMensual> = {
-                unpaidInterest: newUnpaidInterest,
-                lastInterestChargedDate: now,
-                status: newStatus,
-            };
-
-            const movement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
-                date: new Date(),
+            newMovements.push({
+                date: newLastChargedDate,
                 type: 'charge_interest',
-                amount: interestToCharge,
+                amount: cliente.monthlyInterestCharge,
                 notes: `Cargo de interés mensual`
-            };
-
-            transaction.update(clienteRef, updates);
-            const movRef = doc(movimientosCollectionRef);
-            transaction.set(movRef, { ...movement, clienteId: cliente.id });
-
-            // Update the local object to reflect changes immediately
-            updatedClienteData.unpaidInterest = newUnpaidInterest;
-            updatedClienteData.lastInterestChargedDate = now;
-            updatedClienteData.status = newStatus;
+            });
+            chargeDateCursor = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth() + 1, 1);
+        } else {
+            break;
         }
-    });
+    }
+    
+    if (interestToCharge > 0) {
+        const newUnpaidInterest = (updatedClienteData.unpaidInterest || 0) + interestToCharge;
+        const monthsOverdue = cliente.monthlyInterestCharge > 0 ? newUnpaidInterest / cliente.monthlyInterestCharge : 0;
+        
+        const newStatus = monthsOverdue >= 3 ? 'vencido' : 'vigente';
+
+        const updates: Partial<ClienteMensual> = {
+            unpaidInterest: newUnpaidInterest,
+            lastInterestChargedDate: newLastChargedDate,
+            status: newStatus,
+        };
+
+        if(transaction) {
+            transaction.update(clienteRef, updates);
+            newMovements.forEach(movement => {
+                const movRef = doc(movimientosCollectionRef);
+                transaction.set(movRef, { ...movement, clienteId: cliente.id });
+            });
+        } else {
+            // If not in a transaction, perform writes directly
+            await updateDoc(clienteRef, updates);
+            const batch = writeBatch(db);
+            newMovements.forEach(movement => {
+                const movRef = doc(movimientosCollectionRef);
+                batch.set(movRef, { ...movement, clienteId: cliente.id });
+            });
+            await batch.commit();
+        }
+
+        // Update the local object to reflect changes immediately
+        updatedClienteData.unpaidInterest = newUnpaidInterest;
+        updatedClienteData.lastInterestChargedDate = newLastChargedDate;
+        updatedClienteData.status = newStatus;
+    }
 
     // Return the potentially updated client data
     return updatedClienteData;
@@ -267,11 +282,43 @@ export async function addCliente(cliente: Omit<ClienteMensual, 'id' | 'displayId
 
 export async function updateCliente(id: string, updates: Partial<ClienteMensual>): Promise<void> {
     const clienteRef = doc(db, 'mensuales_clientes', id);
-    const dataToUpdate: Record<string, any> = { ...updates };
+
+    await runTransaction(db, async (transaction) => {
+        const clienteDoc = await transaction.get(clienteRef);
+        if (!clienteDoc.exists()) {
+            throw new Error("El cliente a actualizar no existe.");
+        }
+
+        const dataToUpdate: Record<string, any> = { ...updates };
+        
+        // If registrationDate is being changed, trigger a full recalculation
+        if (updates.registrationDate) {
+            dataToUpdate.registrationDate = Timestamp.fromDate(updates.registrationDate);
+
+            // 1. Reset interest fields
+            dataToUpdate.unpaidInterest = 0;
+            dataToUpdate.lastInterestChargedDate = Timestamp.fromDate(updates.registrationDate);
+            
+            // 2. Delete all existing interest charge movements for this client
+            const q = query(movimientosCollectionRef, where("clienteId", "==", id), where("type", "==", "charge_interest"));
+            const interestMovementsSnapshot = await getDocs(q); // Important: getDocs outside transaction
+            interestMovementsSnapshot.forEach(movDoc => {
+                transaction.delete(movDoc.ref);
+            });
+            
+            // The recalculation will happen automatically on the next fetch via chargeInterestIfNeeded
+        }
+        
+        transaction.update(clienteRef, dataToUpdate);
+    });
+
+    // After transaction, explicitly call chargeInterestIfNeeded if date was changed
     if (updates.registrationDate) {
-        dataToUpdate.registrationDate = Timestamp.fromDate(updates.registrationDate);
+        const updatedClienteSnap = await getDoc(clienteRef);
+        if(updatedClienteSnap.exists()){
+            await chargeInterestIfNeeded(updatedClienteSnap.data() as ClienteMensual);
+        }
     }
-    await updateDoc(clienteRef, dataToUpdate);
 }
 
 
@@ -303,7 +350,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
             throw new Error("El cliente no existe.");
         }
         
-        let clienteData = (await chargeInterestIfNeeded(clienteDoc.data() as ClienteMensual)) as ClienteMensual;
+        let clienteData = (await chargeInterestIfNeeded(clienteDoc.data() as ClienteMensual, transaction)) as ClienteMensual;
 
         let currentBalance = clienteData.currentBalance;
         const interestToPay = clienteData.unpaidInterest;
