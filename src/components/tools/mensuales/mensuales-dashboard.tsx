@@ -107,7 +107,9 @@ export function MensualesDashboard() {
     }
   };
 
-  const filteredClientes = React.useMemo(() => {
+  const oficinaMap = React.useMemo(() => new Map(oficinas.map(o => [o.id, o.name])), [oficinas]);
+
+  const filteredAndSortedClientes = React.useMemo(() => {
     return clientes
       .filter(cliente => {
         if (!searchTerm) return true;
@@ -116,8 +118,17 @@ export function MensualesDashboard() {
       .filter(cliente => {
         if (selectedOficina === 'all') return true;
         return cliente.oficinaId === selectedOficina;
+      })
+      .sort((a, b) => {
+        const oficinaA = oficinaMap.get(a.oficinaId) || '';
+        const oficinaB = oficinaMap.get(b.oficinaId) || '';
+        if (oficinaA < oficinaB) return -1;
+        if (oficinaA > oficinaB) return 1;
+        
+        // If offices are the same, sort by client name
+        return a.name.localeCompare(b.name);
       });
-  }, [clientes, searchTerm, selectedOficina]);
+  }, [clientes, searchTerm, selectedOficina, oficinaMap]);
 
   return (
     <div className="space-y-6">
@@ -188,7 +199,7 @@ export function MensualesDashboard() {
               <span>Cargando préstamos...</span>
             </div>
           ) : (
-            <ClientesTable data={filteredClientes} oficinas={oficinas} onPaymentClick={handleOpenPagoForm}/>
+            <ClientesTable data={filteredAndSortedClientes} oficinas={oficinas} onPaymentClick={handleOpenPagoForm}/>
           )}
         </CardContent>
       </Card>
@@ -198,7 +209,7 @@ export function MensualesDashboard() {
             <DialogHeader>
                 <DialogTitle>Registrar Abono para {selectedCliente?.name}</DialogTitle>
                  <DialogDescription>
-                    El interés mensual de <span className="font-bold">${(selectedCliente?.monthlyInterestCharge || 0).toLocaleString('es-MX')}</span> se cobrará primero. El resto se irá a capital.
+                    El interés total a cubrir se pagará primero. El resto se irá a capital.
                 </DialogDescription>
             </DialogHeader>
             <PagoForm cliente={selectedCliente} onSubmit={handlePaymentSubmit}/>
