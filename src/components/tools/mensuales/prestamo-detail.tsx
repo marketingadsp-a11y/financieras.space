@@ -47,15 +47,16 @@ const StatCard = ({ title, value, isCurrency = true, colorClass = "text-foregrou
 );
 
 const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
-    const typeInfo = {
+    const typeInfo: { [key: string]: { label: string; color: string } } = {
         charge_interest: { label: "Cargo de Interés", color: "text-amber-600" },
         initial_loan: { label: "Préstamo Inicial", color: "text-primary" },
         payment: { label: "Abono Recibido", color: "text-green-600" },
         pago_interes: { label: "Pago a Interés", color: "text-orange-500" },
         pago_capital: { label: "Abono a Capital", color: "text-green-600" },
+        default: { label: "Movimiento", color: "text-muted-foreground" },
     };
 
-    const info = typeInfo[movimiento.type as keyof typeof typeInfo];
+    const info = typeInfo[movimiento.type as keyof typeof typeInfo] || typeInfo.default;
     const notes = movimiento.notes || (movimiento.type === 'payment' 
         ? `Desglose: $${(movimiento.interestPaid || 0).toLocaleString()} a interés, $${(movimiento.capitalPaid || 0).toLocaleString()} a capital.`
         : '');

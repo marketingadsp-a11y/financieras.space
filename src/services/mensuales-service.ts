@@ -83,6 +83,7 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
 }
 
 export async function getClienteById(id: string): Promise<ClienteMensual | null> {
+    if (!id) return null;
     const clienteRef = doc(db, "mensuales_clientes", id);
     const clienteSnap = await getDoc(clienteRef);
 
@@ -181,24 +182,6 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         let capitalPayment = 0;
         let interestPayment = 0;
 
-        const now = new Date();
-        const lastChargeDate = clienteData.lastInterestChargedDate instanceof Timestamp
-            ? clienteData.lastInterestChargedDate.toDate()
-            : clienteData.lastInterestChargedDate;
-
-        // Check if interest for the current month has already been charged.
-        if (!lastChargeDate || (lastChargeDate.getMonth() !== now.getMonth() || lastChargeDate.getFullYear() !== now.getFullYear())) {
-            const interestChargeMovement: Omit<MovimientoMensual, 'id'> = {
-                clienteId,
-                date: now,
-                type: 'charge_interest',
-                amount: interestToPay,
-                notes: 'Cargo de interés mensual automático'
-            };
-            transaction.set(doc(movimientosCollectionRef), interestChargeMovement);
-            transaction.update(clienteRef, { lastInterestChargedDate: now });
-        }
-        
         if (paymentAmount < interestToPay) {
             throw new Error(`El abono debe ser de al menos $${interestToPay.toLocaleString('es-MX')} para cubrir el interés mensual.`);
         }
@@ -214,6 +197,8 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         if (capitalPayment > 0) {
              currentBalance -= capitalPayment;
         }
+        
+        const now = new Date();
         
         // 3. Create a single consolidated payment movement
         const paymentMovement: Omit<MovimientoMensual, 'id'> = {
