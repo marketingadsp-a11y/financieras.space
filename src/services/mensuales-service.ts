@@ -71,7 +71,8 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
         return {
             ...data,
             id: clienteSnap.id,
-            loanAmount: data.loanAmount || 0, // Ensure it's a number
+            loanAmount: data.loanAmount || 0,
+            oficinaId: data.oficinaId || "",
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
         } as ClienteMensual;
