@@ -115,7 +115,15 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    await onSubmit(values as any); // The displayId will be generated in the service
+    
+    const dataToSubmit = { ...values };
+
+    // If there's a duplicate and we're creating, use the full name from the first duplicate found.
+    if (!isEditing && duplicateClients.length > 0) {
+        dataToSubmit.name = duplicateClients[0].name;
+    }
+    
+    await onSubmit(dataToSubmit as any); // The displayId will be generated in the service
     setIsSubmitting(false);
   };
   
@@ -201,7 +209,7 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
                    <ul className="list-disc pl-5 mt-2 space-y-1">
                     {duplicateClients.map(c => (
                         <li key={c.id} className="text-xs">
-                           <span className="font-bold">{c.name}</span> - <span className="font-semibold">{oficinaMap.get(c.oficinaId) || 'N/A'}</span> - Saldo: <span className="font-bold">${c.currentBalance.toLocaleString()}</span> ({c.status})
+                           <span className="font-bold">{c.name}</span> - {oficinaMap.get(c.oficinaId) || 'N/A'} - Saldo: <span className="font-bold">${c.currentBalance.toLocaleString()}</span> ({c.status})
                         </li>
                     ))}
                    </ul>
@@ -262,7 +270,7 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Confirmar Nuevo Préstamo?</AlertDialogTitle>
                         <AlertDialogDescriptionComponent>
-                           El cliente <strong>{watchName}</strong> ya tiene al menos un préstamo vigente. ¿Estás seguro de que quieres registrar un segundo préstamo para este cliente?
+                           El cliente <strong>{duplicateClients[0]?.name || watchName}</strong> ya tiene al menos un préstamo vigente. ¿Estás seguro de que quieres registrar un segundo préstamo?
                         </AlertDialogDescriptionComponent>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
