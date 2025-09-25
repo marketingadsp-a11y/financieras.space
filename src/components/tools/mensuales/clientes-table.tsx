@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MoreHorizontal, DollarSign, History } from "lucide-react";
+import { MoreHorizontal, DollarSign, History, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -54,7 +54,7 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
             <TableHead>Interés Mensual</TableHead>
             <TableHead>Día de Pago</TableHead>
             <TableHead>Nuevo Saldo</TableHead>
-            <TableHead><span className="sr-only">Acciones</span></TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -72,27 +72,16 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
                 <TableCell>${cliente.monthlyInterestCharge.toLocaleString('es-MX')}</TableCell>
                 <TableCell>{cliente.paymentDay}</TableCell>
                 <TableCell className="font-semibold">${cliente.currentBalance.toLocaleString('es-MX')}</TableCell>
-                <TableCell>
-                    <div className="flex justify-end">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Alternar menú</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={() => onPaymentClick(cliente)} disabled={cliente.status === 'liquidado'}>
-                                    <DollarSign className="mr-2 h-4 w-4" /> Abonar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                    <Link href={`/tools/mensuales/prestamo/${cliente.id}`}>
-                                        <History className="mr-2 h-4 w-4" /> Ver Detalles
-                                    </Link>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => onPaymentClick(cliente)} disabled={cliente.status === 'liquidado'}>
+                            <DollarSign className="mr-2 h-4 w-4" /> Abonar
+                        </Button>
+                        <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/tools/mensuales/prestamo/${cliente.id}`}>
+                                Ver Detalles <ArrowRight className="ml-2 h-4 w-4"/>
+                            </Link>
+                        </Button>
                     </div>
                 </TableCell>
               </TableRow>
