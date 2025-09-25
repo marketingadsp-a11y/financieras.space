@@ -56,20 +56,20 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const [clienteData, movimientosData] = await Promise.all([
-                    getClienteById(clienteId),
-                    getMovimientosByCliente(clienteId),
-                ]);
+                const clienteData = await getClienteById(clienteId);
+                setCliente(clienteData);
 
                 if (clienteData) {
-                    const oficinaData = await getOficinaById(clienteData.oficinaId);
+                    const [movimientosData, oficinaData] = await Promise.all([
+                        getMovimientosByCliente(clienteId),
+                        getOficinaById(clienteData.oficinaId),
+                    ]);
+                    setMovimientos(movimientosData);
                     setOficina(oficinaData);
                 }
-                
-                setCliente(clienteData);
-                setMovimientos(movimientosData);
 
             } catch (error) {
+                console.error("Error fetching loan details:", error);
                 toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los detalles del préstamo." });
             } finally {
                 setIsLoading(false);
