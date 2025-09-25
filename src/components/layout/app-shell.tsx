@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from "react";
@@ -152,6 +153,10 @@ const mensualesNavItems: NavItem[] = [
     { href: "/tools/mensuales/oficinas", label: "Oficinas", icon: Building },
     { href: "/tools/mensuales/clientes", label: "Clientes", icon: Users },
     { href: "/tools/mensuales/interes", label: "Interés", icon: Percent },
+];
+
+const mensualesSettingsItems: NavItem[] = [
+    { href: "/tools/mensuales/settings", label: "Importar / Exportar", icon: Upload },
 ];
 
 function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
@@ -564,23 +569,42 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
 
     if (isMensualesPath) {
         return (
-             <SidebarGroup>
-                <SidebarGroupLabel>MENSUALES</SidebarGroupLabel>
-                <SidebarMenu>
-                    {mensualesNavItems.map((item) => (
-                        <SidebarMenuItem key={item.href}>
-                            <Link href={item.href!}>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
-                                    <span>
-                                        <item.icon />
-                                        <span>{item.label}</span>
-                                    </span>
-                                </SidebarMenuButton>
-                            </Link>
-                        </SidebarMenuItem>
-                    ))}
-                </SidebarMenu>
-            </SidebarGroup>
+             <>
+                <SidebarGroup>
+                    <SidebarGroupLabel>GESTIÓN</SidebarGroupLabel>
+                    <SidebarMenu>
+                        {mensualesNavItems.map((item) => (
+                            <SidebarMenuItem key={item.href}>
+                                <Link href={item.href!}>
+                                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
+                                        <span>
+                                            <item.icon />
+                                            <span>{item.label}</span>
+                                        </span>
+                                    </SidebarMenuButton>
+                                </Link>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroup>
+                <SidebarGroup>
+                    <SidebarGroupLabel>CONFIGURACIÓN</SidebarGroupLabel>
+                    <SidebarMenu>
+                        {mensualesSettingsItems.map((item) => (
+                            <SidebarMenuItem key={item.href}>
+                                <Link href={item.href!}>
+                                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
+                                        <span>
+                                            <item.icon />
+                                            <span>{item.label}</span>
+                                        </span>
+                                    </SidebarMenuButton>
+                                </Link>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroup>
+             </>
         )
     }
 

@@ -4,11 +4,12 @@
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, getDoc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { OficinaMensual, ClienteMensual, MovimientoMensual } from "@/lib/data";
+import type { OficinaMensual, ClienteMensual, MovimientoMensual, InterestRate } from "@/lib/data";
 
 const oficinasCollectionRef = collection(db, "mensuales_oficinas");
 const clientesCollectionRef = collection(db, "mensuales_clientes");
 const movimientosCollectionRef = collection(db, "mensuales_movimientos");
+const interestRatesCollectionRef = collection(db, "mensuales_interestRates");
 
 
 // This function will automatically charge interest if a payment cycle has passed.
@@ -433,4 +434,87 @@ export async function getMovimientosByCliente(clienteId: string): Promise<Movimi
         }
     }) as MovimientoMensual[];
     return movimientos;
+}
+
+
+// --- Bulk Import ---
+export async function importMensualesData(data: any[], prefix: string): Promise<void> {
+    const batch = writeBatch(db);
+
+    // Pre-fetch existing oficinas and rates to avoid duplicates
+    const oficinasQuery = query(oficinasCollectionRef, where("prefix", "==", prefix));
+    const ratesQuery = query(interestRatesCollectionRef, where("prefix", "==", prefix));
+    
+    const [oficinasSnapshot, ratesSnapshot] = await Promise.all([
+        getDocs(oficinasQuery),
+        getDocs(ratesQuery),
+    ]);
+
+    const oficinaMap = new Map<string, string>();
+    oficinasSnapshot.forEach(doc => oficinaMap.set(doc.data().name.toUpperCase(), doc.id));
+
+    const rateMap = new Map<number, string>();
+    ratesSnapshot.forEach(doc => rateMap.set(doc.data().value, doc.id));
+    
+    for (const row of data) {
+        const oficinaName = String(row.OFICINA || '').trim().toUpperCase();
+        const clienteName = String(row.CLIENTE || '').trim().toUpperCase();
+        const loanAmount = parseFloat(String(row['MONTO PRESTAMO'] || '0').replace(/[^0-9.-]+/g,""));
+        const interestRateValue = parseFloat(String(row['TASA INTERES (%)'] || '0').replace(/[^0-9.-]+/g,""));
+        const paymentDay = parseInt(String(row['DIA PAGO'] || '1'), 10);
+
+        if (!oficinaName || !clienteName || !loanAmount || !interestRateValue) {
+            console.warn("Skipping row due to missing data:", row);
+            continue;
+        }
+        
+        let oficinaId = oficinaMap.get(oficinaName);
+        if (!oficinaId) {
+            const newOficinaRef = doc(oficinasCollectionRef);
+            oficinaId = newOficinaRef.id;
+            batch.set(newOficinaRef, { name: oficinaName, prefix });
+            oficinaMap.set(oficinaName, oficinaId);
+        }
+        
+        let rateId = rateMap.get(interestRateValue);
+        if (!rateId) {
+            const newRateRef = doc(interestRatesCollectionRef);
+            rateId = newRateRef.id;
+            batch.set(newRateRef, { value: interestRateValue, prefix });
+            rateMap.set(interestRateValue, rateId);
+        }
+        
+        const displayId = await generateUniqueDisplayId(prefix);
+        const monthlyInterestCharge = (loanAmount * interestRateValue) / 100;
+
+        const newCliente: Omit<ClienteMensual, 'id'> = {
+            displayId,
+            prefix,
+            oficinaId,
+            name: clienteName,
+            loanAmount,
+            paymentDay: isNaN(paymentDay) ? 1 : paymentDay,
+            interestRateId: rateId,
+            interestRateValue,
+            monthlyInterestCharge,
+            currentBalance: loanAmount,
+            unpaidInterest: 0,
+            status: 'vigente',
+            registrationDate: new Date(),
+        };
+        
+        const newClienteRef = doc(clientesCollectionRef);
+        batch.set(newClienteRef, newCliente);
+        
+        const initialMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
+            date: new Date(),
+            type: 'initial_loan',
+            amount: loanAmount,
+            notes: 'Préstamo inicial importado desde Excel'
+        };
+        const newMovimientoRef = doc(movimientosCollectionRef);
+        batch.set(newMovimientoRef, { ...initialMovement, clienteId: newClienteRef.id });
+    }
+    
+    await batch.commit();
 }
