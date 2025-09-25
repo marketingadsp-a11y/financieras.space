@@ -45,12 +45,13 @@ export function ClientesTable({ data, oficinas }: ClientesTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Cliente</TableHead>
             <TableHead>Oficina</TableHead>
-            <TableHead>Monto Prestado</TableHead>
-            <TableHead>Saldo Actual</TableHead>
-            <TableHead>Día de Pago</TableHead>
+            <TableHead>Cliente</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Monto Prestado</TableHead>
+            <TableHead>Interés Mensual</TableHead>
+            <TableHead>Día de Pago</TableHead>
+            <TableHead>Nuevo Saldo</TableHead>
             <TableHead><span className="sr-only">Acciones</span></TableHead>
           </TableRow>
         </TableHeader>
@@ -58,16 +59,17 @@ export function ClientesTable({ data, oficinas }: ClientesTableProps) {
           {data.length > 0 ? (
             data.map((cliente) => (
               <TableRow key={cliente.id}>
-                <TableCell className="font-medium">{cliente.name}</TableCell>
                 <TableCell>{oficinaMap.get(cliente.oficinaId) || 'N/A'}</TableCell>
-                <TableCell>${cliente.loanAmount.toLocaleString('es-MX')}</TableCell>
-                <TableCell className="font-semibold">${cliente.currentBalance.toLocaleString('es-MX')}</TableCell>
-                <TableCell>{cliente.paymentDay}</TableCell>
+                <TableCell className="font-medium">{cliente.name}</TableCell>
                 <TableCell>
                   <Badge variant={getStatusVariant(cliente.status)} className="capitalize">
                     {cliente.status}
                   </Badge>
                 </TableCell>
+                <TableCell>${cliente.loanAmount.toLocaleString('es-MX')}</TableCell>
+                <TableCell>${cliente.monthlyInterestCharge.toLocaleString('es-MX')}</TableCell>
+                <TableCell>{cliente.paymentDay}</TableCell>
+                <TableCell className="font-semibold">${cliente.currentBalance.toLocaleString('es-MX')}</TableCell>
                 <TableCell>
                     <div className="flex justify-end">
                         <DropdownMenu>
@@ -93,7 +95,7 @@ export function ClientesTable({ data, oficinas }: ClientesTableProps) {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
+              <TableCell colSpan={8} className="h-24 text-center">
                 No hay préstamos registrados.
               </TableCell>
             </TableRow>
