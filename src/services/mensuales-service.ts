@@ -359,8 +359,8 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         }
         
         let clienteData = clienteDoc.data() as ClienteMensual;
-        // Use the freshly calculated unpaidInterest
-        const totalInterestToCover = upToDateClienteData.unpaidInterest || 0;
+        
+        const totalInterestToCover = (upToDateClienteData.unpaidInterest || 0);
 
         let remainingPayment = paymentAmount;
         let interestPaid = 0;
