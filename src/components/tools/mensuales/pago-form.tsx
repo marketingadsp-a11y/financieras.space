@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -47,6 +46,8 @@ export function PagoForm({ onSubmit, cliente }: PagoFormProps) {
   if (!cliente) return null;
   const isPaid = cliente.status === 'liquidado';
 
+  const totalInterestToCover = (cliente.monthlyInterestCharge || 0) + (cliente.unpaidInterest || 0);
+
   return (
     <Form {...form}>
         <div className="space-y-2 rounded-lg border bg-muted/30 p-4 my-4">
@@ -55,16 +56,12 @@ export function PagoForm({ onSubmit, cliente }: PagoFormProps) {
                 <span className="font-medium">${(cliente.loanAmount || 0).toLocaleString('es-MX')}</span>
             </div>
             <div className="flex justify-between text-lg">
-                <span className="text-muted-foreground">Saldo Actual:</span>
+                <span className="text-muted-foreground">Saldo a Capital:</span>
                 <span className="font-bold text-destructive">${(cliente.currentBalance || 0).toLocaleString('es-MX')}</span>
             </div>
-             <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Interés Mensual a Cubrir:</span>
-                <span className="font-medium">${(cliente.monthlyInterestCharge || 0).toLocaleString('es-MX')}</span>
-            </div>
-             <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Interés Acumulado:</span>
-                <span className="font-medium text-amber-600">${(cliente.unpaidInterest || 0).toLocaleString('es-MX')}</span>
+             <div className="flex justify-between text-lg">
+                <span className="text-muted-foreground">Interés Total a Cubrir:</span>
+                <span className="font-bold text-amber-600">${totalInterestToCover.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
             </div>
         </div>
 
