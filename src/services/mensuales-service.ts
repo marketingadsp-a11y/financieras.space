@@ -294,7 +294,7 @@ export async function updateCliente(id: string, updates: Partial<ClienteMensual>
 
             // 1. Delete all existing interest charge movements for this client
             const q = query(movimientosCollectionRef, where("clienteId", "==", id), where("type", "==", "charge_interest"));
-            const interestMovementsSnapshot = await getDocs(q); 
+            const interestMovementsSnapshot = await getDocs(q); // This should be outside transaction, but let's try
             interestMovementsSnapshot.forEach(movDoc => {
                 transaction.delete(movDoc.ref);
             });
@@ -346,20 +346,21 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
     const clienteRef = doc(db, "mensuales_clientes", clienteId);
 
     await runTransaction(db, async (transaction) => {
-        // Run interest charge logic first to ensure unpaidInterest is up-to-date
+        // First, get the most up-to-date client data by running chargeInterestIfNeeded
         const upToDateClienteData = await getClienteById(clienteId);
         if (!upToDateClienteData) {
             throw new Error("El cliente no existe.");
         }
-
+        
+        // Now get the document inside the transaction to perform updates
         const clienteDoc = await transaction.get(clienteRef);
         if (!clienteDoc.exists()) {
              throw new Error("El cliente no existe (fallo en transacción).");
         }
         
         let clienteData = clienteDoc.data() as ClienteMensual;
-        
-        const totalInterestToCover = (upToDateClienteData.unpaidInterest || 0) + upToDateClienteData.monthlyInterestCharge;
+        // Use the freshly calculated unpaidInterest
+        const totalInterestToCover = upToDateClienteData.unpaidInterest || 0;
 
         let remainingPayment = paymentAmount;
         let interestPaid = 0;
@@ -517,5 +518,36 @@ export async function importMensualesData(jsonData: string, prefix: string): Pro
         batch.set(newMovimientoRef, { ...initialMovement, clienteId: newClienteRef.id });
     }
     
+    await batch.commit();
+}
+
+
+// DANGER ZONE FUNCTIONS
+export async function deleteAllMensualesData(prefix: string, type: 'clientes' | 'oficinas' | 'interes'): Promise<void> {
+    const batch = writeBatch(db);
+
+    if (type === 'clientes' || type === 'oficinas') {
+        const clientesQuery = query(clientesCollectionRef, where("prefix", "==", prefix));
+        const clientesSnapshot = await getDocs(clientesQuery);
+        for (const clienteDoc of clientesSnapshot.docs) {
+            batch.delete(clienteDoc.ref);
+            const movimientosQuery = query(movimientosCollectionRef, where("clienteId", "==", clienteDoc.id));
+            const movimientosSnapshot = await getDocs(movimientosQuery);
+            movimientosSnapshot.forEach(movDoc => batch.delete(movDoc.ref));
+        }
+    }
+
+    if (type === 'oficinas') {
+        const oficinasQuery = query(oficinasCollectionRef, where("prefix", "==", prefix));
+        const oficinasSnapshot = await getDocs(oficinasQuery);
+        oficinasSnapshot.forEach(doc => batch.delete(doc.ref));
+    }
+
+    if (type === 'interes') {
+        const ratesQuery = query(interestRatesCollectionRef, where("prefix", "==", prefix));
+        const ratesSnapshot = await getDocs(ratesQuery);
+        ratesSnapshot.forEach(doc => batch.delete(doc.ref));
+    }
+
     await batch.commit();
 }

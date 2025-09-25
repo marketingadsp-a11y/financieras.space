@@ -157,6 +157,7 @@ const mensualesNavItems: NavItem[] = [
 
 const mensualesSettingsItems: NavItem[] = [
     { href: "/tools/mensuales/settings", label: "Importar / Exportar", icon: Upload },
+    { href: "/tools/mensuales/settings/danger-zone", label: "Zona de Peligro", icon: ShieldAlert },
 ];
 
 function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
