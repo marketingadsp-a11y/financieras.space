@@ -51,6 +51,8 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
         charge_interest: { label: "Cargo de Interés", color: "text-amber-600" },
         initial_loan: { label: "Préstamo Inicial", color: "text-primary" },
         payment: { label: "Abono Recibido", color: "text-green-600" },
+        pago_interes: { label: "Pago a Interés", color: "text-orange-500" },
+        pago_capital: { label: "Abono a Capital", color: "text-green-600" },
     };
 
     const info = typeInfo[movimiento.type];
