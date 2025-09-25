@@ -61,12 +61,13 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
     const snapshot = await getDocs(q);
     const clientes = snapshot.docs.map(doc => {
         const data = doc.data();
-        return { 
+        // This is a safe conversion, ensuring all fields are checked and have defaults.
+        return {
             id: doc.id,
             displayId: data.displayId || "0000",
             name: data.name || "",
             prefix: data.prefix || "",
-            oficinaId: data.oficinaId || "",
+            oficinaId: data.oficinaId || "", // Ensure oficinaId is a string
             loanAmount: data.loanAmount || 0,
             paymentDay: data.paymentDay || 1,
             interestRateId: data.interestRateId || "",
@@ -76,7 +77,7 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
             status: data.status || 'vigente',
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
-        }
+        } as ClienteMensual;
     }) as ClienteMensual[];
     return clientes.sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -197,6 +198,11 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
             };
             transaction.set(doc(movimientosCollectionRef), interestChargeMovement);
             transaction.update(clienteRef, { lastInterestChargedDate: now });
+        }
+
+        // Validate that the payment covers at least the monthly interest
+        if (paymentAmount < interestToPay) {
+            throw new Error(`El abono debe ser de al menos $${interestToPay.toLocaleString('es-MX')} para cubrir el interés mensual.`);
         }
         
         let remainingPayment = paymentAmount;
