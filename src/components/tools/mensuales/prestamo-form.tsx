@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -18,7 +17,21 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ClienteMensual, OficinaMensual, InterestRate } from "@/lib/data";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription as AlertDialogDescriptionComponent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Loader2, AlertTriangle, BadgeInfo } from "lucide-react";
+import { searchClientesByName } from "@/services/mensuales-service";
+import { useAuth } from "@/context/auth-context";
 
 const formSchema = z.object({
   oficinaId: z.string().min(1, "Debes seleccionar una oficina."),
@@ -39,7 +52,10 @@ type PrestamoFormProps = {
 
 export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: PrestamoFormProps) {
   const isEditing = !!cliente;
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [duplicateClients, setDuplicateClients] = React.useState<ClienteMensual[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,6 +71,35 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
 
   const watchLoanAmount = form.watch("loanAmount");
   const watchInterestRateId = form.watch("interestRateId");
+  const watchName = form.watch("name");
+  
+  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    if (watchName && watchName.length > 3 && !isEditing) {
+      setIsSearching(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+        if (user?.prefix) {
+            const results = await searchClientesByName(watchName, user.prefix);
+            setDuplicateClients(results);
+        }
+        setIsSearching(false);
+      }, 500); // 500ms debounce
+    } else {
+      setDuplicateClients([]);
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [watchName, user?.prefix, isEditing]);
+
 
   React.useEffect(() => {
     const rate = interestRates.find(r => r.id === watchInterestRateId);
@@ -72,6 +117,9 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
     await onSubmit(values as any); // The displayId will be generated in the service
     setIsSubmitting(false);
   };
+  
+  const hasActiveLoan = duplicateClients.some(c => c.status === 'vigente');
+  const oficinaMap = new Map(oficinas.map(o => [o.id, o.name]));
 
   return (
     <Form {...form}>
@@ -133,12 +181,33 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
             <FormItem>
               <FormLabel>Nombre del Cliente</FormLabel>
               <FormControl>
-                <Input placeholder="John Doe" {...field} />
+                <div className="relative">
+                  <Input placeholder="John Doe" {...field} disabled={isEditing} />
+                  {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />}
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+        
+        {duplicateClients.length > 0 && (
+            <Alert variant={hasActiveLoan ? "destructive" : "default"}>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>{hasActiveLoan ? '¡Cliente con Préstamo Vigente!' : 'Cliente Encontrado'}</AlertTitle>
+                <AlertDescription>
+                   Se encontraron coincidencias para este nombre:
+                   <ul className="list-disc pl-5 mt-2 space-y-1">
+                    {duplicateClients.map(c => (
+                        <li key={c.id} className="text-xs">
+                           <span className="font-semibold">{oficinaMap.get(c.oficinaId) || 'N/A'}</span> - Saldo: <span className="font-bold">${c.currentBalance.toLocaleString()}</span> ({c.status})
+                        </li>
+                    ))}
+                   </ul>
+                </AlertDescription>
+            </Alert>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
             <FormField
             control={form.control}
@@ -180,11 +249,36 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
             </FormItem>
           )}
         />
-
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isEditing ? 'Guardar Cambios' : 'Registrar Préstamo'}
-        </Button>
+        
+        {hasActiveLoan ? (
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button type="button" className="w-full" variant="destructive">
+                         <BadgeInfo className="mr-2 h-4 w-4"/> Confirmar y Registrar
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Confirmar Nuevo Préstamo?</AlertDialogTitle>
+                        <AlertDialogDescriptionComponent>
+                           El cliente <strong>{watchName}</strong> ya tiene al menos un préstamo vigente. ¿Estás seguro de que quieres registrar un segundo préstamo para este cliente?
+                        </AlertDialogDescriptionComponent>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => form.handleSubmit(handleFormSubmit)()} disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Sí, registrar nuevo préstamo
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        ) : (
+             <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEditing ? 'Guardar Cambios' : 'Registrar Préstamo'}
+            </Button>
+        )}
       </form>
     </Form>
   );

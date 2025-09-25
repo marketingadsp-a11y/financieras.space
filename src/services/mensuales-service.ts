@@ -1,5 +1,4 @@
-
-'use server';
+"use server";
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, getDoc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -82,6 +81,35 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
     return clientes.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function searchClientesByName(name: string, prefix: string): Promise<ClienteMensual[]> {
+    const searchTerm = name.toUpperCase();
+    const q = query(
+        clientesCollectionRef,
+        where("prefix", "==", prefix),
+        where("name", ">=", searchTerm),
+        where("name", "<=", searchTerm + '\uf8ff')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            displayId: data.displayId || "0000",
+            name: data.name || "",
+            prefix: data.prefix || "",
+            oficinaId: data.oficinaId || "",
+            loanAmount: data.loanAmount || 0,
+            paymentDay: data.paymentDay || 1,
+            interestRateId: data.interestRateId || "",
+            interestRateValue: data.interestRateValue || 0,
+            monthlyInterestCharge: data.monthlyInterestCharge || 0,
+            currentBalance: data.currentBalance || 0,
+            status: data.status || 'vigente',
+        } as ClienteMensual;
+    });
+}
+
+
 export async function getClienteById(id: string): Promise<ClienteMensual | null> {
     if (!id) return null;
     const clienteRef = doc(db, "mensuales_clientes", id);
@@ -135,7 +163,7 @@ export async function addCliente(cliente: Omit<ClienteMensual, 'id' | 'displayId
         notes: 'Préstamo inicial registrado'
     };
     
-    const clienteWithDisplayId = { ...cliente, displayId };
+    const clienteWithDisplayId = { ...cliente, displayId, name: cliente.name.toUpperCase() };
 
     const clienteDocRef = doc(collection(db, "mensuales_clientes"));
     const movimientoDocRef = doc(collection(db, "mensuales_movimientos"));
