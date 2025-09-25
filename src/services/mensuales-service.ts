@@ -345,13 +345,14 @@ export async function deleteCliente(clienteId: string): Promise<void> {
 export async function addPaymentToCliente(clienteId: string, paymentAmount: number): Promise<void> {
     const clienteRef = doc(db, "mensuales_clientes", clienteId);
 
-    await runTransaction(db, async (transaction) => {
-        // First, get the most up-to-date client data by running chargeInterestIfNeeded
-        const upToDateClienteData = await getClienteById(clienteId);
-        if (!upToDateClienteData) {
-            throw new Error("El cliente no existe.");
-        }
+    // First, get the most up-to-date client data by running chargeInterestIfNeeded outside the transaction.
+    // This pre-calculates what the interest SHOULD be before we try to pay it.
+    const upToDateClienteData = await getClienteById(clienteId);
+    if (!upToDateClienteData) {
+        throw new Error("El cliente no existe.");
+    }
         
+    await runTransaction(db, async (transaction) => {
         // Now get the document inside the transaction to perform updates
         const clienteDoc = await transaction.get(clienteRef);
         if (!clienteDoc.exists()) {
@@ -360,7 +361,8 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         
         let clienteData = clienteDoc.data() as ClienteMensual;
         
-        const totalInterestToCover = (upToDateClienteData.unpaidInterest || 0);
+        // Use the interest from the pre-calculated, up-to-date data.
+        const totalInterestToCover = upToDateClienteData.unpaidInterest || 0;
 
         let remainingPayment = paymentAmount;
         let interestPaid = 0;
