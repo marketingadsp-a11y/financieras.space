@@ -68,7 +68,7 @@ export function MensualesSettingsPage() {
                     return toast({ variant: "destructive", title: "Error", description: "El archivo de Excel está vacío o no tiene un formato válido." });
                 }
                 
-                await importMensualesData(json, user.prefix);
+                await importMensualesData(JSON.stringify(json), user.prefix);
 
                 toast({ title: "Éxito", description: `${json.length} registros de préstamos importados.` });
                 setIsImporting(false);

@@ -438,7 +438,8 @@ export async function getMovimientosByCliente(clienteId: string): Promise<Movimi
 
 
 // --- Bulk Import ---
-export async function importMensualesData(data: any[], prefix: string): Promise<void> {
+export async function importMensualesData(jsonData: string, prefix: string): Promise<void> {
+    const data = JSON.parse(jsonData);
     const batch = writeBatch(db);
 
     // Pre-fetch existing oficinas and rates to avoid duplicates
