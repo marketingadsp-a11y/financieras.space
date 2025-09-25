@@ -74,8 +74,13 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
                 <TableCell className="font-semibold">${cliente.currentBalance.toLocaleString('es-MX')}</TableCell>
                 <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => onPaymentClick(cliente)} disabled={cliente.status === 'liquidado'}>
-                            <DollarSign className="mr-2 h-4 w-4" /> Abonar
+                        <Button
+                          size="sm"
+                          onClick={() => onPaymentClick(cliente)}
+                          disabled={cliente.status === 'liquidado'}
+                          className="bg-blue-800 text-white hover:bg-blue-900"
+                        >
+                          <DollarSign className="mr-2 h-4 w-4" /> Abonar
                         </Button>
                         <Button variant="ghost" size="sm" asChild>
                             <Link href={`/tools/mensuales/prestamo/${cliente.id}`}>
