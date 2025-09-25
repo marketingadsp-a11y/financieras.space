@@ -3,7 +3,7 @@
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { OficinaMensual } from "@/lib/data";
+import type { OficinaMensual, ClienteMensual } from "@/lib/data";
 
 const oficinasCollectionRef = collection(db, "mensuales_oficinas");
 const clientesCollectionRef = collection(db, "mensuales_clientes");
@@ -40,4 +40,27 @@ export async function deleteOficina(id: string) {
     });
 
     await batch.commit();
+}
+
+
+// --- Client Functions ---
+
+export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
+    const q = query(clientesCollectionRef, where("prefix", "==", prefix));
+    const snapshot = await getDocs(q);
+    const clientes = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return { 
+            ...data, 
+            id: doc.id,
+            lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
+            lastPaymentDate: data.lastPaymentDate?.toDate(),
+        }
+    }) as ClienteMensual[];
+    return clientes.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function addCliente(cliente: Omit<ClienteMensual, 'id'>): Promise<ClienteMensual> {
+    const docRef = await addDoc(clientesCollectionRef, cliente);
+    return { ...cliente, id: docRef.id };
 }
