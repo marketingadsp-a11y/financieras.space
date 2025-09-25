@@ -75,6 +75,7 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
             monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
             unpaidInterest: data.unpaidInterest || 0,
+            registrationDate: data.registrationDate?.toDate(),
             status: data.status || 'vigente',
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
@@ -107,6 +108,7 @@ export async function searchClientesByName(name: string, prefix: string): Promis
             monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
             unpaidInterest: data.unpaidInterest || 0,
+            registrationDate: data.registrationDate?.toDate(),
             status: data.status || 'vigente',
         } as ClienteMensual;
     });
@@ -134,6 +136,7 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
             monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
             unpaidInterest: data.unpaidInterest || 0,
+            registrationDate: data.registrationDate?.toDate(),
             status: data.status || 'vigente',
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
@@ -167,7 +170,13 @@ export async function addCliente(cliente: Omit<ClienteMensual, 'id' | 'displayId
         notes: 'Préstamo inicial registrado'
     };
     
-    const clienteWithDisplayId = { ...cliente, displayId, name: cliente.name.toUpperCase(), unpaidInterest: 0 };
+    const clienteWithDisplayId = { 
+        ...cliente, 
+        displayId, 
+        name: cliente.name.toUpperCase(), 
+        unpaidInterest: 0,
+        registrationDate: new Date(),
+    };
 
     const clienteDocRef = doc(collection(db, "mensuales_clientes"));
     const movimientoDocRef = doc(collection(db, "mensuales_movimientos"));
@@ -179,6 +188,16 @@ export async function addCliente(cliente: Omit<ClienteMensual, 'id' | 'displayId
     
     return { ...clienteWithDisplayId, id: clienteDocRef.id };
 }
+
+export async function updateCliente(id: string, updates: Partial<ClienteMensual>): Promise<void> {
+    const clienteRef = doc(db, 'mensuales_clientes', id);
+    const dataToUpdate: Record<string, any> = { ...updates };
+    if (updates.registrationDate) {
+        dataToUpdate.registrationDate = Timestamp.fromDate(updates.registrationDate);
+    }
+    await updateDoc(clienteRef, dataToUpdate);
+}
+
 
 export async function deleteCliente(clienteId: string): Promise<void> {
     const batch = writeBatch(db);
@@ -211,7 +230,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         const clienteData = clienteDoc.data() as ClienteMensual;
         
         let currentBalance = clienteData.currentBalance;
-        let interestToCover = (clienteData.unpaidInterest || 0) + clienteData.monthlyInterestCharge;
+        const interestToPay = (clienteData.unpaidInterest || 0) + clienteData.monthlyInterestCharge;
         
         let interestPaid = 0;
         let capitalPaid = 0;
@@ -219,7 +238,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         
         // Step 1: Pay off interest first
         if (remainingPayment > 0) {
-            interestPaid = Math.min(remainingPayment, interestToCover);
+            interestPaid = Math.min(remainingPayment, interestToPay);
             remainingPayment -= interestPaid;
         }
 
@@ -230,7 +249,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         }
         
         // Step 3: Calculate the new unpaid interest
-        const newUnpaidInterest = interestToCover - interestPaid;
+        const newUnpaidInterest = interestToPay - interestPaid;
 
         const updates: Partial<ClienteMensual> = {
             currentBalance: currentBalance,
@@ -244,21 +263,36 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
             updates.unpaidInterest = 0; // Clear any remaining unpaid interest if loan is liquidated
         }
 
-        // Create a single movement record for the entire payment
-        const paymentMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
-            date: new Date(),
-            type: 'payment',
-            amount: paymentAmount,
-            interestPaid: interestPaid,
-            capitalPaid: capitalPaid,
-            notes: `Abono de $${paymentAmount.toLocaleString()}. Interés cubierto: $${interestPaid.toLocaleString()}. Capital cubierto: $${capitalPaid.toLocaleString()}.`
-        };
+        const batch: { ref: any, data: any }[] = [];
 
-        const movRef = doc(movimientosCollectionRef);
-        transaction.set(movRef, { ...paymentMovement, clienteId });
+        // Create movement for interest paid
+        if (interestPaid > 0) {
+            const interestMov: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
+                date: new Date(),
+                type: 'pago_interes',
+                amount: interestPaid,
+                notes: `Pago a interés del abono total de $${paymentAmount.toLocaleString('es-MX')}`
+            };
+            batch.push({ ref: doc(movimientosCollectionRef), data: { ...interestMov, clienteId } });
+        }
+
+        // Create movement for capital paid
+        if (capitalPaid > 0) {
+            const capitalMov: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
+                date: new Date(),
+                type: 'pago_capital',
+                amount: capitalPaid,
+                notes: `Abono a capital del abono total de $${paymentAmount.toLocaleString('es-MX')}`
+            };
+            batch.push({ ref: doc(movimientosCollectionRef), data: { ...capitalMov, clienteId } });
+        }
+
+        // Commit updates and new movements
         transaction.update(clienteRef, updates);
+        batch.forEach(item => transaction.set(item.ref, item.data));
     });
 }
+
 
 export async function getMovimientosByCliente(clienteId: string): Promise<MovimientoMensual[]> {
     const q = query(movimientosCollectionRef, where("clienteId", "==", clienteId), orderBy("date", "desc"));

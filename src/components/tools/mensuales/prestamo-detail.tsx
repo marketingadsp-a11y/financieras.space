@@ -4,9 +4,9 @@
 
 import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
-import { getClienteById, getMovimientosByCliente, getOficinaById, deleteCliente, addPaymentToCliente } from "@/services/mensuales-service";
+import { getClienteById, getMovimientosByCliente, getOficinaById, deleteCliente, addPaymentToCliente, updateCliente } from "@/services/mensuales-service";
 import type { ClienteMensual, MovimientoMensual, OficinaMensual } from "@/lib/data";
-import { Loader2, ArrowLeft, User, DollarSign, Percent, Calendar, Briefcase, FileText, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, User, DollarSign, Percent, Calendar, Briefcase, FileText, Trash2, CalendarClock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { PagoForm } from "./pago-form";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 
 const StatCard = ({ title, value, isCurrency = true, colorClass = "text-foreground" }: { title: string; value: number; isCurrency?: boolean; colorClass?: string; }) => (
@@ -50,26 +52,19 @@ const StatCard = ({ title, value, isCurrency = true, colorClass = "text-foregrou
 
 const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
     const typeInfo: { [key: string]: { label: string; color: string } } = {
-        charge_interest: { label: "Cargo de Interés", color: "text-amber-600" },
         initial_loan: { label: "Préstamo Inicial", color: "text-primary" },
+        charge_interest: { label: "Cargo de Interés", color: "text-amber-600" },
         pago_interes: { label: "Pago a Interés", color: "text-orange-500" },
         pago_capital: { label: "Abono a Capital", color: "text-green-600" },
-        payment: { label: "Abono Recibido", color: "text-emerald-600"},
-        default: { label: "Movimiento", color: "text-muted-foreground" },
     };
 
-    const info = typeInfo[movimiento.type as keyof typeof typeInfo] || typeInfo.default;
-    let notes = movimiento.notes;
-
-    if (movimiento.type === 'payment' && movimiento.interestPaid !== undefined && movimiento.capitalPaid !== undefined) {
-        notes = `Desglose: $${movimiento.interestPaid.toLocaleString('es-MX')} a interés, $${movimiento.capitalPaid.toLocaleString('es-MX')} a capital.`;
-    }
+    const info = typeInfo[movimiento.type as keyof typeof typeInfo] || { label: 'Movimiento', color: 'text-muted-foreground' };
 
     return (
          <div className="flex items-center justify-between p-3 border-b">
             <div>
                 <p className={cn("font-semibold", info.color)}>{info.label}</p>
-                 {notes && <p className="text-xs text-muted-foreground">{notes}</p>}
+                 {movimiento.notes && <p className="text-xs text-muted-foreground">{movimiento.notes}</p>}
                 <p className="text-xs text-muted-foreground">{format(movimiento.date, "PPP p", { locale: es })}</p>
             </div>
             <p className={cn("text-lg font-mono", info.color)}>${movimiento.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
@@ -146,6 +141,17 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         }
     };
 
+    const handleDateChange = async (newDate: Date) => {
+        if (!cliente) return;
+        try {
+            await updateCliente(cliente.id, { registrationDate: newDate });
+            toast({ title: 'Éxito', description: 'Fecha de registro actualizada.' });
+            fetchData(); // Refresh data
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la fecha.' });
+        }
+    }
+
     const handleExportPDF = () => {
         if (!cliente) {
             toast({ variant: "destructive", title: "Error", description: "No hay datos del cliente para exportar." });
@@ -192,18 +198,12 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                     charge_interest: 'Cargo de Interés',
                     pago_interes: 'Pago a Interés',
                     pago_capital: 'Abono a Capital',
-                    payment: 'Abono Recibido',
                 }[mov.type] || 'Movimiento';
                 
-                let notes = mov.notes || '';
-                if (mov.type === 'payment' && mov.interestPaid !== undefined && mov.capitalPaid !== undefined) {
-                    notes = `Interés: $${mov.interestPaid.toLocaleString()} | Capital: $${mov.capitalPaid.toLocaleString()}`;
-                }
-
                 return [
                     format(mov.date, "dd/MM/yy p", { locale: es }),
                     typeInfo,
-                    notes,
+                    mov.notes,
                     `$${mov.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
                 ];
             });
@@ -227,10 +227,6 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                 acc.totalCapitalPaid += mov.amount;
             } else if (mov.type === 'pago_interes') {
                 acc.totalInterestPaid += mov.amount;
-            } else if (mov.type === 'payment' && mov.capitalPaid) {
-                acc.totalCapitalPaid += mov.capitalPaid;
-            } else if (mov.type === 'payment' && mov.interestPaid) {
-                acc.totalInterestPaid += mov.interestPaid;
             }
             return acc;
         }, { totalCapitalPaid: 0, totalInterestPaid: 0 });
@@ -288,7 +284,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                                     <DialogHeader>
                                         <DialogTitle>Registrar Abono para {cliente.name}</DialogTitle>
                                         <DialogDesc>
-                                            El interés mensual de <span className="font-bold">${(cliente.monthlyInterestCharge || 0).toLocaleString('es-MX')}</span> se cobrará primero. El resto se irá a capital.
+                                            El interés mensual de <span className="font-bold">${(cliente.monthlyInterestCharge || 0).toLocaleString('es-MX')}</span> y el interés acumulado se cobrarán primero.
                                         </DialogDesc>
                                     </DialogHeader>
                                     <PagoForm cliente={cliente} onSubmit={handlePaymentSubmit}/>
@@ -309,11 +305,32 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                      {/* Detalles del Préstamo */}
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Información del Préstamo</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 p-4 border rounded-lg">
                            <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Oficina</p><p className="font-medium">{oficina?.name || 'N/A'}</p></div></div>
                            <div className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Interés Mensual</p><p className="font-medium">${cliente.monthlyInterestCharge.toLocaleString()}</p></div></div>
                            <div className="flex items-center gap-2"><Percent className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Tasa de Interés</p><p className="font-medium">{cliente.interestRateValue}%</p></div></div>
                            <div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Día de Pago</p><p className="font-medium">{cliente.paymentDay} de cada mes</p></div></div>
+                           <div className="flex items-center gap-2">
+                                <CalendarClock className="h-5 w-5 text-primary"/>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Fecha de Registro</p>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="link" className="p-0 h-auto font-medium -ml-1">
+                                                {cliente.registrationDate ? format(cliente.registrationDate, "PPP", { locale: es }) : 'No registrada'}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <CalendarComponent
+                                                mode="single"
+                                                selected={cliente.registrationDate}
+                                                onSelect={(date) => date && handleDateChange(date)}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
