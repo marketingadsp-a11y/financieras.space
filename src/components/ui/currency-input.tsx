@@ -13,53 +13,59 @@ interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ value: propValue, onValueChange, className, ...props }, ref) => {
     
-    // Function to parse a string into a number (e.g., "1,000.00" -> 1000)
-    const parseValue = (str: string): number | undefined => {
-      const sanitized = str.replace(/,/g, '');
-      const num = parseFloat(sanitized);
-      return isNaN(num) ? undefined : num;
-    };
-    
-    // Function to format value with commas for display
-    const formatForDisplay = (num: number | undefined): string => {
-        if (num === undefined || num === null || isNaN(num)) return '';
-        return new Intl.NumberFormat('en-US').format(num);
-    }
-    
-    const [displayValue, setDisplayValue] = React.useState<string>(formatForDisplay(propValue));
+    // The internal state of the input, as a string.
+    const [displayValue, setDisplayValue] = React.useState<string>("");
 
-    // When the prop value changes (e.g., from form reset), update the display value
+    // This effect updates the display value whenever the external `propValue` changes.
+    // This is crucial for form resets or when the component is controlled from the outside.
     React.useEffect(() => {
-        const numericPropValue = propValue;
-        const numericDisplayValue = parseValue(displayValue);
-
-        if (numericPropValue !== numericDisplayValue) {
-            setDisplayValue(formatForDisplay(numericPropValue));
-        }
+        // Format the incoming number prop into a string for display.
+        // If the value is undefined or null, show an empty string.
+        setDisplayValue(propValue ? String(propValue) : '');
     }, [propValue]);
 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const input = e.target.value;
-      const numericValue = parseValue(input);
-      setDisplayValue(input.replace(/[^0-9.]/g, ''));
-      onValueChange(numericValue);
+      // Allow only numbers and a single decimal point.
+      const sanitized = input.replace(/[^0-9.]/g, '');
+      setDisplayValue(sanitized);
+
+      // Convert the sanitized string to a number for the `onValueChange` callback.
+      const numericValue = parseFloat(sanitized);
+      onValueChange(isNaN(numericValue) ? undefined : numericValue);
     };
     
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-        const numericValue = parseValue(e.target.value);
-        setDisplayValue(formatForDisplay(numericValue));
+        const numericValue = parseFloat(e.target.value);
+        if (!isNaN(numericValue)) {
+            // Format with commas and decimal points for display when not focused.
+             setDisplayValue(numericValue.toLocaleString('es-MX', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }).replace(/,/g, ''));
+        }
     };
+    
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        // When focusing, remove formatting to allow easy editing.
+        const numericValue = parseFloat(e.target.value.replace(/,/g, ''));
+        if (!isNaN(numericValue)) {
+            setDisplayValue(String(numericValue));
+        }
+    }
+
 
     return (
       <Input
         ref={ref}
-        type="text"
+        type="text" // Use text to allow for commas in display
         inputMode="decimal"
         className={cn("font-mono", className)}
         value={displayValue}
         onChange={handleChange}
         onBlur={handleBlur}
+        onFocus={handleFocus}
         {...props}
       />
     );
@@ -68,3 +74,4 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
 CurrencyInput.displayName = "CurrencyInput";
 
 export { CurrencyInput };
+
