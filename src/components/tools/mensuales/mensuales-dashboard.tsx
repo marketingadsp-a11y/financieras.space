@@ -93,7 +93,7 @@ export function MensualesDashboard() {
                 Registrar Préstamo
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-xl">
               <DialogHeader>
                 <DialogTitle>Registrar Nuevo Préstamo</DialogTitle>
                 <DialogDescription>
