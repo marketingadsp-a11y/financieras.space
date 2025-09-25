@@ -301,7 +301,8 @@ export async function updateCliente(id: string, updates: Partial<ClienteMensual>
             
             // 2. Delete all existing interest charge movements for this client
             const q = query(movimientosCollectionRef, where("clienteId", "==", id), where("type", "==", "charge_interest"));
-            const interestMovementsSnapshot = await getDocs(q); // Read outside transaction if possible, but for consistency we do it here.
+            // This read must happen before the transaction writes, which is fine here.
+            const interestMovementsSnapshot = await getDocs(q); 
             interestMovementsSnapshot.forEach(movDoc => {
                 transaction.delete(movDoc.ref);
             });
@@ -311,6 +312,7 @@ export async function updateCliente(id: string, updates: Partial<ClienteMensual>
         });
 
         // 4. After the transaction commits, fetch the cleaned client and run the charge logic
+        // This must be done outside the transaction because chargeInterestIfNeeded performs writes.
         const updatedClienteSnap = await getDoc(clienteRef);
         if(updatedClienteSnap.exists()){
             // This will now correctly calculate all interest from the new registration date
@@ -347,73 +349,81 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
     const clienteRef = doc(db, "mensuales_clientes", clienteId);
 
     await runTransaction(db, async (transaction) => {
-        const clienteDoc = await transaction.get(clienteRef);
-        if (!clienteDoc.exists()) {
+        // Run interest charge logic first to ensure unpaidInterest is up-to-date
+        // This is a read-only call to get the current state, actual updates happen in the transaction.
+        const upToDateClienteData = await getClienteById(clienteId);
+        if (!upToDateClienteData) {
             throw new Error("El cliente no existe.");
         }
-        
-        // Cannot pass transaction to chargeInterestIfNeeded if it performs reads after writes.
-        // So we get a pre-charged version first.
-        const preChargedCliente = await chargeInterestIfNeeded(clienteDoc.data() as ClienteMensual);
 
-        // Now, get the most up-to-date version inside the transaction
-        const freshClienteDoc = await transaction.get(clienteRef);
-        let clienteData = freshClienteDoc.data() as ClienteMensual;
+        // Now, get the reference again inside the transaction for atomic updates
+        const clienteDoc = await transaction.get(clienteRef);
+        if (!clienteDoc.exists()) {
+             throw new Error("El cliente no existe (fallo en transacción).");
+        }
+        let clienteData = clienteDoc.data() as ClienteMensual;
 
-        let currentBalance = clienteData.currentBalance;
-        const interestToPay = clienteData.unpaidInterest;
-        
+        // Use the most recent unpaid interest value
+        clienteData.unpaidInterest = upToDateClienteData.unpaidInterest;
+        clienteData.status = upToDateClienteData.status;
+
+
+        let remainingPayment = paymentAmount;
         let interestPaid = 0;
         let capitalPaid = 0;
-        let remainingPayment = paymentAmount;
-        
-        // 1. Cover interest first
-        interestPaid = Math.min(remainingPayment, interestToPay);
-        remainingPayment -= interestPaid;
 
-        // 2. Cover capital with the rest
-        capitalPaid = Math.min(remainingPayment, currentBalance);
-        currentBalance -= capitalPaid;
+        // 1. Cover unpaid interest first
+        if (clienteData.unpaidInterest > 0) {
+            interestPaid = Math.min(remainingPayment, clienteData.unpaidInterest);
+            remainingPayment -= interestPaid;
+        }
+
+        // 2. The rest goes to capital
+        if (remainingPayment > 0) {
+            capitalPaid = Math.min(remainingPayment, clienteData.currentBalance);
+        }
+
+        const newUnpaidInterest = clienteData.unpaidInterest - interestPaid;
+        const newCurrentBalance = clienteData.currentBalance - capitalPaid;
         
-        // 3. Calculate new state
-        const newUnpaidInterest = interestToPay - interestPaid;
+        // 3. Determine new status
         const monthsOverdue = clienteData.monthlyInterestCharge > 0 ? newUnpaidInterest / clienteData.monthlyInterestCharge : 0;
-        
-        const updates: Partial<ClienteMensual> = {
-            currentBalance: currentBalance,
-            unpaidInterest: newUnpaidInterest,
-            lastPaymentDate: new Date(),
-            status: currentBalance <= 0 ? 'liquidado' : (monthsOverdue >= 3 ? 'vencido' : 'vigente'),
-        };
+        const newStatus = newCurrentBalance <= 0 ? 'liquidado' : (monthsOverdue >= 3 ? 'vencido' : 'vigente');
 
-        if (updates.currentBalance !== undefined && updates.currentBalance <= 0) {
+        const updates: Partial<ClienteMensual> = {
+            currentBalance: newCurrentBalance,
+            unpaidInterest: newUnpaidInterest,
+            status: newStatus,
+            lastPaymentDate: new Date(),
+        };
+        
+        if (newCurrentBalance <= 0) {
             updates.currentBalance = 0;
-            updates.unpaidInterest = 0; 
+            updates.unpaidInterest = 0; // Clear any tiny remaining interest if loan is paid off
         }
 
         transaction.update(clienteRef, updates);
         
         // 4. Create movement records
         if (interestPaid > 0) {
-            const interestMov: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
+            const interestMovRef = doc(movimientosCollectionRef);
+            transaction.set(interestMovRef, {
+                clienteId,
                 date: new Date(),
                 type: 'pago_interes',
                 amount: interestPaid,
                 notes: `Parte de un abono total de $${paymentAmount.toLocaleString('es-MX')}`
-            };
-            const movRef = doc(movimientosCollectionRef);
-            transaction.set(movRef, { ...interestMov, clienteId });
+            });
         }
-
         if (capitalPaid > 0) {
-            const capitalMov: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
+            const capitalMovRef = doc(movimientosCollectionRef);
+            transaction.set(capitalMovRef, {
+                clienteId,
                 date: new Date(),
                 type: 'pago_capital',
                 amount: capitalPaid,
                 notes: `Parte de un abono total de $${paymentAmount.toLocaleString('es-MX')}`
-            };
-             const movRef = doc(movimientosCollectionRef);
-            transaction.set(movRef, { ...capitalMov, clienteId });
+            });
         }
     });
 }
