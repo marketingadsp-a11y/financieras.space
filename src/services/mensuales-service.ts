@@ -170,7 +170,7 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
     
     const clientes = await Promise.all(clientesPromises);
 
-    return clientes.sort((a, b) => a.name.localeCompare(b.name));
+    return clientes;
 }
 
 export async function searchClientesByName(name: string, prefix: string): Promise<ClienteMensual[]> {
@@ -344,19 +344,8 @@ export async function deleteCliente(clienteId: string): Promise<void> {
 
 export async function addPaymentToCliente(clienteId: string, paymentAmount: number): Promise<void> {
     const clienteRef = doc(db, "mensuales_clientes", clienteId);
-
-    // Step 1: Get the most up-to-date client data by running chargeInterestIfNeeded outside the transaction.
-    // This pre-calculates what the interest SHOULD be before we try to pay it.
-    const upToDateClienteData = await getClienteById(clienteId);
-    if (!upToDateClienteData) {
-        throw new Error("El cliente no existe.");
-    }
-
-    // This is the total amount that needs to be covered before anything goes to principal.
-    const totalInterestToCover = (upToDateClienteData.unpaidInterest || 0);
-        
+    
     await runTransaction(db, async (transaction) => {
-        // Step 2: Get the document inside the transaction to perform the actual updates.
         const clienteDoc = await transaction.get(clienteRef);
         if (!clienteDoc.exists()) {
              throw new Error("El cliente no existe (fallo en transacción).");
@@ -364,17 +353,21 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         
         let clienteData = clienteDoc.data() as ClienteMensual;
         
+        // CORRECTION: Calculate total interest to cover *before* applying payments.
+        // This includes unpaid interest from previous periods plus the current month's charge.
+        const totalInterestToCover = (clienteData.unpaidInterest || 0) + clienteData.monthlyInterestCharge;
+
         let remainingPayment = paymentAmount;
         let interestPaid = 0;
         let capitalPaid = 0;
 
-        // Step 3: Cover total interest first. Use the pre-calculated amount.
+        // Step 1: Cover total interest first.
         if (totalInterestToCover > 0) {
             interestPaid = Math.min(remainingPayment, totalInterestToCover);
             remainingPayment -= interestPaid;
         }
 
-        // Step 4: The rest goes to capital.
+        // Step 2: The rest goes to capital.
         if (remainingPayment > 0) {
             capitalPaid = Math.min(remainingPayment, clienteData.currentBalance);
         }
@@ -382,7 +375,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         const newUnpaidInterest = totalInterestToCover - interestPaid;
         const newCurrentBalance = clienteData.currentBalance - capitalPaid;
         
-        // Step 5: Determine new status.
+        // Step 3: Determine new status.
         const monthsOverdue = clienteData.monthlyInterestCharge > 0 ? newUnpaidInterest / clienteData.monthlyInterestCharge : 0;
         const newStatus = newCurrentBalance <= 0 ? 'liquidado' : (monthsOverdue >= 3 ? 'vencido' : 'vigente');
 
@@ -400,7 +393,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
 
         transaction.update(clienteRef, updates);
         
-        // Step 6: Create movement records.
+        // Step 4: Create movement records.
         if (interestPaid > 0) {
             const interestMovRef = doc(movimientosCollectionRef);
             transaction.set(interestMovRef, {
@@ -553,3 +546,4 @@ export async function deleteAllMensualesData(prefix: string, type: 'clientes' | 
 
     await batch.commit();
 }
+
