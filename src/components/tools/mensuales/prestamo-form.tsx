@@ -59,54 +59,56 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="oficinaId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Oficina</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una oficina" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {oficinas.length > 0 ? (
-                    oficinas.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)
-                  ) : (
-                    <div className="p-4 text-sm text-muted-foreground">No hay oficinas creadas.</div>
-                  )}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-         <FormField
-          control={form.control}
-          name="interestRateId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tasa de Interés Mensual</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una tasa de interés" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {interestRates.length > 0 ? (
-                    interestRates.map(r => <SelectItem key={r.id} value={r.id}>{r.value}%</SelectItem>)
-                  ) : (
-                    <div className="p-4 text-sm text-muted-foreground">No hay tasas de interés creadas.</div>
-                  )}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="oficinaId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Oficina</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una oficina" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {oficinas.length > 0 ? (
+                      oficinas.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)
+                    ) : (
+                      <div className="p-4 text-sm text-muted-foreground">No hay oficinas creadas.</div>
+                    )}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="interestRateId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tasa de Interés Mensual</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una tasa" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {interestRates.length > 0 ? (
+                      interestRates.map(r => <SelectItem key={r.id} value={r.id}>{r.value}%</SelectItem>)
+                    ) : (
+                      <div className="p-4 text-sm text-muted-foreground">No hay tasas creadas.</div>
+                    )}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <FormField
           control={form.control}
           name="name"
@@ -127,7 +129,7 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
             <FormItem>
               <FormLabel>Monto Prestado</FormLabel>
               <FormControl>
-                <CurrencyInput placeholder="1,000.00" {...field} />
+                <CurrencyInput placeholder="1,000.00" value={field.value} onValueChange={field.onChange} />
               </FormControl>
               <FormMessage />
             </FormItem>
