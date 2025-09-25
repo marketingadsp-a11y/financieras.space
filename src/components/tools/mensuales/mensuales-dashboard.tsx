@@ -112,12 +112,12 @@ export function MensualesDashboard() {
   const filteredAndSortedClientes = React.useMemo(() => {
     return clientes
       .filter(cliente => {
-        if (!searchTerm) return true;
-        return cliente.name.toLowerCase().includes(searchTerm.toLowerCase());
-      })
-      .filter(cliente => {
-        if (selectedOficina === 'all') return true;
-        return cliente.oficinaId === selectedOficina;
+        const searchTermLower = searchTerm.toLowerCase();
+        const matchesSearch = !searchTerm || cliente.name.toLowerCase().includes(searchTermLower) || cliente.displayId?.includes(searchTermLower);
+        
+        const matchesOficina = selectedOficina === 'all' || cliente.oficinaId === selectedOficina;
+
+        return matchesSearch && matchesOficina;
       })
       .sort((a, b) => {
         const oficinaA = oficinaMap.get(a.oficinaId) || '';
@@ -172,7 +172,7 @@ export function MensualesDashboard() {
               <div className="relative flex-grow">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por cliente..."
+                  placeholder="Buscar por cliente o ID..."
                   className="pl-8 sm:w-[200px] md:w-[250px] lg:w-[300px]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
