@@ -54,7 +54,14 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
         return { 
             ...data, 
             id: doc.id,
-            loanAmount: data.loanAmount || 0, // Ensure it's a number
+            loanAmount: data.loanAmount || 0,
+            currentBalance: data.currentBalance || 0,
+            monthlyInterestCharge: data.monthlyInterestCharge || 0,
+            interestRateId: data.interestRateId || "",
+            interestRateValue: data.interestRateValue || 0,
+            oficinaId: data.oficinaId || "",
+            paymentDay: data.paymentDay || 1,
+            status: data.status || 'vigente',
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
         }
@@ -69,10 +76,17 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
     if (clienteSnap.exists()) {
         const data = clienteSnap.data();
         return {
-            ...data,
             id: clienteSnap.id,
-            loanAmount: data.loanAmount || 0,
+            name: data.name || "",
+            prefix: data.prefix || "",
             oficinaId: data.oficinaId || "",
+            loanAmount: data.loanAmount || 0,
+            paymentDay: data.paymentDay || 1,
+            interestRateId: data.interestRateId || "",
+            interestRateValue: data.interestRateValue || 0,
+            monthlyInterestCharge: data.monthlyInterestCharge || 0,
+            currentBalance: data.currentBalance || 0,
+            status: data.status || 'vigente',
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
         } as ClienteMensual;
