@@ -32,7 +32,7 @@ export function InteresForm({ onSubmit, rate }: InteresFormProps) {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            value: rate?.value || undefined,
+            value: rate?.value || ('' as any),
         },
     });
 
