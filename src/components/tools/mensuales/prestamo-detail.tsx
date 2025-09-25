@@ -97,6 +97,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
             } catch (error) {
                 console.error("Error fetching loan details:", error);
                 toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los detalles del préstamo." });
+                setCliente(null); // Ensure client is null on error
             } finally {
                 setIsLoading(false);
             }
@@ -166,10 +167,10 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                 <CardContent className="space-y-6">
                      {/* Resumen Financiero */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <StatCard title="Saldo Capital" value={cliente.currentBalance} colorClass="text-destructive"/>
-                        <StatCard title="Total Pagado a Capital" value={stats.totalCapitalPaid} colorClass="text-green-600"/>
-                        <StatCard title="Total Pagado a Intereses" value={stats.totalInterestPaid} colorClass="text-blue-600" />
                         <StatCard title="Monto Original Prestado" value={cliente.loanAmount} />
+                        <StatCard title="Total Pagado a Intereses" value={stats.totalInterestPaid} colorClass="text-orange-500"/>
+                        <StatCard title="Total Pagado a Capital" value={stats.totalCapitalPaid} colorClass="text-green-600"/>
+                        <StatCard title="Saldo Actual" value={cliente.currentBalance} colorClass="text-blue-600"/>
                     </div>
                      {/* Detalles del Préstamo */}
                     <div>
