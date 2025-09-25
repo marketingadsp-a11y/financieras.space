@@ -87,12 +87,13 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
 
     if (clienteSnap.exists()) {
         const data = clienteSnap.data();
+        // This is a safe conversion, ensuring all fields are checked and have defaults.
         return {
             id: clienteSnap.id,
             displayId: data.displayId || "0000",
             name: data.name || "",
             prefix: data.prefix || "",
-            oficinaId: data.oficinaId || "",
+            oficinaId: data.oficinaId || "", // Ensure oficinaId is a string
             loanAmount: data.loanAmount || 0,
             paymentDay: data.paymentDay || 1,
             interestRateId: data.interestRateId || "",
