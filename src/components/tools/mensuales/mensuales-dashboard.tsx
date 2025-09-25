@@ -9,11 +9,13 @@ import { getOficinas, getClientes, addCliente, addPaymentToCliente } from "@/ser
 import { getInterestRates } from "@/services/interest-rate-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, DollarSign } from "lucide-react";
+import { Loader2, PlusCircle, DollarSign, Search } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ClientesTable } from "./clientes-table";
 import { PrestamoForm } from "./prestamo-form";
 import { PagoForm } from "./pago-form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function MensualesDashboard() {
   const { user } = useAuth();
@@ -26,6 +28,9 @@ export function MensualesDashboard() {
   const [isPrestamoFormOpen, setIsPrestamoFormOpen] = React.useState(false);
   const [isPagoFormOpen, setIsPagoFormOpen] = React.useState(false);
   const [selectedCliente, setSelectedCliente] = React.useState<ClienteMensual | null>(null);
+
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [selectedOficina, setSelectedOficina] = React.useState("all");
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
@@ -102,6 +107,17 @@ export function MensualesDashboard() {
     }
   };
 
+  const filteredClientes = React.useMemo(() => {
+    return clientes
+      .filter(cliente => {
+        if (!searchTerm) return true;
+        return cliente.name.toLowerCase().includes(searchTerm.toLowerCase());
+      })
+      .filter(cliente => {
+        if (selectedOficina === 'all') return true;
+        return cliente.oficinaId === selectedOficina;
+      });
+  }, [clientes, searchTerm, selectedOficina]);
 
   return (
     <div className="space-y-6">
@@ -136,8 +152,34 @@ export function MensualesDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Préstamos Registrados</CardTitle>
-          <CardDescription>Lista de todos los préstamos activos y liquidados.</CardDescription>
+          <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div>
+              <CardTitle>Préstamos Registrados</CardTitle>
+              <CardDescription>Lista de todos los préstamos activos y liquidados.</CardDescription>
+            </div>
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+              <div className="relative flex-grow">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por cliente..."
+                  className="pl-8 sm:w-[200px] md:w-[250px] lg:w-[300px]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={selectedOficina} onValueChange={setSelectedOficina}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Filtrar por oficina" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las oficinas</SelectItem>
+                  {oficinas.map(o => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -146,7 +188,7 @@ export function MensualesDashboard() {
               <span>Cargando préstamos...</span>
             </div>
           ) : (
-            <ClientesTable data={clientes} oficinas={oficinas} onPaymentClick={handleOpenPagoForm}/>
+            <ClientesTable data={filteredClientes} oficinas={oficinas} onPaymentClick={handleOpenPagoForm}/>
           )}
         </CardContent>
       </Card>
