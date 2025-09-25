@@ -295,9 +295,10 @@ export async function updateCliente(id: string, updates: Partial<ClienteMensual>
         if (updates.registrationDate) {
             dataToUpdate.registrationDate = Timestamp.fromDate(updates.registrationDate);
 
-            // 1. Reset interest fields
+            // 1. Reset interest fields and status
             dataToUpdate.unpaidInterest = 0;
             dataToUpdate.lastInterestChargedDate = Timestamp.fromDate(updates.registrationDate);
+            dataToUpdate.status = 'vigente'; // Reset status to be recalculated
             
             // 2. Delete all existing interest charge movements for this client
             const q = query(movimientosCollectionRef, where("clienteId", "==", id), where("type", "==", "charge_interest"));
@@ -305,8 +306,6 @@ export async function updateCliente(id: string, updates: Partial<ClienteMensual>
             interestMovementsSnapshot.forEach(movDoc => {
                 transaction.delete(movDoc.ref);
             });
-            
-            // The recalculation will happen automatically on the next fetch via chargeInterestIfNeeded
         }
         
         transaction.update(clienteRef, dataToUpdate);
