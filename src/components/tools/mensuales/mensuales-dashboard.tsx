@@ -9,6 +9,7 @@ import { getOficinas } from "@/services/mensuales-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle } from "lucide-react";
+import Link from "next/link";
 
 export function MensualesDashboard() {
   const { user } = useAuth();
@@ -44,15 +45,14 @@ export function MensualesDashboard() {
     <div className="space-y-6">
        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Panel de Control Mensuales</h1>
-                <p className="text-muted-foreground">
-                    Gestiona tus oficinas y los préstamos mensuales de tus clientes.
-                </p>
+                <h1 className="text-3xl font-bold tracking-tight">Gestión de Préstamos Mensuales</h1>
             </div>
             <div className="flex items-center gap-2">
-                <Button>
+                <Button asChild>
+                  <Link href="/tools/mensuales/oficinas">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Crear Oficina
+                  </Link>
                 </Button>
             </div>
         </div>
