@@ -188,13 +188,13 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         const now = new Date();
         
         // 1. Log interest payment
-        const interestPaymentMovement: Omit<MovimientoMensual, 'id'> = {
-            clienteId,
+        const interestPaymentMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
             date: now,
             type: 'pago_interes',
             amount: interestToPay,
         };
-        transaction.set(doc(movimientosCollectionRef), interestPaymentMovement);
+        const interestMovRef = doc(movimientosCollectionRef);
+        transaction.set(interestMovRef, { ...interestPaymentMovement, clienteId });
         
         remainingPayment -= interestToPay;
         
@@ -203,13 +203,13 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
             const capitalPayment = remainingPayment;
             currentBalance -= capitalPayment;
 
-            const capitalPaymentMovement: Omit<MovimientoMensual, 'id'> = {
-                clienteId,
+            const capitalPaymentMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
                 date: now,
                 type: 'pago_capital',
                 amount: capitalPayment,
             };
-            transaction.set(doc(movimientosCollectionRef), capitalPaymentMovement);
+            const capitalMovRef = doc(movimientosCollectionRef);
+            transaction.set(capitalMovRef, { ...capitalPaymentMovement, clienteId });
         }
         
         const updates: Partial<ClienteMensual> = {
