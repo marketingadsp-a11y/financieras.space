@@ -35,8 +35,8 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
 
   const getStatusVariant = (status: ClienteMensual['status']) => {
       switch (status) {
-          case 'vigente': return 'secondary';
-          case 'vencido': return 'destructive';
+          case 'vigente': return 'vigente';
+          case 'vencido': return 'vencido';
           case 'liquidado': return 'default';
           default: return 'outline';
       }
@@ -64,7 +64,7 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
                 <TableCell>{oficinaMap.get(cliente.oficinaId) || 'N/A'}</TableCell>
                 <TableCell className="font-medium">{cliente.name}</TableCell>
                 <TableCell>
-                  <Badge variant={getStatusVariant(cliente.status)} className="capitalize">
+                  <Badge variant={getStatusVariant(cliente.status) as any} className="capitalize">
                     {cliente.status}
                   </Badge>
                 </TableCell>

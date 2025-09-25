@@ -54,8 +54,8 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
     const typeInfo: { [key: string]: { label: string; color: string } } = {
         initial_loan: { label: "Préstamo Inicial", color: "text-primary" },
         charge_interest: { label: "Cargo de Interés", color: "text-amber-600" },
-        pago_interes: { label: "Pago a Interés", color: "text-orange-500" },
         pago_capital: { label: "Abono a Capital", color: "text-green-600" },
+        pago_interes: { label: "Pago a Interés", color: "text-orange-500" },
     };
 
     const info = typeInfo[movimiento.type as keyof typeof typeInfo] || { label: 'Movimiento', color: 'text-muted-foreground' };
@@ -63,7 +63,7 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
     return (
          <div className="flex items-center justify-between p-3 border-b">
             <div>
-                <p className={cn("font-semibold", info.color)}>{info.label}</p>
+                 <p className={cn("font-semibold", info.color)}>{info.label}</p>
                  {movimiento.notes && <p className="text-xs text-muted-foreground">{movimiento.notes}</p>}
                 <p className="text-xs text-muted-foreground">{format(movimiento.date, "PPP p", { locale: es })}</p>
             </div>
@@ -252,8 +252,8 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
 
     const getStatusVariant = (status: ClienteMensual['status']) => {
         switch (status) {
-            case 'vigente': return 'secondary';
-            case 'vencido': return 'destructive';
+            case 'vigente': return 'vigente';
+            case 'vencido': return 'vencido';
             case 'liquidado': return 'default';
             default: return 'outline';
         }
@@ -284,13 +284,13 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                                     <DialogHeader>
                                         <DialogTitle>Registrar Abono para {cliente.name}</DialogTitle>
                                         <DialogDesc>
-                                            El interés mensual de <span className="font-bold">${(cliente.monthlyInterestCharge || 0).toLocaleString('es-MX')}</span> y el interés acumulado se cobrarán primero.
+                                            El interés total a cubrir se pagará primero. El resto se irá a capital.
                                         </DialogDesc>
                                     </DialogHeader>
                                     <PagoForm cliente={cliente} onSubmit={handlePaymentSubmit}/>
                                 </DialogContent>
                             </Dialog>
-                             <Badge variant={getStatusVariant(cliente.status)} className="text-base capitalize h-10">{cliente.status}</Badge>
+                             <Badge variant={getStatusVariant(cliente.status) as any} className="text-base capitalize h-10">{cliente.status}</Badge>
                         </div>
                     </div>
                 </CardHeader>
