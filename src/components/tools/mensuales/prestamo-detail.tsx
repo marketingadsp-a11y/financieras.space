@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
-import { getClienteById, getMovimientosByCliente, getOficinaById, deleteCliente } from "@/services/mensuales-service";
+import { getClienteById, getMovimientosByCliente, getOficinaById, deleteCliente, addPaymentToCliente } from "@/services/mensuales-service";
 import type { ClienteMensual, MovimientoMensual, OficinaMensual } from "@/lib/data";
 import { Loader2, ArrowLeft, User, DollarSign, Percent, Calendar, Briefcase, FileText, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -25,6 +25,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription as DialogDesc,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { PagoForm } from "./pago-form";
+
 
 const StatCard = ({ title, value, isCurrency = true, colorClass = "text-foreground" }: { title: string; value: number; isCurrency?: boolean; colorClass?: string; }) => (
     <div className="p-4 bg-muted/50 rounded-lg">
@@ -77,33 +87,37 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
     const [movimientos, setMovimientos] = React.useState<MovimientoMensual[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isDeleting, setIsDeleting] = React.useState(false);
+    const [isPagoFormOpen, setIsPagoFormOpen] = React.useState(false);
+
+    const fetchData = React.useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const clienteData = await getClienteById(clienteId);
+            setCliente(clienteData);
+
+            if (clienteData) {
+                const [movimientosData, oficinaData] = await Promise.all([
+                    getMovimientosByCliente(clienteId),
+                    clienteData.oficinaId ? getOficinaById(clienteData.oficinaId) : Promise.resolve(null),
+                ]);
+                setMovimientos(movimientosData);
+                setOficina(oficinaData);
+            } else {
+                 setCliente(null); // Ensure client is null if not found
+            }
+
+        } catch (error) {
+            console.error("Error fetching loan details:", error);
+            toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los detalles del préstamo." });
+            setCliente(null);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [clienteId, toast]);
 
     React.useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                const clienteData = await getClienteById(clienteId);
-                setCliente(clienteData);
-
-                if (clienteData) {
-                    const [movimientosData, oficinaData] = await Promise.all([
-                        getMovimientosByCliente(clienteId),
-                        clienteData.oficinaId ? getOficinaById(clienteData.oficinaId) : Promise.resolve(null),
-                    ]);
-                    setMovimientos(movimientosData);
-                    setOficina(oficinaData);
-                }
-
-            } catch (error) {
-                console.error("Error fetching loan details:", error);
-                toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los detalles del préstamo." });
-                setCliente(null); // Ensure client is null on error
-            } finally {
-                setIsLoading(false);
-            }
-        };
         fetchData();
-    }, [clienteId, toast]);
+    }, [fetchData]);
 
     const handleDelete = async () => {
         if (!cliente) return;
@@ -115,6 +129,19 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         } catch (error) {
             toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el préstamo." });
             setIsDeleting(false);
+        }
+    };
+    
+    const handlePaymentSubmit = async (amount: number) => {
+        if (!cliente) return;
+
+        try {
+            await addPaymentToCliente(cliente.id, amount);
+            toast({ title: "Éxito", description: "Abono registrado correctamente." });
+            setIsPagoFormOpen(false);
+            fetchData(); // Refresh all data
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Error", description: error.message || "No se pudo registrar el abono." });
         }
     };
 
@@ -135,7 +162,17 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
     }
     
     if (!cliente) {
-        return <div className="text-center py-10">Cliente no encontrado.</div>
+        return (
+            <div className="text-center py-10">
+                <h2 className="text-xl font-semibold">Cliente no encontrado</h2>
+                <p className="text-muted-foreground">El préstamo que buscas no existe o fue eliminado.</p>
+                 <Button variant="outline" asChild className="mt-4">
+                    <Link href="/tools/mensuales">
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Dashboard
+                    </Link>
+                </Button>
+            </div>
+        )
     }
 
     const getStatusVariant = (status: ClienteMensual['status']) => {
@@ -150,18 +187,36 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
     return (
         <div className="space-y-6">
             <Button variant="outline" asChild>
-                <Link href="/tools/mensuales">
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Dashboard
+                <Link href="/tools/mensuales/clientes">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Listado de Clientes
                 </Link>
             </Button>
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                         <div>
                             <CardTitle className="text-3xl">{cliente.name}</CardTitle>
                             <CardDescription>Detalles del préstamo y historial de movimientos.</CardDescription>
                         </div>
-                        <Badge variant={getStatusVariant(cliente.status)} className="text-base capitalize">{cliente.status}</Badge>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                           <Dialog open={isPagoFormOpen} onOpenChange={setIsPagoFormOpen}>
+                                <DialogTrigger asChild>
+                                     <Button disabled={cliente.status === 'liquidado'}>
+                                        <DollarSign className="mr-2 h-4 w-4" /> Registrar Abono
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Registrar Abono para {cliente.name}</DialogTitle>
+                                        <DialogDesc>
+                                            El interés mensual de <span className="font-bold">${(cliente.monthlyInterestCharge || 0).toLocaleString('es-MX')}</span> se cobrará primero. El resto se irá a capital.
+                                        </DialogDesc>
+                                    </DialogHeader>
+                                    <PagoForm cliente={cliente} onSubmit={handlePaymentSubmit}/>
+                                </DialogContent>
+                            </Dialog>
+                             <Badge variant={getStatusVariant(cliente.status)} className="text-base capitalize h-10">{cliente.status}</Badge>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
