@@ -3,8 +3,8 @@
 
 import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
-import { getClienteById, getMovimientosByCliente } from "@/services/mensuales-service";
-import type { ClienteMensual, MovimientoMensual } from "@/lib/data";
+import { getClienteById, getMovimientosByCliente, getOficinaById } from "@/services/mensuales-service";
+import type { ClienteMensual, MovimientoMensual, OficinaMensual } from "@/lib/data";
 import { Loader2, ArrowLeft, User, DollarSign, Percent, Calendar, Briefcase, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ const MovimientoItem = ({ movimiento }: { movimiento: MovimientoMensual }) => {
 export function PrestamoDetail({ clienteId }: { clienteId: string }) {
     const { toast } = useToast();
     const [cliente, setCliente] = React.useState<ClienteMensual | null>(null);
+    const [oficina, setOficina] = React.useState<OficinaMensual | null>(null);
     const [movimientos, setMovimientos] = React.useState<MovimientoMensual[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
@@ -59,8 +60,15 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                     getClienteById(clienteId),
                     getMovimientosByCliente(clienteId),
                 ]);
+
+                if (clienteData) {
+                    const oficinaData = await getOficinaById(clienteData.oficinaId);
+                    setOficina(oficinaData);
+                }
+                
                 setCliente(clienteData);
                 setMovimientos(movimientosData);
+
             } catch (error) {
                 toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los detalles del préstamo." });
             } finally {
@@ -127,7 +135,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Información del Préstamo</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg">
-                           <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Oficina</p><p className="font-medium">{cliente.oficinaId}</p></div></div>
+                           <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Oficina</p><p className="font-medium">{oficina?.name || 'N/A'}</p></div></div>
                            <div className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Interés Mensual</p><p className="font-medium">${cliente.monthlyInterestCharge.toLocaleString()}</p></div></div>
                            <div className="flex items-center gap-2"><Percent className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Tasa de Interés</p><p className="font-medium">{cliente.interestRateValue}%</p></div></div>
                            <div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Día de Pago</p><p className="font-medium">{cliente.paymentDay} de cada mes</p></div></div>

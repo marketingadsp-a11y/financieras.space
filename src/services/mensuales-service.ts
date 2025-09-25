@@ -16,6 +16,16 @@ export async function getOficinas(prefix: string): Promise<OficinaMensual[]> {
     return oficinas.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function getOficinaById(id: string): Promise<OficinaMensual | null> {
+    if (!id) return null;
+    const docRef = doc(db, "mensuales_oficinas", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as OficinaMensual;
+    }
+    return null;
+}
+
 export async function addOficina(oficina: Omit<OficinaMensual, 'id'>): Promise<OficinaMensual> {
     const docRef = await addDoc(oficinasCollectionRef, oficina);
     return { ...oficina, id: docRef.id };
@@ -52,15 +62,16 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
     const clientes = snapshot.docs.map(doc => {
         const data = doc.data();
         return { 
-            ...data, 
             id: doc.id,
+            name: data.name || "",
+            prefix: data.prefix || "",
+            oficinaId: data.oficinaId || "",
             loanAmount: data.loanAmount || 0,
-            currentBalance: data.currentBalance || 0,
-            monthlyInterestCharge: data.monthlyInterestCharge || 0,
+            paymentDay: data.paymentDay || 1,
             interestRateId: data.interestRateId || "",
             interestRateValue: data.interestRateValue || 0,
-            oficinaId: data.oficinaId || "",
-            paymentDay: data.paymentDay || 1,
+            monthlyInterestCharge: data.monthlyInterestCharge || 0,
+            currentBalance: data.currentBalance || 0,
             status: data.status || 'vigente',
             lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
             lastPaymentDate: data.lastPaymentDate?.toDate(),
