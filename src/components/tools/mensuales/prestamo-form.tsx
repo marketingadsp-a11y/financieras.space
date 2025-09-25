@@ -16,24 +16,26 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { ClienteMensual, OficinaMensual } from "@/lib/data";
+import type { ClienteMensual, OficinaMensual, InterestRate } from "@/lib/data";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   oficinaId: z.string().min(1, "Debes seleccionar una oficina."),
+  interestRateId: z.string().min(1, "Debes seleccionar una tasa de interés."),
   name: z.string().min(3, "El nombre del cliente es requerido."),
   loanAmount: z.coerce.number().positive("El monto debe ser mayor a cero."),
   paymentDay: z.coerce.number().int().min(1).max(31, "El día debe estar entre 1 y 31."),
 });
 
 type PrestamoFormProps = {
-  onSubmit: (data: Omit<ClienteMensual, 'id' | 'prefix' | 'currentBalance' | 'status'>) => Promise<void>;
+  onSubmit: (data: Omit<ClienteMensual, 'id' | 'prefix' | 'currentBalance' | 'status' | 'interestRateValue'>) => Promise<void>;
   oficinas: OficinaMensual[];
+  interestRates: InterestRate[];
   cliente?: ClienteMensual | null;
 };
 
-export function PrestamoForm({ onSubmit, oficinas, cliente }: PrestamoFormProps) {
+export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: PrestamoFormProps) {
   const isEditing = !!cliente;
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -41,6 +43,7 @@ export function PrestamoForm({ onSubmit, oficinas, cliente }: PrestamoFormProps)
     resolver: zodResolver(formSchema),
     defaultValues: {
       oficinaId: cliente?.oficinaId || "",
+      interestRateId: cliente?.interestRateId || "",
       name: cliente?.name || "",
       loanAmount: cliente?.loanAmount || undefined,
       paymentDay: cliente?.paymentDay || 1,
@@ -73,6 +76,30 @@ export function PrestamoForm({ onSubmit, oficinas, cliente }: PrestamoFormProps)
                     oficinas.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)
                   ) : (
                     <div className="p-4 text-sm text-muted-foreground">No hay oficinas creadas.</div>
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+         <FormField
+          control={form.control}
+          name="interestRateId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tasa de Interés Mensual</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una tasa de interés" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {interestRates.length > 0 ? (
+                    interestRates.map(r => <SelectItem key={r.id} value={r.id}>{r.value}%</SelectItem>)
+                  ) : (
+                    <div className="p-4 text-sm text-muted-foreground">No hay tasas de interés creadas.</div>
                   )}
                 </SelectContent>
               </Select>

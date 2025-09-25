@@ -447,6 +447,8 @@ export type ClienteMensual = {
     name: string;
     loanAmount: number;
     paymentDay: number; // Day of the month (1-31)
+    interestRateId: string;
+    interestRateValue: number;
     currentBalance: number;
     lastInterestChargedDate?: Date;
     lastPaymentDate?: Date;

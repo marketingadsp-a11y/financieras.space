@@ -4,8 +4,9 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import type { OficinaMensual, ClienteMensual } from "@/lib/data";
+import type { OficinaMensual, ClienteMensual, InterestRate } from "@/lib/data";
 import { getOficinas, getClientes, addCliente } from "@/services/mensuales-service";
+import { getInterestRates } from "@/services/interest-rate-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle } from "lucide-react";
@@ -17,6 +18,7 @@ export function MensualesDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [oficinas, setOficinas] = React.useState<OficinaMensual[]>([]);
+  const [interestRates, setInterestRates] = React.useState<InterestRate[]>([]);
   const [clientes, setClientes] = React.useState<ClienteMensual[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -28,12 +30,14 @@ export function MensualesDashboard() {
     }
     setIsLoading(true);
     try {
-      const [oficinasData, clientesData] = await Promise.all([
+      const [oficinasData, clientesData, ratesData] = await Promise.all([
         getOficinas(user.prefix),
-        getClientes(user.prefix)
+        getClientes(user.prefix),
+        getInterestRates(user.prefix),
       ]);
       setOficinas(oficinasData);
       setClientes(clientesData);
+      setInterestRates(ratesData);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -49,13 +53,21 @@ export function MensualesDashboard() {
     fetchData();
   }, [fetchData]);
 
-  const handleAddPrestamo = async (prestamoData: Omit<ClienteMensual, 'id' | 'prefix' | 'currentBalance' | 'status'>) => {
+  const handleAddPrestamo = async (prestamoData: Omit<ClienteMensual, 'id' | 'prefix' | 'currentBalance' | 'status' | 'interestRateValue'>) => {
     if (!user?.prefix) return;
+    
+    const selectedRate = interestRates.find(r => r.id === prestamoData.interestRateId);
+    if (!selectedRate) {
+        toast({ variant: "destructive", title: "Error", description: "La tasa de interés seleccionada no es válida." });
+        return;
+    }
+
     try {
       const dataToSave = {
         ...prestamoData,
         prefix: user.prefix,
-        currentBalance: prestamoData.loanAmount, // Initially, balance is the full loan amount
+        currentBalance: prestamoData.loanAmount,
+        interestRateValue: selectedRate.value,
         status: 'vigente' as const,
       };
       await addCliente(dataToSave);
@@ -90,6 +102,7 @@ export function MensualesDashboard() {
               </DialogHeader>
               <PrestamoForm 
                 oficinas={oficinas}
+                interestRates={interestRates}
                 onSubmit={handleAddPrestamo}
               />
             </DialogContent>
