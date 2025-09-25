@@ -27,6 +27,7 @@ const formSchema = z.object({
   loanAmount: z.coerce.number().positive("El monto debe ser mayor a cero."),
   paymentDay: z.coerce.number().int().min(1).max(31, "El día debe estar entre 1 y 31."),
   monthlyInterestCharge: z.coerce.number().min(0),
+  displayId: z.string().optional(), // This will be handled by the service
 });
 
 type PrestamoFormProps = {
@@ -68,7 +69,7 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    await onSubmit(values);
+    await onSubmit(values as any); // The displayId will be generated in the service
     setIsSubmitting(false);
   };
 

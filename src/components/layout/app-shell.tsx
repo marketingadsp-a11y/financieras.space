@@ -148,6 +148,7 @@ const dailyControlSettingsItems: NavItem[] = [
 const mensualesNavItems: NavItem[] = [
     { href: "/tools/mensuales", label: "Dashboard", icon: LayoutDashboard },
     { href: "/tools/mensuales/oficinas", label: "Oficinas", icon: Building },
+    { href: "/tools/mensuales/clientes", label: "Clientes", icon: Users },
     { href: "/tools/mensuales/interes", label: "Interés", icon: Percent },
 ];
 

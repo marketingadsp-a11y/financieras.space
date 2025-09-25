@@ -63,6 +63,7 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
         const data = doc.data();
         return { 
             id: doc.id,
+            displayId: data.displayId || "0000",
             name: data.name || "",
             prefix: data.prefix || "",
             oficinaId: data.oficinaId || "",
@@ -88,6 +89,7 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
         const data = clienteSnap.data();
         return {
             id: clienteSnap.id,
+            displayId: data.displayId || "0000",
             name: data.name || "",
             prefix: data.prefix || "",
             oficinaId: data.oficinaId || "",
@@ -105,23 +107,42 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
     return null;
 }
 
-export async function addCliente(cliente: Omit<ClienteMensual, 'id'>): Promise<ClienteMensual> {
+// Function to generate a unique 4-digit ID
+async function generateUniqueDisplayId(prefix: string): Promise<string> {
+    let unique = false;
+    let newId = '';
+    while (!unique) {
+        newId = Math.floor(1000 + Math.random() * 9000).toString();
+        const q = query(clientesCollectionRef, where("prefix", "==", prefix), where("displayId", "==", newId));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            unique = true;
+        }
+    }
+    return newId;
+}
+
+export async function addCliente(cliente: Omit<ClienteMensual, 'id' | 'displayId'>): Promise<ClienteMensual> {
+    const displayId = await generateUniqueDisplayId(cliente.prefix);
+
     const initialMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
         date: new Date(),
         type: 'initial_loan',
         amount: cliente.loanAmount,
         notes: 'Préstamo inicial registrado'
     };
+    
+    const clienteWithDisplayId = { ...cliente, displayId };
 
     const clienteDocRef = doc(collection(db, "mensuales_clientes"));
     const movimientoDocRef = doc(collection(db, "mensuales_movimientos"));
     
     await runTransaction(db, async (transaction) => {
-        transaction.set(clienteDocRef, { ...cliente, id: clienteDocRef.id });
+        transaction.set(clienteDocRef, { ...clienteWithDisplayId, id: clienteDocRef.id });
         transaction.set(movimientoDocRef, { ...initialMovement, clienteId: clienteDocRef.id });
     });
     
-    return { ...cliente, id: clienteDocRef.id };
+    return { ...clienteWithDisplayId, id: clienteDocRef.id };
 }
 
 

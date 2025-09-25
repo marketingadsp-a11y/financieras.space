@@ -442,6 +442,7 @@ export type InterestRate = {
 
 export type ClienteMensual = {
     id: string;
+    displayId: string; // New 4-digit unique identifier
     oficinaId: string;
     prefix: string;
     name: string;
