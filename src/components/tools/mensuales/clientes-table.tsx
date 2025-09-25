@@ -50,6 +50,7 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
             <TableHead>Oficina</TableHead>
             <TableHead>Cliente</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Interés Pendiente</TableHead>
             <TableHead>Monto Prestado</TableHead>
             <TableHead>Interés Mensual</TableHead>
             <TableHead>Día de Pago</TableHead>
@@ -67,6 +68,13 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
                   <Badge variant={getStatusVariant(cliente.status) as any} className="capitalize">
                     {cliente.status}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                    {(cliente.unpaidInterest || 0) > 0 ? (
+                        <Badge variant="destructive">${cliente.unpaidInterest.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</Badge>
+                    ) : (
+                        <Badge variant="secondary">Cubierto</Badge>
+                    )}
                 </TableCell>
                 <TableCell>${cliente.loanAmount.toLocaleString('es-MX')}</TableCell>
                 <TableCell>${cliente.monthlyInterestCharge.toLocaleString('es-MX')}</TableCell>
@@ -93,7 +101,7 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={8} className="h-24 text-center">
+              <TableCell colSpan={9} className="h-24 text-center">
                 No hay préstamos registrados.
               </TableCell>
             </TableRow>
