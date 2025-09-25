@@ -1,6 +1,7 @@
 
+
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files, Workflow } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -90,6 +91,13 @@ export const FLUJO_PERMISSIONS = {
 } as const;
 export type FlujoPermission = keyof typeof FLUJO_PERMISSIONS;
 
+export const MENSUALES_PERMISSIONS = {
+  CAN_MANAGE_OFFICES: 'Gestionar Oficinas',
+  CAN_REGISTER_CLIENTS: 'Registrar Clientes',
+  CAN_PROCESS_PAYMENTS: 'Procesar Pagos',
+  CAN_EXPORT_REPORTS: 'Exportar Reportes',
+} as const;
+export type MensualesPermission = keyof typeof MENSUALES_PERMISSIONS;
 
 export type PlazaAccess = {
   plazaId: string;
@@ -109,6 +117,11 @@ export type OverduePortfolioPermissions = {
     permissions: OverduePortfolioPermission[];
 }
 
+export type MensualesPermissions = {
+    permissions: MensualesPermission[];
+}
+
+
 export type PlazaUser = {
   id: string;
   name: string;
@@ -121,6 +134,7 @@ export type PlazaUser = {
   loanControlPermissions?: LoanControlPermissions;
   flujoPermissions?: FlujoPermissions;
   overduePortfolioPermissions?: OverduePortfolioPermissions;
+  mensualesPermissions?: MensualesPermissions;
 };
 
 export type Customer = {
@@ -194,6 +208,14 @@ export const allTools: Tool[] = [
     href: "/tools/flujo",
     icon: Workflow,
     color: '#8b5cf6'
+  },
+  {
+    id: "mensuales",
+    name: "Mensuales",
+    description: "Gestiona préstamos con cobro de interés y abonos a capital mensuales.",
+    href: "/tools/mensuales",
+    icon: CalendarClock,
+    color: '#14b8a6'
   }
 ];
 
@@ -404,3 +426,33 @@ export type SupportTicket = {
     status: 'new' | 'in-progress' | 'resolved';
     createdAt: number; // Using Unix timestamp
 }
+
+// --- Mensuales Tool Models ---
+export type OficinaMensual = {
+    id: string;
+    prefix: string;
+    name: string;
+};
+
+export type ClienteMensual = {
+    id: string;
+    oficinaId: string;
+    prefix: string;
+    name: string;
+    loanAmount: number;
+    paymentDay: number; // Day of the month (1-31)
+    currentBalance: number;
+    lastInterestChargedDate?: Date;
+    lastPaymentDate?: Date;
+    status: 'vigente' | 'vencido' | 'liquidado';
+};
+
+export type MovimientoMensual = {
+    id: string;
+    clienteId: string;
+    date: Date;
+    type: 'charge_interest' | 'pay_interest' | 'pay_principal';
+    amount: number;
+    notes?: string;
+};
+
