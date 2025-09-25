@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -57,11 +58,11 @@ export function PagoForm({ onSubmit, cliente }: PagoFormProps) {
             </div>
             <div className="flex justify-between text-lg">
                 <span className="text-muted-foreground">Saldo a Capital:</span>
-                <span className="font-bold text-destructive">${(cliente.currentBalance || 0).toLocaleString('es-MX')}</span>
+                <span className="font-bold text-blue-600">${(cliente.currentBalance || 0).toLocaleString('es-MX')}</span>
             </div>
              <div className="flex justify-between text-lg">
                 <span className="text-muted-foreground">Interés Total a Cubrir:</span>
-                <span className="font-bold text-amber-600">${totalInterestToCover.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                <span className="font-bold text-destructive">${totalInterestToCover.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
             </div>
         </div>
 
