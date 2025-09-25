@@ -285,39 +285,35 @@ export async function updateCliente(id: string, updates: Partial<ClienteMensual>
 
     // If registrationDate is being changed, it's a special case that requires recalculation.
     if (updates.registrationDate) {
-        await runTransaction(db, async (transaction) => {
+         await runTransaction(db, async (transaction) => {
             const clienteDoc = await transaction.get(clienteRef);
             if (!clienteDoc.exists()) {
                 throw new Error("El cliente a actualizar no existe.");
             }
 
-            // 1. Reset interest fields and status to a clean slate before recalculation
-            const resetUpdates: Record<string, any> = {
-                registrationDate: Timestamp.fromDate(updates.registrationDate!),
-                unpaidInterest: 0,
-                lastInterestChargedDate: Timestamp.fromDate(updates.registrationDate!),
-                status: 'vigente', // Reset status to be recalculated
-            };
-            
-            // 2. Delete all existing interest charge movements for this client
+            // 1. Delete all existing interest charge movements for this client
             const q = query(movimientosCollectionRef, where("clienteId", "==", id), where("type", "==", "charge_interest"));
-            // This read must happen before the transaction writes, which is fine here.
             const interestMovementsSnapshot = await getDocs(q); 
             interestMovementsSnapshot.forEach(movDoc => {
                 transaction.delete(movDoc.ref);
             });
 
-            // 3. Apply the reset updates to the client
+            // 2. Reset interest fields and status to a clean slate before recalculation
+            const resetUpdates: Record<string, any> = {
+                registrationDate: Timestamp.fromDate(updates.registrationDate!),
+                unpaidInterest: 0,
+                lastInterestChargedDate: Timestamp.fromDate(updates.registrationDate!),
+                status: 'vigente', 
+            };
             transaction.update(clienteRef, resetUpdates);
         });
 
-        // 4. After the transaction commits, fetch the cleaned client and run the charge logic
-        // This must be done outside the transaction because chargeInterestIfNeeded performs writes.
+        // 3. After the transaction commits, fetch the cleaned client and run the charge logic
         const updatedClienteSnap = await getDoc(clienteRef);
         if(updatedClienteSnap.exists()){
-            // This will now correctly calculate all interest from the new registration date
             await chargeInterestIfNeeded(updatedClienteSnap.data() as ClienteMensual);
         }
+
     } else {
         // For any other simple update, just apply it.
         const dataToUpdate: Record<string, any> = { ...updates };
@@ -350,31 +346,27 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
 
     await runTransaction(db, async (transaction) => {
         // Run interest charge logic first to ensure unpaidInterest is up-to-date
-        // This is a read-only call to get the current state, actual updates happen in the transaction.
         const upToDateClienteData = await getClienteById(clienteId);
         if (!upToDateClienteData) {
             throw new Error("El cliente no existe.");
         }
 
-        // Now, get the reference again inside the transaction for atomic updates
         const clienteDoc = await transaction.get(clienteRef);
         if (!clienteDoc.exists()) {
              throw new Error("El cliente no existe (fallo en transacción).");
         }
+        
         let clienteData = clienteDoc.data() as ClienteMensual;
-
-        // Use the most recent unpaid interest value
-        clienteData.unpaidInterest = upToDateClienteData.unpaidInterest;
-        clienteData.status = upToDateClienteData.status;
-
+        
+        const totalInterestToCover = (upToDateClienteData.unpaidInterest || 0) + upToDateClienteData.monthlyInterestCharge;
 
         let remainingPayment = paymentAmount;
         let interestPaid = 0;
         let capitalPaid = 0;
 
-        // 1. Cover unpaid interest first
-        if (clienteData.unpaidInterest > 0) {
-            interestPaid = Math.min(remainingPayment, clienteData.unpaidInterest);
+        // 1. Cover total interest first
+        if (totalInterestToCover > 0) {
+            interestPaid = Math.min(remainingPayment, totalInterestToCover);
             remainingPayment -= interestPaid;
         }
 
@@ -383,7 +375,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
             capitalPaid = Math.min(remainingPayment, clienteData.currentBalance);
         }
 
-        const newUnpaidInterest = clienteData.unpaidInterest - interestPaid;
+        const newUnpaidInterest = totalInterestToCover - interestPaid;
         const newCurrentBalance = clienteData.currentBalance - capitalPaid;
         
         // 3. Determine new status
