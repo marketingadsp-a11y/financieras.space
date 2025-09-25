@@ -36,6 +36,7 @@ import {
   CalendarClock,
   Percent,
   History,
+  Upload,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -123,6 +124,7 @@ const carteraVencidaNavItems: NavItem[] = [
 ];
 
 const carteraVencidaSettingsItems: NavItem[] = [
+    { href: "/tools/overdue-portfolio/settings", label: "Importar / Exportar", icon: Upload },
     { href: "/tools/overdue-portfolio/danger-zone", label: "Zona de Peligro", icon: ShieldAlert },
 ];
 
@@ -423,7 +425,7 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                     {carteraVencidaSettingsItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
                         <Link href={item.href!}>
-                            <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
                                 <span>
                                     <item.icon />
                                     <span>{item.label}</span>
