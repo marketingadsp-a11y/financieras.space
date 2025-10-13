@@ -145,10 +145,44 @@ export function MensualesDashboard() {
 
   const generatePDF = (data: ClienteMensual[], oficinaName: string) => {
     const doc = new jsPDF();
-    doc.text(`Reporte de Préstamos Mensuales`, 14, 16);
-    doc.text(`Oficina: ${oficinaName}`, 14, 22);
+    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+    const totalClients = data.length;
+    const totalLoaned = data.reduce((sum, c) => sum + c.loanAmount, 0);
+    const totalDue = data.reduce((sum, c) => sum + c.currentBalance, 0);
+
+    // Header
+    const drawHeader = () => {
+        doc.setFillColor(22, 163, 74); // bg-emerald-600
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Reporte de Préstamos Mensuales", 14, 20);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Oficina: ${oficinaName}`, 14, 28);
+        doc.text(`Fecha: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - 14, 28, { align: 'right' });
+    };
+
+    drawHeader();
+    
+    // Summary
     autoTable(doc, {
-        startY: 30,
+        startY: 45,
+        body: [
+            [{ content: 'CLIENTES TOTALES', styles: { fontStyle: 'bold', fillColor: [244, 244, 245] } }, totalClients],
+            [{ content: 'MONTO TOTAL PRESTADO', styles: { fontStyle: 'bold', fillColor: [244, 244, 245] } }, `$${totalLoaned.toLocaleString('es-MX', {minimumFractionDigits:2})}`],
+            [{ content: 'SALDO TOTAL PENDIENTE', styles: { fontStyle: 'bold', fillColor: [244, 244, 245] } }, `$${totalDue.toLocaleString('es-MX', {minimumFractionDigits:2})}`],
+        ],
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        columnStyles: { 1: { halign: 'right' } }
+    });
+
+    // Table
+    autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 10,
         head: [['ID', 'Cliente', 'Oficina', 'Estado', 'Monto Prestado', 'Saldo Actual', 'Tasa', 'Día Pago']],
         body: data.map(c => [
             c.displayId,
@@ -160,7 +194,18 @@ export function MensualesDashboard() {
             `${c.interestRateValue}%`,
             c.paymentDay
         ]),
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }, // A nice blue for headers
+        styles: { fontSize: 8 },
+        didDrawPage: (data) => {
+            // Footer
+            const pageCount = doc.internal.pages.length;
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Página ${data.pageNumber} de ${pageCount}`, data.settings.margin.left, pageHeight - 10);
+        }
     });
+
     doc.save(`Reporte_Mensuales_${oficinaName.replace(/\s/g, '_')}.pdf`);
   };
 
@@ -197,8 +242,8 @@ export function MensualesDashboard() {
         return matchesSearch && matchesOficina;
       })
       .sort((a, b) => {
-        const oficinaA = oficinaMap.get(a.oficinaId) || '';
-        const oficinaB = oficinaMap.get(b.oficinaId) || '';
+        const oficinaA = oficinaMap.get(a.oficinaId) || 'zzzz';
+        const oficinaB = oficinaMap.get(b.oficinaId) || 'zzzz';
         if (oficinaA < oficinaB) return -1;
         if (oficinaA > oficinaB) return 1;
         
