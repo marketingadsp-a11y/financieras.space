@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -40,7 +41,6 @@ const formSchema = z.object({
   name: z.string().min(3, "El nombre del cliente es requerido."),
   loanAmount: z.coerce.number().positive("El monto debe ser mayor a cero."),
   paymentDay: z.coerce.number().int().min(1).max(31, "El día debe estar entre 1 y 31."),
-  monthlyInterestCharge: z.coerce.number().min(0),
   displayId: z.string().optional(), // This will be handled by the service
 });
 
@@ -66,12 +66,9 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
       name: cliente?.name || "",
       loanAmount: cliente?.loanAmount || undefined,
       paymentDay: cliente?.paymentDay || new Date().getDate(),
-      monthlyInterestCharge: cliente?.monthlyInterestCharge || 0,
     },
   });
 
-  const watchLoanAmount = form.watch("loanAmount");
-  const watchInterestRateId = form.watch("interestRateId");
   const watchName = form.watch("name");
   
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -100,17 +97,6 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
       }
     };
   }, [watchName, user?.prefix, isEditing]);
-
-
-  React.useEffect(() => {
-    const rate = interestRates.find(r => r.id === watchInterestRateId);
-    if (watchLoanAmount && rate) {
-      const interest = (watchLoanAmount * rate.value) / 100;
-      form.setValue('monthlyInterestCharge', interest);
-    } else {
-      form.setValue('monthlyInterestCharge', 0);
-    }
-  }, [watchLoanAmount, watchInterestRateId, interestRates, form]);
 
 
   const handleFormSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -232,32 +218,19 @@ export function PrestamoForm({ onSubmit, oficinas, interestRates, cliente }: Pre
             )}
             />
              <FormField
-            control={form.control}
-            name="monthlyInterestCharge"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Cobro Interés Mensual</FormLabel>
-                <FormControl>
-                    <CurrencyInput {...field} readOnly className="bg-muted/50" />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
+                control={form.control}
+                name="paymentDay"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Día de Pago (1-31)</FormLabel>
+                    <FormControl>
+                        <Input type="number" min="1" max="31" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
         </div>
-        <FormField
-          control={form.control}
-          name="paymentDay"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Día de Pago (1-31)</FormLabel>
-              <FormControl>
-                <Input type="number" min="1" max="31" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         
         {hasActiveLoan ? (
              <AlertDialog>

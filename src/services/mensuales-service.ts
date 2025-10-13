@@ -38,15 +38,23 @@ async function chargeInterestIfNeeded(cliente: ClienteMensual, transaction?: Fir
         const nextChargeCutoff = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth(), cliente.paymentDay + 1);
 
         if (now >= nextChargeCutoff && lastChargeDate < nextChargeCutoff) {
-            interestToCharge += cliente.monthlyInterestCharge;
+            
+            // DYNAMIC INTEREST CALCULATION
+            const interestForThisMonth = (updatedClienteData.currentBalance * updatedClienteData.interestRateValue) / 100;
+            
+            interestToCharge += interestForThisMonth;
             newLastChargedDate = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth() + 1, cliente.paymentDay);
             
             newMovements.push({
                 date: newLastChargedDate,
                 type: 'charge_interest',
-                amount: cliente.monthlyInterestCharge,
-                notes: `Cargo de interés mensual`
+                amount: interestForThisMonth,
+                notes: `Cargo de interés del ${cliente.interestRateValue}% sobre $${updatedClienteData.currentBalance.toLocaleString()}`
             });
+
+            // Update client's unpaid interest locally for the next loop iteration's calculation
+            updatedClienteData.unpaidInterest = (updatedClienteData.unpaidInterest || 0) + interestForThisMonth;
+
             chargeDateCursor = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth() + 1, 1);
         } else {
             break;
@@ -54,8 +62,8 @@ async function chargeInterestIfNeeded(cliente: ClienteMensual, transaction?: Fir
     }
     
     if (interestToCharge > 0) {
-        const newUnpaidInterest = (updatedClienteData.unpaidInterest || 0) + interestToCharge;
-        const monthsOverdue = cliente.monthlyInterestCharge > 0 ? newUnpaidInterest / cliente.monthlyInterestCharge : 0;
+        const newUnpaidInterest = updatedClienteData.unpaidInterest; // We already updated it locally
+        const monthsOverdue = cliente.interestRateValue > 0 ? newUnpaidInterest / ((cliente.loanAmount * cliente.interestRateValue)/100) : 0;
         
         const newStatus = monthsOverdue >= 3 ? 'vencido' : 'vigente';
 
@@ -83,7 +91,6 @@ async function chargeInterestIfNeeded(cliente: ClienteMensual, transaction?: Fir
         }
 
         // Update the local object to reflect changes immediately
-        updatedClienteData.unpaidInterest = newUnpaidInterest;
         updatedClienteData.lastInterestChargedDate = newLastChargedDate;
         updatedClienteData.status = newStatus;
     }
@@ -157,7 +164,6 @@ export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
             paymentDay: data.paymentDay || 1,
             interestRateId: data.interestRateId || "",
             interestRateValue: data.interestRateValue || 0,
-            monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
             unpaidInterest: data.unpaidInterest || 0,
             registrationDate: data.registrationDate?.toDate(),
@@ -194,7 +200,6 @@ export async function searchClientesByName(name: string, prefix: string): Promis
             paymentDay: data.paymentDay || 1,
             interestRateId: data.interestRateId || "",
             interestRateValue: data.interestRateValue || 0,
-            monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
             unpaidInterest: data.unpaidInterest || 0,
             registrationDate: data.registrationDate?.toDate(),
@@ -221,7 +226,6 @@ export async function getClienteById(id: string): Promise<ClienteMensual | null>
             paymentDay: data.paymentDay || 1,
             interestRateId: data.interestRateId || "",
             interestRateValue: data.interestRateValue || 0,
-            monthlyInterestCharge: data.monthlyInterestCharge || 0,
             currentBalance: data.currentBalance || 0,
             unpaidInterest: data.unpaidInterest || 0,
             registrationDate: data.registrationDate?.toDate(),
@@ -345,7 +349,14 @@ export async function deleteCliente(clienteId: string): Promise<void> {
 export async function addPaymentToCliente(clienteId: string, paymentAmount: number): Promise<void> {
     const clienteRef = doc(db, "mensuales_clientes", clienteId);
     
+    // Step 1: Ensure all pending interests are charged before processing the payment
+    const initialClienteData = await getClienteById(clienteId);
+    if (!initialClienteData) {
+        throw new Error("El cliente no existe.");
+    }
+    
     await runTransaction(db, async (transaction) => {
+        // We get the document again inside the transaction to ensure atomicity
         const clienteDoc = await transaction.get(clienteRef);
         if (!clienteDoc.exists()) {
              throw new Error("El cliente no existe (fallo en transacción).");
@@ -353,21 +364,20 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         
         let clienteData = clienteDoc.data() as ClienteMensual;
         
-        // CORRECTION: Calculate total interest to cover *before* applying payments.
-        // This includes unpaid interest from previous periods plus the current month's charge.
-        const totalInterestToCover = (clienteData.unpaidInterest || 0) + clienteData.monthlyInterestCharge;
+        // This is the total interest that must be covered before anything goes to capital
+        const totalInterestToCover = clienteData.unpaidInterest || 0;
 
         let remainingPayment = paymentAmount;
         let interestPaid = 0;
         let capitalPaid = 0;
 
-        // Step 1: Cover total interest first.
+        // Step 2: Cover total interest first.
         if (totalInterestToCover > 0) {
             interestPaid = Math.min(remainingPayment, totalInterestToCover);
             remainingPayment -= interestPaid;
         }
 
-        // Step 2: The rest goes to capital.
+        // Step 3: The rest goes to capital.
         if (remainingPayment > 0) {
             capitalPaid = Math.min(remainingPayment, clienteData.currentBalance);
         }
@@ -375,8 +385,8 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
         const newUnpaidInterest = totalInterestToCover - interestPaid;
         const newCurrentBalance = clienteData.currentBalance - capitalPaid;
         
-        // Step 3: Determine new status.
-        const monthsOverdue = clienteData.monthlyInterestCharge > 0 ? newUnpaidInterest / clienteData.monthlyInterestCharge : 0;
+        // Step 4: Determine new status.
+        const monthsOverdue = clienteData.interestRateValue > 0 ? newUnpaidInterest / ((clienteData.loanAmount * clienteData.interestRateValue)/100) : 0;
         const newStatus = newCurrentBalance <= 0 ? 'liquidado' : (monthsOverdue >= 3 ? 'vencido' : 'vigente');
 
         const updates: Partial<ClienteMensual> = {
@@ -393,7 +403,7 @@ export async function addPaymentToCliente(clienteId: string, paymentAmount: numb
 
         transaction.update(clienteRef, updates);
         
-        // Step 4: Create movement records.
+        // Step 5: Create movement records.
         if (interestPaid > 0) {
             const interestMovRef = doc(movimientosCollectionRef);
             transaction.set(interestMovRef, {
@@ -482,7 +492,6 @@ export async function importMensualesData(jsonData: string, prefix: string): Pro
         }
         
         const displayId = await generateUniqueDisplayId(prefix);
-        const monthlyInterestCharge = (loanAmount * interestRateValue) / 100;
 
         const newCliente: Omit<ClienteMensual, 'id'> = {
             displayId,
@@ -493,7 +502,6 @@ export async function importMensualesData(jsonData: string, prefix: string): Pro
             paymentDay: isNaN(paymentDay) ? 1 : paymentDay,
             interestRateId: rateId,
             interestRateValue,
-            monthlyInterestCharge,
             currentBalance: loanAmount,
             unpaidInterest: 0,
             status: 'vigente',

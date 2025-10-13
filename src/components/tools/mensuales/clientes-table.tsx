@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -60,7 +61,9 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
         </TableHeader>
         <TableBody>
           {data.length > 0 ? (
-            data.map((cliente) => (
+            data.map((cliente) => {
+              const monthlyInterest = (cliente.currentBalance * cliente.interestRateValue) / 100;
+              return (
               <TableRow key={cliente.id}>
                 <TableCell>{oficinaMap.get(cliente.oficinaId) || 'N/A'}</TableCell>
                 <TableCell className="font-medium">{cliente.name}</TableCell>
@@ -77,7 +80,7 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
                     )}
                 </TableCell>
                 <TableCell>${cliente.loanAmount.toLocaleString('es-MX')}</TableCell>
-                <TableCell>${cliente.monthlyInterestCharge.toLocaleString('es-MX')}</TableCell>
+                <TableCell>${monthlyInterest.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</TableCell>
                 <TableCell>{cliente.paymentDay}</TableCell>
                 <TableCell className="font-semibold">${cliente.currentBalance.toLocaleString('es-MX')}</TableCell>
                 <TableCell className="text-right">
@@ -98,7 +101,7 @@ export function ClientesTable({ data, oficinas, onPaymentClick }: ClientesTableP
                     </div>
                 </TableCell>
               </TableRow>
-            ))
+            )})
           ) : (
             <TableRow>
               <TableCell colSpan={9} className="h-24 text-center">

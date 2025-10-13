@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -257,6 +258,8 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
             default: return 'outline';
         }
     }
+    
+    const monthlyInterest = (cliente.currentBalance * cliente.interestRateValue) / 100;
 
     return (
         <div className="space-y-6">
@@ -295,7 +298,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                         <h3 className="text-lg font-semibold mb-2">Información del Préstamo</h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 p-4 border rounded-lg">
                            <div className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Oficina</p><p className="font-medium">{oficina?.name || 'N/A'}</p></div></div>
-                           <div className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Interés Mensual</p><p className="font-medium">${cliente.monthlyInterestCharge.toLocaleString()}</p></div></div>
+                           <div className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Interés Mensual</p><p className="font-medium">${monthlyInterest.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p></div></div>
                            <div className="flex items-center gap-2"><Percent className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Tasa de Interés</p><p className="font-medium">{cliente.interestRateValue}%</p></div></div>
                            <div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-primary"/><div><p className="text-xs text-muted-foreground">Día de Pago</p><p className="font-medium">{cliente.paymentDay} de cada mes</p></div></div>
                            <div className="flex items-center gap-2">
