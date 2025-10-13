@@ -9,13 +9,19 @@ import { getOficinas, getClientes, addCliente, addPaymentToCliente } from "@/ser
 import { getInterestRates } from "@/services/interest-rate-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, DollarSign, Search } from "lucide-react";
+import { Loader2, PlusCircle, DollarSign, Search, FileDown } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ClientesTable } from "./clientes-table";
 import { PrestamoForm } from "./prestamo-form";
 import { PagoForm } from "./pago-form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ExportDialog } from "./export-dialog";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export function MensualesDashboard() {
   const { user } = useAuth();
@@ -31,6 +37,9 @@ export function MensualesDashboard() {
 
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedOficina, setSelectedOficina] = React.useState("all");
+
+  const [isExportDialogOpen, setIsExportDialogOpen] = React.useState(false);
+  const [isExporting, setIsExporting] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
@@ -107,13 +116,81 @@ export function MensualesDashboard() {
     }
   };
 
+  const handleExport = async (oficinaId: string, formatType: 'pdf' | 'excel') => {
+    setIsExporting(true);
+    try {
+        const clientesToExport = oficinaId === 'all' 
+            ? clientes 
+            : clientes.filter(c => c.oficinaId === oficinaId);
+        
+        if (clientesToExport.length === 0) {
+            toast({ title: "Sin datos", description: "No hay clientes para exportar con los filtros seleccionados."});
+            return;
+        }
+
+        const oficinaName = oficinaId === 'all' ? 'Todas' : oficinas.find(o => o.id === oficinaId)?.name || 'Desconocida';
+
+        if (formatType === 'pdf') {
+            generatePDF(clientesToExport, oficinaName);
+        } else {
+            generateExcel(clientesToExport, oficinaName);
+        }
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudo generar el reporte." });
+    } finally {
+        setIsExporting(false);
+        setIsExportDialogOpen(false);
+    }
+  };
+
+  const generatePDF = (data: ClienteMensual[], oficinaName: string) => {
+    const doc = new jsPDF();
+    doc.text(`Reporte de Préstamos Mensuales`, 14, 16);
+    doc.text(`Oficina: ${oficinaName}`, 14, 22);
+    autoTable(doc, {
+        startY: 30,
+        head: [['ID', 'Cliente', 'Oficina', 'Estado', 'Monto Prestado', 'Saldo Actual', 'Tasa', 'Día Pago']],
+        body: data.map(c => [
+            c.displayId,
+            c.name,
+            oficinas.find(o => o.id === c.oficinaId)?.name || 'N/A',
+            c.status,
+            `$${c.loanAmount.toLocaleString('es-MX')}`,
+            `$${c.currentBalance.toLocaleString('es-MX')}`,
+            `${c.interestRateValue}%`,
+            c.paymentDay
+        ]),
+    });
+    doc.save(`Reporte_Mensuales_${oficinaName.replace(/\s/g, '_')}.pdf`);
+  };
+
+  const generateExcel = (data: ClienteMensual[], oficinaName: string) => {
+      const dataToExport = data.map(c => ({
+          'ID Cliente': c.displayId,
+          'Nombre Cliente': c.name,
+          'Oficina': oficinas.find(o => o.id === c.oficinaId)?.name || 'N/A',
+          'Estado': c.status,
+          'Monto Prestado': c.loanAmount,
+          'Saldo Actual': c.currentBalance,
+          'Interés Acumulado': c.unpaidInterest,
+          'Tasa de Interés (%)': c.interestRateValue,
+          'Día de Pago': c.paymentDay,
+          'Fecha de Registro': c.registrationDate ? format(c.registrationDate, 'yyyy-MM-dd') : 'N/A',
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, `Reporte ${oficinaName}`);
+      XLSX.writeFile(workbook, `Reporte_Mensuales_${oficinaName.replace(/\s/g, '_')}.xlsx`);
+  }
+
+
   const oficinaMap = React.useMemo(() => new Map(oficinas.map(o => [o.id, o.name])), [oficinas]);
 
   const filteredAndSortedClientes = React.useMemo(() => {
     return clientes
       .filter(cliente => {
         const searchTermLower = searchTerm.toLowerCase();
-        const matchesSearch = !searchTerm || cliente.name.toLowerCase().includes(searchTermLower) || cliente.displayId?.includes(searchTermLower);
+        const matchesSearch = !searchTerm || cliente.name.toLowerCase().includes(searchTermLower) || cliente.displayId?.toString().includes(searchTermLower);
         
         const matchesOficina = selectedOficina === 'all' || cliente.oficinaId === selectedOficina;
 
@@ -137,27 +214,30 @@ export function MensualesDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Préstamos Mensuales</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Dialog open={isPrestamoFormOpen} onOpenChange={setIsPrestamoFormOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Registrar Préstamo
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-xl">
-              <DialogHeader>
-                <DialogTitle>Registrar Nuevo Préstamo</DialogTitle>
-                <DialogDescription>
-                  Completa los datos para registrar un nuevo cliente y su préstamo.
-                </DialogDescription>
-              </DialogHeader>
-              <PrestamoForm 
-                oficinas={oficinas}
-                interestRates={interestRates}
-                onSubmit={handleAddPrestamo}
-              />
-            </DialogContent>
-          </Dialog>
+            <Button variant="outline" onClick={() => setIsExportDialogOpen(true)}>
+                <FileDown className="mr-2 h-4 w-4" /> Exportar
+            </Button>
+            <Dialog open={isPrestamoFormOpen} onOpenChange={setIsPrestamoFormOpen}>
+                <DialogTrigger asChild>
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Registrar Préstamo
+                </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Registrar Nuevo Préstamo</DialogTitle>
+                    <DialogDescription>
+                    Completa los datos para registrar un nuevo cliente y su préstamo.
+                    </DialogDescription>
+                </DialogHeader>
+                <PrestamoForm 
+                    oficinas={oficinas}
+                    interestRates={interestRates}
+                    onSubmit={handleAddPrestamo}
+                />
+                </DialogContent>
+            </Dialog>
         </div>
       </div>
 
@@ -215,6 +295,13 @@ export function MensualesDashboard() {
             <PagoForm cliente={selectedCliente} onSubmit={handlePaymentSubmit}/>
         </DialogContent>
       </Dialog>
+       <ExportDialog 
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        oficinas={oficinas}
+        onExport={handleExport}
+        isExporting={isExporting}
+      />
     </div>
   );
 }
