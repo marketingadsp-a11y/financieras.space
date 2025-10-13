@@ -196,7 +196,6 @@ export function MensualesDashboard() {
         startY: (doc as any).lastAutoTable.finalY + 10,
         head: [['ID', 'Cliente', 'Oficina', 'Estado', 'Monto Prestado', 'Saldo Actual', 'Tasa', 'Día Pago']],
         body: data.map(c => {
-            const monthlyInterest = (c.currentBalance * c.interestRateValue) / 100;
             return [
                 c.displayId,
                 c.name,
@@ -213,7 +212,6 @@ export function MensualesDashboard() {
         styles: { fontSize: 8 },
         didDrawPage: (data) => {
             // Footer
-            const pageCount = doc.internal.pages.length;
             doc.setFontSize(8);
             doc.setTextColor(150);
             doc.text(`Página ${data.pageNumber} de ${doc.internal.pages.length}`, data.settings.margin.left, pageHeight - 10);
