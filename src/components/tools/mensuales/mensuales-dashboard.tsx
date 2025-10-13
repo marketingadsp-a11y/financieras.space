@@ -71,7 +71,7 @@ export function MensualesDashboard() {
     fetchData();
   }, [fetchData]);
 
-  const handleAddPrestamo = async (prestamoData: Omit<ClienteMensual, 'id' | 'prefix' | 'currentBalance' | 'status' | 'interestRateValue'>) => {
+  const handleAddPrestamo = async (prestamoData: Omit<ClienteMensual, 'id' | 'prefix' | 'currentBalance' | 'status' | 'interestRateValue' | 'monthlyInterestCharge'>) => {
     if (!user?.prefix) return;
     
     const selectedRate = interestRates.find(r => r.id === prestamoData.interestRateId);
@@ -119,16 +119,27 @@ export function MensualesDashboard() {
   const handleExport = async (oficinaId: string, formatType: 'pdf' | 'excel') => {
     setIsExporting(true);
     try {
-        const clientesToExport = oficinaId === 'all' 
+        let clientesToExport = oficinaId === 'all' 
             ? clientes 
             : clientes.filter(c => c.oficinaId === oficinaId);
         
         if (clientesToExport.length === 0) {
             toast({ title: "Sin datos", description: "No hay clientes para exportar con los filtros seleccionados."});
+            setIsExporting(false);
             return;
         }
 
         const oficinaName = oficinaId === 'all' ? 'Todas' : oficinas.find(o => o.id === oficinaId)?.name || 'Desconocida';
+        const localOficinaMap = new Map(oficinas.map(o => [o.id, o.name]));
+
+        // Sort the data before exporting
+        clientesToExport = clientesToExport.sort((a, b) => {
+            const oficinaA = localOficinaMap.get(a.oficinaId) || 'zzzz';
+            const oficinaB = localOficinaMap.get(b.oficinaId) || 'zzzz';
+            if (oficinaA < oficinaB) return -1;
+            if (oficinaA > oficinaB) return 1;
+            return a.name.localeCompare(b.name);
+        });
 
         if (formatType === 'pdf') {
             generatePDF(clientesToExport, oficinaName);
@@ -184,16 +195,19 @@ export function MensualesDashboard() {
     autoTable(doc, {
         startY: (doc as any).lastAutoTable.finalY + 10,
         head: [['ID', 'Cliente', 'Oficina', 'Estado', 'Monto Prestado', 'Saldo Actual', 'Tasa', 'Día Pago']],
-        body: data.map(c => [
-            c.displayId,
-            c.name,
-            oficinas.find(o => o.id === c.oficinaId)?.name || 'N/A',
-            c.status,
-            `$${c.loanAmount.toLocaleString('es-MX')}`,
-            `$${c.currentBalance.toLocaleString('es-MX')}`,
-            `${c.interestRateValue}%`,
-            c.paymentDay
-        ]),
+        body: data.map(c => {
+            const monthlyInterest = (c.currentBalance * c.interestRateValue) / 100;
+            return [
+                c.displayId,
+                c.name,
+                oficinas.find(o => o.id === c.oficinaId)?.name || 'N/A',
+                c.status,
+                `$${c.loanAmount.toLocaleString('es-MX')}`,
+                `$${c.currentBalance.toLocaleString('es-MX')}`,
+                `${c.interestRateValue}%`,
+                c.paymentDay
+            ];
+        }),
         theme: 'striped',
         headStyles: { fillColor: [41, 128, 185] }, // A nice blue for headers
         styles: { fontSize: 8 },
@@ -202,7 +216,7 @@ export function MensualesDashboard() {
             const pageCount = doc.internal.pages.length;
             doc.setFontSize(8);
             doc.setTextColor(150);
-            doc.text(`Página ${data.pageNumber} de ${pageCount}`, data.settings.margin.left, pageHeight - 10);
+            doc.text(`Página ${data.pageNumber} de ${doc.internal.pages.length}`, data.settings.margin.left, pageHeight - 10);
         }
     });
 
@@ -210,18 +224,22 @@ export function MensualesDashboard() {
   };
 
   const generateExcel = (data: ClienteMensual[], oficinaName: string) => {
-      const dataToExport = data.map(c => ({
-          'ID Cliente': c.displayId,
-          'Nombre Cliente': c.name,
-          'Oficina': oficinas.find(o => o.id === c.oficinaId)?.name || 'N/A',
-          'Estado': c.status,
-          'Monto Prestado': c.loanAmount,
-          'Saldo Actual': c.currentBalance,
-          'Interés Acumulado': c.unpaidInterest,
-          'Tasa de Interés (%)': c.interestRateValue,
-          'Día de Pago': c.paymentDay,
-          'Fecha de Registro': c.registrationDate ? format(c.registrationDate, 'yyyy-MM-dd') : 'N/A',
-      }));
+      const dataToExport = data.map(c => {
+          const monthlyInterest = (c.currentBalance * c.interestRateValue) / 100;
+          return {
+              'ID Cliente': c.displayId,
+              'Nombre Cliente': c.name,
+              'Oficina': oficinas.find(o => o.id === c.oficinaId)?.name || 'N/A',
+              'Estado': c.status,
+              'Monto Prestado': c.loanAmount,
+              'Saldo Actual': c.currentBalance,
+              'Interés Mensual': monthlyInterest,
+              'Interés Acumulado': c.unpaidInterest,
+              'Tasa de Interés (%)': c.interestRateValue,
+              'Día de Pago': c.paymentDay,
+              'Fecha de Registro': c.registrationDate ? format(c.registrationDate, 'yyyy-MM-dd') : 'N/A',
+          }
+      });
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, `Reporte ${oficinaName}`);
