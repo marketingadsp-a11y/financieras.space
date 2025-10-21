@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { 
@@ -147,7 +148,7 @@ export async function unassignCustomerFromGrupo(customerId: string) {
     await updateDoc(customerRef, { loanControlGroupId: "" });
 }
 
-export async function addPayment(customerId: string, paymentAmount: number): Promise<void> {
+export async function addPayment(customerId: string, paymentAmount: number, userName: string): Promise<void> {
     const customerRef = doc(db, "customers", customerId);
     
     await runTransaction(db, async (transaction) => {
@@ -177,7 +178,7 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
             toolContext: 'loan-control',
             type: 'payment',
             timestamp: Timestamp.now(),
-            userName: 'System', // This should be replaced with actual user later
+            userName: userName,
             details: `Abono de $${paymentAmount} a ${customerData.name}. Saldo anterior: $${previousDueAmount}. Saldo nuevo: $${newDueAmount > 0 ? newDueAmount : 0}.`,
             customerName: customerData.name,
             amount: paymentAmount,
