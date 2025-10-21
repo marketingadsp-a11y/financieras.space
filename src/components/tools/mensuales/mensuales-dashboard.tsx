@@ -19,13 +19,30 @@ import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+
 
 interface OficinaSummary extends OficinaMensual {
   totalLoanAmount: number;
   totalUnpaidInterest: number;
-  totalPendingBalance: number; // Added this field
+  totalPendingBalance: number; 
   clientCount: number;
 }
+
+const StatCard = ({ title, value, icon: Icon, isCurrency = true, colorClass = "text-foreground" }: { title: string; value: number; icon: React.ElementType; isCurrency?: boolean; colorClass?: string; }) => (
+    <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className={cn("h-4 w-4 text-muted-foreground", colorClass)} />
+        </CardHeader>
+        <CardContent>
+            <div className={cn("text-2xl font-bold", colorClass)}>
+                {isCurrency ? `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : value}
+            </div>
+        </CardContent>
+    </Card>
+);
+
 
 
 export function MensualesDashboard() {
@@ -241,6 +258,14 @@ export function MensualesDashboard() {
     });
   }, [oficinas, clientes]);
 
+  const globalSummary = React.useMemo(() => {
+    return clientes.reduce((acc, cliente) => {
+        acc.totalPendingBalance += cliente.currentBalance;
+        acc.totalUnpaidInterest += cliente.unpaidInterest;
+        return acc;
+    }, { totalPendingBalance: 0, totalUnpaidInterest: 0 });
+  }, [clientes]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -275,6 +300,21 @@ export function MensualesDashboard() {
             </Dialog>
         </div>
       </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <StatCard 
+                title="Total Pendiente (Capital)" 
+                value={globalSummary.totalPendingBalance} 
+                icon={DollarSign} 
+                colorClass="text-blue-600"
+            />
+            <StatCard 
+                title="Total Interés Pendiente" 
+                value={globalSummary.totalUnpaidInterest} 
+                icon={DollarSign} 
+                colorClass="text-destructive"
+            />
+        </div>
 
        {isLoading ? (
           <div className="flex justify-center items-center h-64">
