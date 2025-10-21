@@ -27,9 +27,9 @@ export function HistoryPanel() {
   const [isLoading, setIsLoading] = React.useState(true);
 
   // Filter states
-  const [selectedPlaza, setSelectedPlaza] = React.useState<string>("");
-  const [selectedPromoter, setSelectedPromoter] = React.useState<string>("");
-  const [selectedGroup, setSelectedGroup] = React.useState<string>("");
+  const [selectedPlaza, setSelectedPlaza] = React.useState<string>("all");
+  const [selectedPromoter, setSelectedPromoter] = React.useState<string>("all");
+  const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
   const [startDate, setStartDate] = React.useState<Date | undefined>();
   const [endDate, setEndDate] = React.useState<Date | undefined>();
 
@@ -69,9 +69,9 @@ export function HistoryPanel() {
   
   const filteredPaymentLogs = React.useMemo(() => {
     return paymentLogs.filter(log => {
-        if (selectedPlaza && log.plazaName !== plazas.find(p => p.id === selectedPlaza)?.name) return false;
-        if (selectedPromoter && log.promoter !== selectedPromoter) return false;
-        if (selectedGroup && log.group !== selectedGroup) return false;
+        if (selectedPlaza !== 'all' && log.plazaName !== plazas.find(p => p.id === selectedPlaza)?.name) return false;
+        if (selectedPromoter !== 'all' && log.promoter !== selectedPromoter) return false;
+        if (selectedGroup !== 'all' && log.group !== selectedGroup) return false;
         
         const logDate = new Date(log.timestamp);
         if (startDate && logDate < startDate) return false;
@@ -90,9 +90,9 @@ export function HistoryPanel() {
   }, [filteredPaymentLogs]);
 
   const clearFilters = () => {
-    setSelectedPlaza("");
-    setSelectedPromoter("");
-    setSelectedGroup("");
+    setSelectedPlaza("all");
+    setSelectedPromoter("all");
+    setSelectedGroup("all");
     setStartDate(undefined);
     setEndDate(undefined);
   };
@@ -132,21 +132,21 @@ export function HistoryPanel() {
                                 <Select value={selectedPlaza} onValueChange={setSelectedPlaza}>
                                     <SelectTrigger><SelectValue placeholder="Filtrar por Plaza" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Todas las Plazas</SelectItem>
+                                        <SelectItem value="all">Todas las Plazas</SelectItem>
                                         {plazas.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <Select value={selectedPromoter} onValueChange={setSelectedPromoter}>
                                     <SelectTrigger><SelectValue placeholder="Filtrar por Promotor" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Todos los Promotores</SelectItem>
+                                        <SelectItem value="all">Todos los Promotores</SelectItem>
                                         {uniquePromoters.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
                                     <SelectTrigger><SelectValue placeholder="Filtrar por Grupo" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Todos los Grupos</SelectItem>
+                                        <SelectItem value="all">Todos los Grupos</SelectItem>
                                         {uniqueGroups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
