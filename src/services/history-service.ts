@@ -11,11 +11,10 @@ export async function getHistoryLogs(prefix: string, toolContext: 'overdue-portf
     const q = query(
         historyCollectionRef, 
         where("prefix", "==", prefix),
-        where("toolContext", "==", toolContext),
-        orderBy("timestamp", "desc")
+        where("toolContext", "==", toolContext)
     );
     const data = await getDocs(q);
-    return data.docs.map(doc => {
+    const logs = data.docs.map(doc => {
         const logData = doc.data();
         return { 
             ...logData,
@@ -23,4 +22,7 @@ export async function getHistoryLogs(prefix: string, toolContext: 'overdue-portf
             timestamp: (logData.timestamp as Timestamp).toDate(),
         } as HistoryLog;
     });
+
+    // Sort in application code to avoid complex composite index
+    return logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
