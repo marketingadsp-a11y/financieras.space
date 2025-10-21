@@ -378,6 +378,3 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
         </Form>
     );
 }
-
-    
-

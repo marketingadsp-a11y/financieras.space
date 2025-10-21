@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -25,6 +26,9 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
   
   const canSendWhatsapp = hasPermission('cartera-vencida', 'CAN_SEND_WHATSAPP');
   const canSendSms = hasPermission('cartera-vencida', 'CAN_SEND_SMS');
+  const canEdit = hasPermission('cartera-vencida', 'CAN_EDIT_CUSTOMER');
+  const canPay = hasPermission('cartera-vencida', 'CAN_PROCESS_PAYMENTS');
+  const canDelete = hasPermission('cartera-vencida', 'CAN_DELETE_CUSTOMER');
 
   const getStatusBadgeVariant = (status: Customer['status']) => {
     switch (status) {
@@ -80,9 +84,11 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
             <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize shrink-0 group-hover:opacity-0 transition-opacity">
                 {customer.status}
             </Badge>
+            {canDelete && (
              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive absolute top-0 right-0" onClick={() => onDelete(customer)}>
                 <Trash2 className="h-4 w-4" />
             </Button>
+            )}
         </div>
         <CardTitle className="text-base font-bold line-clamp-2 pr-12">{customer.name}</CardTitle>
         <p className="text-sm text-muted-foreground pt-1">{customer.address}</p>
@@ -112,14 +118,20 @@ export function CustomerCard({ customer, onEdit, onPayment, onDelete, onSendSms,
         </div>
       </CardContent>
       <CardFooter className="flex flex-col items-center p-3 pt-0 space-y-2 bg-muted/30">
-          <div className="flex w-full space-x-2">
-            <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(customer)}>
-                <Pencil className="mr-2 h-4 w-4"/> Editar
-            </Button>
-            <Button size="sm" className="w-full" onClick={() => onPayment(customer)} disabled={isPaid}>
-                <DollarSign className="mr-2 h-4 w-4"/> Abonar
-            </Button>
-          </div>
+          {(canEdit || canPay) && (
+            <div className="flex w-full space-x-2">
+              {canEdit && (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(customer)}>
+                    <Pencil className="mr-2 h-4 w-4"/> Editar
+                </Button>
+              )}
+              {canPay && (
+                <Button size="sm" className="w-full" onClick={() => onPayment(customer)} disabled={isPaid}>
+                    <DollarSign className="mr-2 h-4 w-4"/> Abonar
+                </Button>
+              )}
+            </div>
+          )}
           {canSendWhatsapp && (
             <Button variant="outline" size="sm" className="w-full border-green-600 text-green-700 hover:bg-green-100 hover:text-green-800" asChild>
                 <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsAppClick} aria-disabled={!whatsappLink}>

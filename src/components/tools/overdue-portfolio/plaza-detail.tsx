@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -371,6 +372,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const canImport = hasPermission(plazaId, 'CAN_IMPORT');
   const canExport = hasPermission(plazaId, 'CAN_EXPORT');
   const canDeleteAll = hasPermission(plazaId, 'CAN_DELETE_ALL');
+  const canDeleteCustomer = hasPermission('cartera-vencida', 'CAN_DELETE_CUSTOMER');
+
 
   const promoterColors = React.useMemo(() => {
     const colors = new Map<string, string>();
@@ -666,7 +669,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                     <FilterX className="mr-2 h-4 w-4" />
                     Limpiar
                 </Button>
-                {selectedPromoter && selectedPromoter !== 'unassigned' && (
+                {selectedPromoter && selectedPromoter !== 'unassigned' && canDeleteAll && (
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive" size="sm">

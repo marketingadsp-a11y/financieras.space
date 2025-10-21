@@ -73,6 +73,9 @@ export const PERMISSIONS = {
 export type Permission = keyof typeof PERMISSIONS;
 
 export const OVERDUE_PORTFOLIO_PERMISSIONS = {
+  CAN_EDIT_CUSTOMER: 'Editar Clientes',
+  CAN_PROCESS_PAYMENTS: 'Procesar Abonos',
+  CAN_DELETE_CUSTOMER: 'Eliminar Clientes',
   CAN_SEND_WHATSAPP: 'Enviar WhatsApp',
   CAN_SEND_SMS: 'Enviar SMS',
 } as const;
