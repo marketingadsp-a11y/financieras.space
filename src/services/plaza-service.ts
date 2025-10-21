@@ -20,22 +20,13 @@ type GetPlazasOptions = {
 export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, toolContext }: GetPlazasOptions = {}): Promise<Plaza[]> {
     let constraints = [];
     
+    // If a tool context is provided, always filter by it.
     if (toolContext) {
         constraints.push(where("toolContext", "==", toolContext));
-    } else {
-        // If no context is provided, we should probably not return anything to avoid data leaks between tools
-        return [];
     }
 
-    if (fetchAll) {
-        // SuperAdmins or ToolAdmins can see everything within a tool context
-        // No prefix constraint needed
-    } else if (prefix) {
-        // Global Admins see only their prefixed plazas within a tool context
+    if (!fetchAll && prefix) {
         constraints.push(where("prefix", "==", prefix));
-    } else {
-        // No prefix and not fetching all, return empty to avoid showing all data by mistake
-        return [];
     }
     
     const q = query(plazasCollectionRef, ...constraints);
