@@ -1,4 +1,5 @@
 
+
 import type { Timestamp } from "firebase/firestore";
 import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent } from "lucide-react";
 
@@ -450,7 +451,6 @@ export type ClienteMensual = {
     paymentDay: number; // Day of the month (1-31)
     interestRateId: string;
     interestRateValue: number;
-    monthlyInterestCharge: number;
     currentBalance: number;
     unpaidInterest: number; // New field for accumulated interest
     registrationDate?: Date;
