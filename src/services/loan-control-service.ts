@@ -17,13 +17,15 @@ import {
     WriteBatch
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza } from "@/lib/data";
+import type { LoanControlCartera, LoanControlGrupo, Customer, Plaza, HistoryLog } from "@/lib/data";
 import { customerFromDoc } from "./customer-service-helper";
 
 const carterasCollectionRef = collection(db, "loanControlCarteras");
 const gruposCollectionRef = collection(db, "loanControlGrupos");
 const plazasCollectionRef = collection(db, "plazas");
 const customersCollectionRef = collection(db, "customers");
+const historyCollectionRef = collection(db, "historyLogs");
+
 
 // --- Cartera Functions ---
 
@@ -168,6 +170,22 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
         }
 
         transaction.update(customerRef, updatedCustomerData);
+
+        // Add to history log
+        const historyLog: Omit<HistoryLog, 'id'> = {
+            prefix: customerData.prefix || 'N/A',
+            toolContext: 'loan-control',
+            type: 'payment',
+            timestamp: Timestamp.now(),
+            userName: 'System', // This should be replaced with actual user later
+            details: `Abono de $${paymentAmount} a ${customerData.name}. Saldo anterior: $${previousDueAmount}. Saldo nuevo: $${newDueAmount > 0 ? newDueAmount : 0}.`,
+            customerName: customerData.name,
+            amount: paymentAmount,
+            promoter: customerData.promoter,
+            group: customerData.groupName
+        };
+        const historyDocRef = doc(historyCollectionRef);
+        transaction.set(historyDocRef, historyLog);
     });
 }
 

@@ -311,6 +311,20 @@ export type DailyRecord = {
   entries: DailyRecordEntry[];
 };
 
+export type HistoryLog = {
+    id: string;
+    prefix: string;
+    toolContext: 'overdue-portfolio' | 'loan-control' | 'daily-control' | 'income-expenses';
+    type: 'create' | 'update' | 'delete' | 'payment';
+    timestamp: Date;
+    userName: string;
+    details: string;
+    customerName?: string;
+    amount?: number;
+    promoter?: string;
+    group?: string;
+}
+
 export type CompanyProfile = {
   id: string; // Corresponds to the prefix
   companyName: string;

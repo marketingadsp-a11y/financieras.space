@@ -3,10 +3,11 @@
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData, Timestamp, Query, collectionGroup } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer } from "@/lib/data";
+import type { Customer, HistoryLog } from "@/lib/data";
 import { customerFromDoc } from "./customer-service-helper";
 
 const customersCollectionRef = collection(db, "customers");
+const historyCollectionRef = collection(db, "historyLogs");
 
 export async function getCustomersByPlaza(plazaId: string): Promise<Customer[]> {
     const q = query(customersCollectionRef, where("plazaId", "==", plazaId));
@@ -181,5 +182,21 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
         }
 
         transaction.update(customerRef, updatedCustomerData);
+
+        // Add to history log
+        const historyLog: Omit<HistoryLog, 'id'> = {
+            prefix: customerData.prefix || 'N/A',
+            toolContext: 'overdue-portfolio',
+            type: 'payment',
+            timestamp: Timestamp.now(),
+            userName: 'System', // This should be replaced with actual user later
+            details: `Abono de $${paymentAmount} a ${customerData.name}. Saldo anterior: $${previousDueAmount}. Saldo nuevo: $${newDueAmount > 0 ? newDueAmount : 0}.`,
+            customerName: customerData.name,
+            amount: paymentAmount,
+            promoter: customerData.promoter,
+            group: customerData.groupName
+        };
+        const historyDocRef = doc(historyCollectionRef);
+        transaction.set(historyDocRef, historyLog);
     });
 }
