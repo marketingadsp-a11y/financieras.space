@@ -23,6 +23,7 @@ import Link from "next/link";
 interface OficinaSummary extends OficinaMensual {
   totalLoanAmount: number;
   totalUnpaidInterest: number;
+  totalPendingBalance: number; // Added this field
   clientCount: number;
 }
 
@@ -70,7 +71,7 @@ export function MensualesDashboard() {
     fetchData();
   }, [fetchData]);
 
-  const handleAddPrestamo = async (prestamoData: Omit<ClienteMensual, 'id' | 'prefix' | 'currentBalance' | 'status' | 'interestRateValue' | 'monthlyInterestCharge'>) => {
+  const handleAddPrestamo = async (prestamoData: Omit<ClienteMensual, 'id' | 'prefix' | 'currentBalance' | 'status' | 'interestRateValue'>) => {
     if (!user?.prefix) return;
     
     const selectedRate = interestRates.find(r => r.id === prestamoData.interestRateId);
@@ -228,10 +229,12 @@ export function MensualesDashboard() {
     return oficinas.map(oficina => {
       const oficinaClientes = clientes.filter(c => c.oficinaId === oficina.id);
       const totalLoanAmount = oficinaClientes.reduce((acc, c) => acc + c.loanAmount, 0);
+      const totalPendingBalance = oficinaClientes.reduce((acc, c) => acc + c.currentBalance, 0);
       const totalUnpaidInterest = oficinaClientes.reduce((acc, c) => acc + (c.unpaidInterest || 0), 0);
       return {
         ...oficina,
         totalLoanAmount,
+        totalPendingBalance,
         totalUnpaidInterest,
         clientCount: oficinaClientes.length
       };
@@ -294,13 +297,17 @@ export function MensualesDashboard() {
                           </div>
                       </CardHeader>
                       <CardContent className="flex-grow space-y-4">
-                          <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
-                              <span className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingUp/>Total Prestado</span>
-                              <span className="text-lg font-bold">${oficina.totalLoanAmount.toLocaleString('es-MX')}</span>
+                          <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700">
+                                <p className="text-sm font-medium flex items-center gap-2"><TrendingDown/> Total Pendiente</p>
+                                <p className="text-2xl font-bold">${oficina.totalPendingBalance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                           </div>
-                          <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
-                              <span className="text-sm font-medium text-muted-foreground flex items-center gap-2"><TrendingDown className="text-destructive"/>Interés Pendiente</span>
-                              <span className="text-lg font-bold text-destructive">${oficina.totalUnpaidInterest.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                          <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground flex items-center gap-2"><TrendingUp/>Total Prestado</span>
+                              <span className="font-medium">${oficina.totalLoanAmount.toLocaleString('es-MX')}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground flex items-center gap-2"><TrendingDown className="text-destructive"/>Interés Pendiente</span>
+                              <span className="font-medium text-destructive">${oficina.totalUnpaidInterest.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                           </div>
                       </CardContent>
                       <CardFooter>
