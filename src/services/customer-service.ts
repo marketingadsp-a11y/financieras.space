@@ -55,30 +55,58 @@ export async function addCustomer(customer: Omit<Customer, 'id'>, userName: stri
     return { ...customer, id: docRef.id };
 }
 
-export async function updateCustomer(id: string, customer: Partial<Omit<Customer, 'id'>>, userName: string) {
-    const customerDoc = doc(db, "customers", id);
-    const dataToUpdate: Partial<any> = {...customer};
-    if (customer.fechaPrestamo) {
-        dataToUpdate.fechaPrestamo = Timestamp.fromDate(new Date(customer.fechaPrestamo));
-    }
-    // Automatically update status based on dueAmount when editing
-    if (typeof customer.dueAmount === 'number') {
-        dataToUpdate.status = customer.dueAmount <= 0 ? 'Pagado' : 'Pendiente';
-    }
-    await updateDoc(customerDoc, dataToUpdate);
+export async function updateCustomer(id: string, customerUpdates: Partial<Omit<Customer, 'id'>>, userName: string) {
+    const customerDocRef = doc(db, "customers", id);
+    
+    await runTransaction(db, async (transaction) => {
+        const customerDoc = await transaction.get(customerDocRef);
+        if (!customerDoc.exists()) {
+            throw new Error("Cliente no encontrado.");
+        }
+        
+        const oldData = customerFromDoc(customerDoc);
+        const dataToUpdate: Partial<any> = {...customerUpdates};
 
-    // Add to history log
-    const historyLog: Omit<HistoryLog, 'id'> = {
-        prefix: customer.prefix || 'N/A',
-        toolContext: customer.toolContext || 'overdue-portfolio',
-        type: 'update',
-        timestamp: new Date(),
-        userName: userName, 
-        details: `Se actualizó al cliente: ${customer.name}.`,
-        customerName: customer.name,
-    };
-    await addDoc(historyCollectionRef, historyLog);
+        if (customerUpdates.fechaPrestamo) {
+            dataToUpdate.fechaPrestamo = Timestamp.fromDate(new Date(customerUpdates.fechaPrestamo));
+        }
+
+        if (typeof customerUpdates.dueAmount === 'number') {
+            dataToUpdate.status = customerUpdates.dueAmount <= 0 ? 'Pagado' : 'Pendiente';
+        }
+
+        transaction.update(customerDocRef, dataToUpdate);
+
+        // Generate detailed history log
+        const changes: string[] = [];
+        for (const key in customerUpdates) {
+            const typedKey = key as keyof typeof customerUpdates;
+            if (oldData[typedKey] !== customerUpdates[typedKey] && key !== 'fechaPrestamo') {
+                changes.push(`${key}: "${oldData[typedKey]}" -> "${customerUpdates[typedKey]}"`);
+            }
+        }
+        if (customerUpdates.fechaPrestamo && new Date(oldData.fechaPrestamo || 0).getTime() !== new Date(customerUpdates.fechaPrestamo).getTime()) {
+            changes.push(`fechaPrestamo: "${oldData.fechaPrestamo?.toLocaleDateString()}" -> "${customerUpdates.fechaPrestamo.toLocaleDateString()}"`)
+        }
+        
+        const details = changes.length > 0
+            ? `Cambios: ${changes.join(', ')}`
+            : 'Se guardó sin cambios en los datos.';
+
+        const historyLog: Omit<HistoryLog, 'id'> = {
+            prefix: oldData.prefix || 'N/A',
+            toolContext: oldData.toolContext || 'overdue-portfolio',
+            type: 'update',
+            timestamp: new Date(),
+            userName: userName,
+            details,
+            customerName: oldData.name,
+        };
+        const historyDocRef = doc(historyCollectionRef);
+        transaction.set(historyDocRef, historyLog);
+    });
 }
+
 
 export async function deleteCustomer(id: string, userName: string, plazaName?: string) {
     const customerDocRef = doc(db, "customers", id);
