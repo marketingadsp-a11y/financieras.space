@@ -323,6 +323,7 @@ export type HistoryLog = {
     amount?: number;
     promoter?: string;
     group?: string;
+    plazaName?: string;
 }
 
 export type CompanyProfile = {

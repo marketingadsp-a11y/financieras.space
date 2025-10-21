@@ -1,7 +1,8 @@
 
+
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData, Timestamp, Query, collectionGroup } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, DocumentData, Timestamp, Query, collectionGroup, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, HistoryLog } from "@/lib/data";
 import { customerFromDoc } from "./customer-service-helper";
@@ -32,16 +33,29 @@ export async function getAllCustomersByPrefixAndTool(prefix: string, toolContext
 }
 
 
-export async function addCustomer(customer: Omit<Customer, 'id'>) : Promise<Customer> {
+export async function addCustomer(customer: Omit<Customer, 'id'>, userName: string) : Promise<Customer> {
      const customerDataWithTimestamp = {
         ...customer,
         fechaPrestamo: customer.fechaPrestamo ? Timestamp.fromDate(new Date(customer.fechaPrestamo)) : Timestamp.now()
     };
     const docRef = await addDoc(customersCollectionRef, customerDataWithTimestamp);
+    
+    // Add to history log
+    const historyLog: Omit<HistoryLog, 'id'> = {
+        prefix: customer.prefix || 'N/A',
+        toolContext: customer.toolContext || 'overdue-portfolio',
+        type: 'create',
+        timestamp: Timestamp.now(),
+        userName: userName, 
+        details: `Se registró al cliente: ${customer.name}.`,
+        customerName: customer.name,
+    };
+    await addDoc(historyCollectionRef, historyLog);
+
     return { ...customer, id: docRef.id };
 }
 
-export async function updateCustomer(id: string, customer: Partial<Omit<Customer, 'id'>>) {
+export async function updateCustomer(id: string, customer: Partial<Omit<Customer, 'id'>>, userName: string) {
     const customerDoc = doc(db, "customers", id);
     const dataToUpdate: Partial<any> = {...customer};
     if (customer.fechaPrestamo) {
@@ -52,11 +66,40 @@ export async function updateCustomer(id: string, customer: Partial<Omit<Customer
         dataToUpdate.status = customer.dueAmount <= 0 ? 'Pagado' : 'Pendiente';
     }
     await updateDoc(customerDoc, dataToUpdate);
+
+    // Add to history log
+    const historyLog: Omit<HistoryLog, 'id'> = {
+        prefix: customer.prefix || 'N/A',
+        toolContext: customer.toolContext || 'overdue-portfolio',
+        type: 'update',
+        timestamp: Timestamp.now(),
+        userName: userName, 
+        details: `Se actualizó al cliente: ${customer.name}.`,
+        customerName: customer.name,
+    };
+    await addDoc(historyCollectionRef, historyLog);
 }
 
-export async function deleteCustomer(id: string) {
-    const customerDoc = doc(db, "customers", id);
-    await deleteDoc(customerDoc);
+export async function deleteCustomer(id: string, userName: string, plazaName?: string) {
+    const customerDocRef = doc(db, "customers", id);
+    const customerDoc = await getDoc(customerDocRef);
+    if (!customerDoc.exists()) return;
+
+    const customerData = customerFromDoc(customerDoc);
+
+    await deleteDoc(customerDocRef);
+
+     // Add to history log
+    const historyLog: Omit<HistoryLog, 'id'> = {
+        prefix: customerData.prefix || 'N/A',
+        toolContext: customerData.toolContext || 'overdue-portfolio',
+        type: 'delete',
+        timestamp: Timestamp.now(),
+        userName: userName, 
+        details: `Se eliminó al cliente: ${customerData.name} de la plaza ${plazaName || 'desconocida'}.`,
+        customerName: customerData.name,
+    };
+    await addDoc(historyCollectionRef, historyLog);
 }
 
 export async function deleteCustomersByPlaza(plazaId: string): Promise<void> {
@@ -159,7 +202,7 @@ export async function addMultipleCustomers(customers: Omit<Customer, 'id' | 'sta
 }
 
 
-export async function addPayment(customerId: string, paymentAmount: number): Promise<void> {
+export async function addPayment(customerId: string, paymentAmount: number, userName: string): Promise<void> {
     const customerRef = doc(db, "customers", customerId);
     
     await runTransaction(db, async (transaction) => {
@@ -169,6 +212,10 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
         }
 
         const customerData = customerFromDoc(customerDoc);
+        
+        const plazaDoc = await getDoc(doc(db, "plazas", customerData.plazaId));
+        const plazaName = plazaDoc.exists() ? plazaDoc.data().name : "Desconocida";
+
         const previousDueAmount = customerData.dueAmount || 0;
         const newDueAmount = previousDueAmount - paymentAmount;
         
@@ -189,12 +236,13 @@ export async function addPayment(customerId: string, paymentAmount: number): Pro
             toolContext: 'overdue-portfolio',
             type: 'payment',
             timestamp: Timestamp.now(),
-            userName: 'System', // This should be replaced with actual user later
+            userName: userName,
             details: `Abono de $${paymentAmount} a ${customerData.name}. Saldo anterior: $${previousDueAmount}. Saldo nuevo: $${newDueAmount > 0 ? newDueAmount : 0}.`,
             customerName: customerData.name,
             amount: paymentAmount,
             promoter: customerData.promoter,
-            group: customerData.groupName
+            group: customerData.groupName,
+            plazaName: plazaName,
         };
         const historyDocRef = doc(historyCollectionRef);
         transaction.set(historyDocRef, historyLog);

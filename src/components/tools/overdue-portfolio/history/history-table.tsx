@@ -80,7 +80,7 @@ export function HistoryTable({ data, type }: HistoryTableProps) {
               <TableHead>Fecha</TableHead>
               <TableHead>Usuario</TableHead>
               <TableHead>{type === 'payment' ? 'Cliente Afectado' : 'Tipo de Acción'}</TableHead>
-              <TableHead>{type === 'payment' ? 'Promotor/Grupo' : 'Detalles'}</TableHead>
+              <TableHead>{type === 'payment' ? 'Detalles del Cliente' : 'Detalles'}</TableHead>
               {type === 'payment' && <TableHead className="text-right">Monto</TableHead>}
             </TableRow>
           </TableHeader>
@@ -105,6 +105,7 @@ export function HistoryTable({ data, type }: HistoryTableProps) {
                    <TableCell className="text-sm text-muted-foreground">
                     {type === 'payment' ? (
                         <div className="flex flex-col">
+                            <span>Plaza: {log.plazaName || 'N/A'}</span>
                             <span>Promotor: {log.promoter || 'N/A'}</span>
                             <span>Grupo: {log.group || 'N/A'}</span>
                         </div>

@@ -161,7 +161,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     }
     try {
         const newCustomerData = { ...customerData, plazaId, status: 'Pendiente' as const, prefix: user.prefix, toolContext: 'overdue-portfolio' as const };
-        await addCustomer(newCustomerData);
+        await addCustomer(newCustomerData, user.name);
         toast({ title: "Éxito", description: "Cliente agregado correctamente." });
         await fetchPlazaAndCustomers();
         setIsAddFormOpen(false);
@@ -200,9 +200,9 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
 
 
   const confirmDeleteCustomer = async () => {
-    if (!customerToDelete) return;
+    if (!customerToDelete || !user?.name) return;
     try {
-      await deleteCustomer(customerToDelete.id);
+      await deleteCustomer(customerToDelete.id, user.name, plaza?.name);
       toast({ title: "Éxito", description: "Cliente eliminado correctamente." });
       setCustomerToDelete(null);
       await fetchPlazaAndCustomers();

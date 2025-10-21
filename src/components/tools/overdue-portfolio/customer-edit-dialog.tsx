@@ -32,6 +32,7 @@ import { addPayment as addPaymentService, updateCustomer } from "@/services/cust
 import { addPayment as addLoanPayment } from "@/services/loan-control-service";
 import { Loader2, DollarSign } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { useAuth } from "@/context/auth-context";
 
 type CustomerEditDialogProps = {
   customer: Customer | null;
@@ -62,6 +63,7 @@ const paymentSchema = z.object({
 export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode }: CustomerEditDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const customerForm = useForm<z.infer<typeof customerFormSchema>>({
     resolver: zodResolver(customerFormSchema),
@@ -94,14 +96,14 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
 
 
   const handleCustomerUpdate = async (values: z.infer<typeof customerFormSchema>) => {
-    if (!customer) return;
+    if (!customer || !user?.name) return;
     setIsSubmitting(true);
     try {
       // Determine status based on the new dueAmount
       const newStatus = values.dueAmount > 0 ? 'Pendiente' : 'Pagado';
-      const dataToUpdate = { ...values, status: newStatus };
+      const dataToUpdate = { ...values, status: newStatus, prefix: customer.prefix, toolContext: customer.toolContext };
 
-      await updateCustomer(customer.id, dataToUpdate);
+      await updateCustomer(customer.id, dataToUpdate, user.name);
       toast({ title: "Éxito", description: "Cliente actualizado." });
       onSuccess();
       onClose();
@@ -113,11 +115,11 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
   };
 
   const handlePaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
-    if (!customer) return;
+    if (!customer || !user?.name) return;
     setIsSubmitting(true);
     try {
       const paymentFunction = customer.loanControlGroupId ? addLoanPayment : addPaymentService;
-      await paymentFunction(customer.id, values.amount);
+      await paymentFunction(customer.id, values.amount, user.name);
       toast({ title: "Éxito", description: "Abono registrado." });
       onSuccess();
       onClose();
