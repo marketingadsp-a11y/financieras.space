@@ -5,17 +5,18 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { OficinaMensual, ClienteMensual } from "@/lib/data";
-import { getOficinaById, getClientesByOficina, addPaymentToCliente } from "@/services/mensuales-service";
+import { getOficinaById, getClientes, addPaymentToCliente } from "@/services/mensuales-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ClientesTable } from "../clientes-table";
-import { PagoForm } from "../pago-form";
+import { ClientesTable } from "./clientes-table";
+import { PagoForm } from "./pago-form";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 
 export function OficinaDetailPanel({ oficinaId }: { oficinaId: string }) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [oficina, setOficina] = React.useState<OficinaMensual | null>(null);
   const [clientes, setClientes] = React.useState<ClienteMensual[]>([]);
@@ -27,14 +28,18 @@ export function OficinaDetailPanel({ oficinaId }: { oficinaId: string }) {
   const [searchTerm, setSearchTerm] = React.useState("");
 
   const fetchData = React.useCallback(async () => {
+    if (!user?.prefix) {
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     try {
-      const [oficinaData, clientesData] = await Promise.all([
+      const [oficinaData, allClientesData] = await Promise.all([
         getOficinaById(oficinaId),
-        getClientesByOficina(oficinaId),
+        getClientes(user.prefix),
       ]);
       setOficina(oficinaData);
-      setClientes(clientesData);
+      setClientes(allClientesData.filter(c => c.oficinaId === oficinaId));
     } catch (error) {
       toast({
         variant: "destructive",
@@ -44,7 +49,7 @@ export function OficinaDetailPanel({ oficinaId }: { oficinaId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [oficinaId, toast]);
+  }, [oficinaId, toast, user?.prefix]);
 
   React.useEffect(() => {
     fetchData();
