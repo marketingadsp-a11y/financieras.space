@@ -45,7 +45,7 @@ export async function addCustomer(customer: Omit<Customer, 'id'>, userName: stri
         prefix: customer.prefix || 'N/A',
         toolContext: customer.toolContext || 'overdue-portfolio',
         type: 'create',
-        timestamp: Timestamp.now(),
+        timestamp: new Date(),
         userName: userName, 
         details: `Se registró al cliente: ${customer.name}.`,
         customerName: customer.name,
@@ -72,7 +72,7 @@ export async function updateCustomer(id: string, customer: Partial<Omit<Customer
         prefix: customer.prefix || 'N/A',
         toolContext: customer.toolContext || 'overdue-portfolio',
         type: 'update',
-        timestamp: Timestamp.now(),
+        timestamp: new Date(),
         userName: userName, 
         details: `Se actualizó al cliente: ${customer.name}.`,
         customerName: customer.name,
@@ -94,7 +94,7 @@ export async function deleteCustomer(id: string, userName: string, plazaName?: s
         prefix: customerData.prefix || 'N/A',
         toolContext: customerData.toolContext || 'overdue-portfolio',
         type: 'delete',
-        timestamp: Timestamp.now(),
+        timestamp: new Date(),
         userName: userName, 
         details: `Se eliminó al cliente: ${customerData.name} de la plaza ${plazaName || 'desconocida'}.`,
         customerName: customerData.name,
@@ -212,8 +212,8 @@ export async function addPayment(customerId: string, paymentAmount: number, user
         }
 
         const customerData = customerFromDoc(customerDoc);
-        
-        const plazaDoc = await getDoc(doc(db, "plazas", customerData.plazaId));
+        const plazaRef = doc(db, "plazas", customerData.plazaId);
+        const plazaDoc = await transaction.get(plazaRef); // Use transaction.get
         const plazaName = plazaDoc.exists() ? plazaDoc.data().name : "Desconocida";
 
         const previousDueAmount = customerData.dueAmount || 0;
@@ -235,7 +235,7 @@ export async function addPayment(customerId: string, paymentAmount: number, user
             prefix: customerData.prefix || 'N/A',
             toolContext: 'overdue-portfolio',
             type: 'payment',
-            timestamp: Timestamp.now(),
+            timestamp: new Date(),
             userName: userName,
             details: `Abono de $${paymentAmount} a ${customerData.name}. Saldo anterior: $${previousDueAmount}. Saldo nuevo: $${newDueAmount > 0 ? newDueAmount : 0}.`,
             customerName: customerData.name,
