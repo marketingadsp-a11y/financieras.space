@@ -39,6 +39,8 @@ import {
 import { PagoForm } from "./pago-form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 
 const StatCard = ({ title, value, isCurrency = true, colorClass = "text-foreground" }: { title: string; value: number; isCurrency?: boolean; colorClass?: string; }) => (
@@ -82,6 +84,7 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
     const [isLoading, setIsLoading] = React.useState(true);
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isPagoFormOpen, setIsPagoFormOpen] = React.useState(false);
+    const [deleteConfirmationCode, setDeleteConfirmationCode] = React.useState('');
 
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
@@ -361,11 +364,23 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
                                 <AlertDialogTitle>¿Estás seguro de eliminar este préstamo?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                     Esta acción es irreversible. Se eliminará permanentemente el préstamo de <strong>{cliente.name}</strong> y todo su historial de movimientos.
+                                    Para continuar, por favor ingresa el código de confirmación.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
+                            <div className="space-y-2">
+                                <Label htmlFor="delete-confirmation">Código de Confirmación</Label>
+                                <Input 
+                                    id="delete-confirmation"
+                                    type="text"
+                                    value={deleteConfirmationCode}
+                                    onChange={(e) => setDeleteConfirmationCode(e.target.value)}
+                                    placeholder="Ingresa el código para confirmar"
+                                    autoFocus
+                                />
+                            </div>
                             <AlertDialogFooter>
-                                <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                                <AlertDialogCancel disabled={isDeleting} onClick={() => setDeleteConfirmationCode('')}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} disabled={isDeleting || deleteConfirmationCode !== '0120'} className="bg-destructive hover:bg-destructive/90">
                                     {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Sí, eliminar
                                 </AlertDialogAction>
@@ -380,5 +395,3 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         </div>
     )
 }
-
-    
