@@ -122,6 +122,7 @@ const carteraVencidaNavItems: NavItem[] = [
     { href: "/tools/overdue-portfolio", label: "Resumen General", icon: LayoutDashboard },
     { href: "/plazas", label: "Gestionar Plazas", icon: Building },
     { href: "/tools/overdue-portfolio/admins", label: "Gestionar Admins", icon: ShieldCheck },
+    { href: "/tools/overdue-portfolio/history", label: "Historial", icon: History },
 ];
 
 const carteraVencidaSettingsItems: NavItem[] = [
