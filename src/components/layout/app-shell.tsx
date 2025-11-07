@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React from "react";
@@ -866,7 +865,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <UserCog className="h-8 w-8 text-primary" />
               <div className="flex flex-col">
                 <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">
-                  {user.name || getUsernameDisplay()}
+                  {getUsernameDisplay()}
                 </span>
                 {currentTool && (
                   <span className="text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
