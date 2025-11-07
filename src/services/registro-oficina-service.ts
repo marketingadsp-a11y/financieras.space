@@ -53,8 +53,8 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
     const q = query(
         registrosCollectionRef,
         where("oficinaId", "==", oficinaId),
-        where("weekStartDate", ">=", monthStart),
-        where("weekStartDate", "<=", monthEnd)
+        where("weekStartDate", ">=", Timestamp.fromDate(monthStart)),
+        where("weekStartDate", "<=", Timestamp.fromDate(monthEnd))
     );
 
     const snapshot = await getDocs(q);
@@ -62,16 +62,18 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
     return snapshot.docs.map(doc => {
         const data = doc.data();
         
-        const toDate = (timestamp: any): Date => {
-          if (timestamp && typeof timestamp.toDate === 'function') {
-            return timestamp.toDate();
-          }
-          // As a fallback, try to parse it as a date, or return a default
-          try {
-            return new Date(timestamp);
-          } catch {
-            return new Date();
-          }
+        // Securely convert timestamps to dates
+        const toDate = (timestamp: unknown): Date => {
+            if (timestamp instanceof Timestamp) {
+              return timestamp.toDate();
+            }
+            // Fallback for cases where it might already be a Date or string
+            try {
+              return new Date(timestamp as any);
+            } catch {
+              // Return a default or invalid date if conversion fails
+              return new Date(0); 
+            }
         };
         
         return {

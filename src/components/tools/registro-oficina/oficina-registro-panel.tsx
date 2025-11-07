@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -11,23 +10,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign } from "lucide-react";
 import Link from "next/link";
-import { startOfMonth, addMonths, subMonths, format, addDays } from "date-fns";
+import { startOfMonth, addMonths, subMonths, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 
-// This function now operates exclusively in UTC to match Firestore's storage.
+// This function now operates exclusively in UTC to avoid timezone issues.
 function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
     const weeks = [];
-    // Start from the first day of the month in UTC
-    let currentDay = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1));
+    const year = month.getUTCFullYear();
+    const monthIndex = month.getUTCMonth();
+    
+    // Find the first Saturday of the month
+    let firstDayOfMonth = new Date(Date.UTC(year, monthIndex, 1));
+    let dayOfWeek = firstDayOfMonth.getUTCDay(); // Sunday = 0, Saturday = 6
+    let diff = (6 - dayOfWeek + 7) % 7;
+    let firstSaturday = new Date(Date.UTC(year, monthIndex, 1 + diff));
 
-    // Find the first Saturday of the month or the last Saturday of the previous month
-    while (currentDay.getUTCDay() !== 6) { // 6 = Saturday
-        currentDay.setUTCDate(currentDay.getUTCDate() - 1);
+    // If the first Saturday is after the 7th, it means the first week cycle starts in the previous month's end.
+    // Let's start from the first saturday that falls ON or AFTER the 1st of the month.
+    if (firstSaturday.getUTCDate() > 7) {
+        firstSaturday.setUTCDate(firstSaturday.getUTCDate() - 7);
     }
-    // Now currentDay is the Saturday that starts the first week cycle.
-
-    let currentWeekStart = currentDay;
+    
+    let currentWeekStart = firstSaturday;
 
     for (let i = 0; i < 4; i++) {
         const weekEnd = new Date(currentWeekStart);
@@ -35,7 +40,6 @@ function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
         weeks.push({ start: new Date(currentWeekStart), end: weekEnd });
         currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() + 7);
     }
-
     return weeks;
 }
 
