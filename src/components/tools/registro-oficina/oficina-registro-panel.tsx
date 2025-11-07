@@ -7,11 +7,11 @@ import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
 import { getOficinaById, getTodosRegistrosPorOficina, addOrUpdateRegistroSemanal } from "@/services/registro-oficina-service";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock } from "lucide-react";
 import Link from "next/link";
-import { startOfMonth, endOfMonth, addMonths, subMonths, format, isWithinInterval } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format, isWithinInterval, isPast } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -72,11 +72,9 @@ const WeekCard = ({
     
     const totalSemanal = registro ? conceptos.reduce((sum, item) => sum + (item.value || 0), 0) : 0;
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const weekEndDate = new Date(week.end);
-    weekEndDate.setHours(23, 59, 59, 999);
-    const isPastWeek = today > weekEndDate;
+    weekEndDate.setUTCHours(23, 59, 59, 999);
+    const hasWeekPassed = isPast(weekEndDate);
 
 
     return (
@@ -88,7 +86,7 @@ const WeekCard = ({
                     Semana {weekIndex + 1}
                 </div>
                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onRegister(week, registro)}>
-                    {isPastWeek ? <Lock className="h-4 w-4 text-amber-500" /> : <Edit className="h-4 w-4" />}
+                    {hasWeekPassed ? <Lock className="h-4 w-4 text-amber-500" /> : <Edit className="h-4 w-4" />}
                 </Button>
               </CardTitle>
               <CardDescription>
@@ -170,13 +168,11 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
   const handleRegisterClick = (week: {start: Date, end: Date}, existingData?: OficinaSemanalRegistro | null) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const weekEndDate = new Date(week.end);
-    weekEndDate.setHours(23, 59, 59, 999);
-    const isPastWeek = today > weekEndDate;
+    weekEndDate.setUTCHours(23, 59, 59, 999);
+    const hasWeekPassed = isPast(weekEndDate);
     
-    if (isPastWeek) {
+    if (hasWeekPassed) {
         setWeekToAuthorize({ week, data: existingData || null });
         setIsAuthDialogOpen(true);
     } else {
@@ -234,9 +230,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
  const registrosDelMes = React.useMemo(() => {
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
-        const registroMonth = new Date(r.weekStartDate).getUTCMonth();
-        const registroYear = new Date(r.weekStartDate).getUTCFullYear();
-        return registroMonth === currentMonth.getUTCMonth() && registroYear === currentMonth.getUTCFullYear();
+        const registroDate = new Date(r.weekStartDate);
+        // Compare year and month in UTC to avoid timezone issues
+        return registroDate.getUTCFullYear() === currentMonth.getUTCFullYear() &&
+               registroDate.getUTCMonth() === currentMonth.getUTCMonth();
     });
   }, [allRegistros, currentMonth]);
 

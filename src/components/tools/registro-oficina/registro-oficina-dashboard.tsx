@@ -4,18 +4,31 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import type { OficinaRegistro } from "@/lib/data";
-import { getOficinas } from "@/services/registro-oficina-service";
+import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
+import { getOficinas, getTodosRegistrosPorOficina } from "@/services/registro-oficina-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Building, ArrowRight } from "lucide-react";
+import { Loader2, Building, ArrowRight, DollarSign, Calendar } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { startOfMonth, endOfMonth } from 'date-fns';
+
+type OficinaWithSummary = OficinaRegistro & {
+    monthlyTotal: number;
+};
+
+const StatItem = ({ label, value }: { label: string, value: number }) => (
+    <div className="flex justify-between items-center text-xs p-1.5 bg-muted/50 rounded-md">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-semibold">${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+    </div>
+);
+
 
 export function RegistroOficinaDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [oficinas, setOficinas] = React.useState<OficinaRegistro[]>([]);
+  const [oficinas, setOficinas] = React.useState<OficinaWithSummary[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   const fetchData = React.useCallback(async () => {
@@ -26,7 +39,31 @@ export function RegistroOficinaDashboard() {
     setIsLoading(true);
     try {
       const data = await getOficinas(user.prefix);
-      setOficinas(data);
+
+      const today = new Date();
+      const monthStart = startOfMonth(today);
+      const monthEnd = endOfMonth(today);
+
+      const oficinasWithSummaries = await Promise.all(
+        data.map(async (oficina) => {
+          const registros = await getTodosRegistrosPorOficina(oficina.id);
+          const registrosDelMes = registros.filter(r => {
+            const registroDate = new Date(r.weekStartDate);
+            return registroDate >= monthStart && registroDate <= monthEnd;
+          });
+
+          const monthlyTotal = registrosDelMes.reduce((acc, r) => {
+            return acc + (r.recogidoSeguros || 0) + (r.carteraVencida || 0) + (r.interesMensual || 0) + (r.capitalMensual || 0) + (r.cajaChica || 0);
+          }, 0);
+          
+          return {
+            ...oficina,
+            monthlyTotal,
+          };
+        })
+      );
+
+      setOficinas(oficinasWithSummaries);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -79,6 +116,15 @@ export function RegistroOficinaDashboard() {
                     </div>
                 </div>
               </CardHeader>
+              <CardContent className="flex-grow">
+                 <div className="p-4 border rounded-lg bg-muted/20">
+                    <p className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-2"><Calendar className="h-4 w-4"/> Resumen del Mes Actual</p>
+                    <div className="flex items-center justify-between text-lg font-bold text-primary p-2 bg-primary/10 rounded-md">
+                        <span>Total del Mes:</span>
+                        <span>${oficina.monthlyTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                 </div>
+              </CardContent>
               <CardFooter className="mt-auto">
                 <Button asChild className="w-full">
                   <Link href={`/tools/registro-oficina/oficina/${oficina.id}`}>
