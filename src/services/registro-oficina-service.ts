@@ -2,7 +2,8 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, startOfMonth, endOfMonth, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { startOfMonth, endOfMonth } from "date-fns";
 import { db } from "@/lib/firebase";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
 
