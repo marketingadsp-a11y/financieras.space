@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -8,7 +9,7 @@ import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
 import { getOficinaById, getRegistrosByOficinaAndMonth, addOrUpdateRegistroSemanal } from "@/services/registro-oficina-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit } from "lucide-react";
+import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign } from "lucide-react";
 import Link from "next/link";
 import { startOfMonth, addMonths, subMonths, format, addDays } from "date-fns";
 import { es } from "date-fns/locale";
@@ -18,18 +19,15 @@ function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
     const startOfMonthDate = startOfMonth(month);
     const weeks = [];
     
-    // Find the Saturday of the first week of the month.
-    let firstSaturday = new Date(startOfMonthDate);
-    while (firstSaturday.getDay() !== 6) { // 6 = Saturday
-        firstSaturday.setDate(firstSaturday.getDate() + 1);
+    let currentWeekStart = new Date(startOfMonthDate);
+    // Find the first Saturday of the month
+    while (currentWeekStart.getDay() !== 6) {
+        currentWeekStart.setDate(currentWeekStart.getDate() - 1);
     }
-    
-    // If the first Saturday is after the 7th, it belongs to the first "logical" week, but for calendar display, we might want to step back to include the first days. Let's start with the first Sat of the month or just before.
-    if (firstSaturday.getDate() > 7) {
-        firstSaturday.setDate(firstSaturday.getDate() - 7);
+     // If the first Saturday is in the previous month, move to the next Saturday
+    if (currentWeekStart.getMonth() !== startOfMonthDate.getMonth()) {
+        currentWeekStart = addDays(currentWeekStart, 7);
     }
-    
-    let currentWeekStart = firstSaturday;
 
     for (let i = 0; i < 4; i++) {
         const weekEnd = addDays(currentWeekStart, 6);
@@ -104,7 +102,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const [oficina, setOficina] = React.useState<OficinaRegistro | null>(null);
   const [registros, setRegistros] = React.useState<OficinaSemanalRegistro[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [currentMonth, setCurrentMonth] = React.useState(new Date());
+  const [currentMonth, setCurrentMonth] = React.useState(startOfMonth(new Date()));
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedWeek, setSelectedWeek] = React.useState<{start: Date, end: Date} | null>(null);
@@ -168,6 +166,23 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     }
   };
 
+  const monthlyTotals = React.useMemo(() => {
+    return registros.reduce((acc, registro) => {
+        acc.recogidoSeguros += registro.recogidoSeguros || 0;
+        acc.carteraVencida += registro.carteraVencida || 0;
+        acc.interesMensual += registro.interesMensual || 0;
+        acc.capitalMensual += registro.capitalMensual || 0;
+        acc.cajaChica += registro.cajaChica || 0;
+        return acc;
+    }, {
+        recogidoSeguros: 0,
+        carteraVencida: 0,
+        interesMensual: 0,
+        capitalMensual: 0,
+        cajaChica: 0,
+    });
+  }, [registros]);
+
 
   if (isLoading) {
     return (
@@ -201,7 +216,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             Registro para: {oficina.name}
@@ -223,9 +238,25 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
         </div>
       </div>
 
-       <div className="space-y-8">
+       <Card className="bg-primary/5">
+        <CardHeader>
+            <CardTitle>Resumen del Mes</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {Object.entries(monthlyTotals).map(([key, value]) => (
+                    <div key={key} className="p-4 rounded-lg bg-background shadow-sm">
+                        <p className="text-sm text-muted-foreground capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+                        <p className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5 text-muted-foreground"/> {value.toLocaleString('es-MX')}</p>
+                    </div>
+                ))}
+            </div>
+        </CardContent>
+       </Card>
+
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {weeks.map((week, index) => {
-            const registro = registros.find(r => r.weekStartDate.getTime() === week.start.getTime()) || null;
+            const registro = registros.find(r => new Date(r.weekStartDate).getTime() === week.start.getTime()) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
       </div>
