@@ -19,16 +19,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
-    // 1. Get the 25th of the PREVIOUS month in UTC.
+    // 1. Anchor date is the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() - 1, 25));
 
     // 2. Find the Saturday that starts the week containing our anchor date.
-    // getUTCDay() is Sunday(0) to Saturday(6).
-    const dayOfWeek = anchorDate.getUTCDay();
+    // getUTCDay() is Sunday(0), Monday(1), ..., Saturday(6).
+    const dayOfWeek = anchorDate.getUTCDay(); // 0 for Sun, 6 for Sat
 
-    // Calculate how many days to go back to get to Saturday.
-    // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1... If Fri(5), diff is 6.
-    const daysToSubtract = (dayOfWeek + 7 - 6) % 7;
+    // Calculate days to subtract to get to Saturday.
+    // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1. If Mon(1), diff is 2...
+    const daysToSubtract = (dayOfWeek + 1) % 7;
     
     const firstWeekStart = new Date(anchorDate);
     firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
@@ -264,6 +264,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const totalDelMes = Object.values(monthlyTotals).reduce((sum, value) => sum + value, 0);
 
   const currentMonthRange = React.useMemo(() => {
+    if (weeks.length < 4) return "";
     const start = weeks[0].start;
     const end = weeks[3].end;
     const startMonth = format(start, "LLLL", { locale: es });
@@ -339,7 +340,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
             </div>
              <div className="mt-4 p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm text-center">
                 <div className="text-3xl font-bold flex items-center justify-center gap-1"><DollarSign className="h-6 w-6"/> {totalDelMes.toLocaleString('es-MX')}</div>
-            </div>
+             </div>
         </CardContent>
        </Card>
 
@@ -391,7 +392,3 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
-
-    
-
-    
