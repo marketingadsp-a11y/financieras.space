@@ -2,7 +2,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy } from "firebase/firestore";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { db } from "@/lib/firebase";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
@@ -63,6 +63,55 @@ export async function deleteOficina(id: string) {
 
 // --- Weekly Registrations ---
 
+export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<OficinaSemanalRegistro[]> {
+    const q = query(registrosCollectionRef, where("oficinaId", "==", oficinaId));
+
+    const snapshot = await getDocs(q);
+    
+    const registros = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+         const toDateSafe = (timestamp: any): Date => {
+            if (timestamp instanceof Timestamp) {
+                return timestamp.toDate();
+            }
+            if (timestamp && typeof timestamp.toDate === 'function') {
+                 return timestamp.toDate();
+            }
+            // Fallback for string or number dates
+            if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+                const d = new Date(timestamp);
+                if (!isNaN(d.getTime())) return d;
+            }
+            // Return a default or invalid date if conversion fails
+            return new Date(0); 
+        };
+        
+        return {
+            ...data,
+            id: docSnap.id,
+            weekStartDate: toDateSafe(data.weekStartDate),
+            updatedAt: toDateSafe(data.updatedAt),
+        } as OficinaSemanalRegistro;
+    });
+
+    return registros;
+}
+
+export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
+    // ID is a composite of oficinaId and the week's start date
+    const docId = `${registro.oficinaId}_${registro.weekStartDate.toISOString().split('T')[0]}`;
+    const docRef = doc(db, "registro_semanal", docId);
+    
+    const dataWithTimestamps = {
+        ...registro,
+        weekStartDate: Timestamp.fromDate(registro.weekStartDate),
+        updatedAt: Timestamp.fromDate(registro.updatedAt),
+    };
+
+    await setDoc(docRef, dataWithTimestamps, { merge: true });
+}
+
+// Kept the old function for reference, but it's no longer used by the panel
 export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: string, month: Date): Promise<OficinaSemanalRegistro[]> {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
@@ -81,15 +130,17 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: s
         const data = doc.data();
         
         const toDate = (timestamp: unknown): Date => {
-            if (timestamp instanceof Timestamp) {
+             if (timestamp instanceof Timestamp) {
               return timestamp.toDate();
             }
-            // Fallback for different potential date formats, though Timestamp is expected
+            if (timestamp && typeof (timestamp as any).toDate === 'function') {
+                return (timestamp as any).toDate();
+            }
             if (typeof timestamp === 'string' || typeof timestamp === 'number') {
               const d = new Date(timestamp);
               if (!isNaN(d.getTime())) return d;
             }
-            return new Date(0); // Should not happen with valid data
+            return new Date(0); 
         };
         
         return {
@@ -101,19 +152,4 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: s
     });
 
     return registros.sort((a, b) => a.weekStartDate.getTime() - b.weekStartDate.getTime());
-}
-
-
-export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
-    // ID is a composite of oficinaId and the week's start date
-    const docId = `${registro.oficinaId}_${registro.weekStartDate.toISOString().split('T')[0]}`;
-    const docRef = doc(db, "registro_semanal", docId);
-    
-    const dataWithTimestamps = {
-        ...registro,
-        weekStartDate: Timestamp.fromDate(registro.weekStartDate),
-        updatedAt: Timestamp.fromDate(registro.updatedAt),
-    };
-
-    await setDoc(docRef, dataWithTimestamps, { merge: true });
 }

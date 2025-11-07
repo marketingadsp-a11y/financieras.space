@@ -5,12 +5,12 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
-import { getOficinaById, getRegistrosByOficinaAndMonth, addOrUpdateRegistroSemanal } from "@/services/registro-oficina-service";
+import { getOficinaById, getTodosRegistrosPorOficina, addOrUpdateRegistroSemanal } from "@/services/registro-oficina-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign } from "lucide-react";
 import Link from "next/link";
-import { startOfMonth, addMonths, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 
@@ -20,14 +20,11 @@ function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
     const year = month.getUTCFullYear();
     const monthIndex = month.getUTCMonth();
     
-    // Find the first Saturday of the month
     let firstDayOfMonth = new Date(Date.UTC(year, monthIndex, 1));
-    let dayOfWeek = firstDayOfMonth.getUTCDay(); // Sunday = 0, Saturday = 6
+    let dayOfWeek = firstDayOfMonth.getUTCDay(); 
     let diff = (6 - dayOfWeek + 7) % 7;
     let firstSaturday = new Date(Date.UTC(year, monthIndex, 1 + diff));
 
-    // If the first Saturday is after the 7th, it means the first week cycle starts in the previous month's end.
-    // Let's start from the first saturday that falls ON or AFTER the 1st of the month.
     if (firstSaturday.getUTCDate() > 7) {
         firstSaturday.setUTCDate(firstSaturday.getUTCDate() - 7);
     }
@@ -106,7 +103,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [oficina, setOficina] = React.useState<OficinaRegistro | null>(null);
-  const [registros, setRegistros] = React.useState<OficinaSemanalRegistro[]>([]);
+  const [allRegistros, setAllRegistros] = React.useState<OficinaSemanalRegistro[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [currentMonth, setCurrentMonth] = React.useState(startOfMonth(new Date()));
 
@@ -121,8 +118,8 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
       const oficinaData = await getOficinaById(oficinaId);
       setOficina(oficinaData);
       if (oficinaData) {
-          const registrosData = await getRegistrosByOficinaAndMonth(oficinaId, oficinaData.prefix, currentMonth);
-          setRegistros(registrosData);
+          const todosLosRegistros = await getTodosRegistrosPorOficina(oficinaId);
+          setAllRegistros(todosLosRegistros);
       }
     } catch (error) {
       toast({
@@ -133,7 +130,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [oficinaId, toast, currentMonth]);
+  }, [oficinaId, toast]);
 
   React.useEffect(() => {
     fetchData();
@@ -166,14 +163,24 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
         await addOrUpdateRegistroSemanal(registroData);
         toast({ title: "Éxito", description: "Registro guardado correctamente."});
         setIsFormOpen(false);
-        fetchData();
+        fetchData(); // Refetch all data after submission
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el registro." });
     }
   };
+  
+  const registrosDelMes = React.useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    return allRegistros.filter(r => {
+        const registroDate = new Date(r.weekStartDate);
+        return isWithinInterval(registroDate, { start: monthStart, end: monthEnd });
+    });
+  }, [allRegistros, currentMonth]);
+
 
   const monthlyTotals = React.useMemo(() => {
-    return registros.reduce((acc, registro) => {
+    return registrosDelMes.reduce((acc, registro) => {
         acc.recogidoSeguros += registro.recogidoSeguros || 0;
         acc.carteraVencida += registro.carteraVencida || 0;
         acc.interesMensual += registro.interesMensual || 0;
@@ -187,7 +194,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
         capitalMensual: 0,
         cajaChica: 0,
     });
-  }, [registros]);
+  }, [registrosDelMes]);
 
 
   if (isLoading) {
@@ -262,7 +269,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {weeks.map((week, index) => {
-            const registro = registros.find(r => new Date(r.weekStartDate).getTime() === week.start.getTime()) || null;
+            const registro = registrosDelMes.find(r => new Date(r.weekStartDate).getTime() === week.start.getTime()) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
       </div>
