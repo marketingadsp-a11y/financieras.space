@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock } from "lucide-react";
 import Link from "next/link";
-import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast, getYear } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast, getYear, getMonth, getDate } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -19,20 +19,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
-    // 1. Determine the cycle's starting point: the 25th of the *previous* month in UTC.
-    const cycleStartDate = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() - 1, 25));
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth();
 
-    // 2. Find the first Saturday on or after this date.
-    const dayOfWeek = cycleStartDate.getUTCDay(); // Sunday = 0, ..., Saturday = 6
-    const daysToAdd = (6 - dayOfWeek + 7) % 7;
-    const firstSaturday = new Date(cycleStartDate);
-    firstSaturday.setUTCDate(cycleStartDate.getUTCDate() + daysToAdd);
+    // 1. Get the 25th of the previous month in UTC.
+    const cycleStartDate = new Date(Date.UTC(year, month - 1, 25));
 
+    // 2. Find the Saturday that starts the week containing this date.
+    // Day of week: Sunday = 0, ..., Saturday = 6.
+    // We want to go back to the previous Saturday.
+    const dayOfWeek = cycleStartDate.getUTCDay();
+    const diff = (dayOfWeek - 6 + 7) % 7; // Days to subtract to get to Saturday
+    
+    const firstWeekStart = new Date(cycleStartDate);
+    firstWeekStart.setUTCDate(cycleStartDate.getUTCDate() - diff);
+    
     // 3. Generate 4 consecutive 7-day weeks (Saturday to Friday) from that start date.
     const weeks = [];
     for (let i = 0; i < 4; i++) {
-        const weekStart = new Date(firstSaturday);
-        weekStart.setUTCDate(firstSaturday.getUTCDate() + (i * 7));
+        const weekStart = new Date(firstWeekStart);
+        weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
         weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
@@ -313,7 +319,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
        <Card className="bg-primary/5">
         <CardHeader>
             <CardTitle>Resumen del Mes</CardTitle>
-            <CardDescription>Suma de todos los registros de las semanas de este mes.</CardDescription>
+            <CardDescription>Suma de todos los registros de las semanas de este ciclo.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -379,3 +385,5 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
+    
