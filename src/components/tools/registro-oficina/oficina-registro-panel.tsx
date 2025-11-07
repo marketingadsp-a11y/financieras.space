@@ -183,13 +183,16 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   };
   
   const registrosDelMes = React.useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    return allRegistros.filter(r => {
-        if (!r.weekStartDate || isNaN(r.weekStartDate.getTime())) return false;
-        return isWithinInterval(r.weekStartDate, { start: monthStart, end: monthEnd });
-    });
-}, [allRegistros, currentMonth]);
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      return allRegistros.filter(r => {
+        if (!r.weekStartDate) return false;
+        // Convert the weekStartDate (which is already a Date object) to be safe.
+        const registroDate = new Date(r.weekStartDate);
+        if (isNaN(registroDate.getTime())) return false;
+        return isWithinInterval(registroDate, { start: monthStart, end: monthEnd });
+      });
+  }, [allRegistros, currentMonth]);
 
 
   const monthlyTotals = React.useMemo(() => {
@@ -282,7 +285,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {weeks.map((week, index) => {
-            const registro = allRegistros.find(r => r.weekStartDate.getTime() === week.start.getTime()) || null;
+            const registro = allRegistros.find(r => r.weekStartDate && new Date(r.weekStartDate).getTime() === week.start.getTime()) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
       </div>
