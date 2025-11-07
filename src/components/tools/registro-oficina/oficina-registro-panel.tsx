@@ -19,8 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth(); // 0-11
+
     // 1. Get the 25th of the PREVIOUS month in UTC.
-    const anchorDate = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() - 1, 25));
+    const anchorDate = new Date(Date.UTC(year, month - 1, 25));
 
     // 2. Find the Saturday that starts the week containing our anchor date.
     // getUTCDay() is Sunday(0), Monday(1), ..., Saturday(6).
@@ -47,6 +50,7 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
 
     return weeks;
 }
+
 
 
 const WeekCard = ({ 
@@ -393,3 +397,5 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
+    
