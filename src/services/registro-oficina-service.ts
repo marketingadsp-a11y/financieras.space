@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { OficinaRegistro } from "@/lib/data";
 
@@ -12,6 +12,15 @@ export async function getOficinas(prefix: string): Promise<OficinaRegistro[]> {
     const snapshot = await getDocs(q);
     const oficinas = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as OficinaRegistro[];
     return oficinas.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getOficinaById(id: string): Promise<OficinaRegistro | null> {
+    const docRef = doc(db, "registro_oficinas", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as OficinaRegistro;
+    }
+    return null;
 }
 
 export async function addOficina(oficina: Omit<OficinaRegistro, 'id'>): Promise<OficinaRegistro> {
