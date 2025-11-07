@@ -19,17 +19,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
-    // 1. Anchor date is the 25th of the PREVIOUS month in UTC.
+    // 1. Get the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() - 1, 25));
 
     // 2. Find the Saturday that starts the week containing our anchor date.
     // getUTCDay() is Sunday(0), Monday(1), ..., Saturday(6).
     const dayOfWeek = anchorDate.getUTCDay(); // 0 for Sun, 6 for Sat
-
-    // Calculate days to subtract to get to Saturday.
-    // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1. If Mon(1), diff is 2...
-    const daysToSubtract = (dayOfWeek + 1) % 7;
     
+    // Calculate how many days to go back to get to Saturday.
+    // If anchor is Sat(6), diff is 0. If Fri(5), diff is 6. If Sun(0), diff is 1.
+    const daysToSubtract = (dayOfWeek + 1) % 7;
+
     const firstWeekStart = new Date(anchorDate);
     firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
 
@@ -40,7 +40,7 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
         weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
-        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // End on Friday, 6 days after Saturday
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // A week is 7 days long, so end is start + 6
 
         weeks.push({ start: weekStart, end: weekEnd });
     }
@@ -339,6 +339,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
                 ))}
             </div>
              <div className="mt-4 p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm text-center">
+                <p className="text-sm font-medium">TOTAL DEL MES</p>
                 <div className="text-3xl font-bold flex items-center justify-center gap-1"><DollarSign className="h-6 w-6"/> {totalDelMes.toLocaleString('es-MX')}</div>
              </div>
         </CardContent>
