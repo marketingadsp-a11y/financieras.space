@@ -59,25 +59,22 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
         registrosCollectionRef,
         where("oficinaId", "==", oficinaId),
         where("weekStartDate", ">=", Timestamp.fromDate(monthStart)),
-        where("weekStartDate", "<=", Timestamp.fromDate(monthEnd)),
-        orderBy("weekStartDate") 
+        where("weekStartDate", "<=", Timestamp.fromDate(monthEnd))
     );
 
     const snapshot = await getDocs(q);
     
-    return snapshot.docs.map(doc => {
+    const registros = snapshot.docs.map(doc => {
         const data = doc.data();
         
         const toDate = (timestamp: unknown): Date => {
             if (timestamp instanceof Timestamp) {
               return timestamp.toDate();
             }
-            // Fallback for cases where it might not be a timestamp object
-            // This is safer than assuming .toDate() exists.
             try {
               return new Date(timestamp as any);
             } catch {
-              return new Date(0); // Return a default invalid date if parsing fails
+              return new Date(0);
             }
         };
         
@@ -88,6 +85,9 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
             updatedAt: toDate(data.updatedAt),
         } as OficinaSemanalRegistro;
     });
+
+    // Sort in-memory instead of in the query
+    return registros.sort((a, b) => a.weekStartDate.getTime() - b.weekStartDate.getTime());
 }
 
 export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
