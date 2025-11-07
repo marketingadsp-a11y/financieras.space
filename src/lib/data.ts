@@ -1,7 +1,7 @@
 
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -219,6 +219,14 @@ export const allTools: Tool[] = [
     href: "/tools/mensuales",
     icon: CalendarClock,
     color: '#14b8a6'
+  },
+  {
+    id: "registro-oficina",
+    name: "Registro de Oficina",
+    description: "Registra y consolida datos semanales y mensuales por oficina.",
+    href: "/tools/registro-oficina",
+    icon: Notebook,
+    color: '#f97316'
   }
 ];
 
@@ -484,4 +492,11 @@ export type MovimientoMensual = {
     type: 'charge_interest' | 'initial_loan' | 'pago_capital' | 'pago_interes';
     amount: number;
     notes?: string;
+};
+
+// --- Registro de Oficina ---
+export type OficinaRegistro = {
+  id: string;
+  prefix: string;
+  name: string;
 };

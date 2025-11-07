@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from "react";
@@ -158,6 +159,11 @@ const mensualesNavItems: NavItem[] = [
 const mensualesSettingsItems: NavItem[] = [
     { href: "/tools/mensuales/settings", label: "Importar / Exportar", icon: Upload },
     { href: "/tools/mensuales/settings/danger-zone", label: "Zona de Peligro", icon: ShieldAlert },
+];
+
+const registroOficinaNavItems: NavItem[] = [
+    { href: "/tools/registro-oficina", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/tools/registro-oficina/oficinas", label: "Gestionar Oficinas", icon: Building },
 ];
 
 function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
@@ -366,6 +372,7 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
   const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
   const isFlujoPath = pathname.startsWith('/tools/flujo');
   const isMensualesPath = pathname.startsWith('/tools/mensuales');
+  const isRegistroOficinaPath = pathname.startsWith('/tools/registro-oficina');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -609,6 +616,28 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
         )
     }
 
+    if (isRegistroOficinaPath) {
+    return (
+        <SidebarGroup>
+            <SidebarGroupLabel>REGISTRO OFICINA</SidebarGroupLabel>
+            <SidebarMenu>
+                {registroOficinaNavItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                        <Link href={item.href!}>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={item.label}>
+                                <span>
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                </span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+        </SidebarGroup>
+    );
+    }
+
 
   const renderAdminNav = () => {
     const accessibleUserTools = customTools.filter(tool => user?.accessibleTools?.includes(tool.id));
@@ -823,6 +852,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isIncomeExpensesPath = pathname.startsWith('/tools/income-expenses');
   const isFlujoPath = pathname.startsWith('/tools/flujo');
   const isMensualesPath = pathname.startsWith('/tools/mensuales');
+  const isRegistroOficinaPath = pathname.startsWith('/tools/registro-oficina');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return customTools.find(tool => tool.id === 'cartera-vencida');
@@ -831,6 +861,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (isIncomeExpensesPath) return customTools.find(tool => tool.id === 'income-expenses');
     if (isFlujoPath) return customTools.find(tool => tool.id === 'flujo');
     if (isMensualesPath) return customTools.find(tool => tool.id === 'mensuales');
+    if (isRegistroOficinaPath) return customTools.find(tool => tool.id === 'registro-oficina');
     return null;
   }
 
@@ -851,7 +882,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return user.username;
   }
 
-  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath) && !user.isSuperAdmin;
+  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath || isRegistroOficinaPath) && !user.isSuperAdmin;
   
   const isGlobalAdmin = !user.isSuperAdmin && !user.isToolAdmin && !user.isPlazaUser;
 
