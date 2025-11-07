@@ -9,11 +9,14 @@ import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
 import { getOficinaById, getTodosRegistrosPorOficina, addOrUpdateRegistroSemanal } from "@/services/registro-oficina-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign } from "lucide-react";
+import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock } from "lucide-react";
 import Link from "next/link";
 import { startOfMonth, endOfMonth, addMonths, subMonths, format, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 // This function now operates exclusively in UTC to avoid timezone issues.
 function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
@@ -68,6 +71,13 @@ const WeekCard = ({
     ];
     
     const totalSemanal = registro ? conceptos.reduce((sum, item) => sum + (item.value || 0), 0) : 0;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekEndDate = new Date(week.end);
+    weekEndDate.setHours(23, 59, 59, 999);
+    const isPastWeek = today > weekEndDate;
+
 
     return (
         <Card>
@@ -78,7 +88,7 @@ const WeekCard = ({
                     Semana {weekIndex + 1}
                 </div>
                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onRegister(week, registro)}>
-                    <Edit className="h-4 w-4" />
+                    {isPastWeek ? <Lock className="h-4 w-4 text-amber-500" /> : <Edit className="h-4 w-4" />}
                 </Button>
               </CardTitle>
               <CardDescription>
@@ -120,11 +130,15 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [currentMonth, setCurrentMonth] = React.useState(new Date(new Date().setUTCHours(12, 0, 0, 0)));
 
-
+  // Form State
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedWeek, setSelectedWeek] = React.useState<{start: Date, end: Date} | null>(null);
   const [existingDataForForm, setExistingDataForForm] = React.useState<OficinaSemanalRegistro | null>(null);
-
+  
+  // Authorization State
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = React.useState(false);
+  const [authCode, setAuthCode] = React.useState('');
+  const [weekToAuthorize, setWeekToAuthorize] = React.useState<{week: {start: Date, end: Date}, data: OficinaSemanalRegistro | null} | null>(null);
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
@@ -156,9 +170,43 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
   const handleRegisterClick = (week: {start: Date, end: Date}, existingData?: OficinaSemanalRegistro | null) => {
-    setSelectedWeek(week);
-    setExistingDataForForm(existingData || null);
-    setIsFormOpen(true);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekEndDate = new Date(week.end);
+    weekEndDate.setHours(23, 59, 59, 999);
+    const isPastWeek = today > weekEndDate;
+    
+    if (isPastWeek) {
+        setWeekToAuthorize({ week, data: existingData || null });
+        setIsAuthDialogOpen(true);
+    } else {
+        setSelectedWeek(week);
+        setExistingDataForForm(existingData || null);
+        setIsFormOpen(true);
+    }
+  };
+  
+  const handleAuthorization = () => {
+    if (authCode === '0120') {
+        if (weekToAuthorize) {
+            setSelectedWeek(weekToAuthorize.week);
+            setExistingDataForForm(weekToAuthorize.data);
+            setIsFormOpen(true);
+        }
+        closeAuthDialog();
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Error de Autorización",
+            description: "El código ingresado es incorrecto.",
+        });
+    }
+  };
+
+  const closeAuthDialog = () => {
+    setIsAuthDialogOpen(false);
+    setAuthCode('');
+    setWeekToAuthorize(null);
   };
   
   const handleFormSubmit = async (data: Omit<OficinaSemanalRegistro, 'id' | 'prefix' | 'oficinaId' | 'weekStartDate' | 'updatedAt' | 'updatedBy'>) => {
@@ -184,12 +232,11 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   };
   
   const registrosDelMes = React.useMemo(() => {
-    const targetMonth = currentMonth.getUTCMonth();
-    const targetYear = currentMonth.getUTCFullYear();
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
-        const registroDate = new Date(r.weekStartDate);
-        return registroDate.getUTCMonth() === targetMonth && registroDate.getUTCFullYear() === targetYear;
+        const registroMonth = new Date(r.weekStartDate).getUTCMonth();
+        const registroYear = new Date(r.weekStartDate).getUTCFullYear();
+        return registroMonth === currentMonth.getUTCMonth() && registroYear === currentMonth.getUTCFullYear();
     });
   }, [allRegistros, currentMonth]);
 
@@ -269,6 +316,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
        <Card className="bg-primary/5">
         <CardHeader>
             <CardTitle>Resumen del Mes</CardTitle>
+            <CardDescription>Suma de todos los registros de las semanas de este mes.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -296,6 +344,32 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
             existingData={existingDataForForm}
             week={selectedWeek}
         />
+
+        <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Código de Autorización Requerido</DialogTitle>
+                    <DialogDescription>
+                        Estás intentando editar una semana que ya ha finalizado. Por favor, ingresa el código de autorización para continuar.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="auth-code">Código de Autorización</Label>
+                    <Input 
+                        id="auth-code"
+                        type="password"
+                        value={authCode}
+                        onChange={(e) => setAuthCode(e.target.value)}
+                        autoFocus
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={closeAuthDialog}>Cancelar</Button>
+                    <Button onClick={handleAuthorization}>Autorizar y Editar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
+
