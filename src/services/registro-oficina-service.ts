@@ -47,11 +47,17 @@ export async function deleteOficina(id: string) {
 // --- Weekly Registrations ---
 
 export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Date): Promise<OficinaSemanalRegistro[]> {
+    const oficinaData = await getOficinaById(oficinaId);
+    if (!oficinaData) {
+        throw new Error("Oficina no encontrada para obtener registros.");
+    }
+
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
 
     const q = query(
         registrosCollectionRef,
+        where("prefix", "==", oficinaData.prefix),
         where("oficinaId", "==", oficinaId),
         where("weekStartDate", ">=", Timestamp.fromDate(monthStart)),
         where("weekStartDate", "<=", Timestamp.fromDate(monthEnd))
@@ -62,16 +68,13 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
     return snapshot.docs.map(doc => {
         const data = doc.data();
         
-        // Securely convert timestamps to dates
         const toDate = (timestamp: unknown): Date => {
             if (timestamp instanceof Timestamp) {
               return timestamp.toDate();
             }
-            // Fallback for cases where it might already be a Date or string
             try {
               return new Date(timestamp as any);
             } catch {
-              // Return a default or invalid date if conversion fails
               return new Date(0); 
             }
         };
