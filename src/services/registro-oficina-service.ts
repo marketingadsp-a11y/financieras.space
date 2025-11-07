@@ -18,6 +18,7 @@ export async function getOficinas(prefix: string): Promise<OficinaRegistro[]> {
 }
 
 export async function getOficinaById(id: string): Promise<OficinaRegistro | null> {
+    if (!id) return null;
     const docRef = doc(db, "registro_oficinas", id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -61,22 +62,23 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
     return snapshot.docs.map(doc => {
         const data = doc.data();
         
-        // Defensive date conversion
-        let weekStartDate = new Date(); // Default date
-        if (data.weekStartDate && typeof data.weekStartDate.toDate === 'function') {
-            weekStartDate = data.weekStartDate.toDate();
-        }
-
-        let updatedAt = new Date(); // Default date
-        if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
-            updatedAt = data.updatedAt.toDate();
-        }
+        const toDate = (timestamp: any): Date => {
+          if (timestamp && typeof timestamp.toDate === 'function') {
+            return timestamp.toDate();
+          }
+          // As a fallback, try to parse it as a date, or return a default
+          try {
+            return new Date(timestamp);
+          } catch {
+            return new Date();
+          }
+        };
         
         return {
             ...data,
             id: doc.id,
-            weekStartDate,
-            updatedAt,
+            weekStartDate: toDate(data.weekStartDate),
+            updatedAt: toDate(data.updatedAt),
         } as OficinaSemanalRegistro;
     });
 }
