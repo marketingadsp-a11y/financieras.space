@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -183,15 +184,13 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   };
   
   const registrosDelMes = React.useMemo(() => {
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
-      return allRegistros.filter(r => {
+    const targetMonth = currentMonth.getUTCMonth();
+    const targetYear = currentMonth.getUTCFullYear();
+    return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
-        // Convert the weekStartDate (which is already a Date object) to be safe.
         const registroDate = new Date(r.weekStartDate);
-        if (isNaN(registroDate.getTime())) return false;
-        return isWithinInterval(registroDate, { start: monthStart, end: monthEnd });
-      });
+        return registroDate.getUTCMonth() === targetMonth && registroDate.getUTCFullYear() === targetYear;
+    });
   }, [allRegistros, currentMonth]);
 
 
