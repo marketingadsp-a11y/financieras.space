@@ -16,18 +16,29 @@ import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 
 function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
-    const startOfMonthDate = startOfMonth(month);
     const weeks = [];
-    
-    let currentWeekStart = new Date(startOfMonthDate);
+    // Start from the first day of the month
+    let currentDay = new Date(month.getFullYear(), month.getMonth(), 1);
+
     // Find the first Saturday of the month
-    while (currentWeekStart.getDay() !== 6) {
-        currentWeekStart.setDate(currentWeekStart.getDate() - 1);
+    while (currentDay.getDay() !== 6) { // 6 = Saturday
+        currentDay.setDate(currentDay.getDate() + 1);
+        // If we somehow skip into the next month without finding a saturday, break.
+        if (currentDay.getMonth() !== month.getMonth()) break;
     }
-     // If the first Saturday is in the previous month, move to the next Saturday
-    if (currentWeekStart.getMonth() !== startOfMonthDate.getMonth()) {
-        currentWeekStart = addDays(currentWeekStart, 7);
+
+    // If we couldn't find a Saturday in the current month (e.g. month ends on a Friday),
+    // we need to adjust. This is a rare edge case. Let's find the last Saturday of the previous month.
+    if (currentDay.getMonth() !== month.getMonth()) {
+        currentDay = new Date(month.getFullYear(), month.getMonth(), 1);
+        currentDay.setDate(currentDay.getDate() - 1); // go to last day of previous month
+         while (currentDay.getDay() !== 6) {
+            currentDay.setDate(currentDay.getDate() - 1);
+        }
     }
+
+
+    let currentWeekStart = currentDay;
 
     for (let i = 0; i < 4; i++) {
         const weekEnd = addDays(currentWeekStart, 6);
@@ -271,3 +282,4 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
