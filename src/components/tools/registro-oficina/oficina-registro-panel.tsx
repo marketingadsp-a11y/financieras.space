@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
-    const month = monthDate.getUTCMonth(); // 0-11
+    const month = monthDate.getUTCMonth();
 
     // 1. Get the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(year, month - 1, 25));
@@ -30,11 +30,14 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const dayOfWeek = anchorDate.getUTCDay(); // 0 for Sun, 6 for Sat
     
     // Calculate how many days to go back to get to Saturday.
-    // If anchor is Sat(6), diff is 0. If Fri(5), diff is 6. If Sun(0), diff is 1.
-    const daysToSubtract = (dayOfWeek + 1) % 7;
+    const daysToSubtract = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
 
     const firstWeekStart = new Date(anchorDate);
     firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
+    
+    // Forcefully add one day as requested by the user to correct the persistent off-by-one error.
+    firstWeekStart.setUTCDate(firstWeekStart.getUTCDate() + 1);
+
 
     // 3. Generate 4 consecutive 7-day weeks from that start date.
     const weeks = [];
