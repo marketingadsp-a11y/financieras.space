@@ -19,21 +19,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
-    // The user's business "month" starts on the 25th of the *previous* calendar month.
-    const year = monthDate.getUTCFullYear();
-    const month = monthDate.getUTCMonth();
+    // 1. Determine the cycle's starting point: the 25th of the *previous* month in UTC.
+    const cycleStartDate = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() - 1, 25));
 
-    // 1. Determine the starting point: 25th of the previous month.
-    const cycleStartDate = new Date(Date.UTC(year, month - 1, 25));
+    // 2. Find the first Saturday on or after this date.
+    const dayOfWeek = cycleStartDate.getUTCDay(); // Sunday = 0, ..., Saturday = 6
+    const daysToAdd = (6 - dayOfWeek + 7) % 7;
+    const firstSaturday = new Date(cycleStartDate);
+    firstSaturday.setUTCDate(cycleStartDate.getUTCDate() + daysToAdd);
 
-    // 2. Generate 4 consecutive 7-day weeks from that start date.
+    // 3. Generate 4 consecutive 7-day weeks (Saturday to Friday) from that start date.
     const weeks = [];
     for (let i = 0; i < 4; i++) {
-        const weekStart = new Date(cycleStartDate);
-        weekStart.setUTCDate(cycleStartDate.getUTCDate() + (i * 7));
+        const weekStart = new Date(firstSaturday);
+        weekStart.setUTCDate(firstSaturday.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
         weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        weekEnd.setUTCHours(23, 59, 59, 999);
 
         weeks.push({ start: weekStart, end: weekEnd });
     }
@@ -220,14 +223,15 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   
  const registrosDelMes = React.useMemo(() => {
     const monthWeeks = getWeeksForMonth(currentMonth);
-    const firstWeekStart = monthWeeks[0].start.getTime();
-    const lastWeekEnd = monthWeeks[3].end.getTime();
+    if(monthWeeks.length === 0) return [];
+    
+    const cycleStart = monthWeeks[0].start;
+    const cycleEnd = monthWeeks[3].end;
 
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
         const registroStartTime = new Date(r.weekStartDate).getTime();
-        // Check if the start of the registro's week is within the 4-week cycle for the selected month
-        return registroStartTime >= firstWeekStart && registroStartTime <= lastWeekEnd;
+        return registroStartTime >= cycleStart.getTime() && registroStartTime <= cycleEnd.getTime();
     });
 }, [allRegistros, currentMonth]);
 
