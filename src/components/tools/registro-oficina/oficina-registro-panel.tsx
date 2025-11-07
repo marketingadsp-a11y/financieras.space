@@ -231,7 +231,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     }
   };
   
-  const registrosDelMes = React.useMemo(() => {
+ const registrosDelMes = React.useMemo(() => {
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
         const registroMonth = new Date(r.weekStartDate).getUTCMonth();
@@ -257,6 +257,8 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
         cajaChica: 0,
     });
   }, [registrosDelMes]);
+  
+  const totalDelMes = Object.values(monthlyTotals).reduce((sum, value) => sum + value, 0);
 
 
   if (isLoading) {
@@ -319,20 +321,31 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
             <CardDescription>Suma de todos los registros de las semanas de este mes.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {Object.entries(monthlyTotals).map(([key, value]) => (
                     <div key={key} className="p-4 rounded-lg bg-background shadow-sm">
                         <p className="text-sm text-muted-foreground capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
                         <p className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5 text-muted-foreground"/> {value.toLocaleString('es-MX')}</p>
                     </div>
                 ))}
+                <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm col-span-2 md:col-span-1 lg:col-auto">
+                    <p className="text-sm font-medium">Total del Mes</p>
+                    <p className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5"/> {totalDelMes.toLocaleString('es-MX')}</p>
+                </div>
             </div>
         </CardContent>
        </Card>
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {weeks.map((week, index) => {
-            const registro = allRegistros.find(r => r.weekStartDate && new Date(r.weekStartDate).getTime() === week.start.getTime()) || null;
+            const registro = allRegistros.find(r => {
+                if (!r.weekStartDate) return false;
+                const rDate = new Date(r.weekStartDate);
+                // Compare just the date part, ignoring time
+                return rDate.getUTCFullYear() === week.start.getUTCFullYear() &&
+                       rDate.getUTCMonth() === week.start.getUTCMonth() &&
+                       rDate.getUTCDate() === week.start.getUTCDate();
+            }) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
       </div>
@@ -372,4 +385,3 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
-
