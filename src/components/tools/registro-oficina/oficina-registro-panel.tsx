@@ -21,16 +21,15 @@ import { Label } from "@/components/ui/label";
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
-    
+
     // 1. Get the 25th of the PREVIOUS month in UTC.
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const prevMonthYear = month === 0 ? year - 1 : year;
-    const anchorDate = new Date(Date.UTC(prevMonthYear, prevMonth, 25));
+    const anchorDate = new Date(Date.UTC(year, month - 1, 25));
 
     // 2. Find the Saturday that STARTS the week containing our anchor date.
     // getUTCDay() is Sunday (0) to Saturday (6).
     const dayOfWeek = anchorDate.getUTCDay(); // 0-6
-    const diff = dayOfWeek === 6 ? 0 : dayOfWeek + 1; // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1. If Fri(5), diff is 6.
+    // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1... If Fri(5), diff is 6.
+    const diff = (dayOfWeek + 1) % 7; 
     
     const firstWeekStart = new Date(anchorDate);
     firstWeekStart.setUTCDate(anchorDate.getUTCDate() - diff);
@@ -276,28 +275,21 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   }
 
   if (!oficina) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Oficina no encontrada</CardTitle>
-          <CardDescription>
-            La oficina que buscas no existe o fue eliminada.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild variant="outline">
-            <Link href="/tools/registro-oficina">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver al dashboard
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
+      return (
+          <div className="text-center">
+              <h2 className="text-xl font-semibold">Oficina no encontrada</h2>
+              <Button asChild variant="link"><Link href="/tools/registro-oficina">Volver al Dashboard</Link></Button>
+          </div>
+      )
   }
 
   return (
     <div className="space-y-6">
+       <Button variant="outline" asChild>
+            <Link href="/tools/registro-oficina">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Dashboard
+            </Link>
+        </Button>
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
@@ -389,5 +381,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
+    
 
     
