@@ -20,26 +20,30 @@ import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
-    const month = monthDate.getUTCMonth();
+    // Get the previous month. If current month is January (0), previous is December (11) of last year.
+    const prevMonth = monthDate.getUTCMonth() === 0 ? 11 : monthDate.getUTCMonth() - 1;
+    const prevMonthYear = monthDate.getUTCMonth() === 0 ? year - 1 : year;
+    
+    // 1. Create a date for the 25th of the PREVIOUS month in UTC.
+    const anchorDate = new Date(Date.UTC(prevMonthYear, prevMonth, 25));
 
-    // 1. Get the 25th of the PREVIOUS month in UTC.
-    const cycleStartDateAnchor = new Date(Date.UTC(year, month - 1, 25));
+    // 2. Find the Saturday that starts the week containing our anchor date.
+    // getUTCDay() is Sunday (0) to Saturday (6).
+    // We want to find the Saturday of that week. Saturday is day 6.
+    const dayOfWeek = anchorDate.getUTCDay(); // 0-6
+    const diff = dayOfWeek - 6; // If anchor is Sunday(0), diff is -6. If Saturday(6), diff is 0.
+    
+    const firstWeekStart = new Date(anchorDate);
+    firstWeekStart.setUTCDate(anchorDate.getUTCDate() - diff);
 
-    // 2. Find the first Saturday ON or AFTER this anchor date.
-    let firstWeekStart = new Date(cycleStartDateAnchor);
-    while (firstWeekStart.getUTCDay() !== 6) { // 6 = Saturday
-        firstWeekStart.setUTCDate(firstWeekStart.getUTCDate() + 1);
-    }
-
-    // 3. Generate 4 consecutive 7-day weeks (Saturday to Friday) from that start date.
+    // 3. Generate 4 consecutive 7-day weeks from that start date.
     const weeks = [];
     for (let i = 0; i < 4; i++) {
         const weekStart = new Date(firstWeekStart);
         weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
-        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // Friday is 6 days after Saturday
-        weekEnd.setUTCHours(23, 59, 59, 999);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // End on Friday, 6 days after Saturday.
 
         weeks.push({ start: weekStart, end: weekEnd });
     }
@@ -319,17 +323,17 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
             <CardDescription>Suma de todos los registros de las semanas de este ciclo.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {Object.entries(monthlyTotals).map(([key, value]) => (
                     <div key={key} className="p-4 rounded-lg bg-background shadow-sm">
                         <p className="text-sm text-muted-foreground capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
                         <p className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5 text-muted-foreground"/> {value.toLocaleString('es-MX')}</p>
                     </div>
                 ))}
-                 <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm col-span-2 md:col-span-1 lg:col-auto">
-                    <p className="text-sm font-medium">Total del Mes</p>
-                    <div className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5"/> {totalDelMes.toLocaleString('es-MX')}</div>
-                </div>
+            </div>
+             <div className="mt-4 p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm text-center">
+                <p className="text-sm font-medium">Total del Mes</p>
+                <div className="text-3xl font-bold flex items-center justify-center gap-1"><DollarSign className="h-6 w-6"/> {totalDelMes.toLocaleString('es-MX')}</div>
             </div>
         </CardContent>
        </Card>
@@ -382,7 +386,3 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
-
-    
-
-    
