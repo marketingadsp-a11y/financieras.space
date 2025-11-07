@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -19,18 +20,17 @@ import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
-    // Get the previous month. If current month is January (0), previous is December (11) of last year.
-    const prevMonth = monthDate.getUTCMonth() === 0 ? 11 : monthDate.getUTCMonth() - 1;
-    const prevMonthYear = monthDate.getUTCMonth() === 0 ? year - 1 : year;
+    const month = monthDate.getUTCMonth();
     
-    // 1. Create a date for the 25th of the PREVIOUS month in UTC.
+    // 1. Get the 25th of the PREVIOUS month in UTC.
+    const prevMonth = month === 0 ? 11 : month - 1;
+    const prevMonthYear = month === 0 ? year - 1 : year;
     const anchorDate = new Date(Date.UTC(prevMonthYear, prevMonth, 25));
 
-    // 2. Find the Saturday that starts the week containing our anchor date.
+    // 2. Find the Saturday that STARTS the week containing our anchor date.
     // getUTCDay() is Sunday (0) to Saturday (6).
-    // We want to find the Saturday of that week. Saturday is day 6.
     const dayOfWeek = anchorDate.getUTCDay(); // 0-6
-    const diff = (dayOfWeek + 1) % 7; // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1. If Fri(5), diff is 6.
+    const diff = dayOfWeek === 6 ? 0 : dayOfWeek + 1; // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1. If Fri(5), diff is 6.
     
     const firstWeekStart = new Date(anchorDate);
     firstWeekStart.setUTCDate(anchorDate.getUTCDate() - diff);
@@ -237,7 +237,11 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
         const registroDate = new Date(r.weekStartDate);
-        return registroDate >= cycleStart && registroDate <= cycleEnd;
+        // Compare just the date part in UTC to be safe
+        const registroUTC = Date.UTC(registroDate.getUTCFullYear(), registroDate.getUTCMonth(), registroDate.getUTCDate());
+        const startUTC = Date.UTC(cycleStart.getUTCFullYear(), cycleStart.getUTCMonth(), cycleStart.getUTCDate());
+        const endUTC = Date.UTC(cycleEnd.getUTCFullYear(), cycleEnd.getUTCMonth(), cycleEnd.getUTCDate());
+        return registroUTC >= startUTC && registroUTC <= endUTC;
     });
 }, [allRegistros, currentMonth]);
 
