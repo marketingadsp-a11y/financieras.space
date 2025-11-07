@@ -22,18 +22,15 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
 
-    // 1. Get the 25th of the previous month in UTC.
-    const cycleStartDate = new Date(Date.UTC(year, month - 1, 25));
+    // 1. Get the 25th of the PREVIOUS month in UTC.
+    const cycleStartDateAnchor = new Date(Date.UTC(year, month - 1, 25));
 
-    // 2. Find the Saturday that starts the week containing this date.
-    // Day of week: Sunday = 0, ..., Saturday = 6.
-    // We want to go back to the previous Saturday.
-    const dayOfWeek = cycleStartDate.getUTCDay();
-    const diff = (dayOfWeek - 6 + 7) % 7; // Days to subtract to get to Saturday
-    
-    const firstWeekStart = new Date(cycleStartDate);
-    firstWeekStart.setUTCDate(cycleStartDate.getUTCDate() - diff);
-    
+    // 2. Find the first Saturday ON or AFTER this anchor date.
+    let firstWeekStart = new Date(cycleStartDateAnchor);
+    while (firstWeekStart.getUTCDay() !== 6) { // 6 = Saturday
+        firstWeekStart.setUTCDate(firstWeekStart.getUTCDate() + 1);
+    }
+
     // 3. Generate 4 consecutive 7-day weeks (Saturday to Friday) from that start date.
     const weeks = [];
     for (let i = 0; i < 4; i++) {
@@ -41,7 +38,7 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
         weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
-        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // Friday is 6 days after Saturday
         weekEnd.setUTCHours(23, 59, 59, 999);
 
         weeks.push({ start: weekStart, end: weekEnd });
@@ -229,15 +226,15 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   
  const registrosDelMes = React.useMemo(() => {
     const monthWeeks = getWeeksForMonth(currentMonth);
-    if(monthWeeks.length === 0) return [];
+    if (monthWeeks.length === 0) return [];
     
-    const cycleStart = monthWeeks[0].start;
-    const cycleEnd = monthWeeks[3].end;
+    const cycleStart = monthWeeks[0].start.getTime();
+    const cycleEnd = monthWeeks[3].end.getTime();
 
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
-        const registroStartTime = new Date(r.weekStartDate).getTime();
-        return registroStartTime >= cycleStart.getTime() && registroStartTime <= cycleEnd.getTime();
+        const registroStartTime = r.weekStartDate.getTime();
+        return registroStartTime >= cycleStart && registroStartTime <= cycleEnd;
     });
 }, [allRegistros, currentMonth]);
 
@@ -385,5 +382,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
+    
 
     
