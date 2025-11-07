@@ -119,8 +119,7 @@ export function RegistroOficinaDashboard() {
               <CardContent className="flex-grow">
                  <div className="p-4 border rounded-lg bg-muted/20">
                     <p className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-2"><Calendar className="h-4 w-4"/> Resumen del Mes Actual</p>
-                    <div className="flex items-center justify-between text-lg font-bold text-primary p-2 bg-primary/10 rounded-md">
-                        <span>Total del Mes:</span>
+                    <div className="flex items-center justify-center text-lg font-bold text-primary p-2 bg-primary/10 rounded-md">
                         <span>${oficina.monthlyTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                     </div>
                  </div>
