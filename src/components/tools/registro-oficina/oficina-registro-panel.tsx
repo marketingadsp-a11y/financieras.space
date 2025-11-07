@@ -9,10 +9,12 @@ import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
 import { getOficinaById, getTodosRegistrosPorOficina, addOrUpdateRegistroSemanal, deleteRegistrosByMonth } from "@/services/registro-oficina-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock, Trash2, FileText } from "lucide-react";
 import Link from "next/link";
 import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast, getDay, addDays } from "date-fns";
 import { es } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,28 +23,31 @@ import { Label } from "@/components/ui/label";
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
+    const anchorDay = 25;
 
-    // 1. Get the 25th of the PREVIOUS month in UTC.
-    const anchorDate = new Date(Date.UTC(year, month - 1, 25));
+    const anchorDate = new Date(Date.UTC(year, month - 1, anchorDay));
 
-    // 2. Find the Saturday that starts the week containing our anchor date.
-    const dayOfWeek = anchorDate.getUTCDay(); // Sunday = 0, ..., Saturday = 6
-    const daysToSubtract = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
-
-    const firstWeekStart = new Date(anchorDate);
-    firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
+    const dayOfWeek = anchorDate.getUTCDay();
+    const daysToSaturday = (6 - dayOfWeek + 7) % 7;
     
-    firstWeekStart.setUTCDate(firstWeekStart.getUTCDate() + 1);
+    let firstWeekStart: Date;
 
-
-    // 3. Generate 4 consecutive 7-day weeks from that start date.
+    if (dayOfWeek === 6) { // If anchorDay IS Saturday
+        firstWeekStart = anchorDate;
+    } else { // If anchorDay is not Saturday
+        // Find the Saturday of the week the anchor day is in
+        const daysToSubtract = dayOfWeek < 6 ? dayOfWeek + 1 : 0;
+        firstWeekStart = new Date(anchorDate);
+        firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
+    }
+    
     const weeks = [];
     for (let i = 0; i < 4; i++) {
         const weekStart = new Date(firstWeekStart);
         weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
-        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // A week is 7 days long, so end is start + 6
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
 
         weeks.push({ start: weekStart, end: weekEnd });
     }
@@ -304,6 +309,76 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     return `Del ${format(start, "dd 'de' LLLL")} al ${format(end, "dd 'de' LLLL 'de' yyyy", { locale: es })}`;
   }, [weeks]);
 
+  const handleExportPDF = () => {
+    if (!oficina) return;
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Reporte Mensual: ${oficina.name}`, 14, 22);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(currentMonthRange, 14, 30);
+    
+    // Summary
+    const summaryBody = [
+        ...Object.entries(monthlyTotals).map(([key, value]) => [
+            key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(),
+            `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+        ]),
+        [{ content: 'TOTAL DEL MES', styles: { fontStyle: 'bold' } }, { content: `$${totalDelMes.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, styles: { fontStyle: 'bold' } }]
+    ];
+    autoTable(doc, {
+        startY: 40,
+        head: [['Concepto', 'Monto']],
+        body: summaryBody,
+        headStyles: { fillColor: [22, 163, 74] }
+    });
+
+    let lastY = (doc as any).lastAutoTable.finalY + 10;
+
+    // Weekly Details
+    weeks.forEach((week, index) => {
+        const registro = allRegistros.find(r => new Date(r.weekStartDate).getTime() === week.start.getTime()) || null;
+        const totalSemanal = registro ? Object.values(registro).reduce((sum: number, value) => typeof value === 'number' ? sum + value : sum, 0) - new Date(registro.updatedAt).getTime() : 0;
+
+        if (lastY > 250) { // Check if new page is needed
+            doc.addPage();
+            lastY = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Semana ${index + 1}: Del ${format(week.start, "dd/MM")} al ${format(week.end, "dd/MM")}`, 14, lastY);
+        lastY += 8;
+
+        if (registro) {
+            autoTable(doc, {
+                startY: lastY,
+                body: [
+                    ["Recogido Seguros", `$${(registro.recogidoSeguros || 0).toLocaleString('es-MX')}`],
+                    ["Cartera Vencida", `$${(registro.carteraVencida || 0).toLocaleString('es-MX')}`],
+                    ["Interés Mensual", `$${(registro.interesMensual || 0).toLocaleString('es-MX')}`],
+                    ["Capital Mensual", `$${(registro.capitalMensual || 0).toLocaleString('es-MX')}`],
+                    ["Caja Chica", `$${(registro.cajaChica || 0).toLocaleString('es-MX')}`],
+                    [{ content: 'Total Semana', styles: { fontStyle: 'bold' } }, { content: `$${totalSemanal.toLocaleString('es-MX')}`, styles: { fontStyle: 'bold' } }],
+                ],
+                theme: 'grid',
+                styles: { fontSize: 10, cellPadding: 2 },
+            });
+            lastY = (doc as any).lastAutoTable.finalY + 10;
+        } else {
+            doc.setFontSize(10);
+            doc.text("Sin datos registrados para esta semana.", 14, lastY);
+            lastY += 10;
+        }
+    });
+    
+    const fileName = `Reporte_${oficina.name.replace(/\s/g, '_')}_${format(currentMonth, 'LLLL_yyyy', { locale: es })}.pdf`;
+    doc.save(fileName);
+  };
+
 
   if (isLoading) {
     return (
@@ -325,11 +400,16 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
   return (
     <div className="space-y-6">
-       <Button variant="outline" asChild>
-            <Link href="/tools/registro-oficina">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Dashboard
-            </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+           <Button variant="outline" asChild>
+                <Link href="/tools/registro-oficina">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Dashboard
+                </Link>
+            </Button>
+            <Button variant="outline" onClick={handleExportPDF}>
+                <FileText className="mr-2 h-4 w-4" /> Exportar a PDF
+            </Button>
+        </div>
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
