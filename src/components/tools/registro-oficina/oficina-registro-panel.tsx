@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -231,11 +230,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
         const registroDate = new Date(r.weekStartDate);
-        // Compare year and month in UTC to avoid timezone issues
         return registroDate.getUTCFullYear() === currentMonth.getUTCFullYear() &&
                registroDate.getUTCMonth() === currentMonth.getUTCMonth();
     });
-  }, [allRegistros, currentMonth]);
+}, [allRegistros, currentMonth]);
 
 
   const monthlyTotals = React.useMemo(() => {
@@ -382,3 +380,5 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
+    
