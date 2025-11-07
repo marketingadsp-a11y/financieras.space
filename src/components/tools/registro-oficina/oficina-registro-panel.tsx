@@ -12,33 +12,42 @@ import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar } from "lucide-
 import Link from "next/link";
 import {
   startOfMonth,
-  endOfMonth,
   addMonths,
   subMonths,
   format,
-  eachWeekOfInterval,
-  startOfWeek,
-  endOfWeek,
+  addDays,
+  Day,
 } from "date-fns";
 import { es } from "date-fns/locale";
 
-function getWeeksForMonth(month: Date) {
-  const firstDay = startOfMonth(month);
-  const lastDay = endOfMonth(month);
+function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
+    const startOfMonthDate = startOfMonth(month);
+    const weeks = [];
 
-  const weeks = eachWeekOfInterval(
-    {
-      start: firstDay,
-      end: lastDay,
-    },
-    { weekStartsOn: 6 } // 6 for Saturday
-  );
+    // Find the first Saturday of the month
+    let firstSaturday = new Date(startOfMonthDate);
+    while (firstSaturday.getDay() !== 6) { // 6 = Saturday
+        firstSaturday.setDate(firstSaturday.getDate() + 1);
+    }
+    
+    // If the first Saturday is after the 7th, it means the "first week" starts in the previous month's tail.
+    // Let's adjust to start with the Saturday of the first calendar week of the month.
+    if (firstSaturday.getDate() > 7) {
+        firstSaturday.setDate(firstSaturday.getDate() - 7);
+    }
 
-  return weeks.map((weekStart) => {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 6 });
-    return { start: weekStart, end: weekEnd };
-  });
+
+    let currentWeekStart = firstSaturday;
+
+    for (let i = 0; i < 4; i++) {
+        const weekEnd = addDays(currentWeekStart, 6); // Friday is 6 days after Saturday
+        weeks.push({ start: currentWeekStart, end: weekEnd });
+        currentWeekStart = addDays(currentWeekStart, 7); // Move to the next Saturday
+    }
+
+    return weeks;
 }
+
 
 export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const { user } = useAuth();
