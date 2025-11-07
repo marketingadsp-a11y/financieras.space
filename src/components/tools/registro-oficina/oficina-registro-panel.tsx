@@ -25,8 +25,10 @@ function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
     let diff = (6 - dayOfWeek + 7) % 7;
     let firstSaturday = new Date(Date.UTC(year, monthIndex, 1 + diff));
 
-    if (firstSaturday.getUTCDate() > 7) {
+    if (firstSaturday.getUTCDate() > 7 && firstSaturday.getUTCMonth() === monthIndex) {
         firstSaturday.setUTCDate(firstSaturday.getUTCDate() - 7);
+    } else if (firstSaturday.getUTCMonth() > monthIndex) {
+         firstSaturday.setUTCDate(firstSaturday.getUTCDate() - 7);
     }
     
     let currentWeekStart = firstSaturday;
@@ -61,6 +63,8 @@ const WeekCard = ({
         { label: "Caja Chica", value: registro?.cajaChica },
     ];
     
+    const totalSemanal = registro ? conceptos.reduce((sum, item) => sum + (item.value || 0), 0) : 0;
+
     return (
         <Card>
             <CardHeader>
@@ -76,6 +80,11 @@ const WeekCard = ({
               <CardDescription>
                 Del {format(week.start, "dd 'de' LLLL", { locale: es })} al {format(week.end, "dd 'de' LLLL", { locale: es })}
               </CardDescription>
+              {registro && (
+                 <div className="pt-2">
+                    <p className="text-sm font-semibold text-primary">Total Semana: ${totalSemanal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                 </div>
+              )}
             </CardHeader>
             <CardContent>
                 {registro ? (
@@ -105,7 +114,8 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const [oficina, setOficina] = React.useState<OficinaRegistro | null>(null);
   const [allRegistros, setAllRegistros] = React.useState<OficinaSemanalRegistro[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [currentMonth, setCurrentMonth] = React.useState(startOfMonth(new Date()));
+  const [currentMonth, setCurrentMonth] = React.useState(new Date(new Date().setUTCHours(12, 0, 0, 0)));
+
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedWeek, setSelectedWeek] = React.useState<{start: Date, end: Date} | null>(null);
@@ -173,10 +183,11 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     return allRegistros.filter(r => {
-        const registroDate = new Date(r.weekStartDate);
-        return isWithinInterval(registroDate, { start: monthStart, end: monthEnd });
+        // Ensure r.weekStartDate is a valid date
+        if (!r.weekStartDate || isNaN(r.weekStartDate.getTime())) return false;
+        return isWithinInterval(r.weekStartDate, { start: monthStart, end: monthEnd });
     });
-  }, [allRegistros, currentMonth]);
+}, [allRegistros, currentMonth]);
 
 
   const monthlyTotals = React.useMemo(() => {
@@ -269,7 +280,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {weeks.map((week, index) => {
-            const registro = registrosDelMes.find(r => new Date(r.weekStartDate).getTime() === week.start.getTime()) || null;
+            const registro = registrosDelMes.find(r => r.weekStartDate.getTime() === week.start.getTime()) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
       </div>
