@@ -2,7 +2,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy } from "firebase/firestore";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { db } from "@/lib/firebase";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
@@ -57,10 +57,10 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
 
     const q = query(
         registrosCollectionRef,
-        where("prefix", "==", oficinaData.prefix),
         where("oficinaId", "==", oficinaId),
         where("weekStartDate", ">=", Timestamp.fromDate(monthStart)),
-        where("weekStartDate", "<=", Timestamp.fromDate(monthEnd))
+        where("weekStartDate", "<=", Timestamp.fromDate(monthEnd)),
+        orderBy("weekStartDate") 
     );
 
     const snapshot = await getDocs(q);
@@ -72,10 +72,12 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
             if (timestamp instanceof Timestamp) {
               return timestamp.toDate();
             }
+            // Fallback for cases where it might not be a timestamp object
+            // This is safer than assuming .toDate() exists.
             try {
               return new Date(timestamp as any);
             } catch {
-              return new Date(0); 
+              return new Date(0); // Return a default invalid date if parsing fails
             }
         };
         
