@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy } from "firebase/firestore";
@@ -105,7 +106,7 @@ export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRe
     const dataWithTimestamps = {
         ...registro,
         weekStartDate: Timestamp.fromDate(normalizedStartDate),
-        updatedAt: Timestamp.fromDate(registro.updatedAt),
+        updatedAt: Timestamp.fromDate(new Date()),
     };
 
     await setDoc(docRef, dataWithTimestamps, { merge: true });

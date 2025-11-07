@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -18,41 +19,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
+    // The user's business "month" starts on the 25th of the *previous* calendar month.
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
 
-    // 1. Find the first Saturday of the year. This is our absolute anchor.
-    const firstDayOfYear = new Date(Date.UTC(year, 0, 1));
-    const dayOfWeek = firstDayOfYear.getUTCDay(); // 0=Sun, 6=Sat
-    const diffToFirstSaturday = (6 - dayOfWeek + 7) % 7;
-    const firstSaturdayOfYear = new Date(Date.UTC(year, 0, 1 + diffToFirstSaturday));
+    // 1. Determine the starting point: 25th of the previous month.
+    const cycleStartDate = new Date(Date.UTC(year, month - 1, 25));
 
-    // 2. Find the start of the calendar month we are interested in.
-    const startOfCalendarMonth = new Date(Date.UTC(year, month, 1));
-
-    // 3. Calculate the number of days passed from our anchor to the start of our target month.
-    const daysSinceAnchor = Math.floor((startOfCalendarMonth.getTime() - firstSaturdayOfYear.getTime()) / (1000 * 60 * 60 * 24));
-
-    // 4. Determine which 28-day cycle we are in.
-    // We add a small offset (e.g., 7 days) before dividing to ensure that days belonging to the end
-    // of a previous cycle's week are correctly assigned to that cycle.
-    const cycleIndex = Math.floor((daysSinceAnchor + 7) / 28);
-    
-    // 5. Calculate the start date of our 4-week business cycle.
-    const cycleStartDate = new Date(firstSaturdayOfYear);
-    cycleStartDate.setUTCDate(cycleStartDate.getUTCDate() + cycleIndex * 28);
-    
-    // 6. Generate the 4 weeks (Sat-Fri) for this cycle.
+    // 2. Generate 4 consecutive 7-day weeks from that start date.
     const weeks = [];
-    let currentWeekStart = new Date(cycleStartDate);
-
     for (let i = 0; i < 4; i++) {
-        const weekEnd = new Date(currentWeekStart);
-        weekEnd.setUTCDate(currentWeekStart.getUTCDate() + 6); // Friday is 6 days after Saturday
-        weeks.push({ start: new Date(currentWeekStart), end: weekEnd });
-        currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() + 7);
+        const weekStart = new Date(cycleStartDate);
+        weekStart.setUTCDate(cycleStartDate.getUTCDate() + (i * 7));
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+
+        weeks.push({ start: weekStart, end: weekEnd });
     }
-    
+
     return weeks;
 }
 
@@ -235,14 +220,14 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   
  const registrosDelMes = React.useMemo(() => {
     const monthWeeks = getWeeksForMonth(currentMonth);
-    const monthStart = monthWeeks[0].start;
-    const monthEnd = monthWeeks[3].end;
+    const firstWeekStart = monthWeeks[0].start.getTime();
+    const lastWeekEnd = monthWeeks[3].end.getTime();
 
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
-        const registroDate = new Date(r.weekStartDate);
-        // Compare year and month in UTC to avoid timezone issues
-        return registroDate >= monthStart && registroDate <= monthEnd;
+        const registroStartTime = new Date(r.weekStartDate).getTime();
+        // Check if the start of the registro's week is within the 4-week cycle for the selected month
+        return registroStartTime >= firstWeekStart && registroStartTime <= lastWeekEnd;
     });
 }, [allRegistros, currentMonth]);
 
@@ -346,10 +331,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
         {weeks.map((week, index) => {
             const registro = allRegistros.find(r => {
                 if (!r.weekStartDate) return false;
-                const rDate = new Date(r.weekStartDate);
-                const rDateNormalized = new Date(Date.UTC(rDate.getUTCFullYear(), rDate.getUTCMonth(), rDate.getUTCDate())).getTime();
-                const weekStartDateNormalized = new Date(Date.UTC(week.start.getUTCFullYear(), week.start.getUTCMonth(), week.start.getUTCDate())).getTime();
-                return rDateNormalized === weekStartDateNormalized;
+                // Compare just the date part in UTC to be safe
+                const rDateUTC = new Date(r.weekStartDate).setUTCHours(0,0,0,0);
+                const weekStartUTC = new Date(week.start).setUTCHours(0,0,0,0);
+                return rDateUTC === weekStartUTC;
             }) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
