@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -22,19 +23,17 @@ import { Label } from "@/components/ui/label";
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
-    const anchorDay = 25;
-
+    
     // 1. Get the 25th of the PREVIOUS month in UTC.
-    const anchorDate = new Date(Date.UTC(year, month - 1, anchorDay));
+    const anchorDate = new Date(Date.UTC(year, month - 1, 25));
 
     // 2. Find the Saturday of the week that contains the anchor date.
-    const dayOfWeek = anchorDate.getUTCDay(); // Sunday = 0, ..., Saturday = 6
-    const daysToSubtract = (dayOfWeek + 1) % 7;
+    let cycleStart = new Date(anchorDate);
+    // Move backwards day by day from the 25th until we hit a Saturday (day 6)
+    while (cycleStart.getUTCDay() !== 6) {
+        cycleStart.setUTCDate(cycleStart.getUTCDate() - 1);
+    }
     
-    const cycleStart = new Date(anchorDate);
-    cycleStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract +1);
-
-
     const weeks = [];
     for (let i = 0; i < 4; i++) {
         const weekStart = new Date(cycleStart);
@@ -306,7 +305,8 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
   const handleExportPDF = () => {
     if (!oficina) return;
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'letter' });
+    const currency = (val: number) => val.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
     // Header
     doc.setFontSize(18);
@@ -316,58 +316,36 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     doc.setFont("helvetica", "normal");
     doc.text(currentMonthRange, 14, 30);
     
-    // Summary
-    const summaryBody = [
-        ...Object.entries(monthlyTotals).map(([key, value]) => [
-            key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(),
-            `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
-        ]),
-        [{ content: 'TOTAL DEL MES', styles: { fontStyle: 'bold' } }, { content: `$${totalDelMes.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, styles: { fontStyle: 'bold' } }]
-    ];
-    autoTable(doc, {
-        startY: 40,
-        head: [['Concepto', 'Monto']],
-        body: summaryBody,
-        headStyles: { fillColor: [22, 163, 74] }
+    const conceptos = ["Recogido Seguros", "Cartera Vencida", "Interés Mensual", "Capital Mensual", "Caja Chica"];
+    const head = [["CONCEPTO", "SEMANA 1", "SEMANA 2", "SEMANA 3", "SEMANA 4", "TOTAL MES"]];
+    const body = conceptos.map(concepto => {
+        const key = concepto.charAt(0).toLowerCase() + concepto.slice(1).replace(/\s/g, '');
+        const weeklyValues = weeks.map(week => {
+            const registro = allRegistros.find(r => new Date(r.weekStartDate).toISOString().split('T')[0] === week.start.toISOString().split('T')[0]);
+            return registro ? currency((registro as any)[key] || 0) : currency(0);
+        });
+        const total = weeklyValues.reduce((sum, valStr) => sum + parseFloat(valStr.replace(/[^0-9.-]+/g, "")), 0);
+        return [concepto, ...weeklyValues, currency(total)];
     });
 
-    let lastY = (doc as any).lastAutoTable.finalY + 10;
+    // Add totals row
+    const weeklyTotals = weeks.map(week => {
+        const registro = allRegistros.find(r => new Date(r.weekStartDate).toISOString().split('T')[0] === week.start.toISOString().split('T')[0]);
+        if (!registro) return 0;
+        return (registro.recogidoSeguros || 0) + (registro.carteraVencida || 0) + (registro.interesMensual || 0) + (registro.capitalMensual || 0) + (registro.cajaChica || 0);
+    });
+    const grandTotal = weeklyTotals.reduce((sum, total) => sum + total, 0);
+    body.push([{ content: 'TOTAL SEMANAL', styles: { fontStyle: 'bold' } }, ...weeklyTotals.map(currency), { content: currency(grandTotal), styles: { fontStyle: 'bold' } }]);
 
-    // Weekly Details
-    weeks.forEach((week, index) => {
-        const registro = allRegistros.find(r => new Date(r.weekStartDate).toISOString().split('T')[0] === week.start.toISOString().split('T')[0]) || null;
-        const totalSemanal = registro ? (registro.recogidoSeguros || 0) + (registro.carteraVencida || 0) + (registro.interesMensual || 0) + (registro.capitalMensual || 0) + (registro.cajaChica || 0) : 0;
 
-        if (lastY > 250) { // Check if new page is needed
-            doc.addPage();
-            lastY = 20;
-        }
-
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text(`Semana ${index + 1}: Del ${format(week.start, "dd/MM")} al ${format(week.end, "dd/MM")}`, 14, lastY);
-        lastY += 8;
-
-        if (registro) {
-            autoTable(doc, {
-                startY: lastY,
-                body: [
-                    ["Recogido Seguros", `$${(registro.recogidoSeguros || 0).toLocaleString('es-MX')}`],
-                    ["Cartera Vencida", `$${(registro.carteraVencida || 0).toLocaleString('es-MX')}`],
-                    ["Interés Mensual", `$${(registro.interesMensual || 0).toLocaleString('es-MX')}`],
-                    ["Capital Mensual", `$${(registro.capitalMensual || 0).toLocaleString('es-MX')}`],
-                    ["Caja Chica", `$${(registro.cajaChica || 0).toLocaleString('es-MX')}`],
-                    [{ content: 'Total Semana', styles: { fontStyle: 'bold' } }, { content: `$${totalSemanal.toLocaleString('es-MX')}`, styles: { fontStyle: 'bold' } }],
-                ],
-                theme: 'grid',
-                styles: { fontSize: 10, cellPadding: 2 },
-            });
-            lastY = (doc as any).lastAutoTable.finalY + 10;
-        } else {
-            doc.setFontSize(10);
-            doc.text("Sin datos registrados para esta semana.", 14, lastY);
-            lastY += 10;
-        }
+    autoTable(doc, {
+        startY: 40,
+        head: head,
+        body: body,
+        theme: 'striped',
+        headStyles: { fillColor: [22, 163, 74], fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 2, halign: 'right' },
+        columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
     });
     
     const fileName = `Reporte_${oficina.name.replace(/\s/g, '_')}_${format(currentMonth, 'LLLL_yyyy', { locale: es })}.pdf`;
