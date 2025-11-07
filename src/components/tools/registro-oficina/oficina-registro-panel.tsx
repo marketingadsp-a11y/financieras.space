@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -31,7 +30,7 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     // getUTCDay() is Sunday (0) to Saturday (6).
     // We want to find the Saturday of that week. Saturday is day 6.
     const dayOfWeek = anchorDate.getUTCDay(); // 0-6
-    const diff = dayOfWeek - 6; // If anchor is Sunday(0), diff is -6. If Saturday(6), diff is 0.
+    const diff = (dayOfWeek + 1) % 7; // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1. If Fri(5), diff is 6.
     
     const firstWeekStart = new Date(anchorDate);
     firstWeekStart.setUTCDate(anchorDate.getUTCDate() - diff);
@@ -232,13 +231,13 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     const monthWeeks = getWeeksForMonth(currentMonth);
     if (monthWeeks.length === 0) return [];
     
-    const cycleStart = monthWeeks[0].start.getTime();
-    const cycleEnd = monthWeeks[3].end.getTime();
+    const cycleStart = monthWeeks[0].start;
+    const cycleEnd = monthWeeks[3].end;
 
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
-        const registroStartTime = r.weekStartDate.getTime();
-        return registroStartTime >= cycleStart && registroStartTime <= cycleEnd;
+        const registroDate = new Date(r.weekStartDate);
+        return registroDate >= cycleStart && registroDate <= cycleEnd;
     });
 }, [allRegistros, currentMonth]);
 
@@ -386,3 +385,5 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
+    
