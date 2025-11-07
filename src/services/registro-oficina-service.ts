@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy } from "firebase/firestore";
@@ -154,3 +153,5 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: s
 
     return registros.sort((a, b) => a.weekStartDate.getTime() - b.weekStartDate.getTime());
 }
+
+    

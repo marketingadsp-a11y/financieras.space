@@ -10,41 +10,45 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock } from "lucide-react";
 import Link from "next/link";
-import { startOfMonth, endOfMonth, addMonths, subMonths, format, isWithinInterval, isPast } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// This function now operates exclusively in UTC to avoid timezone issues.
+// This function now operates exclusively in UTC to follow a fixed Saturday-Friday 4-week cycle per month.
 function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
-    const weeks = [];
     const year = month.getUTCFullYear();
-    const monthIndex = month.getUTCMonth();
-    
-    // Day of the week for the first day of the month (0=Sun, 1=Mon, ..., 6=Sat)
-    const firstDayOfWeek = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay(); 
-    
-    // Calculate the date of the first Saturday of the month.
-    // If the 1st is a Saturday, diff is 0. If it's a Sunday, diff is 6.
-    const diffToSaturday = (6 - firstDayOfWeek + 7) % 7;
-    let firstSaturday = new Date(Date.UTC(year, monthIndex, 1 + diffToSaturday));
+    const monthIndex = month.getUTCMonth(); // 0 for January, 11 for December
 
-    // If the first Saturday is after the 7th, it means the "first week" according
-    // to this logic actually started in the previous month. So we go back one week.
-    if (firstSaturday.getUTCDate() > 7) {
-        firstSaturday.setUTCDate(firstSaturday.getUTCDate() - 7);
-    }
+    // 1. Find the first Saturday of the year (anchor point)
+    const firstDayOfYear = new Date(Date.UTC(year, 0, 1));
+    const dayOfWeek = firstDayOfYear.getUTCDay(); // 0=Sun, 6=Sat
+    const diffToFirstSaturday = (6 - dayOfWeek + 7) % 7;
+    const firstSaturdayOfYear = new Date(Date.UTC(year, 0, 1 + diffToFirstSaturday));
 
-    let currentWeekStart = firstSaturday;
+    // 2. Calculate how many full 4-week cycles (28 days) have passed since the anchor
+    const monthStart = new Date(Date.UTC(year, monthIndex, 1));
+    const daysSinceAnchor = (monthStart.getTime() - firstSaturdayOfYear.getTime()) / (1000 * 60 * 60 * 24);
+    const totalWeeksSinceAnchor = Math.floor(daysSinceAnchor / 7);
+    const monthCycleIndex = Math.floor(totalWeeksSinceAnchor / 4);
+    
+    // 3. The first Saturday for this month's 4-week cycle
+    const cycleStartDate = new Date(firstSaturdayOfYear);
+    cycleStartDate.setUTCDate(cycleStartDate.getUTCDate() + (monthCycleIndex * 28));
+
+    // 4. Generate the 4 weeks for this cycle
+    const weeks = [];
+    let currentWeekStart = new Date(cycleStartDate);
 
     for (let i = 0; i < 4; i++) {
         const weekEnd = new Date(currentWeekStart);
-        weekEnd.setUTCDate(currentWeekStart.getUTCDate() + 6);
+        weekEnd.setUTCDate(currentWeekStart.getUTCDate() + 6); // Friday is 6 days after Saturday
         weeks.push({ start: new Date(currentWeekStart), end: weekEnd });
         currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() + 7);
     }
+    
     return weeks;
 }
 
@@ -230,6 +234,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
         const registroDate = new Date(r.weekStartDate);
+        // Compare year and month in UTC to avoid timezone issues
         return registroDate.getUTCFullYear() === currentMonth.getUTCFullYear() &&
                registroDate.getUTCMonth() === currentMonth.getUTCMonth();
     });
@@ -323,9 +328,9 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
                         <p className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5 text-muted-foreground"/> {value.toLocaleString('es-MX')}</p>
                     </div>
                 ))}
-                <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm col-span-2 md:col-span-1 lg:col-auto">
+                 <div className="p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm col-span-2 md:col-span-1 lg:col-auto">
                     <p className="text-sm font-medium">Total del Mes</p>
-                    <p className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5"/> {totalDelMes.toLocaleString('es-MX')}</p>
+                    <div className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5"/> {totalDelMes.toLocaleString('es-MX')}</div>
                 </div>
             </div>
         </CardContent>
@@ -336,10 +341,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
             const registro = allRegistros.find(r => {
                 if (!r.weekStartDate) return false;
                 const rDate = new Date(r.weekStartDate);
-                // Compare just the date part, ignoring time
-                return rDate.getUTCFullYear() === week.start.getUTCFullYear() &&
-                       rDate.getUTCMonth() === week.start.getUTCMonth() &&
-                       rDate.getUTCDate() === week.start.getUTCDate();
+                // Compare just the date part, ignoring time, by using getTime() after zeroing out time
+                const rDateNormalized = new Date(rDate.getUTCFullYear(), rDate.getUTCMonth(), rDate.getUTCDate()).getTime();
+                const weekStartDateNormalized = new Date(week.start.getUTCFullYear(), week.start.getUTCMonth(), week.start.getUTCDate()).getTime();
+                return rDateNormalized === weekStartDateNormalized;
             }) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
