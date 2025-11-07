@@ -2,7 +2,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy, writeBatch } from "firebase/firestore";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { db } from "@/lib/firebase";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
@@ -155,4 +155,40 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: s
     return registros.sort((a, b) => a.weekStartDate.getTime() - b.weekStartDate.getTime());
 }
 
-    
+function getMonthCycleBoundaries(monthDate: Date): { start: Date; end: Date } {
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth();
+    const anchorDate = new Date(Date.UTC(year, month - 1, 25));
+    const dayOfWeek = anchorDate.getUTCDay();
+    const daysToSubtract = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
+    const cycleStart = new Date(anchorDate);
+    cycleStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract + 1);
+    const cycleEnd = new Date(cycleStart);
+    cycleEnd.setUTCDate(cycleStart.getUTCDate() + 27); // 4 weeks * 7 days - 1
+    cycleEnd.setUTCHours(23, 59, 59, 999);
+    return { start: cycleStart, end: cycleEnd };
+}
+
+
+export async function deleteRegistrosByMonth(oficinaId: string, month: Date): Promise<void> {
+    const { start, end } = getMonthCycleBoundaries(month);
+
+    const q = query(
+        registrosCollectionRef,
+        where("oficinaId", "==", oficinaId),
+        where("weekStartDate", ">=", Timestamp.fromDate(start)),
+        where("weekStartDate", "<=", Timestamp.fromDate(end))
+    );
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return; // Nothing to delete
+    }
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+}

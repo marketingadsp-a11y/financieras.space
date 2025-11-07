@@ -6,12 +6,12 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
-import { getOficinaById, getTodosRegistrosPorOficina, addOrUpdateRegistroSemanal } from "@/services/registro-oficina-service";
+import { getOficinaById, getTodosRegistrosPorOficina, addOrUpdateRegistroSemanal, deleteRegistrosByMonth } from "@/services/registro-oficina-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock } from "lucide-react";
+import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast, getDay, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -26,16 +26,12 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const anchorDate = new Date(Date.UTC(year, month - 1, 25));
 
     // 2. Find the Saturday that starts the week containing our anchor date.
-    // getUTCDay() is Sunday(0), Monday(1), ..., Saturday(6).
-    const dayOfWeek = anchorDate.getUTCDay(); // 0 for Sun, 6 for Sat
-    
-    // Calculate how many days to go back to get to Saturday.
+    const dayOfWeek = anchorDate.getUTCDay(); // Sunday = 0, ..., Saturday = 6
     const daysToSubtract = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
 
     const firstWeekStart = new Date(anchorDate);
     firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
     
-    // Forcefully add one day as requested by the user to correct the persistent off-by-one error.
     firstWeekStart.setUTCDate(firstWeekStart.getUTCDate() + 1);
 
 
@@ -143,6 +139,11 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const [authCode, setAuthCode] = React.useState('');
   const [weekToAuthorize, setWeekToAuthorize] = React.useState<{week: {start: Date, end: Date}, data: OficinaSemanalRegistro | null} | null>(null);
 
+  // Month Deletion State
+  const [isDeleteMonthAuthOpen, setIsDeleteMonthAuthOpen] = React.useState(false);
+  const [isDeletingMonth, setIsDeletingMonth] = React.useState(false);
+
+
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
     try {
@@ -232,6 +233,26 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     }
   };
   
+  const handleDeleteMonth = async () => {
+    if (authCode !== '0120') {
+        toast({ variant: "destructive", title: "Error", description: "El código de autorización es incorrecto." });
+        return;
+    }
+    setIsDeletingMonth(true);
+    try {
+        await deleteRegistrosByMonth(oficinaId, currentMonth);
+        toast({ title: "Éxito", description: `Todos los registros para ${format(currentMonth, "LLLL yyyy", {locale: es})} han sido eliminados.`});
+        fetchData();
+        setIsDeleteMonthAuthOpen(false);
+        setAuthCode('');
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudieron eliminar los registros del mes." });
+    } finally {
+        setIsDeletingMonth(false);
+    }
+  }
+
+
  const registrosDelMes = React.useMemo(() => {
     const monthWeeks = getWeeksForMonth(currentMonth);
     if (monthWeeks.length === 0) return [];
@@ -333,8 +354,15 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
        <Card className="bg-primary/5">
         <CardHeader>
-            <CardTitle>Resumen del Mes</CardTitle>
-            <CardDescription>{currentMonthRange}</CardDescription>
+            <div className="flex justify-between items-start">
+                <div>
+                    <CardTitle>Resumen del Mes</CardTitle>
+                    <CardDescription>{currentMonthRange}</CardDescription>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setIsDeleteMonthAuthOpen(true)}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
         </CardHeader>
         <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -397,8 +425,34 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        
+        <Dialog open={isDeleteMonthAuthOpen} onOpenChange={setIsDeleteMonthAuthOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Confirmar Eliminación de Datos del Mes</DialogTitle>
+                    <DialogDescription>
+                       Esta acción es irreversible. Se eliminarán todos los registros de las 4 semanas de <strong className="capitalize">{format(currentMonth, "LLLL yyyy", { locale: es })}</strong>. Ingresa el código para confirmar.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="auth-code-delete">Código de Autorización</Label>
+                    <Input 
+                        id="auth-code-delete"
+                        type="password"
+                        value={authCode}
+                        onChange={(e) => setAuthCode(e.target.value)}
+                        autoFocus
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => { setIsDeleteMonthAuthOpen(false); setAuthCode(''); }}>Cancelar</Button>
+                    <Button variant="destructive" onClick={handleDeleteMonth} disabled={isDeletingMonth}>
+                         {isDeletingMonth && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Eliminar Datos del Mes
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
-
-    
