@@ -24,11 +24,11 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
 
     // 2. Find the Saturday that starts the week containing our anchor date.
     // getUTCDay() is Sunday(0) to Saturday(6).
-    const dayOfWeek = anchorDate.getUTCDay(); // 0-6
-    
+    const dayOfWeek = anchorDate.getUTCDay();
+
     // Calculate how many days to go back to get to Saturday.
     // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1... If Fri(5), diff is 6.
-    const daysToSubtract = (dayOfWeek + 1) % 7;
+    const daysToSubtract = (dayOfWeek + 7 - 6) % 7;
     
     const firstWeekStart = new Date(anchorDate);
     firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
@@ -40,7 +40,7 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
         weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
-        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // End on Friday
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // End on Friday, 6 days after Saturday
 
         weeks.push({ start: weekStart, end: weekEnd });
     }
@@ -263,6 +263,18 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   
   const totalDelMes = Object.values(monthlyTotals).reduce((sum, value) => sum + value, 0);
 
+  const currentMonthRange = React.useMemo(() => {
+    const start = weeks[0].start;
+    const end = weeks[3].end;
+    const startMonth = format(start, "LLLL", { locale: es });
+    const endMonth = format(end, "LLLL", { locale: es });
+    
+    if (startMonth === endMonth) {
+        return `Del ${format(start, 'dd')} al ${format(end, "dd 'de' LLLL 'de' yyyy", { locale: es })}`;
+    }
+    return `Del ${format(start, "dd 'de' LLLL")} al ${format(end, "dd 'de' LLLL 'de' yyyy", { locale: es })}`;
+  }, [weeks]);
+
 
   if (isLoading) {
     return (
@@ -314,7 +326,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
        <Card className="bg-primary/5">
         <CardHeader>
             <CardTitle>Resumen del Mes</CardTitle>
-            <CardDescription>Suma de todos los registros de las semanas de este ciclo.</CardDescription>
+            <CardDescription>{currentMonthRange}</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
