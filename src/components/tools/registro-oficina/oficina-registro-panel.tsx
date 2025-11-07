@@ -10,35 +10,39 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock } from "lucide-react";
 import Link from "next/link";
-import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast, getYear } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// This function now operates exclusively in UTC to follow a fixed Saturday-Friday 4-week cycle per month.
-function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
-    const year = month.getUTCFullYear();
-    const monthIndex = month.getUTCMonth(); // 0 for January, 11 for December
+function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth();
 
-    // 1. Find the first Saturday of the year (anchor point)
+    // 1. Find the first Saturday of the year. This is our absolute anchor.
     const firstDayOfYear = new Date(Date.UTC(year, 0, 1));
     const dayOfWeek = firstDayOfYear.getUTCDay(); // 0=Sun, 6=Sat
     const diffToFirstSaturday = (6 - dayOfWeek + 7) % 7;
     const firstSaturdayOfYear = new Date(Date.UTC(year, 0, 1 + diffToFirstSaturday));
 
-    // 2. Calculate how many full 4-week cycles (28 days) have passed since the anchor
-    const monthStart = new Date(Date.UTC(year, monthIndex, 1));
-    const daysSinceAnchor = (monthStart.getTime() - firstSaturdayOfYear.getTime()) / (1000 * 60 * 60 * 24);
-    const totalWeeksSinceAnchor = Math.floor(daysSinceAnchor / 7);
-    const monthCycleIndex = Math.floor(totalWeeksSinceAnchor / 4);
-    
-    // 3. The first Saturday for this month's 4-week cycle
-    const cycleStartDate = new Date(firstSaturdayOfYear);
-    cycleStartDate.setUTCDate(cycleStartDate.getUTCDate() + (monthCycleIndex * 28));
+    // 2. Find the start of the calendar month we are interested in.
+    const startOfCalendarMonth = new Date(Date.UTC(year, month, 1));
 
-    // 4. Generate the 4 weeks for this cycle
+    // 3. Calculate the number of days passed from our anchor to the start of our target month.
+    const daysSinceAnchor = Math.floor((startOfCalendarMonth.getTime() - firstSaturdayOfYear.getTime()) / (1000 * 60 * 60 * 24));
+
+    // 4. Determine which 28-day cycle we are in.
+    // We add a small offset (e.g., 7 days) before dividing to ensure that days belonging to the end
+    // of a previous cycle's week are correctly assigned to that cycle.
+    const cycleIndex = Math.floor((daysSinceAnchor + 7) / 28);
+    
+    // 5. Calculate the start date of our 4-week business cycle.
+    const cycleStartDate = new Date(firstSaturdayOfYear);
+    cycleStartDate.setUTCDate(cycleStartDate.getUTCDate() + cycleIndex * 28);
+    
+    // 6. Generate the 4 weeks (Sat-Fri) for this cycle.
     const weeks = [];
     let currentWeekStart = new Date(cycleStartDate);
 
@@ -51,7 +55,6 @@ function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
     
     return weeks;
 }
-
 
 
 const WeekCard = ({ 
@@ -231,12 +234,15 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   };
   
  const registrosDelMes = React.useMemo(() => {
+    const monthWeeks = getWeeksForMonth(currentMonth);
+    const monthStart = monthWeeks[0].start;
+    const monthEnd = monthWeeks[3].end;
+
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
         const registroDate = new Date(r.weekStartDate);
         // Compare year and month in UTC to avoid timezone issues
-        return registroDate.getUTCFullYear() === currentMonth.getUTCFullYear() &&
-               registroDate.getUTCMonth() === currentMonth.getUTCMonth();
+        return registroDate >= monthStart && registroDate <= monthEnd;
     });
 }, [allRegistros, currentMonth]);
 
@@ -341,9 +347,8 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
             const registro = allRegistros.find(r => {
                 if (!r.weekStartDate) return false;
                 const rDate = new Date(r.weekStartDate);
-                // Compare just the date part, ignoring time, by using getTime() after zeroing out time
-                const rDateNormalized = new Date(rDate.getUTCFullYear(), rDate.getUTCMonth(), rDate.getUTCDate()).getTime();
-                const weekStartDateNormalized = new Date(week.start.getUTCFullYear(), week.start.getUTCMonth(), week.start.getUTCDate()).getTime();
+                const rDateNormalized = new Date(Date.UTC(rDate.getUTCFullYear(), rDate.getUTCMonth(), rDate.getUTCDate())).getTime();
+                const weekStartDateNormalized = new Date(Date.UTC(week.start.getUTCFullYear(), week.start.getUTCMonth(), week.start.getUTCDate())).getTime();
                 return rDateNormalized === weekStartDateNormalized;
             }) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
@@ -385,5 +390,3 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
-
-    
