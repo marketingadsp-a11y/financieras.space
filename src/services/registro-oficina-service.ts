@@ -60,8 +60,17 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
     
     return snapshot.docs.map(doc => {
         const data = doc.data();
-        const weekStartDate = data.weekStartDate instanceof Timestamp ? data.weekStartDate.toDate() : new Date();
-        const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date();
+        
+        // Defensive date conversion
+        let weekStartDate = new Date(); // Default date
+        if (data.weekStartDate && typeof data.weekStartDate.toDate === 'function') {
+            weekStartDate = data.weekStartDate.toDate();
+        }
+
+        let updatedAt = new Date(); // Default date
+        if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
+            updatedAt = data.updatedAt.toDate();
+        }
         
         return {
             ...data,
