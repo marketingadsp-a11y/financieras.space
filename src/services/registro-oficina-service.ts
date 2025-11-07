@@ -2,7 +2,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { db } from "@/lib/firebase";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
@@ -46,18 +46,14 @@ export async function deleteOficina(id: string) {
 
 // --- Weekly Registrations ---
 
-export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Date): Promise<OficinaSemanalRegistro[]> {
-    const oficinaData = await getOficinaById(oficinaId);
-    if (!oficinaData) {
-        throw new Error("Oficina no encontrada para obtener registros.");
-    }
-
+export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: string, month: Date): Promise<OficinaSemanalRegistro[]> {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
 
     const q = query(
         registrosCollectionRef,
         where("oficinaId", "==", oficinaId),
+        where("prefix", "==", prefix),
         where("weekStartDate", ">=", Timestamp.fromDate(monthStart)),
         where("weekStartDate", "<=", Timestamp.fromDate(monthEnd))
     );
@@ -68,6 +64,7 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
         const data = doc.data();
         
         const toDate = (timestamp: unknown): Date => {
+            if (!timestamp) return new Date(0); // Should not happen with valid data
             if (timestamp instanceof Timestamp) {
               return timestamp.toDate();
             }
@@ -86,7 +83,6 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
         } as OficinaSemanalRegistro;
     });
 
-    // Sort in-memory instead of in the query
     return registros.sort((a, b) => a.weekStartDate.getTime() - b.weekStartDate.getTime());
 }
 

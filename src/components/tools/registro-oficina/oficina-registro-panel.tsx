@@ -121,7 +121,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
       const oficinaData = await getOficinaById(oficinaId);
       setOficina(oficinaData);
       if (oficinaData) {
-          const registrosData = await getRegistrosByOficinaAndMonth(oficinaId, currentMonth);
+          const registrosData = await getRegistrosByOficinaAndMonth(oficinaId, oficinaData.prefix, currentMonth);
           setRegistros(registrosData);
       }
     } catch (error) {
