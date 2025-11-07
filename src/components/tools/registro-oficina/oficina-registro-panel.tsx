@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -25,29 +24,25 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const month = monthDate.getUTCMonth();
     const anchorDay = 25;
 
+    // 1. Get the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(year, month - 1, anchorDay));
 
-    const dayOfWeek = anchorDate.getUTCDay();
-    const daysToSaturday = (6 - dayOfWeek + 7) % 7;
+    // 2. Find the Saturday of the week that contains the anchor date.
+    const dayOfWeek = anchorDate.getUTCDay(); // Sunday = 0, ..., Saturday = 6
+    const daysToSubtract = (dayOfWeek + 1) % 7;
     
-    let firstWeekStart: Date;
+    const cycleStart = new Date(anchorDate);
+    cycleStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract +1);
 
-    if (dayOfWeek === 6) { // If anchorDay IS Saturday
-        firstWeekStart = anchorDate;
-    } else { // If anchorDay is not Saturday
-        // Find the Saturday of the week the anchor day is in
-        const daysToSubtract = dayOfWeek < 6 ? dayOfWeek + 1 : 0;
-        firstWeekStart = new Date(anchorDate);
-        firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
-    }
-    
+
     const weeks = [];
     for (let i = 0; i < 4; i++) {
-        const weekStart = new Date(firstWeekStart);
-        weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
+        const weekStart = new Date(cycleStart);
+        weekStart.setUTCDate(cycleStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
         weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        weekEnd.setUTCHours(23, 59, 59, 999);
 
         weeks.push({ start: weekStart, end: weekEnd });
     }
@@ -340,8 +335,8 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
     // Weekly Details
     weeks.forEach((week, index) => {
-        const registro = allRegistros.find(r => new Date(r.weekStartDate).getTime() === week.start.getTime()) || null;
-        const totalSemanal = registro ? Object.values(registro).reduce((sum: number, value) => typeof value === 'number' ? sum + value : sum, 0) - new Date(registro.updatedAt).getTime() : 0;
+        const registro = allRegistros.find(r => new Date(r.weekStartDate).toISOString().split('T')[0] === week.start.toISOString().split('T')[0]) || null;
+        const totalSemanal = registro ? (registro.recogidoSeguros || 0) + (registro.carteraVencida || 0) + (registro.interesMensual || 0) + (registro.capitalMensual || 0) + (registro.cajaChica || 0) : 0;
 
         if (lastY > 250) { // Check if new page is needed
             doc.addPage();
@@ -464,10 +459,9 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
         {weeks.map((week, index) => {
             const registro = allRegistros.find(r => {
                 if (!r.weekStartDate) return false;
-                // Compare just the date part in UTC to be safe
-                const rDateUTC = new Date(r.weekStartDate).setUTCHours(0,0,0,0);
-                const weekStartUTC = new Date(week.start).setUTCHours(0,0,0,0);
-                return rDateUTC === weekStartUTC;
+                const registroDate = new Date(r.weekStartDate);
+                // Correct way to compare dates, ignoring time
+                return registroDate.toISOString().split('T')[0] === week.start.toISOString().split('T')[0];
             }) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
@@ -536,3 +530,6 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
+
+    
