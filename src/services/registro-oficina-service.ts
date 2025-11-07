@@ -60,11 +60,14 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, month: Da
     
     return snapshot.docs.map(doc => {
         const data = doc.data();
+        const weekStartDate = data.weekStartDate instanceof Timestamp ? data.weekStartDate.toDate() : new Date();
+        const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date();
+        
         return {
             ...data,
             id: doc.id,
-            weekStartDate: (data.weekStartDate as Timestamp).toDate(),
-            updatedAt: (data.updatedAt as Timestamp).toDate(),
+            weekStartDate,
+            updatedAt,
         } as OficinaSemanalRegistro;
     });
 }
