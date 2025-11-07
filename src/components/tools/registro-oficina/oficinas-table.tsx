@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge";
 
 type OficinaTableProps = {
     data: OficinaRegistro[];
@@ -42,14 +43,15 @@ type OficinaTableProps = {
 export function OficinasTable({ data, onEdit, onDelete }: OficinaTableProps) {
   const [filter, setFilter] = React.useState("");
   const filteredData = data.filter((oficina) =>
-    oficina.name.toLowerCase().includes(filter.toLowerCase())
+    oficina.name.toLowerCase().includes(filter.toLowerCase()) ||
+    oficina.displayId?.toString().includes(filter)
   );
 
   return (
     <>
       <div className="flex items-center pb-4">
         <Input
-          placeholder="Buscar oficinas..."
+          placeholder="Buscar oficinas por nombre o ID..."
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           className="max-w-sm"
@@ -59,6 +61,7 @@ export function OficinasTable({ data, onEdit, onDelete }: OficinaTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>ID</TableHead>
               <TableHead>Nombre de la Oficina</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
@@ -69,6 +72,9 @@ export function OficinasTable({ data, onEdit, onDelete }: OficinaTableProps) {
             {filteredData.length > 0 ? (
               filteredData.map((oficina) => (
                 <TableRow key={oficina.id}>
+                  <TableCell>
+                    <Badge variant="outline">{oficina.displayId || 'N/A'}</Badge>
+                  </TableCell>
                   <TableCell className="font-medium flex items-center gap-2">
                     <Building className="h-4 w-4 text-muted-foreground" />
                     {oficina.name}
@@ -114,7 +120,7 @@ export function OficinasTable({ data, onEdit, onDelete }: OficinaTableProps) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={2} className="h-24 text-center">
+                <TableCell colSpan={3} className="h-24 text-center">
                   No se encontraron oficinas.
                 </TableCell>
               </TableRow>

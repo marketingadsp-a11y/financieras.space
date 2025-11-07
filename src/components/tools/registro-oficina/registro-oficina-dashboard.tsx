@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, Building, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 
 export function RegistroOficinaDashboard() {
   const { user } = useAuth();
@@ -66,14 +67,16 @@ export function RegistroOficinaDashboard() {
           {oficinas.map((oficina) => (
             <Card key={oficina.id} className="group flex flex-col">
               <CardHeader>
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-primary/10 rounded-lg w-fit">
-                      <Building className="h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
-                  </div>
-                  <div>
-                      <CardTitle>{oficina.name}</CardTitle>
-                      <CardDescription>ID: {oficina.id.substring(0, 6)}...</CardDescription>
-                  </div>
+                <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-primary/10 rounded-lg w-fit">
+                          <Building className="h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
+                      </div>
+                      <div>
+                          <CardTitle>{oficina.name}</CardTitle>
+                          <CardDescription>ID: {oficina.displayId || 'N/A'}</CardDescription>
+                      </div>
+                    </div>
                 </div>
               </CardHeader>
               <CardFooter className="mt-auto">

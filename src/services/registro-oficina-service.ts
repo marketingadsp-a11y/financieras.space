@@ -10,6 +10,21 @@ import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
 const oficinasCollectionRef = collection(db, "registro_oficinas");
 const registrosCollectionRef = collection(db, "registro_semanal");
 
+// Function to generate a unique 4-digit ID for an oficina
+async function generateUniqueDisplayId(prefix: string): Promise<string> {
+    let unique = false;
+    let newId = '';
+    while (!unique) {
+        newId = Math.floor(1000 + Math.random() * 9000).toString();
+        const q = query(oficinasCollectionRef, where("prefix", "==", prefix), where("displayId", "==", newId));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            unique = true;
+        }
+    }
+    return newId;
+}
+
 export async function getOficinas(prefix: string): Promise<OficinaRegistro[]> {
     const q = query(oficinasCollectionRef, where("prefix", "==", prefix));
     const snapshot = await getDocs(q);
@@ -28,9 +43,11 @@ export async function getOficinaById(id: string): Promise<OficinaRegistro | null
 }
 
 
-export async function addOficina(oficina: Omit<OficinaRegistro, 'id'>): Promise<OficinaRegistro> {
-    const docRef = await addDoc(oficinasCollectionRef, oficina);
-    return { ...oficina, id: docRef.id };
+export async function addOficina(oficina: Omit<OficinaRegistro, 'id' | 'displayId'>): Promise<OficinaRegistro> {
+    const displayId = await generateUniqueDisplayId(oficina.prefix);
+    const dataToSave = { ...oficina, displayId };
+    const docRef = await addDoc(oficinasCollectionRef, dataToSave);
+    return { ...dataToSave, id: docRef.id };
 }
 
 export async function updateOficina(id: string, oficina: Partial<Omit<OficinaRegistro, 'id'>>) {
@@ -64,15 +81,15 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: s
         const data = doc.data();
         
         const toDate = (timestamp: unknown): Date => {
-            if (!timestamp) return new Date(0); // Should not happen with valid data
             if (timestamp instanceof Timestamp) {
               return timestamp.toDate();
             }
-            try {
-              return new Date(timestamp as any);
-            } catch {
-              return new Date(0);
+            // Fallback for different potential date formats, though Timestamp is expected
+            if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+              const d = new Date(timestamp);
+              if (!isNaN(d.getTime())) return d;
             }
+            return new Date(0); // Should not happen with valid data
         };
         
         return {
@@ -85,6 +102,7 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: s
 
     return registros.sort((a, b) => a.weekStartDate.getTime() - b.weekStartDate.getTime());
 }
+
 
 export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
     // ID is a composite of oficinaId and the week's start date

@@ -497,6 +497,7 @@ export type MovimientoMensual = {
 // --- Registro de Oficina ---
 export type OficinaRegistro = {
   id: string;
+  displayId: string;
   prefix: string;
   name: string;
 };
