@@ -3,7 +3,8 @@
 'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy, writeBatch } from "firebase/firestore";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format } from "date-fns";
+import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
 
@@ -106,7 +107,7 @@ export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRe
     const dataWithTimestamps = {
         ...registro,
         weekStartDate: Timestamp.fromDate(normalizedStartDate),
-        updatedAt: Timestamp.fromDate(new Date()),
+        updatedAt: Timestamp.now(),
     };
 
     await setDoc(docRef, dataWithTimestamps, { merge: true });
@@ -158,14 +159,22 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: s
 function getMonthCycleBoundaries(monthDate: Date): { start: Date; end: Date } {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
+
+    // 1. Get the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(year, month - 1, 25));
-    const dayOfWeek = anchorDate.getUTCDay();
-    const daysToSubtract = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
+
+    // 2. Find the Saturday of the week that contains the anchor date.
+    const dayOfWeek = anchorDate.getUTCDay(); // Sunday = 0, ..., Saturday = 6
+    const daysToSubtract = (dayOfWeek + 1) % 7;
+    
     const cycleStart = new Date(anchorDate);
-    cycleStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract + 1);
+    cycleStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
+
+    // 3. The cycle ends 4 weeks (28 days) after it starts. The end date is inclusive.
     const cycleEnd = new Date(cycleStart);
-    cycleEnd.setUTCDate(cycleStart.getUTCDate() + 27); // 4 weeks * 7 days - 1
+    cycleEnd.setUTCDate(cycleStart.getUTCDate() + (4 * 7) - 1); 
     cycleEnd.setUTCHours(23, 59, 59, 999);
+
     return { start: cycleStart, end: cycleEnd };
 }
 
