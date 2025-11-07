@@ -77,12 +77,10 @@ export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<Of
             if (timestamp && typeof timestamp.toDate === 'function') {
                  return timestamp.toDate();
             }
-            // Fallback for string or number dates
             if (typeof timestamp === 'string' || typeof timestamp === 'number') {
                 const d = new Date(timestamp);
                 if (!isNaN(d.getTime())) return d;
             }
-            // Return a default or invalid date if conversion fails
             return new Date(0); 
         };
         
@@ -98,13 +96,16 @@ export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<Of
 }
 
 export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
-    // ID is a composite of oficinaId and the week's start date
-    const docId = `${registro.oficinaId}_${registro.weekStartDate.toISOString().split('T')[0]}`;
+    // Normalize date to ensure it's always at the start of the day in UTC
+    const startDate = registro.weekStartDate;
+    const normalizedStartDate = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()));
+
+    const docId = `${registro.oficinaId}_${normalizedStartDate.toISOString().split('T')[0]}`;
     const docRef = doc(db, "registro_semanal", docId);
     
     const dataWithTimestamps = {
         ...registro,
-        weekStartDate: Timestamp.fromDate(registro.weekStartDate),
+        weekStartDate: Timestamp.fromDate(normalizedStartDate),
         updatedAt: Timestamp.fromDate(registro.updatedAt),
     };
 

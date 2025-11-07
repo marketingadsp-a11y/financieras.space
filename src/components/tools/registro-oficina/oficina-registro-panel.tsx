@@ -20,17 +20,20 @@ function getWeeksForMonth(month: Date): { start: Date; end: Date }[] {
     const year = month.getUTCFullYear();
     const monthIndex = month.getUTCMonth();
     
-    let firstDayOfMonth = new Date(Date.UTC(year, monthIndex, 1));
-    let dayOfWeek = firstDayOfMonth.getUTCDay(); 
-    let diff = (6 - dayOfWeek + 7) % 7;
-    let firstSaturday = new Date(Date.UTC(year, monthIndex, 1 + diff));
-
-    if (firstSaturday.getUTCDate() > 7 && firstSaturday.getUTCMonth() === monthIndex) {
-        firstSaturday.setUTCDate(firstSaturday.getUTCDate() - 7);
-    } else if (firstSaturday.getUTCMonth() > monthIndex) {
-         firstSaturday.setUTCDate(firstSaturday.getUTCDate() - 7);
-    }
+    // Day of the week for the first day of the month (0=Sun, 1=Mon, ..., 6=Sat)
+    const firstDayOfWeek = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay(); 
     
+    // Calculate the date of the first Saturday of the month.
+    // If the 1st is a Saturday, diff is 0. If it's a Sunday, diff is 6.
+    const diffToSaturday = (6 - firstDayOfWeek + 7) % 7;
+    let firstSaturday = new Date(Date.UTC(year, monthIndex, 1 + diffToSaturday));
+
+    // If the first Saturday is after the 7th, it means the "first week" according
+    // to this logic actually started in the previous month. So we go back one week.
+    if (firstSaturday.getUTCDate() > 7) {
+        firstSaturday.setUTCDate(firstSaturday.getUTCDate() - 7);
+    }
+
     let currentWeekStart = firstSaturday;
 
     for (let i = 0; i < 4; i++) {
@@ -183,7 +186,6 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     return allRegistros.filter(r => {
-        // Ensure r.weekStartDate is a valid date
         if (!r.weekStartDate || isNaN(r.weekStartDate.getTime())) return false;
         return isWithinInterval(r.weekStartDate, { start: monthStart, end: monthEnd });
     });
@@ -280,7 +282,7 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {weeks.map((week, index) => {
-            const registro = registrosDelMes.find(r => r.weekStartDate.getTime() === week.start.getTime()) || null;
+            const registro = allRegistros.find(r => r.weekStartDate.getTime() === week.start.getTime()) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
       </div>
