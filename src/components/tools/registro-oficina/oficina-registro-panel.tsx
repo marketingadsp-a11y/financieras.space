@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock } from "lucide-react";
 import Link from "next/link";
-import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast, getYear, getMonth, getDate } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast } from "date-fns";
 import { es } from "date-fns/locale";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -19,20 +19,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
-    const year = monthDate.getUTCFullYear();
-    const month = monthDate.getUTCMonth();
-
     // 1. Get the 25th of the PREVIOUS month in UTC.
-    const anchorDate = new Date(Date.UTC(year, month - 1, 25));
+    const anchorDate = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() - 1, 25));
 
-    // 2. Find the Saturday that STARTS the week containing our anchor date.
-    // getUTCDay() is Sunday (0) to Saturday (6).
+    // 2. Find the Saturday that starts the week containing our anchor date.
+    // getUTCDay() is Sunday(0) to Saturday(6).
     const dayOfWeek = anchorDate.getUTCDay(); // 0-6
+    
+    // Calculate how many days to go back to get to Saturday.
     // If anchor is Sat(6), diff is 0. If Sun(0), diff is 1... If Fri(5), diff is 6.
-    const diff = (dayOfWeek + 1) % 7; 
+    const daysToSubtract = (dayOfWeek + 1) % 7;
     
     const firstWeekStart = new Date(anchorDate);
-    firstWeekStart.setUTCDate(anchorDate.getUTCDate() - diff);
+    firstWeekStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
 
     // 3. Generate 4 consecutive 7-day weeks from that start date.
     const weeks = [];
@@ -41,7 +40,7 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
         weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
-        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // End on Friday, 6 days after Saturday.
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6); // End on Friday
 
         weeks.push({ start: weekStart, end: weekEnd });
     }
@@ -327,7 +326,6 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
                 ))}
             </div>
              <div className="mt-4 p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm text-center">
-                <p className="text-sm font-medium">Total del Mes</p>
                 <div className="text-3xl font-bold flex items-center justify-center gap-1"><DollarSign className="h-6 w-6"/> {totalDelMes.toLocaleString('es-MX')}</div>
             </div>
         </CardContent>
