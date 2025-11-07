@@ -500,3 +500,17 @@ export type OficinaRegistro = {
   prefix: string;
   name: string;
 };
+
+export type OficinaSemanalRegistro = {
+    id: string; // Composite key: `${oficinaId}_${weekStartDate.toISOString()}`
+    oficinaId: string;
+    prefix: string;
+    weekStartDate: Date;
+    recogidoSeguros: number;
+    carteraVencida: number;
+    interesMensual: number;
+    capitalMensual: number;
+    cajaChica: number;
+    updatedAt: Date;
+    updatedBy: string;
+};
