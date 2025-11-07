@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Building, ArrowRight, DollarSign, Calendar } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { es } from "date-fns/locale";
 
 type OficinaWithSummary = OficinaRegistro & {
     monthlyTotal: number;
@@ -78,6 +79,14 @@ export function RegistroOficinaDashboard() {
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+  
+  const currentMonthRange = React.useMemo(() => {
+    const today = new Date();
+    const start = format(startOfMonth(today), "dd 'de' LLLL", { locale: es });
+    const end = format(endOfMonth(today), "dd 'de' LLLL", { locale: es });
+    return `Del ${start} al ${end}`;
+  }, []);
+
 
   if (isLoading) {
     return (
@@ -117,11 +126,12 @@ export function RegistroOficinaDashboard() {
                 </div>
               </CardHeader>
               <CardContent className="flex-grow">
-                 <div className="p-4 border rounded-lg bg-muted/20">
-                    <p className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-2"><Calendar className="h-4 w-4"/> Resumen del Mes Actual</p>
+                 <div className="p-4 border rounded-lg bg-muted/20 text-center">
+                    <p className="text-sm font-semibold text-muted-foreground flex items-center justify-center gap-2 mb-2"><Calendar className="h-4 w-4"/> Resumen del Mes Actual</p>
                     <div className="flex items-center justify-center text-lg font-bold text-primary p-2 bg-primary/10 rounded-md">
                         <span>${oficina.monthlyTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                     </div>
+                     <p className="text-xs text-muted-foreground mt-2">{currentMonthRange}</p>
                  </div>
               </CardContent>
               <CardFooter className="mt-auto">
