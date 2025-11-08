@@ -34,17 +34,26 @@ export function RegistroOficinaDashboard() {
   const [isLoading, setIsLoading] = React.useState(true);
 
   const fetchData = React.useCallback(async () => {
-    if (!user?.prefix) {
+    if (!user) {
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
         let allowedOficinaIds: string[] | undefined = undefined;
-        if (user.isPlazaUser && user.registroOficinaAccess && user.registroOficinaAccess.length > 0) {
-            allowedOficinaIds = user.registroOficinaAccess.map(roa => roa.oficinaId);
-        }
 
+        // If the user is a PlazaUser, we MUST use their specific access list.
+        if (user.isPlazaUser) {
+            allowedOficinaIds = user.registroOficinaAccess?.map(roa => roa.oficinaId) || [];
+            // If they are a plaza user but have no offices assigned, show nothing.
+            if (allowedOficinaIds.length === 0) {
+                setOficinas([]);
+                setIsLoading(false);
+                return;
+            }
+        }
+        
+        // getOficinas will use the prefix for Admins/SuperAdmins, or the explicit IDs for PlazaUsers
         let data = await getOficinas(user.prefix, allowedOficinaIds);
 
 

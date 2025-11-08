@@ -2,7 +2,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy, writeBatch } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy, writeBatch, documentId } from "firebase/firestore";
 import { startOfMonth, endOfMonth, addMonths, subMonths, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
@@ -31,11 +31,14 @@ export async function getOficinas(prefix?: string, allowedOficinaIds?: string[])
     if (prefix) {
         constraints.push(where("prefix", "==", prefix));
     }
-    // If specific IDs are provided, use a 'in' query. Firestore limits this to 30 IDs.
+    
+    // If specific IDs are provided, use a 'in' query. This is the most secure way for PlazaUsers.
     if (allowedOficinaIds && allowedOficinaIds.length > 0) {
-        constraints.push(where(document.id, 'in', allowedOficinaIds));
+        // Firestore 'in' query is limited to 30 items. If more are needed, multiple queries would be required.
+        // For now, we assume the number of assigned oficinas will be less than 30.
+        constraints.push(where(documentId(), 'in', allowedOficinaIds));
     } else if (allowedOficinaIds && allowedOficinaIds.length === 0) {
-        // If the user has an access array but it's empty, return nothing.
+        // If the user has an explicit but empty access list, they should see nothing.
         return [];
     }
 
@@ -113,7 +116,8 @@ export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<Of
 export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
     const startDate = registro.weekStartDate;
     
-    const dateString = `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth() + 1).padStart(2, '0')}-${String(startDate.getUTCDate()).padStart(2, '0')}`;
+    // Use ISO string for a consistent, timezone-independent ID format
+    const dateString = startDate.toISOString().split('T')[0];
 
     const docId = `${registro.oficinaId}_${dateString}`;
     
@@ -121,8 +125,9 @@ export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRe
     
     const dataWithTimestamps = {
         ...registro,
-        weekStartDate: Timestamp.fromDate(startDate),
-        updatedAt: Timestamp.now(),
+        // Save dates as they are, Firestore will convert to Timestamp
+        weekStartDate: startDate,
+        updatedAt: new Date(),
     };
 
     await setDoc(docRef, dataWithTimestamps, { merge: true });
@@ -176,12 +181,10 @@ function getMonthCycleBoundaries(monthDate: Date): { start: Date; end: Date } {
     const month = monthDate.getUTCMonth();
     
     // 1. Get the 25th of the PREVIOUS month in UTC.
-    const anchorDate = new Date(Date.UTC(year, month - 1, 25));
-    anchorDate.setUTCHours(12,0,0,0);
+    const anchorDate = new Date(Date.UTC(year, month - 1, 25, 12, 0, 0));
 
     // 2. Find the Saturday of the week that contains the anchor date.
     let cycleStart = new Date(anchorDate);
-    // getUTCDay() -> Sunday is 0, ..., Saturday is 6.
     const dayOfWeek = cycleStart.getUTCDay();
     
     const daysToSubtract = (dayOfWeek + 1) % 7;
