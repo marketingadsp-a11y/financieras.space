@@ -1,0 +1,182 @@
+
+"use client";
+
+import * as React from "react";
+import { useAuth } from "@/context/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import type { VisorSupervisor, VisorClient } from "@/lib/data";
+import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient } from "@/services/visor-app-service";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { ClientForm } from "./client-form";
+import Link from "next/link";
+import QRCode from "qrcode.react";
+
+export function SupervisorClientManagement({ supervisorId }: { supervisorId: string }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [supervisor, setSupervisor] = React.useState<VisorSupervisor | null>(null);
+  const [clients, setClients] = React.useState<VisorClient[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [selectedClientForQr, setSelectedClientForQr] = React.useState<VisorClient | null>(null);
+
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const supervisorData = await getSupervisorById(supervisorId);
+      setSupervisor(supervisorData);
+      if (supervisorData) {
+        const clientData = await getClientsBySupervisor(supervisorId);
+        setClients(clientData);
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos." });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [supervisorId, toast]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleAddClient = async (data: { name: string }) => {
+    if (!user?.prefix) return;
+    try {
+      await addClient({ ...data, prefix: user.prefix, supervisorId });
+      toast({ title: "Éxito", description: "Cliente agregado." });
+      setIsFormOpen(false);
+      fetchData();
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo agregar el cliente." });
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      await deleteClient(clientId);
+      toast({ title: "Éxito", description: "Cliente eliminado." });
+      fetchData();
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el cliente." });
+    }
+  };
+  
+  const printQrCode = () => {
+    const qrCodeSvg = document.getElementById('qr-code-to-print');
+    if (qrCodeSvg && selectedClientForQr) {
+      const svgData = new XMLSerializer().serializeToString(qrCodeSvg);
+      const printWindow = window.open('', '_blank');
+      printWindow?.document.write(`
+        <html>
+          <head><title>Código QR - ${selectedClientForQr.name}</title></head>
+          <body style="text-align: center; margin-top: 50px;">
+            <h2>${selectedClientForQr.name}</h2>
+            ${svgData}
+            <script>
+              window.onload = function() {
+                window.print();
+                window.onafterprint = function() { window.close(); };
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow?.document.close();
+    }
+  };
+
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <span>Cargando clientes...</span>
+      </div>
+    );
+  }
+
+  if (!supervisor) {
+    return <p className="text-center">Supervisor no encontrado.</p>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <Button variant="outline" asChild>
+        <Link href="/tools/visor-app">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Supervisores
+        </Link>
+      </Button>
+
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Clientes de {supervisor.name}</CardTitle>
+              <CardDescription>{clients.length} cliente(s) asignado(s).</CardDescription>
+            </div>
+            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+              <DialogTrigger asChild>
+                <Button><PlusCircle className="mr-2" /> Agregar Cliente</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Agregar Cliente a {supervisor.name}</DialogTitle>
+                </DialogHeader>
+                <ClientForm onSubmit={handleAddClient} />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {clients.map(client => (
+              <Card key={client.id}>
+                <CardHeader>
+                  <CardTitle className="text-base">{client.name}</CardTitle>
+                </CardHeader>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" size="icon" onClick={() => setSelectedClientForQr(client)}>
+                    <QrCode className="h-4 w-4" />
+                  </Button>
+                  <Button variant="destructive" size="icon" onClick={() => handleDeleteClient(client.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      
+       <Dialog open={!!selectedClientForQr} onOpenChange={() => setSelectedClientForQr(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Código QR para {selectedClientForQr?.name}</DialogTitle>
+            <DialogDescription>
+              Este código es único para este cliente. Puedes imprimirlo o guardarlo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center items-center p-6">
+            {selectedClientForQr && (
+              <QRCode
+                id="qr-code-to-print"
+                value={selectedClientForQr.qrCodeValue}
+                size={256}
+                level={"H"}
+                includeMargin={true}
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedClientForQr(null)}>Cerrar</Button>
+            <Button onClick={printQrCode}>Imprimir QR</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

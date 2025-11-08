@@ -1,7 +1,7 @@
 
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -114,6 +114,12 @@ export const REGISTRO_OFICINA_PERMISSIONS = {
 } as const;
 export type RegistroOficinaPermission = keyof typeof REGISTRO_OFICINA_PERMISSIONS;
 
+export const VISOR_APP_PERMISSIONS = {
+  CAN_MANAGE_SUPERVISORS: 'Gestionar Supervisores',
+  CAN_MANAGE_CLIENTS: 'Gestionar Clientes',
+} as const;
+export type VisorAppPermission = keyof typeof VISOR_APP_PERMISSIONS;
+
 
 export type PlazaAccess = {
   plazaId: string;
@@ -137,6 +143,10 @@ export type MensualesPermissions = {
     permissions: MensualesPermission[];
 }
 
+export type VisorAppPermissions = {
+    permissions: VisorAppPermission[];
+}
+
 
 export type PlazaUser = {
   id: string;
@@ -152,6 +162,7 @@ export type PlazaUser = {
   overduePortfolioPermissions?: OverduePortfolioPermissions;
   mensualesPermissions?: MensualesPermissions;
   registroOficinaAccess?: RegistroOficinaAccess[];
+  visorAppPermissions?: VisorAppPermissions;
 };
 
 export type Customer = {
@@ -241,6 +252,14 @@ export const allTools: Tool[] = [
     href: "/tools/registro-oficina",
     icon: Notebook,
     color: '#f97316'
+  },
+  {
+    id: "visor-app",
+    name: "VisorApp",
+    description: "Gestiona supervisores y los clientes asignados a cada uno con códigos QR.",
+    href: "/tools/visor-app",
+    icon: ScanEye,
+    color: '#0ea5e9'
   }
 ];
 
@@ -528,4 +547,19 @@ export type OficinaSemanalRegistro = {
     cajaChica: number;
     updatedAt: Date;
     updatedBy: string;
+};
+
+// --- VisorApp ---
+export type VisorSupervisor = {
+    id: string;
+    prefix: string;
+    name: string;
+};
+
+export type VisorClient = {
+    id: string;
+    prefix: string;
+    supervisorId: string;
+    name: string;
+    qrCodeValue: string; // The unique value embedded in the QR code
 };
