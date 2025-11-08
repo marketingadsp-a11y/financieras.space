@@ -24,15 +24,21 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
     
+    // 1. Anchor on the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(year, month - 1, 25));
+    anchorDate.setUTCHours(12,0,0,0);
 
+    // 2. Find the Saturday of the week that contains the anchor date.
     let cycleStart = new Date(anchorDate);
-    const dayOfWeek = cycleStart.getUTCDay(); // Sunday = 0, ..., Saturday = 6
-    if (dayOfWeek !== 6) {
-      const daysToSubtract = (dayOfWeek + 1) % 7;
-      cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
-    }
+    // getUTCDay() -> Sunday is 0, ..., Saturday is 6.
+    const dayOfWeek = cycleStart.getUTCDay();
     
+    const daysToSubtract = (dayOfWeek + 1) % 7;
+    cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
+    
+    // Correction for the start date
+    cycleStart.setUTCDate(cycleStart.getUTCDate() + 1);
+
     const weeks = [];
     for (let i = 0; i < 4; i++) {
         const weekStart = new Date(cycleStart);
@@ -253,10 +259,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
 
  const registrosDelMes = React.useMemo(() => {
     const { start, end } = getMonthCycleBoundaries(currentMonth);
-
     return allRegistros.filter(r => {
         if (!r.weekStartDate) return false;
         const registroDate = new Date(r.weekStartDate);
+        // Correctly compare dates by checking if it falls within the range
         return registroDate >= start && registroDate <= end;
     });
 }, [allRegistros, currentMonth]);
@@ -306,48 +312,60 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.text(currentMonthRange, 14, 30);
-    
+
+    // --- Resumen Mensual Table ---
+    autoTable(doc, {
+        startY: 38,
+        head: [['Concepto', 'Total del Mes']],
+        body: [
+            ['Recogido Seguros', currency(monthlyTotals.recogidoSeguros)],
+            ['Cartera Vencida', currency(monthlyTotals.carteraVencida)],
+            ['Interés Mensual', currency(monthlyTotals.interesMensual)],
+            ['Capital Mensual', currency(monthlyTotals.capitalMensual)],
+            ['Caja Chica', currency(monthlyTotals.cajaChica)],
+            [{ content: 'TOTAL GENERAL', styles: { fontStyle: 'bold', fillColor: '#eee' } }, { content: currency(totalDelMes), styles: { fontStyle: 'bold', fillColor: '#eee' } }],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: '#333' },
+        styles: { fontSize: 9, cellPadding: 2, halign: 'right' },
+        columnStyles: { 0: { halign: 'left' } },
+    });
+
+    // --- Detalle Semanal Table ---
+    const lastY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Detalle Semanal", 14, lastY);
+
     const conceptos = ["Recogido Seguros", "Cartera Vencida", "Interés Mensual", "Capital Mensual", "Caja Chica"];
-    const head = [["CONCEPTO", "SEMANA 1", "SEMANA 2", "SEMANA 3", "SEMANA 4", "TOTAL MES"]];
-    const body = conceptos.map(concepto => {
-        const key = concepto.charAt(0).toLowerCase() + concepto.slice(1).replace(/\s/g, '');
-        const weeklyValues = weeks.map(week => {
-            const registro = registrosDelMes.find(r => {
-                const registroDate = new Date(r.weekStartDate);
-                // Compare just the date part, ignoring time
-                return registroDate.getFullYear() === week.start.getFullYear() &&
-                       registroDate.getMonth() === week.start.getMonth() &&
-                       registroDate.getDate() === week.start.getDate();
-            });
-            return registro ? currency((registro as any)[key] || 0) : currency(0);
-        });
-        const total = weeklyValues.reduce((sum, valStr) => sum + parseFloat(valStr.replace(/[^0-9.-]+/g, "")), 0);
-        return [concepto, ...weeklyValues, currency(total)];
-    });
-
-    // Add totals row
-    const weeklyTotals = weeks.map(week => {
+    const head = [["SEMANA", ...conceptos, "TOTAL SEMANA"]];
+    const body = weeks.map((week, index) => {
         const registro = registrosDelMes.find(r => {
-             const registroDate = new Date(r.weekStartDate);
-             // Compare just the date part
-             return registroDate.getFullYear() === week.start.getFullYear() &&
-                    registroDate.getMonth() === week.start.getMonth() &&
-                    registroDate.getDate() === week.start.getDate();
+            const registroDate = new Date(r.weekStartDate);
+            return registroDate.getTime() === week.start.getTime();
         });
-        if (!registro) return 0;
-        return (registro.recogidoSeguros || 0) + (registro.carteraVencida || 0) + (registro.interesMensual || 0) + (registro.capitalMensual || 0) + (registro.cajaChica || 0);
-    });
-    const grandTotal = weeklyTotals.reduce((sum, total) => sum + total, 0);
-    body.push([{ content: 'TOTAL SEMANAL', styles: { fontStyle: 'bold' } }, ...weeklyTotals.map(currency), { content: currency(grandTotal), styles: { fontStyle: 'bold' } }]);
+        const weeklyTotal = conceptos.reduce((sum, concepto) => {
+            const key = concepto.charAt(0).toLowerCase() + concepto.slice(1).replace(/\s/g, '');
+            return sum + (registro ? (registro as any)[key] || 0 : 0);
+        }, 0);
 
+        return [
+            `Semana ${index + 1}`,
+            ...conceptos.map(concepto => {
+                const key = concepto.charAt(0).toLowerCase() + concepto.slice(1).replace(/\s/g, '');
+                return currency(registro ? (registro as any)[key] || 0 : 0);
+            }),
+            { content: currency(weeklyTotal), styles: { fontStyle: 'bold' } }
+        ];
+    });
 
     autoTable(doc, {
-        startY: 40,
-        head: head,
-        body: body,
+        startY: lastY + 5,
+        head,
+        body,
         theme: 'striped',
-        headStyles: { fillColor: [22, 163, 74], fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 2, halign: 'right' },
+        headStyles: { fillColor: [22, 163, 74] },
+        styles: { fontSize: 7, cellPadding: 1.5, halign: 'right' },
         columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
     });
     
@@ -359,17 +377,23 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
     
+    // 1. Anchor on the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(year, month - 1, 25));
+    anchorDate.setUTCHours(12,0,0,0);
 
+    // 2. Find the Saturday of the week that contains the anchor date.
     let cycleStart = new Date(anchorDate);
     // getUTCDay() -> Sunday is 0, ..., Saturday is 6.
     const dayOfWeek = cycleStart.getUTCDay();
-    // If it's not Saturday, move back to find it.
-    if (dayOfWeek !== 6) {
-      const daysToSubtract = (dayOfWeek + 1) % 7;
-      cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
-    }
     
+    const daysToSubtract = (dayOfWeek + 1) % 7;
+    cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
+    
+    // Correction for the start date
+    cycleStart.setUTCDate(cycleStart.getUTCDate() + 1);
+
+
+    // 3. The cycle ends 4 weeks (28 days) after it starts. The end date is inclusive.
     const cycleEnd = new Date(cycleStart);
     cycleEnd.setUTCDate(cycleStart.getUTCDate() + (4 * 7) - 1); 
     cycleEnd.setUTCHours(23, 59, 59, 999);
@@ -461,12 +485,11 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {weeks.map((week, index) => {
             const registro = allRegistros.find(r => {
-                const registroDate = new Date(r.weekStartDate);
-                // Compare only year, month, and day parts of the date, ignoring timezones.
-                return registroDate.getUTCFullYear() === week.start.getUTCFullYear() &&
-                       registroDate.getUTCMonth() === week.start.getUTCMonth() &&
-                       registroDate.getUTCDate() === week.start.getUTCDate();
+                const registroDateUTC = Date.UTC(new Date(r.weekStartDate).getUTCFullYear(), new Date(r.weekStartDate).getUTCMonth(), new Date(r.weekStartDate).getUTCDate());
+                const weekStartUTC = Date.UTC(week.start.getUTCFullYear(), week.start.getUTCMonth(), week.start.getUTCDate());
+                return registroDateUTC === weekStartUTC;
             }) || null;
+            
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
       </div>
@@ -534,3 +557,5 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     </div>
   );
 }
+
+    
