@@ -1,6 +1,8 @@
+
 "use client";
 
 import * as React from "react";
+import * as ReactDOM from "react-dom";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -10,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
@@ -203,27 +205,30 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   };
   
   const printQrCode = () => {
-    const qrCodeSvg = document.getElementById('qr-code-to-print');
-    if (qrCodeSvg && selectedClientForQr) {
-      const svgData = new XMLSerializer().serializeToString(qrCodeSvg);
-      const printWindow = window.open('', '_blank');
-      printWindow?.document.write(`
-        <html>
-          <head><title>Código QR - ${selectedClientForQr.name}</title></head>
-          <body style="text-align: center; margin-top: 50px;">
-            <h2>${selectedClientForQr.name}</h2>
-            <p>${selectedClientForQr.address || ''}</p>
-            ${svgData}
-            <script>
-              window.onload = function() {
-                window.print();
-                window.onafterprint = function() { window.close(); };
-              }
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow?.document.close();
+    const qrCodeSvgContainer = document.getElementById('qr-code-to-print');
+    if (qrCodeSvgContainer && selectedClientForQr) {
+      const svgEl = qrCodeSvgContainer.querySelector('svg');
+      if (svgEl) {
+        const svgData = new XMLSerializer().serializeToString(svgEl);
+        const printWindow = window.open('', '_blank');
+        printWindow?.document.write(`
+          <html>
+            <head><title>Código QR - ${selectedClientForQr.name}</title></head>
+            <body style="text-align: center; margin-top: 50px;">
+              <h2>${selectedClientForQr.name}</h2>
+              <p>${selectedClientForQr.address || ''}</p>
+              ${svgData}
+              <script>
+                window.onload = function() {
+                  window.print();
+                  window.onafterprint = function() { window.close(); };
+                }
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow?.document.close();
+      }
     }
   };
   
@@ -247,65 +252,64 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
 
     let x = margin;
     let y = margin;
-    let pageCount = 1;
 
     clients.forEach((client, index) => {
       if (index > 0 && (index % (cols * rows) === 0)) {
         doc.addPage();
-        pageCount++;
         x = margin;
         y = margin;
       }
-
-      // Create a temporary container for the QR code to render it
+      
       const tempContainer = document.createElement("div");
       tempContainer.style.position = "absolute";
       tempContainer.style.left = "-9999px";
       document.body.appendChild(tempContainer);
-      const qrCanvas = document.createElement("canvas");
-      tempContainer.appendChild(qrCanvas);
 
-      // Render QR code to canvas
-      const qr = new QRCode({
+      const qrComponent = React.createElement(QRCode, {
           value: client.qrCodeValue,
-          size: 256, // Higher resolution for better quality
+          size: 256,
           level: "H",
           includeMargin: false,
-          id: `qr-${client.id}`
       });
-      const svgString = new XMLSerializer().serializeToString(document.getElementById(qr.props.id)!);
 
-      const img = new Image();
-      const svg = new Blob([svgString], {type: "image/svg+xml;charset=utf-8"});
-      const url = URL.createObjectURL(svg);
-      img.src = url;
+      ReactDOM.render(qrComponent, tempContainer, () => {
+          const svgEl = tempContainer.querySelector('svg');
+          if (svgEl) {
+              const svgString = new XMLSerializer().serializeToString(svgEl);
+              const img = new Image();
+              const svg = new Blob([svgString], {type: "image/svg+xml;charset=utf-8"});
+              const url = URL.createObjectURL(svg);
+              img.src = url;
 
-      img.onload = () => {
-          qrCanvas.width = 256;
-          qrCanvas.height = 256;
-          const ctx = qrCanvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0);
-          const dataUrl = qrCanvas.toDataURL("image/png");
+              img.onload = () => {
+                  const canvas = document.createElement("canvas");
+                  canvas.width = 256;
+                  canvas.height = 256;
+                  const ctx = canvas.getContext("2d");
+                  ctx?.drawImage(img, 0, 0);
+                  const dataUrl = canvas.toDataURL("image/png");
 
-          doc.setFontSize(10);
-          doc.text(client.name, x + cardWidth / 2, y + qrSize + padding + 5, { align: 'center', maxWidth: cardWidth - 4 });
-          doc.addImage(dataUrl, 'PNG', x + padding, y + padding, qrSize, qrSize);
-          
+                  doc.setFontSize(10);
+                  doc.text(client.name, x + cardWidth / 2, y + qrSize + padding + 5, { align: 'center', maxWidth: cardWidth - 4 });
+                  doc.addImage(dataUrl, 'PNG', x + padding, y + padding, qrSize, qrSize);
+                  
+                  URL.revokeObjectURL(url);
+                  
+                  if (index === clients.length - 1) {
+                      doc.save(`QRCodes_${supervisor?.name.replace(/\s/g, '_')}.pdf`);
+                  }
+              };
+          }
+          ReactDOM.unmountComponentAtNode(tempContainer);
           document.body.removeChild(tempContainer);
-          URL.revokeObjectURL(url);
-      };
+      });
       
       x += cardWidth;
-      if ((index + 1) % cols === 0) {
+      if ((index + 1) % cols === 0 && (index + 1) < clients.length) {
         x = margin;
         y += cardHeight;
       }
     });
-
-    // Timeout to allow images to be processed before saving
-    setTimeout(() => {
-        doc.save(`QRCodes_${supervisor?.name.replace(/\s/g, '_')}.pdf`);
-    }, 1000 * Math.ceil(clients.length / 20)); // Adjust timeout based on number of clients
   };
 
 
@@ -390,10 +394,10 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                                 Esta acción es irreversible. Se eliminarán los {clients.length} clientes asignados a {supervisor.name}.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooterComponent>
+                        <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={handleDeleteAllClients}>Sí, eliminar todos</AlertDialogAction>
-                        </AlertDialogFooterComponent>
+                        </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingClient(null); }}>
@@ -468,7 +472,6 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                   size={256}
                   level={"H"}
                   includeMargin={true}
-                  id="qr-for-pdf"
                 />
               </div>
             )}
