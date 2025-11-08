@@ -42,7 +42,7 @@ export function RegistroOficinaDashboard() {
     try {
       let data = await getOficinas(user.prefix);
 
-      if (user.isPlazaUser && user.registroOficinaAccess) {
+      if (user.isPlazaUser && user.registroOficinaAccess && user.registroOficinaAccess.length > 0) {
         const allowedOficinaIds = user.registroOficinaAccess.map(roa => roa.oficinaId);
         data = data.filter(o => allowedOficinaIds.includes(o.id));
       }
