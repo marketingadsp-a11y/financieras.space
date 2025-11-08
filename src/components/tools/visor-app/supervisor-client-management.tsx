@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
@@ -189,7 +189,9 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     try {
       await deleteAllClientsBySupervisor(supervisorId);
       toast({ title: "Éxito", description: `Todos los clientes de ${supervisor?.name} han sido eliminados.` });
-      fetchData();
+      // Manually reset state to reflect changes instantly
+      setClients([]);
+      setVisitsThisWeek([]);
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudieron eliminar los clientes." });
     }
