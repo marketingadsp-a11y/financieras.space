@@ -8,12 +8,13 @@ import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, updateClient, importClientsFromExcel, deleteAllClientsBySupervisor } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload } from "lucide-react";
+import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
+import jsPDF from "jspdf";
 import {
   Table,
   TableBody,
@@ -225,6 +226,88 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
       printWindow?.document.close();
     }
   };
+  
+  const handleExportQRs = () => {
+    if (clients.length === 0) {
+      toast({ title: "Sin clientes", description: "No hay clientes para exportar códigos QR." });
+      return;
+    }
+
+    const doc = new jsPDF();
+    const qrSize = 50; // mm
+    const margin = 10; // mm
+    const padding = 5; // mm
+    const cardWidth = qrSize + padding * 2;
+    const cardHeight = qrSize + padding * 2 + 10; // Extra space for name
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const cols = Math.floor((pageWidth - margin * 2) / cardWidth);
+    const rows = Math.floor((pageHeight - margin * 2) / cardHeight);
+
+    let x = margin;
+    let y = margin;
+    let pageCount = 1;
+
+    clients.forEach((client, index) => {
+      if (index > 0 && (index % (cols * rows) === 0)) {
+        doc.addPage();
+        pageCount++;
+        x = margin;
+        y = margin;
+      }
+
+      // Create a temporary container for the QR code to render it
+      const tempContainer = document.createElement("div");
+      tempContainer.style.position = "absolute";
+      tempContainer.style.left = "-9999px";
+      document.body.appendChild(tempContainer);
+      const qrCanvas = document.createElement("canvas");
+      tempContainer.appendChild(qrCanvas);
+
+      // Render QR code to canvas
+      const qr = new QRCode({
+          value: client.qrCodeValue,
+          size: 256, // Higher resolution for better quality
+          level: "H",
+          includeMargin: false,
+          id: `qr-${client.id}`
+      });
+      const svgString = new XMLSerializer().serializeToString(document.getElementById(qr.props.id)!);
+
+      const img = new Image();
+      const svg = new Blob([svgString], {type: "image/svg+xml;charset=utf-8"});
+      const url = URL.createObjectURL(svg);
+      img.src = url;
+
+      img.onload = () => {
+          qrCanvas.width = 256;
+          qrCanvas.height = 256;
+          const ctx = qrCanvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0);
+          const dataUrl = qrCanvas.toDataURL("image/png");
+
+          doc.setFontSize(10);
+          doc.text(client.name, x + cardWidth / 2, y + qrSize + padding + 5, { align: 'center', maxWidth: cardWidth - 4 });
+          doc.addImage(dataUrl, 'PNG', x + padding, y + padding, qrSize, qrSize);
+          
+          document.body.removeChild(tempContainer);
+          URL.revokeObjectURL(url);
+      };
+      
+      x += cardWidth;
+      if ((index + 1) % cols === 0) {
+        x = margin;
+        y += cardHeight;
+      }
+    });
+
+    // Timeout to allow images to be processed before saving
+    setTimeout(() => {
+        doc.save(`QRCodes_${supervisor?.name.replace(/\s/g, '_')}.pdf`);
+    }, 1000 * Math.ceil(clients.length / 20)); // Adjust timeout based on number of clients
+  };
+
 
   const visitedClientIds = React.useMemo(() => {
     return new Set(visitsThisWeek.map(v => v.clientId));
@@ -293,6 +376,9 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                <Button variant="outline" onClick={handleExportQRs} disabled={clients.length === 0}>
+                    <FileText className="mr-2 h-4 w-4" /> Exportar QRs
+                </Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="icon" disabled={clients.length === 0}><Trash2 className="h-4 w-4"/></Button>
@@ -382,6 +468,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                   size={256}
                   level={"H"}
                   includeMargin={true}
+                  id="qr-for-pdf"
                 />
               </div>
             )}
