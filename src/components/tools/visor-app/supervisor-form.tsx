@@ -18,6 +18,7 @@ import type { VisorSupervisor } from "@/lib/data";
 
 const formSchema = z.object({
   name: z.string().min(3, "El nombre del supervisor es requerido."),
+  accessCode: z.string().regex(/^\d{4}$/, "El código debe ser de 4 dígitos numéricos."),
 });
 
 type SupervisorFormProps = {
@@ -32,6 +33,7 @@ export function SupervisorForm({ onSubmit, supervisor }: SupervisorFormProps) {
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: supervisor?.name || "",
+            accessCode: supervisor?.accessCode || "",
         },
     });
 
@@ -50,6 +52,19 @@ export function SupervisorForm({ onSubmit, supervisor }: SupervisorFormProps) {
                             <FormLabel>Nombre del Supervisor</FormLabel>
                             <FormControl>
                                 <Input placeholder="Ej. Juan Pérez" {...field} autoFocus />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="accessCode"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Código de Acceso (4 dígitos)</FormLabel>
+                            <FormControl>
+                                <Input type="text" maxLength={4} placeholder="Ej. 1234" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

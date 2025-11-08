@@ -554,6 +554,7 @@ export type VisorSupervisor = {
     id: string;
     prefix: string;
     name: string;
+    accessCode: string;
 };
 
 export type VisorClient = {

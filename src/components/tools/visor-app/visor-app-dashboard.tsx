@@ -8,7 +8,7 @@ import type { VisorSupervisor, VisorClient } from "@/lib/data";
 import { getSupervisors, addSupervisor, updateSupervisor, deleteSupervisor, getClientsBySupervisor, addClient, deleteClient } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, Users, User, ArrowRight, Edit, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Users, User, ArrowRight, Edit, Trash2, KeyRound } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SupervisorForm } from "./supervisor-form";
 import Link from "next/link";
@@ -128,6 +128,7 @@ export function VisorAppDashboard() {
                         </div>
                         <div>
                             <CardTitle>{supervisor.name}</CardTitle>
+                            <CardDescription className="flex items-center gap-2 pt-1"><KeyRound className="h-4 w-4" /> <span className="font-mono">{supervisor.accessCode}</span></CardDescription>
                         </div>
                     </div>
                      <div className="flex items-center gap-1">

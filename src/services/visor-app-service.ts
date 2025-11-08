@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { VisorSupervisor, VisorClient } from "@/lib/data";
 import { v4 as uuidv4 } from 'uuid';
