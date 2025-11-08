@@ -13,6 +13,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
     <Card>
@@ -182,25 +191,41 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {clients.map(client => (
-              <Card key={client.id} className={visitedClientIds.has(client.id) ? "bg-green-500/10 border-green-500" : ""}>
-                <CardHeader>
-                  <CardTitle className="text-base">{client.name}</CardTitle>
-                </CardHeader>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" size="icon" onClick={() => setSelectedClientForQr(client)}>
-                    <QrCode className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={() => handleEditClick(client)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="destructive" size="icon" onClick={() => handleDeleteClient(client.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+           <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre del Cliente</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {clients.length > 0 ? (
+                  clients.map(client => (
+                    <TableRow key={client.id} className={cn(visitedClientIds.has(client.id) && "bg-green-500/10 hover:bg-green-500/20")}>
+                      <TableCell className="font-medium">{client.name}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                         <Button variant="outline" size="icon" onClick={() => setSelectedClientForQr(client)}>
+                            <QrCode className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => handleEditClick(client)}>
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="icon" onClick={() => handleDeleteClient(client.id)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                      No hay clientes asignados a este supervisor.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
