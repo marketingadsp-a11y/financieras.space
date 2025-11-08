@@ -101,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (loading) return;
 
-    const publicPaths = ['/login'];
+    const publicPaths = ['/login', '/tools/visor-app/qr'];
     const pathIsPublic = publicPaths.includes(pathname);
     const superAdminOnlyPaths = ['/settings/super-admins', '/admin-users'];
     const adminRootPath = '/settings/admins';
@@ -327,6 +327,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     return false;
   }
+  
+  const publicPaths = ['/login', '/tools/visor-app/qr'];
+  const pathIsPublic = publicPaths.includes(pathname);
 
   const value = { user, impersonation, login, logout, loading, hasPermission, impersonateUser, stopImpersonating };
 
@@ -334,7 +337,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider value={value}>
         {loading ? (
              <div className="flex h-screen items-center justify-center">Cargando...</div>
-        ) : user && pathname !== '/login' ? (
+        ) : user && !pathIsPublic ? (
             <AppShell>{children}</AppShell>
         ) : (
              children
