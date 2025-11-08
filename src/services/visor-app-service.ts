@@ -29,6 +29,17 @@ export async function getSupervisorById(id: string): Promise<VisorSupervisor | n
     return null;
 }
 
+export async function getSupervisorByAccessCode(accessCode: string): Promise<VisorSupervisor | null> {
+    const q = query(supervisorsCollectionRef, where("accessCode", "==", accessCode));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return null;
+    }
+    const supervisorDoc = snapshot.docs[0];
+    return { id: supervisorDoc.id, ...supervisorDoc.data() } as VisorSupervisor;
+}
+
+
 export async function addSupervisor(data: Omit<VisorSupervisor, 'id'>): Promise<VisorSupervisor> {
     const docRef = await addDoc(supervisorsCollectionRef, data);
     return { ...data, id: docRef.id };
@@ -61,6 +72,17 @@ export async function getClientsBySupervisor(supervisorId: string): Promise<Viso
     return clients.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function getClientByQrCodeValue(qrCodeValue: string): Promise<VisorClient | null> {
+    const q = query(clientsCollectionRef, where("qrCodeValue", "==", qrCodeValue));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return null;
+    }
+    const clientDoc = snapshot.docs[0];
+    return { id: clientDoc.id, ...clientDoc.data() } as VisorClient;
+}
+
+
 export async function addClient(data: Omit<VisorClient, 'id' | 'qrCodeValue'> & { qrCodeValue?: string }): Promise<VisorClient> {
     const qrCodeValue = data.qrCodeValue || uuidv4();
     const clientData = { ...data, qrCodeValue };
@@ -80,6 +102,11 @@ export async function deleteClient(id: string) {
 
 
 // --- Visit Functions ---
+
+export async function addVisit(visitData: Omit<VisorVisit, 'id'>): Promise<VisorVisit> {
+    const docRef = await addDoc(visitsCollectionRef, visitData);
+    return { ...visitData, id: docRef.id };
+}
 
 export async function getVisitsBySupervisorForToday(supervisorId: string): Promise<VisorVisit[]> {
   const today = new Date();
