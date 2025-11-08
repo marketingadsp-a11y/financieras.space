@@ -6,11 +6,12 @@ import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
-import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, updateClient, importClientsFromExcel } from "@/services/visor-app-service";
+import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, updateClient, importClientsFromExcel, deleteAllClientsBySupervisor } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
@@ -183,6 +184,16 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
       toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el cliente." });
     }
   };
+
+  const handleDeleteAllClients = async () => {
+    try {
+      await deleteAllClientsBySupervisor(supervisorId);
+      toast({ title: "Éxito", description: `Todos los clientes de ${supervisor?.name} han sido eliminados.` });
+      fetchData();
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "No se pudieron eliminar los clientes." });
+    }
+  }
   
   const handleEditClick = (client: VisorClient) => {
     setEditingClient(client);
@@ -281,6 +292,23 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon" disabled={clients.length === 0}><Trash2 className="h-4 w-4"/></Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar todos los clientes?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción es irreversible. Se eliminarán los {clients.length} clientes asignados a {supervisor.name}.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteAllClients}>Sí, eliminar todos</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingClient(null); }}>
                     <DialogTrigger asChild>
                         <Button><PlusCircle className="mr-2" /> Agregar Cliente</Button>

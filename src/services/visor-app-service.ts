@@ -102,6 +102,16 @@ export async function deleteClient(id: string) {
     await deleteDoc(clientDoc);
 }
 
+export async function deleteAllClientsBySupervisor(supervisorId: string) {
+    const batch = writeBatch(db);
+    const q = query(clientsCollectionRef, where("supervisorId", "==", supervisorId));
+    const snapshot = await getDocs(q);
+    snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+}
+
 export async function importClientsFromExcel(base64Content: string, supervisorId: string, prefix: string): Promise<{ importedCount: number }> {
     try {
         const fileContent = Buffer.from(base64Content.split(',')[1], 'base64');
