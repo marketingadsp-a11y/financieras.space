@@ -8,8 +8,9 @@ import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientB
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User } from "lucide-react";
+import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine } from "lucide-react";
 import { QrScanner } from "@/components/tools/visor-app/qr-scanner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const LoginPage = ({ onLogin, isLoading, error, accessCode, setAccessCode }: { onLogin: () => void, isLoading: boolean, error: string | null, accessCode: string, setAccessCode: (code: string) => void }) => {
     return (
@@ -53,6 +54,7 @@ export default function QrReaderPage() {
     const [error, setError] = React.useState<string | null>(null);
     const [showScanner, setShowScanner] = React.useState(false);
     const [showClientList, setShowClientList] = React.useState(false);
+    const [visitSuccessInfo, setVisitSuccessInfo] = React.useState<{ clientName: string } | null>(null);
 
     const handleLogin = async () => {
         if (accessCode.length !== 4) {
@@ -99,11 +101,7 @@ export default function QrReaderPage() {
                     clientName: client.name,
                     timestamp: new Date(),
                 });
-                toast({
-                    variant: 'success',
-                    title: 'Visita Registrada',
-                    description: `Se ha registrado la visita para ${client.name}.`,
-                });
+                setVisitSuccessInfo({ clientName: client.name });
             } else if (client) {
                  toast({
                     variant: 'destructive',
@@ -173,6 +171,30 @@ export default function QrReaderPage() {
                     </Button>
                 </CardFooter>
             </Card>
+
+            <AlertDialog open={!!visitSuccessInfo} onOpenChange={() => setVisitSuccessInfo(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <div className="flex justify-center mb-4">
+                            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+                                <CheckCircle className="h-10 w-10 text-green-600"/>
+                            </div>
+                        </div>
+                        <AlertDialogTitle className="text-center text-2xl">¡Visita Registrada!</AlertDialogTitle>
+                        <AlertDialogDescription className="text-center">
+                            Se ha registrado la visita para <strong>{visitSuccessInfo?.clientName}</strong> con éxito.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="sm:justify-center pt-4 gap-2">
+                        <AlertDialogAction onClick={() => { setVisitSuccessInfo(null); setShowScanner(true); }} className="w-full sm:w-auto">
+                            <ScanLine className="mr-2"/> Escanear Otro
+                        </AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setVisitSuccessInfo(null)} className="w-full sm:w-auto mt-0">
+                            Cerrar
+                        </AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
