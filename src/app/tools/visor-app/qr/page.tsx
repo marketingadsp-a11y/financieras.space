@@ -15,6 +15,7 @@ import { onSnapshot, collection, query, where, Timestamp } from "firebase/firest
 import { db } from "@/lib/firebase";
 import { startOfWeek, endOfWeek } from 'date-fns';
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const LoginPage = ({ onLogin, isLoading, error, accessCode, setAccessCode }: { onLogin: () => void, isLoading: boolean, error: string | null, accessCode: string, setAccessCode: (code: string) => void }) => {
     return (
@@ -188,6 +189,12 @@ export default function QrReaderPage() {
         <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
             <Card className="w-full max-w-md text-center">
                 <CardHeader>
+                     {supervisor.logoUrl && (
+                        <Avatar className="mx-auto h-24 w-24 mb-4 border">
+                            <AvatarImage src={supervisor.logoUrl} alt={supervisor.name} />
+                            <AvatarFallback>{supervisor.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                    )}
                     <CardTitle>Panel de {supervisor.name}</CardTitle>
                     <CardDescription>Selecciona una opción para continuar.</CardDescription>
                 </CardHeader>

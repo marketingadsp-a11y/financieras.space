@@ -19,6 +19,7 @@ import type { VisorSupervisor } from "@/lib/data";
 const formSchema = z.object({
   name: z.string().min(3, "El nombre del supervisor es requerido."),
   accessCode: z.string().regex(/^\d{4}$/, "El código debe ser de 4 dígitos numéricos."),
+  logoUrl: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
 });
 
 type SupervisorFormProps = {
@@ -34,6 +35,7 @@ export function SupervisorForm({ onSubmit, supervisor }: SupervisorFormProps) {
         defaultValues: {
             name: supervisor?.name || "",
             accessCode: supervisor?.accessCode || "",
+            logoUrl: supervisor?.logoUrl || "",
         },
     });
 
@@ -65,6 +67,19 @@ export function SupervisorForm({ onSubmit, supervisor }: SupervisorFormProps) {
                             <FormLabel>Código de Acceso (4 dígitos)</FormLabel>
                             <FormControl>
                                 <Input type="text" maxLength={4} placeholder="Ej. 1234" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="logoUrl"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>URL del Logotipo (Opcional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="https://ejemplo.com/logo.png" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
