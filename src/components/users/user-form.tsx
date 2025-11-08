@@ -28,8 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission, FlujoPermission, OverduePortfolioPermission, RegistroOficinaPermission, OficinaRegistro } from "@/lib/data";
-import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS, FLUJO_PERMISSIONS, OVERDUE_PORTFOLIO_PERMISSIONS, REGISTRO_OFICINA_PERMISSIONS } from "@/lib/data";
+import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission, FlujoPermission, OverduePortfolioPermission, RegistroOficinaPermission, OficinaRegistro, VisorAppPermission } from "@/lib/data";
+import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS, FLUJO_PERMISSIONS, OVERDUE_PORTFOLIO_PERMISSIONS, REGISTRO_OFICINA_PERMISSIONS, VISOR_APP_PERMISSIONS } from "@/lib/data";
 import { Trash2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
@@ -56,6 +56,10 @@ const registroOficinaAccessSchema = z.object({
   permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
 });
 
+const visorAppPermissionsSchema = z.object({
+    permissions: z.array(z.string()),
+});
+
 const baseFormSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   username: z.string().min(2, "El nombre de usuario es requerido."),
@@ -68,6 +72,7 @@ const baseFormSchema = z.object({
   flujoPermissions: flujoPermissionsSchema.optional(),
   overduePortfolioPermissions: overduePortfolioPermissionsSchema.optional(),
   registroOficinaAccess: z.array(registroOficinaAccessSchema).optional(),
+  visorAppPermissions: visorAppPermissionsSchema.optional(),
 });
 
 
@@ -93,6 +98,7 @@ const allLoanControlPermissions = Object.entries(LOAN_CONTROL_PERMISSIONS) as [L
 const allFlujoPermissions = Object.entries(FLUJO_PERMISSIONS) as [FlujoPermission, string][];
 const allOverduePortfolioPermissions = Object.entries(OVERDUE_PORTFOLIO_PERMISSIONS) as [OverduePortfolioPermission, string][];
 const allRegistroOficinaPermissions = Object.entries(REGISTRO_OFICINA_PERMISSIONS) as [RegistroOficinaPermission, string][];
+const allVisorAppPermissions = Object.entries(VISOR_APP_PERMISSIONS) as [VisorAppPermission, string][];
 
 
 export function UserForm({ onSubmit, user, allPlazas, allOficinas, prefix, admins, adminTools, isSuperAdminView = false }: UserFormProps) {
@@ -116,6 +122,7 @@ export function UserForm({ onSubmit, user, allPlazas, allOficinas, prefix, admin
             flujoPermissions: user?.flujoPermissions || { permissions: [] },
             overduePortfolioPermissions: user?.overduePortfolioPermissions || { permissions: [] },
             registroOficinaAccess: user?.registroOficinaAccess || [],
+            visorAppPermissions: user?.visorAppPermissions || { permissions: [] },
         },
     });
 
@@ -155,6 +162,7 @@ export function UserForm({ onSubmit, user, allPlazas, allOficinas, prefix, admin
     const showLoanControlManagement = watchAccessibleTools.includes('loan-control');
     const showFlujoManagement = watchAccessibleTools.includes('flujo');
     const showRegistroOficinaManagement = watchAccessibleTools.includes('registro-oficina');
+    const showVisorAppManagement = watchAccessibleTools.includes('visor-app');
 
     return (
         <Form {...form}>
@@ -482,6 +490,47 @@ export function UserForm({ onSubmit, user, allPlazas, allOficinas, prefix, admin
                          {oficinasForSelectedPrefix.length === 0 && watchPrefix && (
                             <p className="text-sm text-muted-foreground text-center p-4 border rounded-md">No hay oficinas creadas para esta empresa. Crea una en la sección de oficinas primero para poder asignarla.</p>
                         )}
+                    </div>
+                )}
+
+                {showVisorAppManagement && (
+                    <div className="space-y-4 pt-4">
+                        <h3 className="text-lg font-medium">Permisos para VisorApp</h3>
+                        <FormField
+                            control={form.control}
+                            name="visorAppPermissions.permissions"
+                            render={() => (
+                                <FormItem>
+                                <FormDescription>Selecciona las acciones que este usuario podrá realizar en "VisorApp".</FormDescription>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {allVisorAppPermissions.map(([key, label]) => (
+                                        <FormField
+                                        key={key}
+                                        control={form.control}
+                                        name="visorAppPermissions.permissions"
+                                        render={({ field }) => (
+                                            <FormItem key={key} className="flex flex-row items-start space-x-3 space-y-0 rounded-lg border p-4">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(key)}
+                                                        onCheckedChange={(checked) => {
+                                                            const newValue = field.value || [];
+                                                            return checked
+                                                                ? field.onChange([...newValue, key])
+                                                                : field.onChange(newValue.filter(value => value !== key));
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal flex-1 cursor-pointer">{label}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage>{form.formState.errors.visorAppPermissions?.message || (form.formState.errors.visorAppPermissions as any)?.root?.message}</FormMessage>
+                                </FormItem>
+                            )}
+                        />
                     </div>
                 )}
                 

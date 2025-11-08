@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc as getDoc_ } from "firebase/firestore";
@@ -65,8 +66,7 @@ export async function getToolAdminById(id: string): Promise<ToolAdmin | null> {
     const docSnap = await getDoc_(docRef);
     if (docSnap.exists()) {
         const data = docSnap.data();
-        const { password, ...adminData } = data;
-        return { id: docSnap.id, ...adminData } as ToolAdmin;
+        return { id: docSnap.id, ...data } as ToolAdmin;
     }
     return null;
 }

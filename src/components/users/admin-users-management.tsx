@@ -118,7 +118,7 @@ export function AdminUsersManagement() {
   }
 
   // --- Tool Admin Handlers ---
-    const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'createdBy' | 'toolId' | 'registroOficinaAccess'>) => {
+    const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'createdBy' | 'toolId' | 'registroOficinaAccess' | 'sucursalAccess'>) => {
       if(!user?.id) return;
       try {
         const dataToSave: any = { ...adminData, createdBy: user.id };
@@ -126,8 +126,6 @@ export function AdminUsersManagement() {
             await updateToolAdminService(editingToolAdmin.id, dataToSave);
             toast({ title: "Éxito", description: "Usuario de herramienta actualizado." });
         } else {
-            // This is a generic form, toolId must be added if not present in schema
-            if (!dataToSave.toolId) dataToSave.toolId = 'income-expenses';
             await addToolAdminService(dataToSave);
             toast({ title: "Éxito", description: "Usuario de herramienta agregado." });
         }

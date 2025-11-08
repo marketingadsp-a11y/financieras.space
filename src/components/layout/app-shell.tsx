@@ -373,6 +373,7 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
   const isFlujoPath = pathname.startsWith('/tools/flujo');
   const isMensualesPath = pathname.startsWith('/tools/mensuales');
   const isRegistroOficinaPath = pathname.startsWith('/tools/registro-oficina');
+  const isVisorAppPath = pathname.startsWith('/tools/visor-app');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -637,6 +638,23 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
         </SidebarGroup>
     );
     }
+    
+    if (isVisorAppPath) {
+        return (
+            <SidebarGroup>
+                <SidebarGroupLabel>VISOR APP</SidebarGroupLabel>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <Link href="/tools/visor-app">
+                            <SidebarMenuButton asChild isActive={pathname.startsWith('/tools/visor-app')} tooltip="Supervisores">
+                                <span><Users /><span>Supervisores</span></span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroup>
+        );
+    }
 
 
   const renderAdminNav = () => {
@@ -853,6 +871,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isFlujoPath = pathname.startsWith('/tools/flujo');
   const isMensualesPath = pathname.startsWith('/tools/mensuales');
   const isRegistroOficinaPath = pathname.startsWith('/tools/registro-oficina');
+  const isVisorAppPath = pathname.startsWith('/tools/visor-app');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return customTools.find(tool => tool.id === 'cartera-vencida');
@@ -862,6 +881,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (isFlujoPath) return customTools.find(tool => tool.id === 'flujo');
     if (isMensualesPath) return customTools.find(tool => tool.id === 'mensuales');
     if (isRegistroOficinaPath) return customTools.find(tool => tool.id === 'registro-oficina');
+    if (isVisorAppPath) return customTools.find(tool => tool.id === 'visor-app');
     return null;
   }
 
@@ -882,7 +902,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return user.username;
   }
 
-  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath || isRegistroOficinaPath) && !user.isSuperAdmin;
+  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath || isRegistroOficinaPath || isVisorAppPath) && !user.isSuperAdmin;
   
   const isGlobalAdmin = !user.isSuperAdmin && !user.isToolAdmin && !user.isPlazaUser;
 
