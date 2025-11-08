@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
@@ -299,7 +299,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitleComponent>¿Eliminar todos los clientes?</AlertDialogTitleComponent>
+                            <AlertDialogTitle>¿Eliminar todos los clientes?</AlertDialogTitle>
                             <AlertDialogDescription>
                                 Esta acción es irreversible. Se eliminarán los {clients.length} clientes asignados a {supervisor.name}.
                             </AlertDialogDescription>
