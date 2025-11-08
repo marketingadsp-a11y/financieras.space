@@ -8,7 +8,7 @@ import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientB
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine } from "lucide-react";
+import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine, Percent } from "lucide-react";
 import { QrScanner } from "@/components/tools/visor-app/qr-scanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { onSnapshot, collection, query, where, Timestamp } from "firebase/firestore";
@@ -32,7 +32,7 @@ const LoginPage = ({ onLogin, isLoading, error, accessCode, setAccessCode }: { o
                         inputMode="numeric"
                         maxLength={4}
                         placeholder="••••"
-                        className="text-center text-4xl font-bold font-mono tracking-[1em] h-16"
+                        className="text-center text-4xl font-bold tracking-[1em] h-16"
                         value={accessCode}
                         onChange={(e) => setAccessCode(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && onLogin()}
@@ -176,6 +176,9 @@ export default function QrReaderPage() {
     const visitedClientIds = React.useMemo(() => {
         return new Set(visitsThisWeek.map(v => v.clientId));
     }, [visitsThisWeek]);
+    
+    const visitPercentage = clients.length > 0 ? (visitedClientIds.size / clients.length) * 100 : 0;
+
 
     if (!supervisor) {
         return <LoginPage onLogin={handleLogin} isLoading={isLoading} error={error} accessCode={accessCode} setAccessCode={setAccessCode} />;
@@ -205,10 +208,16 @@ export default function QrReaderPage() {
                         <QrCode className="mr-4 h-8 w-8" />
                         Realizar Visita
                     </Button>
-                    <Button variant="outline" className="w-full h-16 text-md" onClick={() => setShowClientList(!showClientList)}>
-                        <Users className="mr-4 h-6 w-6" />
-                        {showClientList ? "Ocultar" : "Ver"} mis Clientes ({clients.length})
-                    </Button>
+                     <div className="space-y-2">
+                        <Button variant="outline" className="w-full h-16 text-md" onClick={() => setShowClientList(!showClientList)}>
+                            <Users className="mr-4 h-6 w-6" />
+                            {showClientList ? "Ocultar" : "Ver"} mis Clientes ({clients.length})
+                        </Button>
+                        <div className="flex items-center justify-center gap-2 rounded-md border p-2 text-sm text-muted-foreground">
+                            <Percent className="h-4 w-4" />
+                            <span>Progreso de la semana: {visitedClientIds.size} de {clients.length} visitas ({visitPercentage.toFixed(1)}%)</span>
+                        </div>
+                    </div>
 
                     {showClientList && (
                         <div className="mt-4 p-4 border rounded-lg max-h-60 overflow-y-auto text-left">
