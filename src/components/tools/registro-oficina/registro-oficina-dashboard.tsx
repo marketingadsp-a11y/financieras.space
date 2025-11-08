@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -39,7 +40,13 @@ export function RegistroOficinaDashboard() {
     }
     setIsLoading(true);
     try {
-      const data = await getOficinas(user.prefix);
+      let data = await getOficinas(user.prefix);
+
+      if (user.isPlazaUser && user.registroOficinaAccess) {
+        const allowedOficinaIds = user.registroOficinaAccess.map(roa => roa.oficinaId);
+        data = data.filter(o => allowedOficinaIds.includes(o.id));
+      }
+
 
       const today = new Date();
       const monthStart = startOfMonth(today);
@@ -74,7 +81,7 @@ export function RegistroOficinaDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.prefix, toast]);
+  }, [user, toast]);
 
   React.useEffect(() => {
     fetchData();

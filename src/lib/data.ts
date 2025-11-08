@@ -41,10 +41,11 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales';
+  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales' | 'registro-oficina';
   prefix?: string;
   createdBy?: string;
-  sucursalAccess?: SucursalAccess[]; // Array of sucursal access objects
+  sucursalAccess?: SucursalAccess[]; // Array of sucursal access objects for 'income-expenses'
+  registroOficinaAccess?: RegistroOficinaAccess[]; // Array of oficina access objects for 'registro-oficina'
 };
 
 export type SuperAdmin = {
@@ -102,10 +103,22 @@ export const MENSUALES_PERMISSIONS = {
 } as const;
 export type MensualesPermission = keyof typeof MENSUALES_PERMISSIONS;
 
+export const REGISTRO_OFICINA_PERMISSIONS = {
+  CAN_REGISTER_DATA: 'Registrar/Editar Datos',
+  CAN_DELETE_MONTH: 'Eliminar Datos del Mes',
+} as const;
+export type RegistroOficinaPermission = keyof typeof REGISTRO_OFICINA_PERMISSIONS;
+
+
 export type PlazaAccess = {
   plazaId: string;
   plazaName: string;
   permissions: Permission[];
+}
+
+export type RegistroOficinaAccess = {
+  oficinaId: string;
+  permissions: RegistroOficinaPermission[];
 }
 
 export type LoanControlPermissions = {
@@ -138,6 +151,7 @@ export type PlazaUser = {
   flujoPermissions?: FlujoPermissions;
   overduePortfolioPermissions?: OverduePortfolioPermissions;
   mensualesPermissions?: MensualesPermissions;
+  registroOficinaAccess?: RegistroOficinaAccess[];
 };
 
 export type Customer = {
