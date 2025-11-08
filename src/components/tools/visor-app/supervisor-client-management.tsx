@@ -1,14 +1,16 @@
 
+
 "use client";
 
 import * as React from "react";
+import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
-import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, updateClient } from "@/services/visor-app-service";
+import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, updateClient, importClientsFromExcel } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent } from "lucide-react";
+import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
@@ -25,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { onSnapshot, collection, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { startOfWeek, endOfWeek } from 'date-fns';
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
     <Card>
@@ -76,9 +80,11 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   const [visitsThisWeek, setVisitsThisWeek] = React.useState<VisorVisit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [editingClient, setEditingClient] = React.useState<VisorClient | null>(null);
   const [selectedClientForQr, setSelectedClientForQr] = React.useState<VisorClient | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [fileToImport, setFileToImport] = React.useState<File | null>(null);
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
@@ -113,7 +119,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     return () => unsubscribe();
   }, [fetchData, supervisorId]);
 
-  const handleFormSubmit = async (data: { name: string, qrCodeValue?: string }) => {
+  const handleFormSubmit = async (data: { name: string, address?: string, qrCodeValue?: string }) => {
     if (!user?.prefix) return;
     setIsSubmitting(true);
     try {
@@ -129,6 +135,25 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
       fetchData();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el cliente." });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+  
+  const handleImport = async () => {
+    if (!fileToImport || !user?.prefix) {
+        toast({ variant: "destructive", title: "Error", description: "Selecciona un archivo y asegúrate de tener un prefijo de empresa." });
+        return;
+    }
+    setIsSubmitting(true);
+    try {
+        const result = await importClientsFromExcel(fileToImport, supervisorId, user.prefix);
+        toast({ title: "Importación Completa", description: `${result.importedCount} clientes fueron importados exitosamente.` });
+        fetchData();
+        setIsImportOpen(false);
+        setFileToImport(null);
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Error de Importación", description: error.message || "No se pudo importar el archivo." });
     } finally {
         setIsSubmitting(false);
     }
@@ -159,6 +184,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
           <head><title>Código QR - ${selectedClientForQr.name}</title></head>
           <body style="text-align: center; margin-top: 50px;">
             <h2>${selectedClientForQr.name}</h2>
+            <p>${selectedClientForQr.address || ''}</p>
             ${svgData}
             <script>
               window.onload = function() {
@@ -216,17 +242,42 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
               <CardTitle>Clientes de {supervisor.name}</CardTitle>
               <CardDescription>{clients.length} cliente(s) asignado(s).</CardDescription>
             </div>
-            <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingClient(null); }}>
-              <DialogTrigger asChild>
-                <Button><PlusCircle className="mr-2" /> Agregar Cliente</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingClient ? "Editar" : "Agregar"} Cliente a {supervisor.name}</DialogTitle>
-                </DialogHeader>
-                <ClientForm onSubmit={handleFormSubmit} client={editingClient} isSubmitting={isSubmitting}/>
-              </DialogContent>
-            </Dialog>
+            <div className="flex items-center gap-2">
+                 <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline"><Upload className="mr-2 h-4 w-4"/>Importar</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Importar Clientes desde Excel</DialogTitle>
+                            <DialogDescription>
+                                Selecciona un archivo .xlsx o .xls. El sistema buscará las columnas "Cliente" (o "Nombre") y "Direccion".
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                            <Label htmlFor="import-file">Archivo de Excel</Label>
+                            <Input id="import-file" type="file" accept=".xlsx, .xls" onChange={(e) => setFileToImport(e.target.files?.[0] || null)} />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsImportOpen(false)}>Cancelar</Button>
+                            <Button onClick={handleImport} disabled={isSubmitting || !fileToImport}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Importar
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+                <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingClient(null); }}>
+                    <DialogTrigger asChild>
+                        <Button><PlusCircle className="mr-2" /> Agregar Cliente</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                        <DialogTitle>{editingClient ? "Editar" : "Agregar"} Cliente a {supervisor.name}</DialogTitle>
+                        </DialogHeader>
+                        <ClientForm onSubmit={handleFormSubmit} client={editingClient} isSubmitting={isSubmitting}/>
+                    </DialogContent>
+                </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -235,6 +286,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre del Cliente</TableHead>
+                  <TableHead>Dirección</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -243,6 +295,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                   clients.map(client => (
                     <TableRow key={client.id} className={cn(visitedClientIds.has(client.id) && "bg-green-500/10 hover:bg-green-500/20")}>
                       <TableCell className="font-medium">{client.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{client.address || 'N/A'}</TableCell>
                       <TableCell className="text-right space-x-2">
                          <Button variant="outline" size="icon" onClick={() => setSelectedClientForQr(client)}>
                             <QrCode className="h-4 w-4" />
@@ -258,7 +311,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
                       No hay clientes asignados a este supervisor.
                     </TableCell>
                   </TableRow>
@@ -277,16 +330,19 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
               Este código es único para este cliente. Puedes imprimirlo o guardarlo.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center items-center p-6">
+          <div className="flex flex-col items-center justify-center p-6">
             {selectedClientForQr && (
-              <QRCode
-                id="qr-code-to-print"
-                value={selectedClientForQr.qrCodeValue}
-                size={256}
-                level={"H"}
-                includeMargin={true}
-              />
+              <div id="qr-code-to-print" className="p-4 bg-white">
+                <QRCode
+                  value={selectedClientForQr.qrCodeValue}
+                  size={256}
+                  level={"H"}
+                  includeMargin={true}
+                />
+              </div>
             )}
+            <p className="mt-2 text-sm font-semibold">{selectedClientForQr?.name}</p>
+            <p className="text-xs text-muted-foreground">{selectedClientForQr?.address}</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedClientForQr(null)}>Cerrar</Button>

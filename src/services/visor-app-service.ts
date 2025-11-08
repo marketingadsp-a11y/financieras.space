@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { v4 as uuidv4 } from 'uuid';
 import { startOfWeek, endOfWeek } from 'date-fns';
+import * as XLSX from "xlsx";
 
 const supervisorsCollectionRef = collection(db, "visor_supervisors");
 const clientsCollectionRef = collection(db, "visor_clients");
@@ -99,6 +100,57 @@ export async function updateClient(id: string, data: Partial<Omit<VisorClient, '
 export async function deleteClient(id: string) {
     const clientDoc = doc(db, "visor_clients", id);
     await deleteDoc(clientDoc);
+}
+
+export async function importClientsFromExcel(file: File, supervisorId: string, prefix: string): Promise<{ importedCount: number }> {
+    const reader = new FileReader();
+    const promise = new Promise<{ importedCount: number }>((resolve, reject) => {
+        reader.onload = async (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json<any>(worksheet);
+
+                if (json.length === 0) {
+                    throw new Error("El archivo Excel está vacío.");
+                }
+
+                const batch = writeBatch(db);
+                let importedCount = 0;
+
+                json.forEach(row => {
+                    const clientName = row.Cliente || row.cliente || row.Name || row.name;
+                    const clientAddress = row.Direccion || row.direccion || row.Address || row.address;
+
+                    if (clientName) {
+                        const newClientRef = doc(clientsCollectionRef);
+                        batch.set(newClientRef, {
+                            name: String(clientName).trim(),
+                            address: clientAddress ? String(clientAddress).trim() : "",
+                            supervisorId,
+                            prefix,
+                            qrCodeValue: uuidv4(),
+                        });
+                        importedCount++;
+                    }
+                });
+
+                await batch.commit();
+                resolve({ importedCount });
+            } catch (error) {
+                reject(error);
+            }
+        };
+
+        reader.onerror = (error) => {
+            reject(error);
+        };
+    });
+
+    reader.readAsBinaryString(file);
+    return promise;
 }
 
 

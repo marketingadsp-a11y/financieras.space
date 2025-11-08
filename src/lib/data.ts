@@ -565,6 +565,7 @@ export type VisorClient = {
     supervisorId: string;
     name: string;
     qrCodeValue: string; // The unique value embedded in the QR code
+    address?: string;
 };
 
 export type VisorVisit = {

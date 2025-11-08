@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -17,14 +18,16 @@ import { Input } from "@/components/ui/input";
 import type { VisorClient } from "@/lib/data";
 import React from "react";
 import { Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({
   name: z.string().min(3, "El nombre del cliente es requerido."),
+  address: z.string().optional(),
   qrCodeValue: z.string().optional(),
 });
 
 type ClientFormProps = {
-  onSubmit: (data: { name: string; qrCodeValue?: string }) => void;
+  onSubmit: (data: { name: string; address?: string; qrCodeValue?: string }) => void;
   client?: VisorClient | null;
   isSubmitting?: boolean;
 };
@@ -36,6 +39,7 @@ export function ClientForm({ onSubmit, client, isSubmitting }: ClientFormProps) 
         resolver: zodResolver(formSchema),
         defaultValues: { 
             name: "",
+            address: "",
             qrCodeValue: ""
         },
     });
@@ -44,11 +48,13 @@ export function ClientForm({ onSubmit, client, isSubmitting }: ClientFormProps) 
         if (client) {
             form.reset({
                 name: client.name,
+                address: client.address,
                 qrCodeValue: client.qrCodeValue,
             });
         } else {
             form.reset({
                 name: "",
+                address: "",
                 qrCodeValue: "",
             });
         }
@@ -65,6 +71,19 @@ export function ClientForm({ onSubmit, client, isSubmitting }: ClientFormProps) 
                             <FormLabel>Nombre del Cliente</FormLabel>
                             <FormControl>
                                 <Input placeholder="Ej. Contacto de Cliente" {...field} autoFocus />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Dirección (Opcional)</FormLabel>
+                            <FormControl>
+                                <Textarea placeholder="Dirección completa del cliente" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
