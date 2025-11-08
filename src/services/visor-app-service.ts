@@ -61,11 +61,16 @@ export async function getClientsBySupervisor(supervisorId: string): Promise<Viso
     return clients.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function addClient(data: Omit<VisorClient, 'id' | 'qrCodeValue'>): Promise<VisorClient> {
-    const qrCodeValue = uuidv4();
+export async function addClient(data: Omit<VisorClient, 'id' | 'qrCodeValue'> & { qrCodeValue?: string }): Promise<VisorClient> {
+    const qrCodeValue = data.qrCodeValue || uuidv4();
     const clientData = { ...data, qrCodeValue };
     const docRef = await addDoc(clientsCollectionRef, clientData);
     return { ...clientData, id: docRef.id };
+}
+
+export async function updateClient(id: string, data: Partial<Omit<VisorClient, 'id' | 'prefix' | 'supervisorId'>>) {
+    const clientDoc = doc(db, "visor_clients", id);
+    await updateDoc(clientDoc, data);
 }
 
 export async function deleteClient(id: string) {

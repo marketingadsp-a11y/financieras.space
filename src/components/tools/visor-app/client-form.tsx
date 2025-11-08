@@ -14,20 +14,45 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import type { VisorClient } from "@/lib/data";
+import React from "react";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(3, "El nombre del cliente es requerido."),
+  qrCodeValue: z.string().optional(),
 });
 
 type ClientFormProps = {
-  onSubmit: (data: { name: string }) => void;
+  onSubmit: (data: { name: string; qrCodeValue?: string }) => void;
+  client?: VisorClient | null;
+  isSubmitting?: boolean;
 };
 
-export function ClientForm({ onSubmit }: ClientFormProps) {
+export function ClientForm({ onSubmit, client, isSubmitting }: ClientFormProps) {
+    const isEditing = !!client;
+    
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: { name: "" },
+        defaultValues: { 
+            name: "",
+            qrCodeValue: ""
+        },
     });
+    
+    React.useEffect(() => {
+        if (client) {
+            form.reset({
+                name: client.name,
+                qrCodeValue: client.qrCodeValue,
+            });
+        } else {
+            form.reset({
+                name: "",
+                qrCodeValue: "",
+            });
+        }
+    }, [client, form]);
 
     return (
         <Form {...form}>
@@ -45,8 +70,22 @@ export function ClientForm({ onSubmit }: ClientFormProps) {
                         </FormItem>
                     )}
                 />
-                <Button type="submit" className="w-full">
-                    Crear Cliente
+                <FormField
+                    control={form.control}
+                    name="qrCodeValue"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Valor del Código QR (Opcional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Dejar en blanco para generar automáticamente" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                    {isEditing ? 'Guardar Cambios' : 'Crear Cliente'}
                 </Button>
             </form>
         </Form>

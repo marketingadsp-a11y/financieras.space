@@ -4,10 +4,10 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
-import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, getVisitsBySupervisorForToday } from "@/services/visor-app-service";
+import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, getVisitsBySupervisorForToday, updateClient } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle } from "lucide-react";
+import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
@@ -34,13 +34,12 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   const [visitsToday, setVisitsToday] = React.useState<VisorVisit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingClient, setEditingClient] = React.useState<VisorClient | null>(null);
   const [selectedClientForQr, setSelectedClientForQr] = React.useState<VisorClient | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
-    setSupervisor(null);
-    setClients([]);
-    setVisitsToday([]);
     try {
       const supervisorData = await getSupervisorById(supervisorId);
       if (!supervisorData) {
@@ -50,10 +49,11 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
       }
       setSupervisor(supervisorData);
 
-      const clientData = await getClientsBySupervisor(supervisorId);
+      const [clientData, visitsData] = await Promise.all([
+          getClientsBySupervisor(supervisorId),
+          getVisitsBySupervisorForToday(supervisorId)
+      ]);
       setClients(clientData || []);
-
-      const visitsData = await getVisitsBySupervisorForToday(supervisorId);
       setVisitsToday(visitsData || []);
 
     } catch (error) {
@@ -67,15 +67,24 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     fetchData();
   }, [fetchData]);
 
-  const handleAddClient = async (data: { name: string }) => {
+  const handleFormSubmit = async (data: { name: string, qrCodeValue?: string }) => {
     if (!user?.prefix) return;
+    setIsSubmitting(true);
     try {
-      await addClient({ ...data, prefix: user.prefix, supervisorId });
-      toast({ title: "Éxito", description: "Cliente agregado." });
+      if (editingClient) {
+        await updateClient(editingClient.id, data);
+        toast({ title: "Éxito", description: "Cliente actualizado." });
+      } else {
+        await addClient({ ...data, prefix: user.prefix, supervisorId });
+        toast({ title: "Éxito", description: "Cliente agregado." });
+      }
       setIsFormOpen(false);
+      setEditingClient(null);
       fetchData();
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo agregar el cliente." });
+      toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el cliente." });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -87,6 +96,11 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el cliente." });
     }
+  };
+  
+  const handleEditClick = (client: VisorClient) => {
+    setEditingClient(client);
+    setIsFormOpen(true);
   };
   
   const printQrCode = () => {
@@ -153,15 +167,15 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
               <CardTitle>Clientes de {supervisor.name}</CardTitle>
               <CardDescription>{clients.length} cliente(s) asignado(s).</CardDescription>
             </div>
-            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingClient(null); }}>
               <DialogTrigger asChild>
                 <Button><PlusCircle className="mr-2" /> Agregar Cliente</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Agregar Cliente a {supervisor.name}</DialogTitle>
+                  <DialogTitle>{editingClient ? "Editar" : "Agregar"} Cliente a {supervisor.name}</DialogTitle>
                 </DialogHeader>
-                <ClientForm onSubmit={handleAddClient} />
+                <ClientForm onSubmit={handleFormSubmit} client={editingClient} isSubmitting={isSubmitting}/>
               </DialogContent>
             </Dialog>
           </div>
@@ -176,6 +190,9 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                 <CardFooter className="flex justify-between">
                   <Button variant="outline" size="icon" onClick={() => setSelectedClientForQr(client)}>
                     <QrCode className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => handleEditClick(client)}>
+                    <Edit className="h-4 w-4" />
                   </Button>
                   <Button variant="destructive" size="icon" onClick={() => handleDeleteClient(client.id)}>
                     <Trash2 className="h-4 w-4" />
