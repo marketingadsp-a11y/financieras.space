@@ -29,19 +29,19 @@ async function generateUniqueDisplayId(prefix: string): Promise<string> {
 export async function getOficinas(prefix?: string, allowedOficinaIds?: string[]): Promise<OficinaRegistro[]> {
     let q: Query;
 
-    // Highest priority: If specific IDs are provided, always use them. This is for PlazaUsers.
     if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length > 0) {
-        // Firestore 'in' query is limited to 30 items. If more are needed, multiple queries would be required.
+        // Highest priority: If a specific list of IDs is provided, use it.
+        // Firestore 'in' queries are limited to 30 items.
         q = query(oficinasCollectionRef, where(documentId(), 'in', allowedOficinaIds.slice(0, 30)));
     } else if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length === 0) {
-        // If the user has an explicit but empty access list, they should see nothing.
+        // Explicitly given an empty access list, so return nothing.
         return [];
     } else if (prefix) {
-        // Fallback to prefix if no specific IDs are provided. For Admins.
+        // Fallback to prefix if no specific IDs are provided (e.g., for Admins).
         q = query(oficinasCollectionRef, where("prefix", "==", prefix));
     } else {
-      // No constraints means get all (for SuperAdmin views)
-      q = query(oficinasCollectionRef);
+        // No constraints means get all (for SuperAdmin views or initial loads).
+        q = query(oficinasCollectionRef);
     }
     
     const snapshot = await getDocs(q);
@@ -224,5 +224,3 @@ export async function deleteRegistrosByMonth(oficinaId: string, month: Date): Pr
 
     await batch.commit();
 }
-
-

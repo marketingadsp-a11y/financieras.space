@@ -35,6 +35,11 @@ export type SucursalAccess = {
   permissions: IncomeExpensesPermission[];
 }
 
+export type RegistroOficinaAccess = {
+  oficinaId: string;
+  permissions: RegistroOficinaPermission[];
+}
+
 export type ToolAdmin = {
   id: string;
   name: string;
@@ -114,11 +119,6 @@ export type PlazaAccess = {
   plazaId: string;
   plazaName: string;
   permissions: Permission[];
-}
-
-export type RegistroOficinaAccess = {
-  oficinaId: string;
-  permissions: RegistroOficinaPermission[];
 }
 
 export type LoanControlPermissions = {
