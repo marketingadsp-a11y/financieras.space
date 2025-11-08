@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
-import type { VisorSupervisor, VisorClient } from "@/lib/data";
+import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientByQrCodeValue } from "@/services/visor-app-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -11,6 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine } from "lucide-react";
 import { QrScanner } from "@/components/tools/visor-app/qr-scanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { onSnapshot, collection, query, where, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { startOfWeek, endOfWeek } from 'date-fns';
+import { cn } from "@/lib/utils";
 
 const LoginPage = ({ onLogin, isLoading, error, accessCode, setAccessCode }: { onLogin: () => void, isLoading: boolean, error: string | null, accessCode: string, setAccessCode: (code: string) => void }) => {
     return (
@@ -49,6 +53,7 @@ export default function QrReaderPage() {
     const { toast } = useToast();
     const [supervisor, setSupervisor] = React.useState<VisorSupervisor | null>(null);
     const [clients, setClients] = React.useState<VisorClient[]>([]);
+    const [visitsThisWeek, setVisitsThisWeek] = React.useState<VisorVisit[]>([]);
     const [accessCode, setAccessCode] = React.useState("");
     const [isLoading, setIsLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -64,6 +69,39 @@ export default function QrReaderPage() {
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recargar los datos del cliente.' });
         }
     }, [toast]);
+    
+    // Set up real-time listener for visits when a supervisor logs in
+    React.useEffect(() => {
+        if (!supervisor) return;
+
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
+        const weekEnd = endOfWeek(now, { weekStartsOn: 0 }); // Saturday
+
+        const q = query(
+            collection(db, "visor_visits"),
+            where("supervisorId", "==", supervisor.id),
+            where("timestamp", ">=", weekStart),
+            where("timestamp", "<=", weekEnd)
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const visits = snapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            timestamp: (doc.data().timestamp as Timestamp).toDate(),
+            })) as VisorVisit[];
+            setVisitsThisWeek(visits);
+        }, (error) => {
+            console.error("Error fetching visits in real-time: ", error);
+            // If collection doesn't exist, it will error. We can handle it gracefully.
+            setVisitsThisWeek([]);
+        });
+
+        // Cleanup listener on component unmount or when supervisor logs out
+        return () => unsubscribe();
+    }, [supervisor]);
+
 
     const handleLogin = async () => {
         if (accessCode.length !== 4) {
@@ -110,8 +148,7 @@ export default function QrReaderPage() {
                     timestamp: new Date(),
                 });
                 setVisitSuccessInfo({ clientName: client.name });
-                // Refresh client data to reflect visit
-                fetchData(supervisor.id);
+                // Data will be refreshed by the real-time listener
             } else if (client) {
                  toast({
                     variant: 'destructive',
@@ -135,6 +172,10 @@ export default function QrReaderPage() {
         }
     };
     
+    const visitedClientIds = React.useMemo(() => {
+        return new Set(visitsThisWeek.map(v => v.clientId));
+    }, [visitsThisWeek]);
+
     if (!supervisor) {
         return <LoginPage onLogin={handleLogin} isLoading={isLoading} error={error} accessCode={accessCode} setAccessCode={setAccessCode} />;
     }
@@ -162,11 +203,23 @@ export default function QrReaderPage() {
 
                     {showClientList && (
                         <div className="mt-4 p-4 border rounded-lg max-h-60 overflow-y-auto text-left">
-                            <h4 className="font-semibold mb-2">Lista de Clientes</h4>
+                            <h4 className="font-semibold mb-2">Lista de Clientes ({visitedClientIds.size} / {clients.length} visitados)</h4>
                             <ul className="space-y-2">
                                 {clients.map(client => (
-                                    <li key={client.id} className="p-2 bg-background rounded-md flex items-center">
-                                        <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <li 
+                                        key={client.id}
+                                        className={cn(
+                                            "p-2 rounded-md flex items-center transition-colors",
+                                            visitedClientIds.has(client.id) 
+                                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" 
+                                                : "bg-background"
+                                        )}
+                                    >
+                                        {visitedClientIds.has(client.id) ? (
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                        ) : (
+                                            <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        )}
                                         {client.name}
                                     </li>
                                 ))}
@@ -209,3 +262,4 @@ export default function QrReaderPage() {
     );
 }
 
+    
