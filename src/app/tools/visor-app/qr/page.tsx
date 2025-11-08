@@ -149,7 +149,7 @@ export default function QrReaderPage() {
                     timestamp: new Date(),
                 });
                 setVisitSuccessInfo({ clientName: client.name });
-                // Data will be refreshed by the real-time listener
+                // Data will be refreshed by the real-time listener, no need for manual fetchData() here.
             } else if (client) {
                  toast({
                     variant: 'destructive',
@@ -195,7 +195,9 @@ export default function QrReaderPage() {
                             <AvatarFallback>{supervisor.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                     )}
-                    <CardTitle>Panel de {supervisor.name}</CardTitle>
+                    <CardTitle>
+                        Hola, <span className="text-primary">{supervisor.name}</span>
+                    </CardTitle>
                     <CardDescription>Selecciona una opción para continuar.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -268,3 +270,4 @@ export default function QrReaderPage() {
         </div>
     );
 }
+
