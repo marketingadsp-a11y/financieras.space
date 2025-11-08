@@ -38,15 +38,22 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
+    setSupervisor(null);
+    setClients([]);
+    setVisitsToday([]);
     try {
-      const [supervisorData, clientData, visitsData] = await Promise.all([
-        getSupervisorById(supervisorId),
-        getClientsBySupervisor(supervisorId),
-        getVisitsBySupervisorForToday(supervisorId),
-      ]);
-      
+      const supervisorData = await getSupervisorById(supervisorId);
+      if (!supervisorData) {
+        toast({ variant: "destructive", title: "Error", description: "No se encontró el supervisor con el ID proporcionado." });
+        setIsLoading(false);
+        return;
+      }
       setSupervisor(supervisorData);
+
+      const clientData = await getClientsBySupervisor(supervisorId);
       setClients(clientData || []);
+
+      const visitsData = await getVisitsBySupervisorForToday(supervisorId);
       setVisitsToday(visitsData || []);
 
     } catch (error) {
