@@ -56,6 +56,15 @@ export default function QrReaderPage() {
     const [showClientList, setShowClientList] = React.useState(false);
     const [visitSuccessInfo, setVisitSuccessInfo] = React.useState<{ clientName: string } | null>(null);
 
+    const fetchData = React.useCallback(async (supervisorId: string) => {
+        try {
+            const clientData = await getClientsBySupervisor(supervisorId);
+            setClients(clientData);
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recargar los datos del cliente.' });
+        }
+    }, [toast]);
+
     const handleLogin = async () => {
         if (accessCode.length !== 4) {
             setError("El código debe ser de 4 dígitos.");
@@ -67,8 +76,7 @@ export default function QrReaderPage() {
             const foundSupervisor = await getSupervisorByAccessCode(accessCode);
             if (foundSupervisor) {
                 setSupervisor(foundSupervisor);
-                const clientData = await getClientsBySupervisor(foundSupervisor.id);
-                setClients(clientData);
+                fetchData(foundSupervisor.id);
             } else {
                 setError("Código de acceso incorrecto.");
                 setAccessCode("");
@@ -102,6 +110,8 @@ export default function QrReaderPage() {
                     timestamp: new Date(),
                 });
                 setVisitSuccessInfo({ clientName: client.name });
+                // Refresh client data to reflect visit
+                fetchData(supervisor.id);
             } else if (client) {
                  toast({
                     variant: 'destructive',
@@ -198,3 +208,4 @@ export default function QrReaderPage() {
         </div>
     );
 }
+
