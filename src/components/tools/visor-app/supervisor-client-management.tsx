@@ -1,10 +1,11 @@
+
 "use client";
 
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
-import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, getVisitsBySupervisorForWeek, updateClient } from "@/services/visor-app-service";
+import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, updateClient } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit } from "lucide-react";
@@ -21,6 +22,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { onSnapshot, collection, query, where, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { startOfWeek, endOfWeek } from 'date-fns';
 
 const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
     <Card>
@@ -33,6 +37,35 @@ const StatCard = ({ title, value, icon: Icon }: { title: string, value: string |
         </CardContent>
     </Card>
 );
+
+// This function now lives in the client component because it uses client-side listeners.
+function getVisitsBySupervisorForWeek(supervisorId: string, callback: (visits: VisorVisit[]) => void): () => void {
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
+  const weekEnd = endOfWeek(now, { weekStartsOn: 0 }); // Saturday
+
+  const q = query(
+    collection(db, "visor_visits"),
+    where("supervisorId", "==", supervisorId),
+    where("timestamp", ">=", weekStart),
+    where("timestamp", "<=", weekEnd)
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const visits = snapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id,
+      timestamp: (doc.data().timestamp as Timestamp).toDate(),
+    })) as VisorVisit[];
+    callback(visits);
+  }, (error) => {
+    console.error("Error fetching visits in real-time: ", error);
+    // If collection doesn't exist, it will error. We can handle it gracefully.
+    callback([]);
+  });
+
+  return unsubscribe; // Return the unsubscribe function for cleanup
+}
 
 
 export function SupervisorClientManagement({ supervisorId }: { supervisorId: string }) {

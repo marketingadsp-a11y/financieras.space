@@ -108,31 +108,3 @@ export async function addVisit(visitData: Omit<VisorVisit, 'id'>): Promise<Visor
     const docRef = await addDoc(visitsCollectionRef, visitData);
     return { ...visitData, id: docRef.id };
 }
-
-export function getVisitsBySupervisorForWeek(supervisorId: string, callback: (visits: VisorVisit[]) => void): () => void {
-  const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
-  const weekEnd = endOfWeek(now, { weekStartsOn: 0 }); // Saturday
-
-  const q = query(
-    visitsCollectionRef,
-    where("supervisorId", "==", supervisorId),
-    where("timestamp", ">=", weekStart),
-    where("timestamp", "<=", weekEnd)
-  );
-
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const visits = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id,
-      timestamp: (doc.data().timestamp as Timestamp).toDate(),
-    })) as VisorVisit[];
-    callback(visits);
-  }, (error) => {
-    console.error("Error fetching visits in real-time: ", error);
-    // If collection doesn't exist, it will error. We can handle it gracefully.
-    callback([]);
-  });
-
-  return unsubscribe; // Return the unsubscribe function for cleanup
-}
