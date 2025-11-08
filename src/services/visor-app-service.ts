@@ -1,13 +1,15 @@
 
+
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { VisorSupervisor, VisorClient } from "@/lib/data";
+import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { v4 as uuidv4 } from 'uuid';
 
 const supervisorsCollectionRef = collection(db, "visor_supervisors");
 const clientsCollectionRef = collection(db, "visor_clients");
+const visitsCollectionRef = collection(db, "visor_visits");
 
 // --- Supervisor Functions ---
 
@@ -69,4 +71,28 @@ export async function addClient(data: Omit<VisorClient, 'id' | 'qrCodeValue'>): 
 export async function deleteClient(id: string) {
     const clientDoc = doc(db, "visor_clients", id);
     await deleteDoc(clientDoc);
+}
+
+
+// --- Visit Functions ---
+
+export async function getVisitsBySupervisorForToday(supervisorId: string): Promise<VisorVisit[]> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1); // Start of tomorrow
+
+  const q = query(
+    visitsCollectionRef,
+    where("supervisorId", "==", supervisorId),
+    where("timestamp", ">=", today),
+    where("timestamp", "<", tomorrow)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ 
+      ...doc.data(), 
+      id: doc.id,
+      timestamp: (doc.data().timestamp as Timestamp).toDate(),
+    })) as VisorVisit[];
 }

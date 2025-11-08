@@ -564,3 +564,12 @@ export type VisorClient = {
     name: string;
     qrCodeValue: string; // The unique value embedded in the QR code
 };
+
+export type VisorVisit = {
+  id: string;
+  prefix: string;
+  supervisorId: string;
+  clientId: string;
+  clientName: string;
+  timestamp: Date;
+};

@@ -3,21 +3,35 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import type { VisorSupervisor, VisorClient } from "@/lib/data";
-import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient } from "@/services/visor-app-service";
+import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
+import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, getVisitsBySupervisorForToday } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode } from "lucide-react";
+import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
+
+const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
+    <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            <div className="text-2xl font-bold">{value}</div>
+        </CardContent>
+    </Card>
+);
+
 
 export function SupervisorClientManagement({ supervisorId }: { supervisorId: string }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [supervisor, setSupervisor] = React.useState<VisorSupervisor | null>(null);
   const [clients, setClients] = React.useState<VisorClient[]>([]);
+  const [visitsToday, setVisitsToday] = React.useState<VisorVisit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedClientForQr, setSelectedClientForQr] = React.useState<VisorClient | null>(null);
@@ -25,12 +39,16 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const supervisorData = await getSupervisorById(supervisorId);
+      const [supervisorData, clientData, visitsData] = await Promise.all([
+        getSupervisorById(supervisorId),
+        getClientsBySupervisor(supervisorId),
+        getVisitsBySupervisorForToday(supervisorId),
+      ]);
+      
       setSupervisor(supervisorData);
-      if (supervisorData) {
-        const clientData = await getClientsBySupervisor(supervisorId);
-        setClients(clientData);
-      }
+      setClients(clientData || []);
+      setVisitsToday(visitsData || []);
+
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos." });
     } finally {
@@ -88,6 +106,10 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     }
   };
 
+  const visitedClientIds = React.useMemo(() => {
+    return new Set(visitsToday.map(v => v.clientId));
+  }, [visitsToday]);
+
 
   if (isLoading) {
     return (
@@ -104,11 +126,18 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
 
   return (
     <div className="space-y-6">
-      <Button variant="outline" asChild>
-        <Link href="/tools/visor-app">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Supervisores
-        </Link>
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="outline" asChild>
+            <Link href="/tools/visor-app">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Supervisores
+            </Link>
+        </Button>
+      </div>
+      
+       <div className="grid gap-4 md:grid-cols-2">
+            <StatCard title="Total de Clientes" value={clients.length} icon={User} />
+            <StatCard title="Visitas de Hoy" value={`${visitedClientIds.size} / ${clients.length}`} icon={CheckCircle} />
+        </div>
 
       <Card>
         <CardHeader>
@@ -133,7 +162,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {clients.map(client => (
-              <Card key={client.id}>
+              <Card key={client.id} className={visitedClientIds.has(client.id) ? "bg-green-500/10 border-green-500" : ""}>
                 <CardHeader>
                   <CardTitle className="text-base">{client.name}</CardTitle>
                 </CardHeader>
