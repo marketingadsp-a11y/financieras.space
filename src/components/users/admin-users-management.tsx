@@ -60,7 +60,7 @@ export function AdminUsersManagement() {
         getPlazas({ fetchAll: true }),
         getAdmins(),
         getAllSucursales(), // Fetches all sucursales from all prefixes
-        getAllOficinasRegistro(),
+        getAllOficinasRegistro(), // Fetches all oficinas from all prefixes
       ]);
       setPlazaUsers(plazaUsersFromDb);
       setToolAdmins(toolAdminsFromDb);
