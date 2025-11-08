@@ -20,6 +20,7 @@ export type Admin = {
   accessibleTools?: string[];
   createdBy?: string;
   linkedAdmins?: LinkedAdminAccess[];
+  visorAppPermissions?: VisorAppPermissions;
 };
 
 export const INCOME_EXPENSES_PERMISSIONS = {

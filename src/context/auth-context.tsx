@@ -10,8 +10,8 @@ import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-adm
 import { getToolAdminByUsername, getToolAdminById } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
-import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission, Permission, OverduePortfolioPermissions, OverduePortfolioPermission, RegistroOficinaAccess, RegistroOficinaPermission } from '@/lib/data';
-import { getCustomizedTools } from '@/lib/data';
+import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission, Permission, OverduePortfolioPermissions, OverduePortfolioPermission, RegistroOficinaAccess, RegistroOficinaPermission, VisorAppPermissions, VisorAppPermission } from '@/lib/data';
+import { getCustomizedTools, VISOR_APP_PERMISSIONS } from '@/lib/data';
 
 interface User {
   id: string;
@@ -27,6 +27,7 @@ interface User {
   flujoPermissions?: FlujoPermissions;
   overduePortfolioPermissions?: OverduePortfolioPermissions;
   registroOficinaAccess?: RegistroOficinaAccess[];
+  visorAppPermissions?: VisorAppPermissions;
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
   linkedAdmins?: LinkedAdminAccess[];
@@ -158,7 +159,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       const admin = await getAdminByUsername(usernamePart, prefix);
       if (admin && admin.password === pass && admin.status === "Activo") {
-         const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy, linkedAdmins: admin.linkedAdmins };
+         const visorAppPermissions: VisorAppPermissions | undefined = admin.accessibleTools?.includes('visor-app') 
+            ? { permissions: Object.keys(VISOR_APP_PERMISSIONS) as VisorAppPermission[] } 
+            : undefined;
+
+         const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy, linkedAdmins: admin.linkedAdmins, visorAppPermissions };
          handleSuccessfulLogin(userData);
          return true;
       } else if (admin && admin.status === "Inactivo") {
@@ -188,6 +193,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
              flujoPermissions: plazaUser.flujoPermissions, 
              overduePortfolioPermissions: plazaUser.overduePortfolioPermissions,
              registroOficinaAccess: plazaUser.registroOficinaAccess,
+             visorAppPermissions: plazaUser.visorAppPermissions,
          };
          handleSuccessfulLogin(userData);
          return true;
@@ -288,6 +294,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const hasPermission = (id: string, permission: string): boolean => {
     if (!user) return false;
     
+    // Admins and SuperAdmins have all permissions by default within this model
     if (user.isSuperAdmin || (!user.isToolAdmin && !user.isPlazaUser)) {
       return true;
     }
