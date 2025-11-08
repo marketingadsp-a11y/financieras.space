@@ -38,7 +38,6 @@ export function AdminUsersManagement() {
   // State for Tool Admin form
   const [isToolAdminFormOpen, setIsToolAdminFormOpen] = React.useState(false);
   const [editingToolAdmin, setEditingToolAdmin] = React.useState<ToolAdmin | null>(null);
-  const [selectedToolId, setSelectedToolId] = React.useState('income-expenses');
 
 
   const { toast } = useToast();
@@ -118,10 +117,10 @@ export function AdminUsersManagement() {
   }
 
   // --- Tool Admin Handlers ---
-  const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'toolId' | 'prefix'>) => {
+  const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'createdBy'>) => {
       if(!user?.id) return;
       try {
-        const dataToSave = { ...adminData, toolId: selectedToolId as any, createdBy: user.id };
+        const dataToSave = { ...adminData, createdBy: user.id };
         if (editingToolAdmin) {
             await updateToolAdminService(editingToolAdmin.id, dataToSave);
             toast({ title: "Éxito", description: "Usuario de herramienta actualizado." });
