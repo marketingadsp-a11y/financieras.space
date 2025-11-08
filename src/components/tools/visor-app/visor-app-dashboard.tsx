@@ -8,7 +8,7 @@ import type { VisorSupervisor } from "@/lib/data";
 import { getSupervisors, addSupervisor, updateSupervisor, deleteSupervisor } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, User, ArrowRight, Edit, Trash2, KeyRound } from "lucide-react";
+import { Loader2, PlusCircle, User, ArrowRight, Edit, Trash2, KeyRound, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SupervisorForm } from "./supervisor-form";
 import Link from "next/link";
