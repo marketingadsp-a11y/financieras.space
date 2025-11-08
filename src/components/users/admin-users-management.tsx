@@ -117,14 +117,16 @@ export function AdminUsersManagement() {
   }
 
   // --- Tool Admin Handlers ---
-  const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'createdBy'>) => {
+    const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'createdBy' | 'toolId'>) => {
       if(!user?.id) return;
       try {
-        const dataToSave = { ...adminData, createdBy: user.id };
+        const dataToSave: any = { ...adminData, createdBy: user.id };
         if (editingToolAdmin) {
             await updateToolAdminService(editingToolAdmin.id, dataToSave);
             toast({ title: "Éxito", description: "Usuario de herramienta actualizado." });
         } else {
+            // This is a generic form, toolId must be added if not present in schema
+            if (!dataToSave.toolId) dataToSave.toolId = 'income-expenses';
             await addToolAdminService(dataToSave);
             toast({ title: "Éxito", description: "Usuario de herramienta agregado." });
         }
@@ -205,7 +207,11 @@ export function AdminUsersManagement() {
                                 <DialogTitle>{editingToolAdmin ? 'Editar' : 'Agregar'} Usuario de Herramienta</DialogTitle>
                                 <CardDescription>Crea un nuevo usuario con acceso a una herramienta específica.</CardDescription>
                             </DialogHeader>
-                            <ToolAdminForm onSubmit={handleToolAdminSubmit} admin={editingToolAdmin} sucursales={sucursales} admins={admins}/>
+                            <ToolAdminForm 
+                              onSubmit={handleToolAdminSubmit}
+                              admin={editingToolAdmin} 
+                              sucursales={sucursales} 
+                              admins={admins}/>
                         </DialogContent>
                     </Dialog>
                  </div>
