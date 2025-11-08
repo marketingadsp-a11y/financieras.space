@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -59,12 +58,8 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
       }
       setSupervisor(supervisorData);
 
-      const [clientData, visitsData] = await Promise.all([
-          getClientsBySupervisor(supervisorId),
-          getVisitsBySupervisorForWeek(supervisorId)
-      ]);
+      const clientData = await getClientsBySupervisor(supervisorId);
       setClients(clientData || []);
-      setVisitsThisWeek(visitsData || []);
 
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos." });
@@ -75,7 +70,15 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
 
   React.useEffect(() => {
     fetchData();
-  }, [fetchData]);
+
+    // Set up real-time listener for visits
+    const unsubscribe = getVisitsBySupervisorForWeek(supervisorId, (visits) => {
+        setVisitsThisWeek(visits || []);
+    });
+
+    // Cleanup listener on component unmount
+    return () => unsubscribe();
+  }, [fetchData, supervisorId]);
 
   const handleFormSubmit = async (data: { name: string, qrCodeValue?: string }) => {
     if (!user?.prefix) return;

@@ -2,7 +2,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, getDoc, Timestamp, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { v4 as uuidv4 } from 'uuid';
@@ -109,7 +109,7 @@ export async function addVisit(visitData: Omit<VisorVisit, 'id'>): Promise<Visor
     return { ...visitData, id: docRef.id };
 }
 
-export async function getVisitsBySupervisorForWeek(supervisorId: string): Promise<VisorVisit[]> {
+export function getVisitsBySupervisorForWeek(supervisorId: string, callback: (visits: VisorVisit[]) => void): () => void {
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
   const weekEnd = endOfWeek(now, { weekStartsOn: 0 }); // Saturday
@@ -120,16 +120,19 @@ export async function getVisitsBySupervisorForWeek(supervisorId: string): Promis
     where("timestamp", ">=", weekStart),
     where("timestamp", "<=", weekEnd)
   );
-  
-  try {
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ 
-        ...doc.data(), 
-        id: doc.id,
-        timestamp: (doc.data().timestamp as Timestamp).toDate(),
-      })) as VisorVisit[];
-  } catch (error) {
-      console.warn("Could not fetch visits, collection might not exist yet. Returning empty array.", error);
-      return [];
-  }
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const visits = snapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id,
+      timestamp: (doc.data().timestamp as Timestamp).toDate(),
+    })) as VisorVisit[];
+    callback(visits);
+  }, (error) => {
+    console.error("Error fetching visits in real-time: ", error);
+    // If collection doesn't exist, it will error. We can handle it gracefully.
+    callback([]);
+  });
+
+  return unsubscribe; // Return the unsubscribe function for cleanup
 }
