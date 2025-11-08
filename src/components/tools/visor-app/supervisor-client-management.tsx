@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
@@ -394,10 +394,10 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                                 Esta acción es irreversible. Se eliminarán los {clients.length} clientes asignados a {supervisor.name}.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter>
+                        <AlertDialogFooterComponent>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={handleDeleteAllClients}>Sí, eliminar todos</AlertDialogAction>
-                        </AlertDialogFooter>
+                        </AlertDialogFooterComponent>
                     </AlertDialogContent>
                 </AlertDialog>
                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingClient(null); }}>
@@ -487,3 +487,5 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     </div>
   );
 }
+
+    
