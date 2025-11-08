@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -140,21 +139,37 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     }
   };
   
-  const handleImport = async () => {
+ const handleImport = async () => {
     if (!fileToImport || !user?.prefix) {
         toast({ variant: "destructive", title: "Error", description: "Selecciona un archivo y asegúrate de tener un prefijo de empresa." });
         return;
     }
     setIsSubmitting(true);
-    try {
-        const result = await importClientsFromExcel(fileToImport, supervisorId, user.prefix);
-        toast({ title: "Importación Completa", description: `${result.importedCount} clientes fueron importados exitosamente.` });
-        fetchData();
-        setIsImportOpen(false);
-        setFileToImport(null);
-    } catch (error: any) {
-        toast({ variant: "destructive", title: "Error de Importación", description: error.message || "No se pudo importar el archivo." });
-    } finally {
+
+    const reader = new FileReader();
+    reader.readAsDataURL(fileToImport);
+    reader.onload = async (event) => {
+        const base64Content = event.target?.result as string;
+        if (!base64Content) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo leer el contenido del archivo.'});
+            setIsSubmitting(false);
+            return;
+        }
+
+        try {
+            const result = await importClientsFromExcel(base64Content, supervisorId, user.prefix);
+            toast({ title: "Importación Completa", description: `${result.importedCount} clientes fueron importados exitosamente.` });
+            fetchData();
+            setIsImportOpen(false);
+            setFileToImport(null);
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Error de Importación", description: error.message || "No se pudo importar el archivo." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    reader.onerror = () => {
+        toast({ variant: 'destructive', title: 'Error', description: 'Hubo un problema al leer el archivo.'});
         setIsSubmitting(false);
     }
   };

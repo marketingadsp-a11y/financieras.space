@@ -102,55 +102,47 @@ export async function deleteClient(id: string) {
     await deleteDoc(clientDoc);
 }
 
-export async function importClientsFromExcel(file: File, supervisorId: string, prefix: string): Promise<{ importedCount: number }> {
-    const reader = new FileReader();
-    const promise = new Promise<{ importedCount: number }>((resolve, reject) => {
-        reader.onload = async (e) => {
-            try {
-                const data = e.target?.result;
-                const workbook = XLSX.read(data, { type: 'binary' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json<any>(worksheet);
+export async function importClientsFromExcel(base64Content: string, supervisorId: string, prefix: string): Promise<{ importedCount: number }> {
+    try {
+        const fileContent = Buffer.from(base64Content.split(',')[1], 'base64');
+        const workbook = XLSX.read(fileContent, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json<any>(worksheet);
 
-                if (json.length === 0) {
-                    throw new Error("El archivo Excel está vacío.");
-                }
+        if (json.length === 0) {
+            throw new Error("El archivo Excel está vacío.");
+        }
 
-                const batch = writeBatch(db);
-                let importedCount = 0;
+        const batch = writeBatch(db);
+        let importedCount = 0;
 
-                json.forEach(row => {
-                    const clientName = row.Cliente || row.cliente || row.Name || row.name;
-                    const clientAddress = row.Direccion || row.direccion || row.Address || row.address;
+        json.forEach(row => {
+            const clientName = row.Cliente || row.cliente || row.Name || row.name;
+            const clientAddress = row.Direccion || row.direccion || row.Address || row.address;
 
-                    if (clientName) {
-                        const newClientRef = doc(clientsCollectionRef);
-                        batch.set(newClientRef, {
-                            name: String(clientName).trim(),
-                            address: clientAddress ? String(clientAddress).trim() : "",
-                            supervisorId,
-                            prefix,
-                            qrCodeValue: uuidv4(),
-                        });
-                        importedCount++;
-                    }
+            if (clientName) {
+                const newClientRef = doc(clientsCollectionRef);
+                batch.set(newClientRef, {
+                    name: String(clientName).trim(),
+                    address: clientAddress ? String(clientAddress).trim() : "",
+                    supervisorId,
+                    prefix,
+                    qrCodeValue: uuidv4(),
                 });
-
-                await batch.commit();
-                resolve({ importedCount });
-            } catch (error) {
-                reject(error);
+                importedCount++;
             }
-        };
+        });
 
-        reader.onerror = (error) => {
-            reject(error);
-        };
-    });
-
-    reader.readAsBinaryString(file);
-    return promise;
+        await batch.commit();
+        return { importedCount };
+    } catch (error) {
+        console.error("Error processing Excel file on server:", error);
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error("Error desconocido al procesar el archivo en el servidor.");
+    }
 }
 
 
