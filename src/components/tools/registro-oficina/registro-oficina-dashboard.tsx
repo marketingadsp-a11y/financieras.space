@@ -40,12 +40,12 @@ export function RegistroOficinaDashboard() {
     }
     setIsLoading(true);
     try {
-      let data = await getOficinas(user.prefix);
+        let allowedOficinaIds: string[] | undefined = undefined;
+        if (user.isPlazaUser && user.registroOficinaAccess && user.registroOficinaAccess.length > 0) {
+            allowedOficinaIds = user.registroOficinaAccess.map(roa => roa.oficinaId);
+        }
 
-      if (user.isPlazaUser && user.registroOficinaAccess && user.registroOficinaAccess.length > 0) {
-        const allowedOficinaIds = user.registroOficinaAccess.map(roa => roa.oficinaId);
-        data = data.filter(o => allowedOficinaIds.includes(o.id));
-      }
+        let data = await getOficinas(user.prefix, allowedOficinaIds);
 
 
       const today = new Date();
@@ -155,7 +155,7 @@ export function RegistroOficinaDashboard() {
       ) : (
         <Card>
           <CardContent className="pt-6 text-center text-muted-foreground">
-            No hay oficinas creadas. Comienza por crear una en "Gestionar Oficinas".
+            No hay oficinas creadas o no tienes acceso a ninguna. Comienza por crear una en "Gestionar Oficinas".
           </CardContent>
         </Card>
       )}

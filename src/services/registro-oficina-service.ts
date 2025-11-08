@@ -26,8 +26,20 @@ async function generateUniqueDisplayId(prefix: string): Promise<string> {
     return newId;
 }
 
-export async function getOficinas(prefix?: string): Promise<OficinaRegistro[]> {
-    const q = prefix ? query(oficinasCollectionRef, where("prefix", "==", prefix)) : oficinasCollectionRef;
+export async function getOficinas(prefix?: string, allowedOficinaIds?: string[]): Promise<OficinaRegistro[]> {
+    const constraints = [];
+    if (prefix) {
+        constraints.push(where("prefix", "==", prefix));
+    }
+    // If specific IDs are provided, use a 'in' query. Firestore limits this to 30 IDs.
+    if (allowedOficinaIds && allowedOficinaIds.length > 0) {
+        constraints.push(where(document.id, 'in', allowedOficinaIds));
+    } else if (allowedOficinaIds && allowedOficinaIds.length === 0) {
+        // If the user has an access array but it's empty, return nothing.
+        return [];
+    }
+
+    const q = query(oficinasCollectionRef, ...constraints);
     const snapshot = await getDocs(q);
     const oficinas = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as OficinaRegistro[];
     return oficinas.sort((a, b) => a.name.localeCompare(b.name));
@@ -100,8 +112,9 @@ export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<Of
 
 export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
     const startDate = registro.weekStartDate;
-    // Create a date string in YYYY-MM-DD format based on the local parts of the date, ignoring timezone
-    const dateString = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+    
+    const dateString = `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth() + 1).padStart(2, '0')}-${String(startDate.getUTCDate()).padStart(2, '0')}`;
+
     const docId = `${registro.oficinaId}_${dateString}`;
     
     const docRef = doc(db, "registro_semanal", docId);
@@ -171,22 +184,20 @@ function getMonthCycleBoundaries(monthDate: Date): { start: Date; end: Date } {
     // getUTCDay() -> Sunday is 0, ..., Saturday is 6.
     const dayOfWeek = cycleStart.getUTCDay();
     
-    // Calculate days to subtract to get to Saturday (if Sunday is 0, Monday 1... Saturday 6)
-    // The amount to subtract is simply the day number itself if Saturday=0.
-    // With Sunday=0, it's (dayOfWeek + 1) % 7.
-    // If it's Saturday (6), (6+1)%7 = 0.
-    // If it's Sunday (0), (0+1)%7 = 1.
-    // If it's Friday (5), (5+1)%7 = 6.
     const daysToSubtract = (dayOfWeek + 1) % 7;
     cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
     
+    // Correction for the start date, to get the correct start of the cycle.
+    cycleStart.setUTCDate(cycleStart.getUTCDate() + 1);
+
+
     // 3. The cycle ends 4 weeks (28 days) after it starts. The end date is inclusive.
     const cycleEnd = new Date(cycleStart);
     cycleEnd.setUTCDate(cycleStart.getUTCDate() + (4 * 7) - 1); 
     cycleEnd.setUTCHours(23, 59, 59, 999);
 
     return { start: cycleStart, end: cycleEnd };
-}
+  }
 
 
 export async function deleteRegistrosByMonth(oficinaId: string, month: Date): Promise<void> {
