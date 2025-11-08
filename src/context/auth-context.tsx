@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -9,7 +10,7 @@ import { getSuperAdminByUsername, getSuperAdminById } from '@/services/super-adm
 import { getToolAdminByUsername, getToolAdminById } from '@/services/tool-admin-service';
 import { getPlazaUserByUsername } from '@/services/plaza-user-service';
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
-import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission, Permission, OverduePortfolioPermissions, OverduePortfolioPermission } from '@/lib/data';
+import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission, Permission, OverduePortfolioPermissions, OverduePortfolioPermission, RegistroOficinaAccess, RegistroOficinaPermission } from '@/lib/data';
 import { getCustomizedTools } from '@/lib/data';
 
 interface User {
@@ -25,6 +26,7 @@ interface User {
   loanControlPermissions?: LoanControlPermissions;
   flujoPermissions?: FlujoPermissions;
   overduePortfolioPermissions?: OverduePortfolioPermissions;
+  registroOficinaAccess?: RegistroOficinaAccess[];
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
   linkedAdmins?: LinkedAdminAccess[];
@@ -174,7 +176,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const plazaUser = await getPlazaUserByUsername(usernamePart, prefix);
       if (plazaUser && plazaUser.password === pass && plazaUser.status === "Activo") {
-         const userData: User = { id: plazaUser.id, username: plazaUser.username, name: plazaUser.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, plazaAccess: plazaUser.plazaAccess, accessibleTools: plazaUser.accessibleTools, prefix: plazaUser.prefix, loanControlPermissions: plazaUser.loanControlPermissions, flujoPermissions: plazaUser.flujoPermissions, overduePortfolioPermissions: plazaUser.overduePortfolioPermissions };
+         const userData: User = { 
+             id: plazaUser.id, 
+             username: plazaUser.username, 
+             name: plazaUser.name, 
+             isSuperAdmin: false, isToolAdmin: false, isPlazaUser: true, 
+             plazaAccess: plazaUser.plazaAccess, 
+             accessibleTools: plazaUser.accessibleTools, 
+             prefix: plazaUser.prefix, 
+             loanControlPermissions: plazaUser.loanControlPermissions, 
+             flujoPermissions: plazaUser.flujoPermissions, 
+             overduePortfolioPermissions: plazaUser.overduePortfolioPermissions,
+             registroOficinaAccess: plazaUser.registroOficinaAccess,
+         };
          handleSuccessfulLogin(userData);
          return true;
       } else if (plazaUser && plazaUser.status === "Inactivo") {

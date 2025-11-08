@@ -30,11 +30,13 @@ export async function getOficinas(prefix?: string, allowedOficinaIds?: string[])
     let q: Query;
 
     if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length > 0) {
-        // Highest priority: If a specific list of IDs is provided, use it.
+        // If a specific list of IDs is provided, always use it as the primary filter.
+        // This is the highest priority for permission-based access.
         // Firestore 'in' queries are limited to 30 items.
         q = query(oficinasCollectionRef, where(documentId(), 'in', allowedOficinaIds.slice(0, 30)));
     } else if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length === 0) {
-        // Explicitly given an empty access list, so return nothing.
+        // If an empty access list is explicitly provided (e.g., for a user with no permissions),
+        // return an empty array immediately without querying.
         return [];
     } else if (prefix) {
         // Fallback to prefix if no specific IDs are provided (e.g., for Admins).
@@ -93,7 +95,7 @@ export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<Of
             if (timestamp instanceof Timestamp) {
                 return timestamp.toDate();
             }
-            if (timestamp && typeof timestamp.toDate === 'function') {
+            if (timestamp && typeof (timestamp as any).toDate === 'function') {
                  return timestamp.toDate();
             }
             if (typeof timestamp === 'string' || typeof timestamp === 'number') {

@@ -41,10 +41,12 @@ export function RegistroOficinaDashboard() {
     setIsLoading(true);
     try {
         let allowedOficinaIds: string[] | undefined = undefined;
+        let prefixToUse: string | undefined = user.isSuperAdmin ? undefined : user.prefix;
 
-        if (user.isPlazaUser) {
-            allowedOficinaIds = user.registroOficinaAccess?.map(roa => roa.oficinaId) || [];
-            // If they are a plaza user but have no offices assigned, they should see nothing.
+        if (user.isPlazaUser && user.registroOficinaAccess) {
+            allowedOficinaIds = user.registroOficinaAccess.map(roa => roa.oficinaId);
+            // Plaza users might not have a prefix themselves, so we don't filter by it if they have specific access.
+            prefixToUse = undefined;
             if (allowedOficinaIds.length === 0) {
                 setOficinas([]);
                 setIsLoading(false);
@@ -52,7 +54,7 @@ export function RegistroOficinaDashboard() {
             }
         }
         
-        let data = await getOficinas(user.isSuperAdmin ? undefined : user.prefix, allowedOficinaIds);
+        let data = await getOficinas(prefixToUse, allowedOficinaIds);
 
 
       const today = new Date();
