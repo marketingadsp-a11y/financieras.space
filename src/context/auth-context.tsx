@@ -172,7 +172,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const toolAdmin = await getToolAdminByUsername(usernamePart, prefix);
       if (toolAdmin && toolAdmin.password === pass && toolAdmin.status === "Activo") {
-         const userData: User = { id: toolAdmin.id, username: toolAdmin.username, name: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId], prefix: toolAdmin.prefix, createdBy: toolAdmin.createdBy, sucursalAccess: toolAdmin.sucursalAccess };
+         const userData: User = { id: toolAdmin.id, username: toolAdmin.username, name: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId], prefix: toolAdmin.prefix, createdBy: toolAdmin.createdBy, sucursalAccess: toolAdmin.sucursalAccess, registroOficinaAccess: toolAdmin.registroOficinaAccess };
          handleSuccessfulLogin(userData);
          return true;
       } else if (toolAdmin && toolAdmin.status === "Inactivo") {
@@ -250,6 +250,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false,
                 accessibleTools: [impersonatedUser.toolId],
                 sucursalAccess: impersonatedUser.sucursalAccess || [],
+                registroOficinaAccess: impersonatedUser.registroOficinaAccess || [],
                 prefix: impersonatedUser.prefix,
                 createdBy: impersonatedUser.createdBy,
             };
@@ -319,6 +320,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         if (currentPathToolId === 'flujo') {
             return !!user.flujoPermissions?.permissions.includes(permission as FlujoPermission);
+        }
+         if (currentPathToolId === 'visor-app') {
+            return !!user.visorAppPermissions?.permissions.includes(permission as VisorAppPermission);
         }
     }
     return false;

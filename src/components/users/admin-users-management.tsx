@@ -118,7 +118,7 @@ export function AdminUsersManagement() {
   }
 
   // --- Tool Admin Handlers ---
-    const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'createdBy' | 'toolId' | 'registroOficinaAccess' | 'sucursalAccess'>) => {
+    const handleToolAdminSubmit = async (adminData: Omit<ToolAdmin, 'id' | 'createdBy'>) => {
       if(!user?.id) return;
       try {
         const dataToSave: any = { ...adminData, createdBy: user.id };
