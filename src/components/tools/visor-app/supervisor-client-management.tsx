@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import * as ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -272,7 +272,9 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
           includeMargin: false,
       });
 
-      ReactDOM.render(qrComponent, tempContainer, () => {
+      createRoot(tempContainer).render(qrComponent);
+
+      setTimeout(() => {
           const svgEl = tempContainer.querySelector('svg');
           if (svgEl) {
               const svgString = new XMLSerializer().serializeToString(svgEl);
@@ -300,9 +302,8 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                   }
               };
           }
-          ReactDOM.unmountComponentAtNode(tempContainer);
           document.body.removeChild(tempContainer);
-      });
+      }, 100); // Give React time to render
       
       x += cardWidth;
       if ((index + 1) % cols === 0 && (index + 1) < clients.length) {
