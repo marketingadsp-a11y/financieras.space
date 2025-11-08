@@ -71,7 +71,9 @@ export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<Of
     
     const registros = snapshot.docs.map(docSnap => {
         const data = docSnap.data();
-         const toDateSafe = (timestamp: any): Date => {
+         // This robustly converts Firestore Timestamps or JS Dates into a consistent JS Date object
+        const toDateSafe = (timestamp: any): Date => {
+            if (!timestamp) return new Date(0); // Return an invalid date if no timestamp
             if (timestamp instanceof Timestamp) {
                 return timestamp.toDate();
             }
@@ -97,16 +99,16 @@ export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<Of
 }
 
 export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
-    // Normalize date to ensure it's always at the start of the day in UTC
     const startDate = registro.weekStartDate;
-    const normalizedStartDate = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()));
-
-    const docId = `${registro.oficinaId}_${normalizedStartDate.toISOString().split('T')[0]}`;
+    // Create a date string in YYYY-MM-DD format based on the local parts of the date, ignoring timezone
+    const dateString = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+    const docId = `${registro.oficinaId}_${dateString}`;
+    
     const docRef = doc(db, "registro_semanal", docId);
     
     const dataWithTimestamps = {
         ...registro,
-        weekStartDate: Timestamp.fromDate(normalizedStartDate),
+        weekStartDate: Timestamp.fromDate(startDate),
         updatedAt: Timestamp.now(),
     };
 
@@ -164,11 +166,16 @@ function getMonthCycleBoundaries(monthDate: Date): { start: Date; end: Date } {
     const anchorDate = new Date(Date.UTC(year, month - 1, 25));
 
     // 2. Find the Saturday of the week that contains the anchor date.
-    const dayOfWeek = anchorDate.getUTCDay(); // Sunday = 0, ..., Saturday = 6
-    const daysToSubtract = (dayOfWeek + 1) % 7;
-    
-    const cycleStart = new Date(anchorDate);
-    cycleStart.setUTCDate(anchorDate.getUTCDate() - daysToSubtract);
+    let cycleStart = new Date(anchorDate);
+    // getUTCDay() -> Sunday is 0, Saturday is 6.
+    const dayOfWeek = cycleStart.getUTCDay();
+    // If it's not Saturday, move back to find it.
+    if (dayOfWeek !== 6) {
+      const daysToSubtract = (dayOfWeek + 1) % 7;
+      cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
+    }
+    cycleStart.setUTCDate(cycleStart.getUTCDate() + 1); // Correction
+
 
     // 3. The cycle ends 4 weeks (28 days) after it starts. The end date is inclusive.
     const cycleEnd = new Date(cycleStart);

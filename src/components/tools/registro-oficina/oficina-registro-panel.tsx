@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -23,14 +24,10 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
     
-    // 1. Get the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(year, month - 1, 25));
 
-    // 2. Find the Saturday of the week that contains the anchor date.
     let cycleStart = new Date(anchorDate);
-    // getUTCDay() -> Sunday is 0, Saturday is 6.
-    const dayOfWeek = cycleStart.getUTCDay();
-    // If it's not Saturday, move back to find it.
+    const dayOfWeek = cycleStart.getUTCDay(); // Sunday = 0, ..., Saturday = 6
     if (dayOfWeek !== 6) {
       const daysToSubtract = (dayOfWeek + 1) % 7;
       cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
@@ -317,7 +314,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
         const weeklyValues = weeks.map(week => {
             const registro = registrosDelMes.find(r => {
                 const registroDate = new Date(r.weekStartDate);
-                return Date.UTC(registroDate.getUTCFullYear(), registroDate.getUTCMonth(), registroDate.getUTCDate()) === Date.UTC(week.start.getUTCFullYear(), week.start.getUTCMonth(), week.start.getUTCDate());
+                // Compare just the date part, ignoring time
+                return registroDate.getFullYear() === week.start.getFullYear() &&
+                       registroDate.getMonth() === week.start.getMonth() &&
+                       registroDate.getDate() === week.start.getDate();
             });
             return registro ? currency((registro as any)[key] || 0) : currency(0);
         });
@@ -329,7 +329,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     const weeklyTotals = weeks.map(week => {
         const registro = registrosDelMes.find(r => {
              const registroDate = new Date(r.weekStartDate);
-             return Date.UTC(registroDate.getUTCFullYear(), registroDate.getUTCMonth(), registroDate.getUTCDate()) === Date.UTC(week.start.getUTCFullYear(), week.start.getUTCMonth(), week.start.getUTCDate());
+             // Compare just the date part
+             return registroDate.getFullYear() === week.start.getFullYear() &&
+                    registroDate.getMonth() === week.start.getMonth() &&
+                    registroDate.getDate() === week.start.getDate();
         });
         if (!registro) return 0;
         return (registro.recogidoSeguros || 0) + (registro.carteraVencida || 0) + (registro.interesMensual || 0) + (registro.capitalMensual || 0) + (registro.cajaChica || 0);
@@ -353,22 +356,25 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   };
 
   function getMonthCycleBoundaries(monthDate: Date): { start: Date; end: Date } {
-      const year = monthDate.getUTCFullYear();
-      const month = monthDate.getUTCMonth();
-      const anchorDate = new Date(Date.UTC(year, month - 1, 25));
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth();
+    
+    const anchorDate = new Date(Date.UTC(year, month - 1, 25));
 
-      let cycleStart = new Date(anchorDate);
-      const dayOfWeek = cycleStart.getUTCDay();
-      if (dayOfWeek !== 6) {
-          const daysToSubtract = (dayOfWeek + 1) % 7;
-          cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
-      }
+    let cycleStart = new Date(anchorDate);
+    // getUTCDay() -> Sunday is 0, ..., Saturday is 6.
+    const dayOfWeek = cycleStart.getUTCDay();
+    // If it's not Saturday, move back to find it.
+    if (dayOfWeek !== 6) {
+      const daysToSubtract = (dayOfWeek + 1) % 7;
+      cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
+    }
+    
+    const cycleEnd = new Date(cycleStart);
+    cycleEnd.setUTCDate(cycleStart.getUTCDate() + (4 * 7) - 1); 
+    cycleEnd.setUTCHours(23, 59, 59, 999);
 
-      const cycleEnd = new Date(cycleStart);
-      cycleEnd.setUTCDate(cycleStart.getUTCDate() + (4 * 7) - 1);
-      cycleEnd.setUTCHours(23, 59, 59, 999);
-
-      return { start: cycleStart, end: cycleEnd };
+    return { start: cycleStart, end: cycleEnd };
   }
 
 
@@ -456,10 +462,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
         {weeks.map((week, index) => {
             const registro = allRegistros.find(r => {
                 const registroDate = new Date(r.weekStartDate);
-                const weekStartDate = new Date(week.start);
-                // Compare year, month, and day in UTC to avoid timezone issues
-                return Date.UTC(registroDate.getUTCFullYear(), registroDate.getUTCMonth(), registroDate.getUTCDate()) === 
-                       Date.UTC(weekStartDate.getUTCFullYear(), weekStartDate.getUTCMonth(), weekStartDate.getUTCDate());
+                // Compare only year, month, and day parts of the date, ignoring timezones.
+                return registroDate.getUTCFullYear() === week.start.getUTCFullYear() &&
+                       registroDate.getUTCMonth() === week.start.getUTCMonth() &&
+                       registroDate.getUTCDate() === week.start.getUTCDate();
             }) || null;
             return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
         })}
