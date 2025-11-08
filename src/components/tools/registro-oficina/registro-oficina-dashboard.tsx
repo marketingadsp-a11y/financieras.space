@@ -43,8 +43,8 @@ export function RegistroOficinaDashboard() {
         let allowedOficinaIds: string[] | undefined = undefined;
 
         // If the user is a PlazaUser, we MUST use their specific access list.
-        if (user.isPlazaUser) {
-            allowedOficinaIds = user.registroOficinaAccess?.map(roa => roa.oficinaId) || [];
+        if (user.isPlazaUser && user.registroOficinaAccess) {
+            allowedOficinaIds = user.registroOficinaAccess.map(roa => roa.oficinaId);
             // If they are a plaza user but have no offices assigned, show nothing.
             if (allowedOficinaIds.length === 0) {
                 setOficinas([]);

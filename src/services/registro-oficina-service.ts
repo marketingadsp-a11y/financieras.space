@@ -121,8 +121,7 @@ export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<Of
 export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {
     const startDate = registro.weekStartDate;
     
-    // Use ISO string for a consistent, timezone-independent ID format
-    const dateString = startDate.toISOString().split('T')[0];
+    const dateString = `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth() + 1).padStart(2, '0')}-${String(startDate.getUTCDate()).padStart(2, '0')}`;
 
     const docId = `${registro.oficinaId}_${dateString}`;
     
