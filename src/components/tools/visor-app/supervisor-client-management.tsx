@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
@@ -232,93 +232,87 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     }
   };
   
-  const handleExportQRs = async () => {
+  const handleExportQRs = () => {
     if (clients.length === 0) {
       toast({ title: "Sin clientes", description: "No hay clientes para exportar códigos QR." });
       return;
     }
-    toast({ title: "Generando PDF...", description: "Esto puede tardar un momento." });
 
-    const getQrImageDataUrl = (client: VisorClient): Promise<string> => {
-      return new Promise((resolve) => {
-        const tempContainer = document.createElement("div");
-        tempContainer.style.position = "absolute";
-        tempContainer.style.left = "-9999px";
-        document.body.appendChild(tempContainer);
-  
-        const qrComponent = React.createElement(QRCode, {
-          value: client.qrCodeValue,
-          size: 256,
-          level: "H",
-          includeMargin: false,
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo abrir la ventana de impresión. Revisa si tu navegador lo está bloqueando.'});
+        return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Códigos QR - ${supervisor?.name}</title>
+          <style>
+            @media print {
+              @page { size: letter; margin: 0.5in; }
+            }
+            body { font-family: sans-serif; }
+            .grid-container {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 20px;
+              page-break-inside: avoid;
+            }
+            .qr-card {
+              border: 1px solid #ccc;
+              border-radius: 8px;
+              padding: 10px;
+              text-align: center;
+              page-break-inside: avoid;
+            }
+            .qr-card h3 { margin: 5px 0 0 0; font-size: 10pt; }
+            .qr-card svg { width: 100%; height: auto; }
+          </style>
+        </head>
+        <body>
+          <h1>Códigos QR para ${supervisor?.name}</h1>
+          <div class="grid-container" id="qr-container"></div>
+          <script>
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+                window.onafterprint = function() { window.close(); };
+              }, 500); // Small delay to ensure all QR codes render
+            }
+          </script>
+        </body>
+      </html>
+    `);
+
+    const qrContainer = printWindow.document.getElementById('qr-container');
+    if (qrContainer) {
+        clients.forEach(client => {
+            const card = printWindow.document.createElement('div');
+            card.className = 'qr-card';
+
+            const nameEl = printWindow.document.createElement('h3');
+            nameEl.textContent = client.name;
+
+            const qrWrapper = printWindow.document.createElement('div');
+            
+            card.appendChild(nameEl);
+            card.appendChild(qrWrapper);
+            qrContainer.appendChild(card);
+
+            const qrComponent = React.createElement(QRCode, {
+                value: client.qrCodeValue,
+                size: 150,
+                level: "H",
+                includeMargin: true,
+            });
+
+            createRoot(qrWrapper).render(qrComponent);
         });
-  
-        const root = createRoot(tempContainer);
-        root.render(qrComponent);
-  
-        // Allow time for rendering
-        setTimeout(() => {
-          const svgEl = tempContainer.querySelector('svg');
-          if (svgEl) {
-            const svgString = new XMLSerializer().serializeToString(svgEl);
-            const img = new Image();
-            const svg = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-            const url = URL.createObjectURL(svg);
-            img.src = url;
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              canvas.width = 256;
-              canvas.height = 256;
-              const ctx = canvas.getContext("2d");
-              ctx?.drawImage(img, 0, 0);
-              const dataUrl = canvas.toDataURL("image/png");
-              URL.revokeObjectURL(url);
-              document.body.removeChild(tempContainer);
-              resolve(dataUrl);
-            };
-          }
-        }, 100);
-      });
-    };
-  
-    const doc = new jsPDF();
-    const qrSize = 50;
-    const margin = 10;
-    const padding = 5;
-    const cardWidth = qrSize + padding * 2;
-    const cardHeight = qrSize + padding * 2 + 10;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const cols = Math.floor((pageWidth - margin * 2) / cardWidth);
-    const rows = Math.floor((pageHeight - margin * 2) / cardHeight);
-    
-    let x = margin;
-    let y = margin;
-  
-    const qrImagePromises = clients.map(client => getQrImageDataUrl(client));
-    const qrImages = await Promise.all(qrImagePromises);
+    }
 
-    clients.forEach((client, index) => {
-      if (index > 0 && index % (cols * rows) === 0) {
-        doc.addPage();
-        x = margin;
-        y = margin;
-      }
-      
-      doc.setFontSize(10);
-      doc.text(client.name, x + cardWidth / 2, y + qrSize + padding + 5, { align: 'center', maxWidth: cardWidth - 4 });
-      doc.addImage(qrImages[index], 'PNG', x + padding, y + padding, qrSize, qrSize);
-
-      x += cardWidth;
-      if ((index + 1) % cols === 0) {
-        x = margin;
-        y += cardHeight;
-      }
-    });
-  
-    doc.save(`QRCodes_${supervisor?.name.replace(/\s/g, '_')}.pdf`);
+    printWindow.document.close();
   };
-
 
   const visitedClientIds = React.useMemo(() => {
     return new Set(visitsThisWeek.map(v => v.clientId));
@@ -330,7 +324,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-40">
-        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         <span>Cargando clientes...</span>
       </div>
     );
@@ -396,7 +390,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar todos los clientes?</AlertDialogTitle>
+                            <AlertDialogTitleComponent>¿Eliminar todos los clientes?</AlertDialogTitleComponent>
                             <AlertDialogDescription>
                                 Esta acción es irreversible. Se eliminarán los {clients.length} clientes asignados a {supervisor.name}.
                             </AlertDialogDescription>
@@ -444,9 +438,23 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                         <Button variant="outline" size="icon" onClick={() => handleEditClick(client)}>
                             <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="destructive" size="icon" onClick={() => handleDeleteClient(client.id)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                            </AlertDialogTrigger>
+                             <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitleComponent>¿Eliminar cliente?</AlertDialogTitleComponent>
+                                    <AlertDialogDescription>
+                                        Se eliminará a "{client.name}" permanentemente.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooterComponent>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteClient(client.id)}>Eliminar</AlertDialogAction>
+                                </AlertDialogFooterComponent>
+                            </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))
@@ -494,4 +502,3 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     </div>
   );
 }
-
