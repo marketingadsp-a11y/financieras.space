@@ -29,22 +29,18 @@ async function generateUniqueDisplayId(prefix: string): Promise<string> {
 export async function getOficinas(prefix?: string, allowedOficinaIds?: string[]): Promise<OficinaRegistro[]> {
     const constraints = [];
     
-    // If specific IDs are provided, use an 'in' query. This is the most secure way for PlazaUsers.
-    if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length > 0) {
+    // If specific IDs are provided, use an 'in' query. This is the highest priority filter.
+    if (Array.isArray(allowedOficinaIds)) {
+        if (allowedOficinaIds.length === 0) {
+            return []; // If the user has an explicit but empty access list, they should see nothing.
+        }
         // Firestore 'in' query is limited to 30 items. If more are needed, multiple queries would be required.
-        constraints.push(where(documentId(), 'in', allowedOficinaIds));
-    } else if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length === 0) {
-        // If the user has an explicit but empty access list, they should see nothing.
-        return [];
+        constraints.push(where(documentId(), 'in', allowedOficinaIds.slice(0, 30)));
     } else if (prefix) {
-        // Fallback to prefix if no specific IDs are provided. For Admins/SuperAdmins.
+        // Fallback to prefix if no specific IDs are provided. For Admins.
         constraints.push(where("prefix", "==", prefix));
-    } else if (allowedOficinaIds === undefined && prefix === undefined) {
-      // No constraints means get all (for SuperAdmin views)
     } else {
-        // If allowedOficinaIds is an empty array but not explicitly checked for length > 0 before, it would fetch nothing.
-        // This case handles when a user has no access.
-        return [];
+      // No constraints means get all (for SuperAdmin views that don't pass a prefix)
     }
     
     const q = constraints.length > 0 ? query(oficinasCollectionRef, ...constraints) : query(oficinasCollectionRef);
