@@ -8,7 +8,7 @@ import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientB
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle } from "lucide-react";
+import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User } from "lucide-react";
 import { QrScanner } from "@/components/tools/visor-app/qr-scanner";
 
 const LoginPage = ({ onLogin, isLoading, error, accessCode, setAccessCode }: { onLogin: () => void, isLoading: boolean, error: string | null, accessCode: string, setAccessCode: (code: string) => void }) => {
