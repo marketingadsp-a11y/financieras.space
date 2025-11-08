@@ -88,11 +88,18 @@ export async function getVisitsBySupervisorForToday(supervisorId: string): Promi
     where("timestamp", ">=", today),
     where("timestamp", "<", tomorrow)
   );
-
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ 
-      ...doc.data(), 
-      id: doc.id,
-      timestamp: (doc.data().timestamp as Timestamp).toDate(),
-    })) as VisorVisit[];
+  
+  try {
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ 
+        ...doc.data(), 
+        id: doc.id,
+        timestamp: (doc.data().timestamp as Timestamp).toDate(),
+      })) as VisorVisit[];
+  } catch (error) {
+      // This can happen if the collection doesn't exist yet.
+      // Instead of throwing an error and breaking the UI, we return an empty array.
+      console.warn("Could not fetch visits, collection might not exist yet. Returning empty array.", error);
+      return [];
+  }
 }
