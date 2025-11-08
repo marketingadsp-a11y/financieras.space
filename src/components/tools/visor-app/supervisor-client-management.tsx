@@ -232,85 +232,91 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     }
   };
   
-  const handleExportQRs = () => {
+  const handleExportQRs = async () => {
     if (clients.length === 0) {
       toast({ title: "Sin clientes", description: "No hay clientes para exportar códigos QR." });
       return;
     }
+    toast({ title: "Generando PDF...", description: "Esto puede tardar un momento." });
 
+    const getQrImageDataUrl = (client: VisorClient): Promise<string> => {
+      return new Promise((resolve) => {
+        const tempContainer = document.createElement("div");
+        tempContainer.style.position = "absolute";
+        tempContainer.style.left = "-9999px";
+        document.body.appendChild(tempContainer);
+  
+        const qrComponent = React.createElement(QRCode, {
+          value: client.qrCodeValue,
+          size: 256,
+          level: "H",
+          includeMargin: false,
+        });
+  
+        const root = createRoot(tempContainer);
+        root.render(qrComponent);
+  
+        // Allow time for rendering
+        setTimeout(() => {
+          const svgEl = tempContainer.querySelector('svg');
+          if (svgEl) {
+            const svgString = new XMLSerializer().serializeToString(svgEl);
+            const img = new Image();
+            const svg = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(svg);
+            img.src = url;
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              canvas.width = 256;
+              canvas.height = 256;
+              const ctx = canvas.getContext("2d");
+              ctx?.drawImage(img, 0, 0);
+              const dataUrl = canvas.toDataURL("image/png");
+              URL.revokeObjectURL(url);
+              document.body.removeChild(tempContainer);
+              resolve(dataUrl);
+            };
+          }
+        }, 100);
+      });
+    };
+  
     const doc = new jsPDF();
-    const qrSize = 50; // mm
-    const margin = 10; // mm
-    const padding = 5; // mm
+    const qrSize = 50;
+    const margin = 10;
+    const padding = 5;
     const cardWidth = qrSize + padding * 2;
-    const cardHeight = qrSize + padding * 2 + 10; // Extra space for name
+    const cardHeight = qrSize + padding * 2 + 10;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-
     const cols = Math.floor((pageWidth - margin * 2) / cardWidth);
     const rows = Math.floor((pageHeight - margin * 2) / cardHeight);
-
+    
     let x = margin;
     let y = margin;
+  
+    const qrImagePromises = clients.map(client => getQrImageDataUrl(client));
+    const qrImages = await Promise.all(qrImagePromises);
 
     clients.forEach((client, index) => {
-      if (index > 0 && (index % (cols * rows) === 0)) {
+      if (index > 0 && index % (cols * rows) === 0) {
         doc.addPage();
         x = margin;
         y = margin;
       }
       
-      const tempContainer = document.createElement("div");
-      tempContainer.style.position = "absolute";
-      tempContainer.style.left = "-9999px";
-      document.body.appendChild(tempContainer);
+      doc.setFontSize(10);
+      doc.text(client.name, x + cardWidth / 2, y + qrSize + padding + 5, { align: 'center', maxWidth: cardWidth - 4 });
+      doc.addImage(qrImages[index], 'PNG', x + padding, y + padding, qrSize, qrSize);
 
-      const qrComponent = React.createElement(QRCode, {
-          value: client.qrCodeValue,
-          size: 256,
-          level: "H",
-          includeMargin: false,
-      });
-
-      createRoot(tempContainer).render(qrComponent);
-
-      setTimeout(() => {
-          const svgEl = tempContainer.querySelector('svg');
-          if (svgEl) {
-              const svgString = new XMLSerializer().serializeToString(svgEl);
-              const img = new Image();
-              const svg = new Blob([svgString], {type: "image/svg+xml;charset=utf-8"});
-              const url = URL.createObjectURL(svg);
-              img.src = url;
-
-              img.onload = () => {
-                  const canvas = document.createElement("canvas");
-                  canvas.width = 256;
-                  canvas.height = 256;
-                  const ctx = canvas.getContext("2d");
-                  ctx?.drawImage(img, 0, 0);
-                  const dataUrl = canvas.toDataURL("image/png");
-
-                  doc.setFontSize(10);
-                  doc.text(client.name, x + cardWidth / 2, y + qrSize + padding + 5, { align: 'center', maxWidth: cardWidth - 4 });
-                  doc.addImage(dataUrl, 'PNG', x + padding, y + padding, qrSize, qrSize);
-                  
-                  URL.revokeObjectURL(url);
-                  
-                  if (index === clients.length - 1) {
-                      doc.save(`QRCodes_${supervisor?.name.replace(/\s/g, '_')}.pdf`);
-                  }
-              };
-          }
-          document.body.removeChild(tempContainer);
-      }, 100); // Give React time to render
-      
       x += cardWidth;
-      if ((index + 1) % cols === 0 && (index + 1) < clients.length) {
+      if ((index + 1) % cols === 0) {
         x = margin;
         y += cardHeight;
       }
     });
+  
+    doc.save(`QRCodes_${supervisor?.name.replace(/\s/g, '_')}.pdf`);
   };
 
 
@@ -384,7 +390,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                 <Button variant="outline" onClick={handleExportQRs} disabled={clients.length === 0}>
                     <FileText className="mr-2 h-4 w-4" /> Exportar QRs
                 </Button>
-                <AlertDialog>
+                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="icon" disabled={clients.length === 0}><Trash2 className="h-4 w-4"/></Button>
                     </AlertDialogTrigger>
@@ -489,4 +495,3 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   );
 }
 
-    
