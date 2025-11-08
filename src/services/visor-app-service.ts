@@ -138,7 +138,7 @@ export async function importClientsFromExcel(base64Content: string, supervisorId
 
         json.forEach(row => {
             const clientName = row.Cliente || row.cliente || row.Name || row.name;
-            const clientAddress = row.Direccion || row.direccion || row.Address || row.address;
+            const clientAddress = row.Direccion || row.direccion || row.Address || row.address || row.Dirección;
 
             if (clientName) {
                 const newClientRef = doc(clientsCollectionRef);
