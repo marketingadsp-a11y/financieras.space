@@ -28,21 +28,26 @@ async function generateUniqueDisplayId(prefix: string): Promise<string> {
 
 export async function getOficinas(prefix?: string, allowedOficinaIds?: string[]): Promise<OficinaRegistro[]> {
     const constraints = [];
-    if (prefix) {
-        constraints.push(where("prefix", "==", prefix));
-    }
     
-    // If specific IDs are provided, use a 'in' query. This is the most secure way for PlazaUsers.
-    if (allowedOficinaIds && allowedOficinaIds.length > 0) {
+    // If specific IDs are provided, use an 'in' query. This is the most secure way for PlazaUsers.
+    if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length > 0) {
         // Firestore 'in' query is limited to 30 items. If more are needed, multiple queries would be required.
-        // For now, we assume the number of assigned oficinas will be less than 30.
         constraints.push(where(documentId(), 'in', allowedOficinaIds));
-    } else if (allowedOficinaIds && allowedOficinaIds.length === 0) {
+    } else if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length === 0) {
         // If the user has an explicit but empty access list, they should see nothing.
         return [];
+    } else if (prefix) {
+        // Fallback to prefix if no specific IDs are provided. For Admins/SuperAdmins.
+        constraints.push(where("prefix", "==", prefix));
+    } else if (allowedOficinaIds === undefined && prefix === undefined) {
+      // No constraints means get all (for SuperAdmin views)
+    } else {
+        // If allowedOficinaIds is an empty array but not explicitly checked for length > 0 before, it would fetch nothing.
+        // This case handles when a user has no access.
+        return [];
     }
-
-    const q = query(oficinasCollectionRef, ...constraints);
+    
+    const q = constraints.length > 0 ? query(oficinasCollectionRef, ...constraints) : query(oficinasCollectionRef);
     const snapshot = await getDocs(q);
     const oficinas = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as OficinaRegistro[];
     return oficinas.sort((a, b) => a.name.localeCompare(b.name));
@@ -125,7 +130,6 @@ export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRe
     
     const dataWithTimestamps = {
         ...registro,
-        // Save dates as they are, Firestore will convert to Timestamp
         weekStartDate: startDate,
         updatedAt: new Date(),
     };
