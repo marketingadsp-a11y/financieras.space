@@ -27,11 +27,11 @@ const LoginPage = ({ onLogin, isLoading, error, accessCode, setAccessCode }: { o
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <Input 
-                        type="password"
+                        type="tel"
                         inputMode="numeric"
                         maxLength={4}
                         placeholder="••••"
-                        className="text-center text-2xl font-mono tracking-[1em] h-14"
+                        className="text-center text-4xl font-bold font-mono tracking-[1em] h-16"
                         value={accessCode}
                         onChange={(e) => setAccessCode(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && onLogin()}
@@ -261,5 +261,3 @@ export default function QrReaderPage() {
         </div>
     );
 }
-
-    
