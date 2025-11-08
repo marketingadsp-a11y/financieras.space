@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -21,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import type { PlazaUser, ToolAdmin } from "@/lib/data";
+import type { PlazaUser } from "@/lib/data";
 import { getCustomizedTools } from "@/lib/data";
 import {
   AlertDialog,
@@ -35,37 +36,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type CombinedUser = PlazaUser | ToolAdmin;
 
 type UsersTableProps = {
-    data: CombinedUser[];
-    onEdit: (user: any) => void;
+    data: PlazaUser[];
+    onEdit: (user: PlazaUser) => void;
     onDelete: (id: string) => void;
     isSuperAdminView?: boolean;
 }
 
-function isPlazaUser(user: any): user is PlazaUser {
-    return 'plazaAccess' in user && !('toolId' in user);
-}
-
-function isToolAdmin(user: any): user is ToolAdmin {
-    return 'toolId' in user;
-}
-
-const PasswordCell = ({ password }: { password?: string }) => {
-    const [showPassword, setShowPassword] = React.useState(false);
-    if (!password) {
-        return <span className="text-muted-foreground">N/A</span>
-    }
-    return (
-        <div className="flex items-center gap-2">
-            <span>{showPassword ? password : '••••••••'}</span>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-        </div>
-    )
-}
 
 export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }: UsersTableProps) {
   const [filter, setFilter] = React.useState("");
@@ -96,8 +74,6 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
     return tool ? tool.name : "Herramienta Desconocida";
   }
 
-  const isAnyToolAdminInView = React.useMemo(() => data.some(isToolAdmin), [data]);
-
 
   return (
     <>
@@ -117,7 +93,6 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               <TableHead>Usuario</TableHead>
               {isSuperAdminView && <TableHead>Empresa (Prefijo)</TableHead>}
               <TableHead>Acceso Principal</TableHead>
-              {isSuperAdminView && isAnyToolAdminInView && <TableHead>Contraseña</TableHead>}
               <TableHead>Estado</TableHead>
               <TableHead>
                 <span className="sr-only">Acciones</span>
@@ -137,22 +112,14 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
                   )}
                    <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {isPlazaUser(user) && user.plazaAccess.map(pa => (
-                        <Badge key={pa.plazaId} variant="outline" className="gap-1.5"><Building className="h-3 w-3" />{pa.plazaName}</Badge>
-                      ))}
-                      {isToolAdmin(user) && user.toolId && (
-                        <Badge variant="secondary" className="gap-1.5">
-                            {React.createElement(getToolIcon(user.toolId), { className: "h-3 w-3" })}
-                            {getToolName(user.toolId)}
+                      {user.accessibleTools?.map(toolId => (
+                        <Badge key={toolId} variant="secondary" className="gap-1.5">
+                            {React.createElement(getToolIcon(toolId), { className: "h-3 w-3" })}
+                            {getToolName(toolId)}
                         </Badge>
-                      )}
+                      ))}
                     </div>
                   </TableCell>
-                   {isSuperAdminView && isAnyToolAdminInView && (
-                     <TableCell>
-                        {isToolAdmin(user) ? <PasswordCell password={user.password} /> : <span className="text-muted-foreground">N/A</span>}
-                     </TableCell>
-                   )}
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(user.status)}>
                       {user.status}
@@ -197,7 +164,7 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={isSuperAdminView && isAnyToolAdminInView ? 7 : isSuperAdminView ? 6 : 5} className="h-24 text-center">
+                <TableCell colSpan={isSuperAdminView ? 6 : 5} className="h-24 text-center">
                   No se encontraron resultados.
                 </TableCell>
               </TableRow>
@@ -208,3 +175,4 @@ export function UsersTable({ data, onEdit, onDelete, isSuperAdminView = false }:
     </>
   );
 }
+
