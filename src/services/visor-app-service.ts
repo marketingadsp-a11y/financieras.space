@@ -57,9 +57,8 @@ export async function deleteSupervisor(id: string) {
     const supervisorDoc = doc(db, "visor_supervisors", id);
     batch.delete(supervisorDoc);
 
-    const clientsQuery = query(clientsCollectionRef, where("supervisorId", "==", id));
-    const clientsSnapshot = await getDocs(clientsQuery);
-    clientsSnapshot.forEach(doc => batch.delete(doc.ref));
+    // Also delete clients and visits associated with the supervisor
+    await deleteAllClientsBySupervisor(id);
 
     await batch.commit();
 }
@@ -104,11 +103,21 @@ export async function deleteClient(id: string) {
 
 export async function deleteAllClientsBySupervisor(supervisorId: string) {
     const batch = writeBatch(db);
-    const q = query(clientsCollectionRef, where("supervisorId", "==", supervisorId));
-    const snapshot = await getDocs(q);
-    snapshot.forEach(doc => {
+
+    // Query for clients to delete
+    const clientsQuery = query(clientsCollectionRef, where("supervisorId", "==", supervisorId));
+    const clientsSnapshot = await getDocs(clientsQuery);
+    clientsSnapshot.forEach(doc => {
         batch.delete(doc.ref);
     });
+
+    // Query for visits to delete
+    const visitsQuery = query(visitsCollectionRef, where("supervisorId", "==", supervisorId));
+    const visitsSnapshot = await getDocs(visitsQuery);
+    visitsSnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
     await batch.commit();
 }
 
@@ -159,6 +168,10 @@ export async function importClientsFromExcel(base64Content: string, supervisorId
 // --- Visit Functions ---
 
 export async function addVisit(visitData: Omit<VisorVisit, 'id'>): Promise<VisorVisit> {
-    const docRef = await addDoc(visitsCollectionRef, visitData);
-    return { ...visitData, id: docRef.id };
+    const dataWithTimestamp = {
+        ...visitData,
+        timestamp: Timestamp.fromDate(new Date()),
+    }
+    const docRef = await addDoc(visitsCollectionRef, dataWithTimestamp);
+    return { ...visitData, id: docRef.id, timestamp: dataWithTimestamp.timestamp.toDate() };
 }
