@@ -29,13 +29,13 @@ async function generateUniqueDisplayId(prefix: string): Promise<string> {
 export async function getOficinas(prefix?: string, allowedOficinaIds?: string[]): Promise<OficinaRegistro[]> {
     const constraints = [];
     
-    // If specific IDs are provided, use an 'in' query. This is the highest priority filter.
-    if (Array.isArray(allowedOficinaIds)) {
-        if (allowedOficinaIds.length === 0) {
-            return []; // If the user has an explicit but empty access list, they should see nothing.
-        }
+    // HIGHEST PRIORITY: If specific IDs are provided, always use them.
+    if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length > 0) {
         // Firestore 'in' query is limited to 30 items. If more are needed, multiple queries would be required.
         constraints.push(where(documentId(), 'in', allowedOficinaIds.slice(0, 30)));
+    } else if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length === 0) {
+        // If the user has an explicit but empty access list, they should see nothing.
+        return [];
     } else if (prefix) {
         // Fallback to prefix if no specific IDs are provided. For Admins.
         constraints.push(where("prefix", "==", prefix));
@@ -224,3 +224,4 @@ export async function deleteRegistrosByMonth(oficinaId: string, month: Date): Pr
 
     await batch.commit();
 }
+
