@@ -8,7 +8,7 @@ import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, updateClient } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit } from "lucide-react";
+import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
@@ -176,6 +176,8 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   const visitedClientIds = React.useMemo(() => {
     return new Set(visitsThisWeek.map(v => v.clientId));
   }, [visitsThisWeek]);
+  
+  const visitPercentage = clients.length > 0 ? (visitedClientIds.size / clients.length) * 100 : 0;
 
 
   if (isLoading) {
@@ -201,9 +203,10 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
         </Button>
       </div>
       
-       <div className="grid gap-4 md:grid-cols-2">
+       <div className="grid gap-4 md:grid-cols-3">
             <StatCard title="Total de Clientes" value={clients.length} icon={User} />
             <StatCard title="Visitas de la Semana" value={`${visitedClientIds.size} / ${clients.length}`} icon={CheckCircle} />
+            <StatCard title="Porcentaje de Visitas" value={`${visitPercentage.toFixed(1)}%`} icon={Percent} />
         </div>
 
       <Card>
