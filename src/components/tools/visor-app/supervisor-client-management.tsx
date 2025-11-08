@@ -1,10 +1,11 @@
+
 "use client";
 
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
-import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, getVisitsBySupervisorForToday, updateClient } from "@/services/visor-app-service";
+import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, getVisitsBySupervisorForWeek, updateClient } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit } from "lucide-react";
@@ -31,7 +32,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   const { toast } = useToast();
   const [supervisor, setSupervisor] = React.useState<VisorSupervisor | null>(null);
   const [clients, setClients] = React.useState<VisorClient[]>([]);
-  const [visitsToday, setVisitsToday] = React.useState<VisorVisit[]>([]);
+  const [visitsThisWeek, setVisitsThisWeek] = React.useState<VisorVisit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingClient, setEditingClient] = React.useState<VisorClient | null>(null);
@@ -51,10 +52,10 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
 
       const [clientData, visitsData] = await Promise.all([
           getClientsBySupervisor(supervisorId),
-          getVisitsBySupervisorForToday(supervisorId)
+          getVisitsBySupervisorForWeek(supervisorId)
       ]);
       setClients(clientData || []);
-      setVisitsToday(visitsData || []);
+      setVisitsThisWeek(visitsData || []);
 
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos." });
@@ -128,8 +129,8 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
   };
 
   const visitedClientIds = React.useMemo(() => {
-    return new Set(visitsToday.map(v => v.clientId));
-  }, [visitsToday]);
+    return new Set(visitsThisWeek.map(v => v.clientId));
+  }, [visitsThisWeek]);
 
 
   if (isLoading) {
@@ -157,7 +158,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
       
        <div className="grid gap-4 md:grid-cols-2">
             <StatCard title="Total de Clientes" value={clients.length} icon={User} />
-            <StatCard title="Visitas de Hoy" value={`${visitedClientIds.size} / ${clients.length}`} icon={CheckCircle} />
+            <StatCard title="Visitas de la Semana" value={`${visitedClientIds.size} / ${clients.length}`} icon={CheckCircle} />
         </div>
 
       <Card>

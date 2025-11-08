@@ -6,6 +6,7 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, w
 import { db } from "@/lib/firebase";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { v4 as uuidv4 } from 'uuid';
+import { startOfWeek, endOfWeek } from 'date-fns';
 
 const supervisorsCollectionRef = collection(db, "visor_supervisors");
 const clientsCollectionRef = collection(db, "visor_clients");
@@ -108,17 +109,16 @@ export async function addVisit(visitData: Omit<VisorVisit, 'id'>): Promise<Visor
     return { ...visitData, id: docRef.id };
 }
 
-export async function getVisitsBySupervisorForToday(supervisorId: string): Promise<VisorVisit[]> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Start of today
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1); // Start of tomorrow
+export async function getVisitsBySupervisorForWeek(supervisorId: string): Promise<VisorVisit[]> {
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
+  const weekEnd = endOfWeek(now, { weekStartsOn: 0 }); // Saturday
 
   const q = query(
     visitsCollectionRef,
     where("supervisorId", "==", supervisorId),
-    where("timestamp", ">=", today),
-    where("timestamp", "<", tomorrow)
+    where("timestamp", ">=", weekStart),
+    where("timestamp", "<=", weekEnd)
   );
   
   try {
@@ -129,8 +129,6 @@ export async function getVisitsBySupervisorForToday(supervisorId: string): Promi
         timestamp: (doc.data().timestamp as Timestamp).toDate(),
       })) as VisorVisit[];
   } catch (error) {
-      // This can happen if the collection doesn't exist yet.
-      // Instead of throwing an error and breaking the UI, we return an empty array.
       console.warn("Could not fetch visits, collection might not exist yet. Returning empty array.", error);
       return [];
   }
