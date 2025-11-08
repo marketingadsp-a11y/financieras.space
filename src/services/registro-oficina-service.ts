@@ -2,7 +2,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy, writeBatch, documentId } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, orderBy, writeBatch, documentId, Query } from "firebase/firestore";
 import { startOfMonth, endOfMonth, addMonths, subMonths, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
@@ -27,23 +27,23 @@ async function generateUniqueDisplayId(prefix: string): Promise<string> {
 }
 
 export async function getOficinas(prefix?: string, allowedOficinaIds?: string[]): Promise<OficinaRegistro[]> {
-    const constraints = [];
-    
-    // HIGHEST PRIORITY: If specific IDs are provided, always use them.
+    let q: Query;
+
+    // Highest priority: If specific IDs are provided, always use them. This is for PlazaUsers.
     if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length > 0) {
         // Firestore 'in' query is limited to 30 items. If more are needed, multiple queries would be required.
-        constraints.push(where(documentId(), 'in', allowedOficinaIds.slice(0, 30)));
+        q = query(oficinasCollectionRef, where(documentId(), 'in', allowedOficinaIds.slice(0, 30)));
     } else if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length === 0) {
         // If the user has an explicit but empty access list, they should see nothing.
         return [];
     } else if (prefix) {
         // Fallback to prefix if no specific IDs are provided. For Admins.
-        constraints.push(where("prefix", "==", prefix));
+        q = query(oficinasCollectionRef, where("prefix", "==", prefix));
     } else {
-      // No constraints means get all (for SuperAdmin views that don't pass a prefix)
+      // No constraints means get all (for SuperAdmin views)
+      q = query(oficinasCollectionRef);
     }
     
-    const q = constraints.length > 0 ? query(oficinasCollectionRef, ...constraints) : query(oficinasCollectionRef);
     const snapshot = await getDocs(q);
     const oficinas = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as OficinaRegistro[];
     return oficinas.sort((a, b) => a.name.localeCompare(b.name));
@@ -224,4 +224,5 @@ export async function deleteRegistrosByMonth(oficinaId: string, month: Date): Pr
 
     await batch.commit();
 }
+
 
