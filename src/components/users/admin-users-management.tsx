@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UsersTable } from "@/components/users/users-table";
 import { UserForm } from "@/components/users/user-form";
 import { ToolAdminForm } from "@/components/tools/income-expenses/users/user-form";
-import type { PlazaUser, Plaza, Tool, Admin, ToolAdmin, Sucursal } from "@/lib/data";
+import type { PlazaUser, Plaza, Tool, Admin, ToolAdmin, Sucursal, OficinaRegistro } from "@/lib/data";
 import { getCustomizedTools } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -16,6 +16,7 @@ import { getAllPlazaUsers, addPlazaUser, updatePlazaUser, deletePlazaUser } from
 import { getAllToolAdminsWithPasswords, addToolAdmin as addToolAdminService, updateToolAdmin as updateToolAdminService, deleteToolAdmin as deleteToolAdminService } from "@/services/tool-admin-service";
 import { getAdmins } from "@/services/admin-service";
 import { getPlazas } from "@/services/plaza-service";
+import { getOficinas as getAllOficinasRegistro } from "@/services/registro-oficina-service";
 import { getSucursales as getAllSucursales } from "@/services/income-expenses-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
@@ -27,6 +28,7 @@ export function AdminUsersManagement() {
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
   const [admins, setAdmins] = React.useState<Admin[]>([]);
   const [sucursales, setSucursales] = React.useState<Sucursal[]>([]);
+  const [oficinasRegistro, setOficinasRegistro] = React.useState<OficinaRegistro[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   // State for Plaza User form
@@ -51,19 +53,22 @@ export function AdminUsersManagement() {
         toolAdminsFromDb, 
         plazasFromDb, 
         adminsFromDb,
-        allSucursales
+        allSucursales,
+        allRegistroOficinas
       ] = await Promise.all([
         getAllPlazaUsers(),
         getAllToolAdminsWithPasswords(),
         getPlazas({ fetchAll: true }),
         getAdmins(),
         getAllSucursales(), // Fetches all sucursales from all prefixes
+        getAllOficinasRegistro(),
       ]);
       setPlazaUsers(plazaUsersFromDb);
       setToolAdmins(toolAdminsFromDb);
       setPlazas(plazasFromDb);
       setAdmins(adminsFromDb);
       setSucursales(allSucursales);
+      setOficinasRegistro(allRegistroOficinas);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -173,7 +178,14 @@ export function AdminUsersManagement() {
                                 <DialogTitle>{editingPlazaUser ? 'Editar' : 'Agregar'} Usuario de Plaza</DialogTitle>
                                 <CardDescription>Crea un nuevo usuario de plaza para cualquier empresa (prefijo).</CardDescription>
                             </DialogHeader>
-                            <UserForm onSubmit={handlePlazaUserSubmit} user={editingPlazaUser} allPlazas={plazas} admins={admins} adminTools={allTools} isSuperAdminView={true}/>
+                            <UserForm 
+                                onSubmit={handlePlazaUserSubmit} 
+                                user={editingPlazaUser} 
+                                allPlazas={plazas} 
+                                allOficinas={oficinasRegistro}
+                                admins={admins} 
+                                adminTools={allTools} 
+                                isSuperAdminView={true}/>
                         </DialogContent>
                     </Dialog>
                 </div>

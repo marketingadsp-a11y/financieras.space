@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UsersTable } from "@/components/users/users-table";
 import { UserForm } from "@/components/users/user-form";
 import { ToolAdminForm } from "@/components/tools/income-expenses/users/user-form";
-import type { PlazaUser, Plaza, Tool, ToolAdmin, Sucursal, Admin } from "@/lib/data";
+import type { PlazaUser, Plaza, Tool, ToolAdmin, Sucursal, Admin, OficinaRegistro } from "@/lib/data";
 import { getCustomizedTools } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import { getPlazaUsersByPrefix, addPlazaUser, updatePlazaUser, deletePlazaUser }
 import { getToolAdmins, addToolAdmin, updateToolAdmin, deleteToolAdmin as deleteToolAdminService } from "@/services/tool-admin-service";
 import { getPlazas } from "@/services/plaza-service";
 import { getSucursales } from "@/services/income-expenses-service";
+import { getOficinas as getOficinasRegistro } from "@/services/registro-oficina-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,6 +28,7 @@ export function UsersManagement() {
   const [toolAdmins, setToolAdmins] = React.useState<ToolAdmin[]>([]);
   const [plazas, setPlazas] = React.useState<Plaza[]>([]);
   const [sucursales, setSucursales] = React.useState<Sucursal[]>([]);
+  const [oficinasRegistro, setOficinasRegistro] = React.useState<OficinaRegistro[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   
   // State for Plaza User form
@@ -63,17 +65,20 @@ export function UsersManagement() {
         plazaUsersFromDb, 
         plazasFromDb, 
         toolAdminsFromDb, 
-        sucursalesFromDb
+        sucursalesFromDb,
+        oficinasRegistroFromDb
       ] = await Promise.all([
         getPlazaUsersByPrefix(user.prefix),
         getPlazas({ prefix: user.prefix }),
         getToolAdmins('income-expenses', user.prefix),
-        getSucursales(user.prefix)
+        getSucursales(user.prefix),
+        getOficinasRegistro(user.prefix)
       ]);
       setPlazaUsers(plazaUsersFromDb);
       setPlazas(plazasFromDb);
       setToolAdmins(toolAdminsFromDb);
       setSucursales(sucursalesFromDb);
+      setOficinasRegistro(oficinasRegistroFromDb);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -210,6 +215,7 @@ export function UsersManagement() {
                                       onSubmit={handlePlazaUserSubmit} 
                                       user={editingPlazaUser} 
                                       allPlazas={plazas} 
+                                      allOficinas={oficinasRegistro}
                                       prefix={user?.prefix} 
                                       adminTools={adminTools}
                                     />

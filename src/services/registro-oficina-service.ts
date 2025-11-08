@@ -26,8 +26,8 @@ async function generateUniqueDisplayId(prefix: string): Promise<string> {
     return newId;
 }
 
-export async function getOficinas(prefix: string): Promise<OficinaRegistro[]> {
-    const q = query(oficinasCollectionRef, where("prefix", "==", prefix));
+export async function getOficinas(prefix?: string): Promise<OficinaRegistro[]> {
+    const q = prefix ? query(oficinasCollectionRef, where("prefix", "==", prefix)) : oficinasCollectionRef;
     const snapshot = await getDocs(q);
     const oficinas = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as OficinaRegistro[];
     return oficinas.sort((a, b) => a.name.localeCompare(b.name));
@@ -161,22 +161,25 @@ export async function getRegistrosByOficinaAndMonth(oficinaId: string, prefix: s
 function getMonthCycleBoundaries(monthDate: Date): { start: Date; end: Date } {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
-
+    
     // 1. Get the 25th of the PREVIOUS month in UTC.
     const anchorDate = new Date(Date.UTC(year, month - 1, 25));
+    anchorDate.setUTCHours(12,0,0,0);
 
     // 2. Find the Saturday of the week that contains the anchor date.
     let cycleStart = new Date(anchorDate);
-    // getUTCDay() -> Sunday is 0, Saturday is 6.
+    // getUTCDay() -> Sunday is 0, ..., Saturday is 6.
     const dayOfWeek = cycleStart.getUTCDay();
-    // If it's not Saturday, move back to find it.
-    if (dayOfWeek !== 6) {
-      const daysToSubtract = (dayOfWeek + 1) % 7;
-      cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
-    }
-    cycleStart.setUTCDate(cycleStart.getUTCDate() + 1); // Correction
-
-
+    
+    // Calculate days to subtract to get to Saturday (if Sunday is 0, Monday 1... Saturday 6)
+    // The amount to subtract is simply the day number itself if Saturday=0.
+    // With Sunday=0, it's (dayOfWeek + 1) % 7.
+    // If it's Saturday (6), (6+1)%7 = 0.
+    // If it's Sunday (0), (0+1)%7 = 1.
+    // If it's Friday (5), (5+1)%7 = 6.
+    const daysToSubtract = (dayOfWeek + 1) % 7;
+    cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
+    
     // 3. The cycle ends 4 weeks (28 days) after it starts. The end date is inclusive.
     const cycleEnd = new Date(cycleStart);
     cycleEnd.setUTCDate(cycleStart.getUTCDate() + (4 * 7) - 1); 

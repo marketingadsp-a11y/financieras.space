@@ -28,9 +28,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission, FlujoPermission, OverduePortfolioPermission } from "@/lib/data";
-import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS, FLUJO_PERMISSIONS, OVERDUE_PORTFOLIO_PERMISSIONS } from "@/lib/data";
+import type { PlazaUser, Plaza, Permission, Tool, Admin, LoanControlPermission, FlujoPermission, OverduePortfolioPermission, RegistroOficinaPermission, OficinaRegistro } from "@/lib/data";
+import { PERMISSIONS, LOAN_CONTROL_PERMISSIONS, FLUJO_PERMISSIONS, OVERDUE_PORTFOLIO_PERMISSIONS, REGISTRO_OFICINA_PERMISSIONS } from "@/lib/data";
 import { Trash2 } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
 
 const plazaAccessSchema = z.object({
   plazaId: z.string().min(1),
@@ -50,6 +51,11 @@ const overduePortfolioPermissionsSchema = z.object({
     permissions: z.array(z.string()),
 });
 
+const registroOficinaAccessSchema = z.object({
+  oficinaId: z.string().min(1),
+  permissions: z.array(z.string()).min(1, "Debe seleccionar al menos un permiso."),
+});
+
 const baseFormSchema = z.object({
   name: z.string().min(2, "El nombre es requerido."),
   username: z.string().min(2, "El nombre de usuario es requerido."),
@@ -61,6 +67,7 @@ const baseFormSchema = z.object({
   loanControlPermissions: loanControlPermissionsSchema.optional(),
   flujoPermissions: flujoPermissionsSchema.optional(),
   overduePortfolioPermissions: overduePortfolioPermissionsSchema.optional(),
+  registroOficinaAccess: z.array(registroOficinaAccessSchema).optional(),
 });
 
 
@@ -74,6 +81,7 @@ type UserFormProps = {
   onSubmit: (data: Omit<PlazaUser, 'id'>) => void;
   user?: PlazaUser | null;
   allPlazas: Plaza[];
+  allOficinas: OficinaRegistro[];
   prefix?: string;
   admins?: Admin[];
   adminTools: Tool[];
@@ -84,9 +92,10 @@ const allPlazaPermissions = Object.entries(PERMISSIONS) as [Permission, string][
 const allLoanControlPermissions = Object.entries(LOAN_CONTROL_PERMISSIONS) as [LoanControlPermission, string][];
 const allFlujoPermissions = Object.entries(FLUJO_PERMISSIONS) as [FlujoPermission, string][];
 const allOverduePortfolioPermissions = Object.entries(OVERDUE_PORTFOLIO_PERMISSIONS) as [OverduePortfolioPermission, string][];
+const allRegistroOficinaPermissions = Object.entries(REGISTRO_OFICINA_PERMISSIONS) as [RegistroOficinaPermission, string][];
 
 
-export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools, isSuperAdminView = false }: UserFormProps) {
+export function UserForm({ onSubmit, user, allPlazas, allOficinas, prefix, admins, adminTools, isSuperAdminView = false }: UserFormProps) {
     const isEditing = !!user;
 
     const form = useForm<z.infer<typeof baseFormSchema>>({
@@ -106,12 +115,18 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
             loanControlPermissions: user?.loanControlPermissions || { permissions: [] },
             flujoPermissions: user?.flujoPermissions || { permissions: [] },
             overduePortfolioPermissions: user?.overduePortfolioPermissions || { permissions: [] },
+            registroOficinaAccess: user?.registroOficinaAccess || [],
         },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields: plazaAccessFields, append: appendPlaza, remove: removePlaza } = useFieldArray({
       control: form.control,
       name: "plazaAccess"
+    });
+    
+    const { fields: oficinaAccessFields, append: appendOficina, remove: removeOficina } = useFieldArray({
+      control: form.control,
+      name: "registroOficinaAccess"
     });
     
     const watchAccessibleTools = form.watch("accessibleTools", user?.accessibleTools || []);
@@ -129,12 +144,17 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
     };
     
     const plazasForSelectedPrefix = allPlazas.filter(p => p.prefix === watchPrefix);
-    const assignedPlazaIds = fields.map(field => field.plazaId);
+    const assignedPlazaIds = plazaAccessFields.map(field => field.plazaId);
     const availablePlazas = plazasForSelectedPrefix.filter(p => !assignedPlazaIds.includes(p.id));
+
+    const oficinasForSelectedPrefix = allOficinas.filter(o => o.prefix === watchPrefix);
+    const assignedOficinaIds = oficinaAccessFields.map(field => field.oficinaId);
+    const availableOficinas = oficinasForSelectedPrefix.filter(o => !assignedOficinaIds.includes(o.id));
     
     const showOverduePortfolioManagement = watchAccessibleTools.includes('cartera-vencida');
     const showLoanControlManagement = watchAccessibleTools.includes('loan-control');
     const showFlujoManagement = watchAccessibleTools.includes('flujo');
+    const showRegistroOficinaManagement = watchAccessibleTools.includes('registro-oficina');
 
     return (
         <Form {...form}>
@@ -365,11 +385,108 @@ export function UserForm({ onSubmit, user, allPlazas, prefix, admins, adminTools
                          />
                     </div>
                 )}
-
-
+                
+                {showRegistroOficinaManagement && (
+                     <div className="space-y-4 pt-4">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h3 className="text-lg font-medium">Acceso para Registro de Oficina</h3>
+                                <p className="text-sm text-muted-foreground">Asigna las oficinas y los permisos que tendrá el usuario.</p>
+                                <FormMessage>{(form.formState.errors.registroOficinaAccess as any)?.root?.message}</FormMessage>
+                            </div>
+                            <Select onValueChange={(oficinaId) => {
+                                const oficina = allOficinas.find(o => o.id === oficinaId);
+                                if (oficina) {
+                                    appendOficina({ oficinaId, permissions: [] });
+                                }
+                            }} value="">
+                                <SelectTrigger className="w-[200px]" disabled={!watchPrefix}>
+                                    <SelectValue placeholder={!watchPrefix ? "Elige una empresa" : "Asignar oficina..."} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableOficinas.length > 0 ? (
+                                        availableOficinas.map(oficina => (
+                                            <SelectItem key={oficina.id} value={oficina.id}>{oficina.name}</SelectItem>
+                                        ))
+                                    ) : (
+                                        <div className="p-2 text-sm text-muted-foreground">No hay más oficinas para asignar.</div>
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        
+                        <Accordion type="multiple" className="w-full space-y-2" defaultValue={oficinaAccessFields.map((_, i) => `item-${i}`)}>
+                            {oficinaAccessFields.map((field, index) => {
+                                const oficinaName = allOficinas.find(s => s.id === field.oficinaId)?.name;
+                                return (
+                                <AccordionItem key={field.id} value={`item-${index}`} className="border rounded-md px-4 bg-muted/20">
+                                    <div className="flex items-center">
+                                    <AccordionTrigger className="flex-1 text-base">{oficinaName}</AccordionTrigger>
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeOficina(index)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                    </div>
+                                    <AccordionContent>
+                                        <FormField
+                                        control={form.control}
+                                        name={`registroOficinaAccess.${index}.permissions`}
+                                        render={() => (
+                                            <FormItem>
+                                            <div className="mb-4">
+                                                <FormLabel className="text-base">Permisos para {oficinaName}</FormLabel>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                            {allRegistroOficinaPermissions.map(([key, label]) => (
+                                                <FormField
+                                                key={key}
+                                                control={form.control}
+                                                name={`registroOficinaAccess.${index}.permissions`}
+                                                render={({ field: permissionField }) => {
+                                                    return (
+                                                    <FormItem
+                                                        key={key}
+                                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                                    >
+                                                        <FormControl>
+                                                        <Checkbox
+                                                            checked={permissionField.value?.includes(key)}
+                                                            onCheckedChange={(checked) => {
+                                                            return checked
+                                                                ? permissionField.onChange([...(permissionField.value || []), key])
+                                                                : permissionField.onChange(
+                                                                    (permissionField.value || []).filter(
+                                                                    (value) => value !== key
+                                                                    )
+                                                                )
+                                                            }}
+                                                        />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal">
+                                                        {label}
+                                                        </FormLabel>
+                                                    </FormItem>
+                                                    )
+                                                }}
+                                                />
+                                            ))}
+                                            </div>
+                                            <FormMessage>{form.formState.errors.registroOficinaAccess?.[index]?.permissions?.message}</FormMessage>
+                                            </FormItem>
+                                        )}
+                                        />
+                                    </AccordionContent>
+                                </AccordionItem>
+                                )}
+                            )}
+                        </Accordion>
+                         {oficinasForSelectedPrefix.length === 0 && watchPrefix && (
+                            <p className="text-sm text-muted-foreground text-center p-4 border rounded-md">No hay oficinas creadas para esta empresa. Crea una en la sección de oficinas primero para poder asignarla.</p>
+                        )}
+                    </div>
+                )}
                 
               </ScrollArea>
-              <div className="pt-6">
+              <div className="pt-6 border-t">
                 <Button type="submit" className="w-full">
                     {isEditing ? 'Guardar Cambios' : 'Crear Usuario'}
                 </Button>
