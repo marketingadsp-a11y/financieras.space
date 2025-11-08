@@ -298,15 +298,15 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar todos los clientes?</AlertDialogTitle>
+                            <AlertDialogTitleComponent>¿Eliminar todos los clientes?</AlertDialogTitleComponent>
                             <AlertDialogDescription>
                                 Esta acción es irreversible. Se eliminarán los {clients.length} clientes asignados a {supervisor.name}.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter>
+                        <AlertDialogFooterComponent>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={handleDeleteAllClients}>Sí, eliminar todos</AlertDialogAction>
-                        </AlertDialogFooter>
+                        </AlertDialogFooterComponent>
                     </AlertDialogContent>
                 </AlertDialog>
                 <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingClient(null); }}>
