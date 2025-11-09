@@ -10,9 +10,9 @@ import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, updateClient, importClientsFromExcel, deleteAllClientsBySupervisor } from "@/services/visor-app-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload, FileText } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload, FileText, MapPin } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
@@ -390,7 +390,7 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitleComponent>¿Eliminar todos los clientes?</AlertDialogTitleComponent>
+                            <AlertDialogTitle>¿Eliminar todos los clientes?</AlertDialogTitle>
                             <AlertDialogDescription>
                                 Esta acción es irreversible. Se eliminarán los {clients.length} clientes asignados a {supervisor.name}.
                             </AlertDialogDescription>
@@ -422,45 +422,71 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                 <TableRow>
                   <TableHead>Nombre del Cliente</TableHead>
                   <TableHead>Dirección</TableHead>
+                  <TableHead>Visita</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {clients.length > 0 ? (
-                  clients.map(client => (
-                    <TableRow key={client.id} className={cn(visitedClientIds.has(client.id) && "bg-green-500/10 hover:bg-green-500/20")}>
-                      <TableCell className="font-medium">{client.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{client.address || 'N/A'}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                         <Button variant="outline" size="icon" onClick={() => setSelectedClientForQr(client)}>
-                            <QrCode className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon" onClick={() => handleEditClick(client)}>
-                            <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
-                            </AlertDialogTrigger>
-                             <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitleComponent>¿Eliminar cliente?</AlertDialogTitleComponent>
-                                    <AlertDialogDescription>
-                                        Se eliminará a "{client.name}" permanentemente.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooterComponent>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteClient(client.id)}>Eliminar</AlertDialogAction>
-                                </AlertDialogFooterComponent>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  clients.map(client => {
+                    const visit = visitsThisWeek.find(v => v.clientId === client.id);
+                    return (
+                        <TableRow key={client.id} className={cn(visit && "bg-green-500/10 hover:bg-green-500/20")}>
+                        <TableCell className="font-medium">{client.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{client.address || 'N/A'}</TableCell>
+                        <TableCell>
+                            {visit ? (
+                                visit.latitude && visit.longitude ? (
+                                     <a
+                                        href={`https://www.google.com/maps?q=${visit.latitude},${visit.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-blue-600 hover:underline"
+                                    >
+                                        <MapPin className="h-4 w-4" />
+                                        Ver Mapa
+                                    </a>
+                                ) : (
+                                    <span className="flex items-center gap-1.5 text-green-600">
+                                        <CheckCircle className="h-4 w-4" />
+                                        Visitado
+                                    </span>
+                                )
+                            ) : (
+                                <span className="text-muted-foreground">-</span>
+                            )}
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                            <Button variant="outline" size="icon" onClick={() => setSelectedClientForQr(client)}>
+                                <QrCode className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => handleEditClick(client)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Se eliminará a "{client.name}" permanentemente.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooterComponent>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteClient(client.id)}>Eliminar</AlertDialogAction>
+                                    </AlertDialogFooterComponent>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </TableCell>
+                        </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                       No hay clientes asignados a este supervisor.
                     </TableCell>
                   </TableRow>
