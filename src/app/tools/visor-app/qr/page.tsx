@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -319,7 +318,7 @@ export default function QrReaderPage() {
                         <AlertDialogTitle className="text-center text-2xl text-green-600">¡Visita Registrada!</AlertDialogTitle>
                         <AlertDialogDescription className="text-center">
                             Se ha registrado la visita para <strong>{visitSuccessInfo?.clientName}</strong> con éxito.
-                             {successText && <p className="mt-4 text-blue-600 font-medium">{successText}</p>}
+                             {successText && <p className="mt-4 text-lg text-blue-600 font-medium">{successText}</p>}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-center pt-4 gap-2">
@@ -359,5 +358,7 @@ export default function QrReaderPage() {
         </div>
     );
 }
+
+    
 
     
