@@ -318,8 +318,8 @@ export default function QrReaderPage() {
                         <AlertDialogTitle className="text-center text-2xl text-green-600">¡Visita Registrada!</AlertDialogTitle>
                         <AlertDialogDescription className="text-center">
                             Se ha registrado la visita para <strong>{visitSuccessInfo?.clientName}</strong> con éxito.
-                             {successText && <div className="mt-4 text-lg text-blue-600 font-medium">{successText}</div>}
                         </AlertDialogDescription>
+                         {successText && <div className="text-center mt-4 text-lg text-blue-600 font-medium">{successText}</div>}
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-center pt-4 gap-2">
                         <AlertDialogAction onClick={() => { setVisitSuccessInfo(null); setShowScanner(true); }} className="w-full sm:w-auto">
@@ -358,7 +358,5 @@ export default function QrReaderPage() {
         </div>
     );
 }
-
-    
 
     
