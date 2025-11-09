@@ -11,7 +11,7 @@ import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine, Percent, MapPin, AlertTriangle } from "lucide-react";
+import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine, Percent, MapPin, AlertTriangle, ThumbsDown } from "lucide-react";
 import { QrScanner } from "@/components/tools/visor-app/qr-scanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { onSnapshot, collection, query, where, Timestamp } from "firebase/firestore";
@@ -67,6 +67,7 @@ export default function QrReaderPage() {
     const [isProcessingVisit, setIsProcessingVisit] = React.useState(false);
     const [showLocationErrorModal, setShowLocationErrorModal] = React.useState(false);
     const [successImageUrl, setSuccessImageUrl] = React.useState<string | null>(null);
+    const [failureImageUrl, setFailureImageUrl] = React.useState<string | null>(null);
     const [successText, setSuccessText] = React.useState<string | null>(null);
 
     const fetchData = React.useCallback(async (supervisorId: string) => {
@@ -82,6 +83,9 @@ export default function QrReaderPage() {
                     const profile = await getCompanyProfileByPrefix(supervisorData.prefix);
                     if (profile?.visorAppSuccessImageUrl) {
                         setSuccessImageUrl(profile.visorAppSuccessImageUrl);
+                    }
+                    if (profile?.visorAppFailureImageUrl) {
+                        setFailureImageUrl(profile.visorAppFailureImageUrl);
                     }
                     if (profile?.visorAppSuccessText) {
                         setSuccessText(profile.visorAppSuccessText);
@@ -155,10 +159,10 @@ export default function QrReaderPage() {
         setError(null);
         setSuccessImageUrl(null);
         setSuccessText(null);
+        setFailureImageUrl(null);
     };
     
-    const handleScanSuccess = async (qrCodeValue: string, location: GeolocationCoordinates) => {
-        setShowScanner(false);
+    const processVisit = React.useCallback(async (qrCodeValue: string, location: GeolocationCoordinates) => {
         if (!supervisor) return;
         
         setIsProcessingVisit(true);
@@ -188,19 +192,36 @@ export default function QrReaderPage() {
         } finally {
             setIsProcessingVisit(false);
         }
-    };
+    }, [supervisor, clients, toast]);
+
+    const handleScanSuccess = React.useCallback((data: string) => {
+        setShowScanner(false);
+        // We need to ask for geolocation here right after a successful scan
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    processVisit(data, position.coords);
+                },
+                (geoError) => {
+                    console.error("Geolocation error:", geoError);
+                    setShowLocationErrorModal(true); // Show modal on geolocation error
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        } else {
+            setShowLocationErrorModal(true);
+        }
+    }, [processVisit]);
+
 
      const handleScanError = (error: Error) => {
         setShowScanner(false);
-        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-            setShowLocationErrorModal(true);
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Error de Escaneo',
-                description: error.message || 'Ocurrió un error inesperado al escanear.',
-            });
-        }
+        // This primarily handles camera errors, geolocation errors are handled in handleScanSuccess now
+        toast({
+            variant: 'destructive',
+            title: 'Error de Escáner',
+            description: error.message || 'No se pudo iniciar la cámara.',
+        });
     };
     
     const visitedClientIds = React.useMemo(() => {
@@ -331,9 +352,13 @@ export default function QrReaderPage() {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <div className="flex justify-center mb-4">
-                            <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
-                                <AlertTriangle className="h-10 w-10 text-destructive"/>
-                            </div>
+                            {failureImageUrl ? (
+                                <img src={failureImageUrl} alt="Error de ubicación" className="w-32 h-32 rounded-md object-contain" />
+                            ) : (
+                                <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                                    <ThumbsDown className="h-10 w-10 text-destructive"/>
+                                </div>
+                            )}
                         </div>
                         <AlertDialogTitle className="text-center text-2xl">Permiso de Ubicación Requerido</AlertDialogTitle>
                         <AlertDialogDescription className="text-center">
@@ -353,8 +378,3 @@ export default function QrReaderPage() {
         </div>
     );
 }
-
-    
-
-    
-
