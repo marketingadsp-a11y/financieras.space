@@ -6,7 +6,7 @@ import { createRoot } from "react-dom/client";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit, CompanyProfile } from "@/lib/data";
-import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientByQrCodeValue, getSupervisorById } from "@/services/visor-app-service";
+import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getSupervisorById } from "@/services/visor-app-service";
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -160,36 +160,25 @@ export default function QrReaderPage() {
         
         const processVisit = async (location: GeolocationCoordinates) => {
             try {
-                const client = await getClientByQrCodeValue(qrCodeValue);
-                if (client && client.supervisorId === supervisor.id) {
-                    await addVisit({
-                        prefix: supervisor.prefix,
-                        supervisorId: supervisor.id,
-                        clientId: client.id,
-                        clientName: client.name,
-                        timestamp: new Date(),
-                        latitude: location.latitude,
-                        longitude: location.longitude,
-                    });
-                    setVisitSuccessInfo({ clientName: client.name });
-                } else if (client) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Cliente Incorrecto',
-                        description: `El cliente ${client.name} no está asignado a este supervisor.`,
-                    });
-                } else {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Código QR No Válido',
-                        description: 'No se encontró ningún cliente con este código.',
-                    });
-                }
-            } catch(err) {
-                toast({
+                // The client matching logic is now inside the addVisit cloud function
+                // for security and atomicity. We just send the necessary data.
+                await addVisit({
+                    prefix: supervisor.prefix,
+                    supervisorId: supervisor.id,
+                    qrCodeValue: qrCodeValue,
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                });
+                
+                // For the success message, we need to find the client locally
+                const client = clients.find(c => c.qrCodeValue === qrCodeValue);
+                setVisitSuccessInfo({ clientName: client?.name || "Cliente Desconocido" });
+
+            } catch(err: any) {
+                 toast({
                     variant: 'destructive',
                     title: 'Error',
-                    description: 'No se pudo registrar la visita.',
+                    description: err.message || 'No se pudo registrar la visita.',
                 });
             } finally {
                 setIsProcessingVisit(false);
@@ -314,7 +303,7 @@ export default function QrReaderPage() {
                     <AlertDialogHeader>
                          <div className="flex justify-center mb-4">
                             {successImageUrl ? (
-                                <img src={successImageUrl} alt="Visita registrada con éxito" className="w-24 h-24 rounded-full object-cover" />
+                                <img src={successImageUrl} alt="Visita registrada con éxito" className="w-32 h-32 rounded-md" />
                             ) : (
                                 <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
                                     <CheckCircle className="h-10 w-10 text-green-600"/>
@@ -363,3 +352,5 @@ export default function QrReaderPage() {
         </div>
     );
 }
+
+    
