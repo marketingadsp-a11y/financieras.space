@@ -157,57 +157,38 @@ export default function QrReaderPage() {
         setSuccessText(null);
     };
     
-    const handleScanSuccess = async (qrCodeValue: string) => {
+    const handleScanSuccess = async (qrCodeValue: string, location: GeolocationCoordinates) => {
         setShowScanner(false);
         if (!supervisor) return;
         
         setIsProcessingVisit(true);
-        
-        const processVisit = async (location: GeolocationCoordinates) => {
-            try {
-                const client = clients.find(c => c.qrCodeValue === qrCodeValue);
-                if (!client) {
-                    throw new Error('Código QR no válido o no pertenece a un cliente de este supervisor.');
-                }
-                
-                await addVisit({
-                    prefix: supervisor.prefix,
-                    supervisorId: supervisor.id,
-                    clientId: client.id,
-                    clientName: client.name,
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                    qrCodeValue: qrCodeValue,
-                });
-                
-                setVisitSuccessInfo({ clientName: client.name });
 
-            } catch(err: any) {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Error',
-                    description: err.message || 'No se pudo registrar la visita.',
-                });
-            } finally {
-                setIsProcessingVisit(false);
+        try {
+            const client = clients.find(c => c.qrCodeValue === qrCodeValue);
+            if (!client) {
+                throw new Error('Código QR no válido o no pertenece a un cliente de este supervisor.');
             }
-        };
+            
+            await addVisit({
+                prefix: supervisor.prefix,
+                supervisorId: supervisor.id,
+                clientId: client.id,
+                clientName: client.name,
+                latitude: location.latitude,
+                longitude: location.longitude,
+                qrCodeValue: qrCodeValue,
+            });
+            
+            setVisitSuccessInfo({ clientName: client.name });
 
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    processVisit(position.coords);
-                },
-                (error) => {
-                    console.warn("Could not get location: ", error.message);
-                    setShowLocationErrorModal(true);
-                    setIsProcessingVisit(false); // Stop processing
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        } else {
-            setShowLocationErrorModal(true);
-            setIsProcessingVisit(false); // Stop processing
+        } catch(err: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: err.message || 'No se pudo registrar la visita.',
+            });
+        } finally {
+            setIsProcessingVisit(false);
         }
     };
     
