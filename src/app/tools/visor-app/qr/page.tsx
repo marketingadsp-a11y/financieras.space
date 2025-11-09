@@ -5,8 +5,9 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
-import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
+import type { VisorSupervisor, VisorClient, VisorVisit, CompanyProfile } from "@/lib/data";
 import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientByQrCodeValue } from "@/services/visor-app-service";
+import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -65,13 +66,26 @@ export default function QrReaderPage() {
     const [visitSuccessInfo, setVisitSuccessInfo] = React.useState<{ clientName: string } | null>(null);
     const [isProcessingVisit, setIsProcessingVisit] = React.useState(false);
     const [showLocationErrorModal, setShowLocationErrorModal] = React.useState(false);
+    const [successImageUrl, setSuccessImageUrl] = React.useState<string | null>(null);
 
     const fetchData = React.useCallback(async (supervisorId: string) => {
         try {
-            const clientData = await getClientsBySupervisor(supervisorId);
-            setClients(clientData);
+            const supervisorData = await getSupervisorById(supervisorId);
+            if (supervisorData) {
+                setSupervisor(supervisorData);
+                const clientData = await getClientsBySupervisor(supervisorId);
+                setClients(clientData);
+
+                 // Fetch company profile for success image
+                if (supervisorData.prefix) {
+                    const profile = await getCompanyProfileByPrefix(supervisorData.prefix);
+                    if (profile?.visorAppSuccessImageUrl) {
+                        setSuccessImageUrl(profile.visorAppSuccessImageUrl);
+                    }
+                }
+            }
         } catch (err) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recargar los datos del cliente.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recargar los datos.' });
         }
     }, [toast]);
     
@@ -118,7 +132,6 @@ export default function QrReaderPage() {
         try {
             const foundSupervisor = await getSupervisorByAccessCode(accessCode);
             if (foundSupervisor) {
-                setSupervisor(foundSupervisor);
                 fetchData(foundSupervisor.id);
             } else {
                 setError("Código de acceso incorrecto.");
@@ -136,6 +149,7 @@ export default function QrReaderPage() {
         setClients([]);
         setAccessCode("");
         setError(null);
+        setSuccessImageUrl(null);
     };
     
     const handleScanSuccess = async (qrCodeValue: string) => {
@@ -298,10 +312,14 @@ export default function QrReaderPage() {
             <AlertDialog open={!!visitSuccessInfo} onOpenChange={() => setVisitSuccessInfo(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <div className="flex justify-center mb-4">
-                            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                                <CheckCircle className="h-10 w-10 text-green-600"/>
-                            </div>
+                         <div className="flex justify-center mb-4">
+                            {successImageUrl ? (
+                                <img src={successImageUrl} alt="Visita registrada con éxito" className="w-24 h-24 rounded-full object-cover" />
+                            ) : (
+                                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+                                    <CheckCircle className="h-10 w-10 text-green-600"/>
+                                </div>
+                            )}
                         </div>
                         <AlertDialogTitle className="text-center text-2xl">¡Visita Registrada!</AlertDialogTitle>
                         <AlertDialogDescription className="text-center">
