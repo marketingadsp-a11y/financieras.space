@@ -8,7 +8,7 @@ import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientB
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine, Percent } from "lucide-react";
+import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine, Percent, MapPin } from "lucide-react";
 import { QrScanner } from "@/components/tools/visor-app/qr-scanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { onSnapshot, collection, query, where, Timestamp } from "firebase/firestore";
@@ -61,6 +61,7 @@ export default function QrReaderPage() {
     const [showScanner, setShowScanner] = React.useState(false);
     const [showClientList, setShowClientList] = React.useState(false);
     const [visitSuccessInfo, setVisitSuccessInfo] = React.useState<{ clientName: string } | null>(null);
+    const [isProcessingVisit, setIsProcessingVisit] = React.useState(false);
 
     const fetchData = React.useCallback(async (supervisorId: string) => {
         try {
@@ -138,38 +139,61 @@ export default function QrReaderPage() {
         setShowScanner(false);
         if (!supervisor) return;
         
-        try {
-            const client = await getClientByQrCodeValue(qrCodeValue);
-            if (client && client.supervisorId === supervisor.id) {
-                await addVisit({
-                    prefix: supervisor.prefix,
-                    supervisorId: supervisor.id,
-                    clientId: client.id,
-                    clientName: client.name,
-                    timestamp: new Date(),
-                });
-                setVisitSuccessInfo({ clientName: client.name });
-                // Data will be refreshed by the real-time listener, no need for manual fetchData() here.
-            } else if (client) {
-                 toast({
+        setIsProcessingVisit(true);
+        
+        const processVisit = async (location?: GeolocationCoordinates) => {
+            try {
+                const client = await getClientByQrCodeValue(qrCodeValue);
+                if (client && client.supervisorId === supervisor.id) {
+                    await addVisit({
+                        prefix: supervisor.prefix,
+                        supervisorId: supervisor.id,
+                        clientId: client.id,
+                        clientName: client.name,
+                        timestamp: new Date(),
+                        latitude: location?.latitude,
+                        longitude: location?.longitude,
+                    });
+                    setVisitSuccessInfo({ clientName: client.name });
+                } else if (client) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Cliente Incorrecto',
+                        description: `El cliente ${client.name} no está asignado a este supervisor.`,
+                    });
+                } else {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Código QR No Válido',
+                        description: 'No se encontró ningún cliente con este código.',
+                    });
+                }
+            } catch(err) {
+                toast({
                     variant: 'destructive',
-                    title: 'Cliente Incorrecto',
-                    description: `El cliente ${client.name} no está asignado a este supervisor.`,
+                    title: 'Error',
+                    description: 'No se pudo registrar la visita.',
                 });
+            } finally {
+                setIsProcessingVisit(false);
             }
-             else {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Código QR No Válido',
-                    description: 'No se encontró ningún cliente con este código.',
-                });
-            }
-        } catch(err) {
-             toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'No se pudo registrar la visita.',
-            });
+        };
+
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    processVisit(position.coords);
+                },
+                (error) => {
+                    console.warn("Could not get location: ", error.message);
+                    toast({ variant: 'destructive', title: 'Ubicación no disponible', description: 'No se pudo obtener la ubicación. La visita se registrará sin ella.' });
+                    processVisit(); // Process visit without location
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        } else {
+            toast({ variant: 'destructive', title: 'Ubicación no soportada', description: 'Tu navegador no soporta geolocalización. La visita se registrará sin ella.' });
+            processVisit(); // Process visit without location
         }
     };
     
@@ -204,9 +228,9 @@ export default function QrReaderPage() {
                     <CardDescription>Selecciona una opción para continuar.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <Button className="w-full h-24 text-lg" onClick={() => setShowScanner(true)}>
-                        <QrCode className="mr-4 h-8 w-8" />
-                        Realizar Visita
+                    <Button className="w-full h-24 text-lg" onClick={() => setShowScanner(true)} disabled={isProcessingVisit}>
+                        {isProcessingVisit ? <Loader2 className="mr-4 h-8 w-8 animate-spin" /> : <QrCode className="mr-4 h-8 w-8" />}
+                        {isProcessingVisit ? 'Procesando visita...' : 'Realizar Visita'}
                     </Button>
                      <div className="space-y-2">
                         <Button variant="outline" className="w-full h-16 text-md" onClick={() => setShowClientList(!showClientList)}>
@@ -223,24 +247,39 @@ export default function QrReaderPage() {
                         <div className="mt-4 p-4 border rounded-lg max-h-60 overflow-y-auto text-left">
                             <h4 className="font-semibold mb-2">Lista de Clientes ({visitedClientIds.size} / {clients.length} visitados)</h4>
                             <ul className="space-y-2">
-                                {clients.map(client => (
-                                    <li 
-                                        key={client.id}
-                                        className={cn(
-                                            "p-2 rounded-md flex items-center transition-colors",
-                                            visitedClientIds.has(client.id) 
-                                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" 
-                                                : "bg-background"
-                                        )}
-                                    >
-                                        {visitedClientIds.has(client.id) ? (
-                                            <CheckCircle className="mr-2 h-4 w-4" />
-                                        ) : (
-                                            <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                                        )}
-                                        {client.name}
-                                    </li>
-                                ))}
+                                {clients.map(client => {
+                                    const visit = visitsThisWeek.find(v => v.clientId === client.id);
+                                    return (
+                                        <li 
+                                            key={client.id}
+                                            className={cn(
+                                                "p-2 rounded-md flex items-center justify-between transition-colors",
+                                                visit
+                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" 
+                                                    : "bg-background"
+                                            )}
+                                        >
+                                            <div className="flex items-center">
+                                                {visit ? (
+                                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                                ) : (
+                                                    <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                )}
+                                                {client.name}
+                                            </div>
+                                             {visit && visit.latitude && visit.longitude && (
+                                                <a
+                                                    href={`https://www.google.com/maps?q=${visit.latitude},${visit.longitude}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-1 rounded-full hover:bg-green-200 dark:hover:bg-green-800"
+                                                >
+                                                    <MapPin className="h-4 w-4" />
+                                                </a>
+                                            )}
+                                        </li>
+                                    )
+                                })}
                             </ul>
                         </div>
                     )}
@@ -280,3 +319,4 @@ export default function QrReaderPage() {
     );
 }
 
+    

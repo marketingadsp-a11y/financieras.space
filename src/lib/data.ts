@@ -575,4 +575,8 @@ export type VisorVisit = {
   clientId: string;
   clientName: string;
   timestamp: Date;
+  latitude?: number;
+  longitude?: number;
 };
+
+    

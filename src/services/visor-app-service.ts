@@ -175,3 +175,5 @@ export async function addVisit(visitData: Omit<VisorVisit, 'id'>): Promise<Visor
     const docRef = await addDoc(visitsCollectionRef, dataWithTimestamp);
     return { ...visitData, id: docRef.id, timestamp: dataWithTimestamp.timestamp.toDate() };
 }
+
+    
