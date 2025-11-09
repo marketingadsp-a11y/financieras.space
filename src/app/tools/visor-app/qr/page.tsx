@@ -6,7 +6,7 @@ import { createRoot } from "react-dom/client";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit, CompanyProfile } from "@/lib/data";
-import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientByQrCodeValue } from "@/services/visor-app-service";
+import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientByQrCodeValue, getSupervisorById } from "@/services/visor-app-service";
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -363,5 +363,3 @@ export default function QrReaderPage() {
         </div>
     );
 }
-
-      
