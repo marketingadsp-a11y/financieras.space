@@ -172,11 +172,9 @@ export default function QrReaderPage() {
             await addVisit({
                 prefix: supervisor.prefix,
                 supervisorId: supervisor.id,
-                clientId: client.id,
-                clientName: client.name,
+                qrCodeValue: qrCodeValue,
                 latitude: location.latitude,
                 longitude: location.longitude,
-                qrCodeValue: qrCodeValue,
             });
             
             setVisitSuccessInfo({ clientName: client.name });
@@ -189,6 +187,19 @@ export default function QrReaderPage() {
             });
         } finally {
             setIsProcessingVisit(false);
+        }
+    };
+
+     const handleScanError = (error: Error) => {
+        setShowScanner(false);
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            setShowLocationErrorModal(true);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Error de Escaneo',
+                description: error.message || 'Ocurrió un error inesperado al escanear.',
+            });
         }
     };
     
@@ -204,7 +215,7 @@ export default function QrReaderPage() {
     }
 
     if (showScanner) {
-        return <QrScanner onSuccess={handleScanSuccess} onCancel={() => setShowScanner(false)} />;
+        return <QrScanner onSuccess={handleScanSuccess} onError={handleScanError} onCancel={() => setShowScanner(false)} />;
     }
 
     return (
@@ -346,3 +357,4 @@ export default function QrReaderPage() {
     
 
     
+
