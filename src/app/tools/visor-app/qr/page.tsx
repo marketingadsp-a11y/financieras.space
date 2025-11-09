@@ -6,7 +6,8 @@ import { createRoot } from "react-dom/client";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit, CompanyProfile } from "@/lib/data";
-import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getSupervisorById } from "@/services/visor-app-service";
+import { getSupervisorByAccessCode, addVisit, getSupervisorById } from "@/services/visor-app-service";
+import { getClientsBySupervisor } from "@/services/visor-app-service";
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -66,6 +67,7 @@ export default function QrReaderPage() {
     const [visitSuccessInfo, setVisitSuccessInfo] = React.useState<{ clientName: string } | null>(null);
     const [isProcessingVisit, setIsProcessingVisit] = React.useState(false);
     const [showLocationErrorModal, setShowLocationErrorModal] = React.useState(false);
+    const [locationErrorType, setLocationErrorType] = React.useState<'denied' | 'unavailable'>('unavailable');
     const [successImageUrl, setSuccessImageUrl] = React.useState<string | null>(null);
     const [failureImageUrl, setFailureImageUrl] = React.useState<string | null>(null);
     const [successText, setSuccessText] = React.useState<string | null>(null);
@@ -91,6 +93,8 @@ export default function QrReaderPage() {
                         setSuccessText(profile.visorAppSuccessText);
                     }
                 }
+            } else {
+                 toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recargar los datos del supervisor.' });
             }
         } catch (err) {
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron recargar los datos.' });
@@ -196,27 +200,23 @@ export default function QrReaderPage() {
 
     const handleScanSuccess = React.useCallback((data: string) => {
         setShowScanner(false);
-        // We need to ask for geolocation here right after a successful scan
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    processVisit(data, position.coords);
-                },
-                (geoError) => {
-                    console.error("Geolocation error:", geoError);
-                    setShowLocationErrorModal(true); // Show modal on geolocation error
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        } else {
-            setShowLocationErrorModal(true);
-        }
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                processVisit(data, position.coords);
+            },
+            (geoError) => {
+                console.error("Geolocation error:", geoError);
+                setLocationErrorType(geoError.code === geoError.PERMISSION_DENIED ? 'denied' : 'unavailable');
+                setShowLocationErrorModal(true);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
     }, [processVisit]);
 
 
      const handleScanError = (error: Error) => {
         setShowScanner(false);
-        // This primarily handles camera errors, geolocation errors are handled in handleScanSuccess now
         toast({
             variant: 'destructive',
             title: 'Error de Escáner',
@@ -224,34 +224,42 @@ export default function QrReaderPage() {
         });
     };
 
-    const handleRequestLocationPermission = () => {
+    const handleRequestLocationPermission = async () => {
         if (!navigator.geolocation) {
-            toast({
-                variant: 'destructive',
-                title: 'Navegador no compatible',
-                description: 'Tu navegador no soporta la geolocalización.',
-            });
+            toast({ variant: 'destructive', title: 'Navegador no compatible', description: 'Tu navegador no soporta la geolocalización.' });
             return;
         }
 
-        toast({
-            title: 'Solicitando permiso...',
-            description: 'Por favor, acepta la solicitud de ubicación en tu navegador.',
-        });
+        try {
+            const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
 
-        navigator.geolocation.getCurrentPosition(
-            () => {
-                toast({
-                    variant: 'success',
-                    title: '¡Permiso Concedido!',
-                    description: 'Ahora puedes continuar con el escaneo de visitas.',
-                });
-            },
-            () => {
-                setShowLocationErrorModal(true); // Reuse the existing modal for denial.
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+            if (permissionStatus.state === 'granted') {
+                toast({ variant: 'success', title: 'Permiso ya concedido', description: 'El acceso a la ubicación ya está activo.' });
+                return;
+            }
+
+            if (permissionStatus.state === 'denied') {
+                setLocationErrorType('denied');
+                setShowLocationErrorModal(true);
+                return;
+            }
+            
+            // If state is 'prompt', we request it
+            toast({ title: 'Solicitando permiso...', description: 'Por favor, acepta la solicitud de ubicación en tu navegador.' });
+            navigator.geolocation.getCurrentPosition(
+                () => {
+                    toast({ variant: 'success', title: '¡Permiso Concedido!', description: 'Ahora puedes continuar con el escaneo de visitas.' });
+                },
+                (error) => {
+                    setLocationErrorType(error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable');
+                    setShowLocationErrorModal(true);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+
+        } catch (error) {
+             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo verificar el estado del permiso de ubicación.' });
+        }
     };
     
     const visitedClientIds = React.useMemo(() => {
@@ -358,7 +366,7 @@ export default function QrReaderPage() {
                     <AlertDialogHeader>
                          <div className="flex justify-center mb-4">
                             {successImageUrl ? (
-                                <img src={successImageUrl} alt="Visita registrada con éxito" className="w-32 h-32 rounded-md" />
+                                <img src={successImageUrl} alt="Visita registrada con éxito" className="w-32 h-32 rounded-md object-contain" />
                             ) : (
                                 <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
                                     <CheckCircle className="h-10 w-10 text-green-600"/>
@@ -396,13 +404,18 @@ export default function QrReaderPage() {
                         </div>
                         <AlertDialogTitle className="text-center text-2xl">Permiso de Ubicación Requerido</AlertDialogTitle>
                         <AlertDialogDescription className="text-center">
-                           No se pudo obtener la ubicación, por lo que la visita no se puede registrar. Para intentarlo de nuevo, recarga la página y acepta la solicitud de permiso de ubicación.
+                           {locationErrorType === 'denied'
+                                ? "Has bloqueado el permiso de ubicación. Debes activarlo manualmente en la configuración de tu navegador para este sitio web para poder continuar."
+                                : "No se pudo obtener la ubicación, por lo que la visita no se puede registrar. Asegúrate de tener buena señal GPS e inténtalo de nuevo."
+                           }
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-center pt-4 gap-2">
-                        <AlertDialogAction onClick={() => window.location.reload()} className="w-full sm:w-auto">
-                           Recargar Página
-                        </AlertDialogAction>
+                         {locationErrorType === 'unavailable' && (
+                            <AlertDialogAction onClick={() => window.location.reload()} className="w-full sm:w-auto">
+                                Recargar Página
+                            </AlertDialogAction>
+                         )}
                         <AlertDialogCancel onClick={() => setShowLocationErrorModal(false)} className="w-full sm:w-auto mt-0">
                             Cerrar
                         </AlertDialogCancel>
@@ -413,3 +426,4 @@ export default function QrReaderPage() {
     );
 }
 
+    
