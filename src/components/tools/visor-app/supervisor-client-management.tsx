@@ -11,8 +11,8 @@ import { getSupervisorById, getClientsBySupervisor, addClient, deleteClient, upd
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, PlusCircle, ArrowLeft, Trash2, QrCode, User, CheckCircle, Edit, Percent, Upload, FileText, MapPin } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertDialogFooterComponent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
@@ -211,8 +211,8 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
       if (svgEl) {
         const svgData = new XMLSerializer().serializeToString(svgEl);
         const printWindow = window.open('', '_blank');
-        printWindow?.document.write(
-          `<html>
+        printWindow?.document.write(`
+          <html>
             <head><title>Código QR - ${selectedClientForQr.name}</title></head>
             <body style="text-align: center; margin-top: 50px;">
               <h2>${selectedClientForQr.name}</h2>
@@ -225,8 +225,8 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
                 }
               </script>
             </body>
-          </html>`
-        );
+          </html>
+        `);
         printWindow?.document.close();
       }
     }
@@ -528,3 +528,5 @@ export function SupervisorClientManagement({ supervisorId }: { supervisorId: str
     </div>
   );
 }
+
+    
