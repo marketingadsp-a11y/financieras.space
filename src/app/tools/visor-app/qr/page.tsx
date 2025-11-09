@@ -2,6 +2,8 @@
 "use client";
 
 import * as React from "react";
+import { createRoot } from "react-dom/client";
+import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
 import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientByQrCodeValue } from "@/services/visor-app-service";
@@ -141,7 +143,7 @@ export default function QrReaderPage() {
         
         setIsProcessingVisit(true);
         
-        const processVisit = async (location?: GeolocationCoordinates) => {
+        const processVisit = async (location: GeolocationCoordinates) => {
             try {
                 const client = await getClientByQrCodeValue(qrCodeValue);
                 if (client && client.supervisorId === supervisor.id) {
@@ -151,8 +153,8 @@ export default function QrReaderPage() {
                         clientId: client.id,
                         clientName: client.name,
                         timestamp: new Date(),
-                        latitude: location?.latitude,
-                        longitude: location?.longitude,
+                        latitude: location.latitude,
+                        longitude: location.longitude,
                     });
                     setVisitSuccessInfo({ clientName: client.name });
                 } else if (client) {
@@ -186,14 +188,22 @@ export default function QrReaderPage() {
                 },
                 (error) => {
                     console.warn("Could not get location: ", error.message);
-                    toast({ variant: 'destructive', title: 'Ubicación no disponible', description: 'No se pudo obtener la ubicación. La visita se registrará sin ella.' });
-                    processVisit(); // Process visit without location
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Ubicación Requerida', 
+                        description: 'No se pudo obtener la ubicación. La visita no se registrará sin ella.' 
+                    });
+                    setIsProcessingVisit(false); // Stop processing
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         } else {
-            toast({ variant: 'destructive', title: 'Ubicación no soportada', description: 'Tu navegador no soporta geolocalización. La visita se registrará sin ella.' });
-            processVisit(); // Process visit without location
+            toast({ 
+                variant: 'destructive', 
+                title: 'Ubicación no soportada', 
+                description: 'Tu navegador no soporta geolocalización. La visita no se puede registrar.' 
+            });
+            setIsProcessingVisit(false); // Stop processing
         }
     };
     
