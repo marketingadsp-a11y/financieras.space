@@ -10,7 +10,7 @@ import { getSupervisorByAccessCode, getClientsBySupervisor, addVisit, getClientB
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine, Percent, MapPin } from "lucide-react";
+import { Loader2, KeyRound, LogIn, Users, QrCode, LogOut, CheckCircle, User, ScanLine, Percent, MapPin, AlertTriangle } from "lucide-react";
 import { QrScanner } from "@/components/tools/visor-app/qr-scanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { onSnapshot, collection, query, where, Timestamp } from "firebase/firestore";
@@ -64,6 +64,7 @@ export default function QrReaderPage() {
     const [showClientList, setShowClientList] = React.useState(false);
     const [visitSuccessInfo, setVisitSuccessInfo] = React.useState<{ clientName: string } | null>(null);
     const [isProcessingVisit, setIsProcessingVisit] = React.useState(false);
+    const [showLocationErrorModal, setShowLocationErrorModal] = React.useState(false);
 
     const fetchData = React.useCallback(async (supervisorId: string) => {
         try {
@@ -188,21 +189,13 @@ export default function QrReaderPage() {
                 },
                 (error) => {
                     console.warn("Could not get location: ", error.message);
-                    toast({ 
-                        variant: 'destructive', 
-                        title: 'Ubicación Requerida', 
-                        description: 'No se pudo obtener la ubicación. La visita no se registrará sin ella.' 
-                    });
+                    setShowLocationErrorModal(true);
                     setIsProcessingVisit(false); // Stop processing
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         } else {
-            toast({ 
-                variant: 'destructive', 
-                title: 'Ubicación no soportada', 
-                description: 'Tu navegador no soporta geolocalización. La visita no se puede registrar.' 
-            });
+            setShowLocationErrorModal(true);
             setIsProcessingVisit(false); // Stop processing
         }
     };
@@ -325,8 +318,32 @@ export default function QrReaderPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            
+            <AlertDialog open={showLocationErrorModal} onOpenChange={setShowLocationErrorModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <div className="flex justify-center mb-4">
+                            <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                                <AlertTriangle className="h-10 w-10 text-destructive"/>
+                            </div>
+                        </div>
+                        <AlertDialogTitle className="text-center text-2xl">Permiso de Ubicación Requerido</AlertDialogTitle>
+                        <AlertDialogDescription className="text-center">
+                           No se pudo obtener la ubicación, por lo que la visita no se puede registrar. Para intentarlo de nuevo, recarga la página y acepta la solicitud de permiso de ubicación.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="sm:justify-center pt-4 gap-2">
+                        <AlertDialogAction onClick={() => window.location.reload()} className="w-full sm:w-auto">
+                           Recargar Página
+                        </AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setShowLocationErrorModal(false)} className="w-full sm:w-auto mt-0">
+                            Cerrar
+                        </AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
 
-    
+      
