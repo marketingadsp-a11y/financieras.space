@@ -165,19 +165,22 @@ export default function QrReaderPage() {
         
         const processVisit = async (location: GeolocationCoordinates) => {
             try {
-                // The client matching logic is now inside the addVisit cloud function
-                // for security and atomicity. We just send the necessary data.
+                const client = clients.find(c => c.qrCodeValue === qrCodeValue);
+                if (!client) {
+                    throw new Error('Código QR no válido o no pertenece a un cliente de este supervisor.');
+                }
+                
                 await addVisit({
                     prefix: supervisor.prefix,
                     supervisorId: supervisor.id,
-                    qrCodeValue: qrCodeValue,
+                    clientId: client.id,
+                    clientName: client.name,
                     latitude: location.latitude,
                     longitude: location.longitude,
+                    qrCodeValue: qrCodeValue,
                 });
                 
-                // For the success message, we need to find the client locally
-                const client = clients.find(c => c.qrCodeValue === qrCodeValue);
-                setVisitSuccessInfo({ clientName: client?.name || "Cliente Desconocido" });
+                setVisitSuccessInfo({ clientName: client.name });
 
             } catch(err: any) {
                  toast({

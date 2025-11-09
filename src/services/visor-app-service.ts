@@ -167,13 +167,43 @@ export async function importClientsFromExcel(base64Content: string, supervisorId
 
 // --- Visit Functions ---
 
-export async function addVisit(visitData: Omit<VisorVisit, 'id'>): Promise<VisorVisit> {
-    const dataWithTimestamp = {
-        ...visitData,
-        timestamp: Timestamp.fromDate(new Date()),
-    }
-    const docRef = await addDoc(visitsCollectionRef, dataWithTimestamp);
-    return { ...visitData, id: docRef.id, timestamp: dataWithTimestamp.timestamp.toDate() };
+type AddVisitData = {
+  prefix: string;
+  supervisorId: string;
+  qrCodeValue: string;
+  latitude: number;
+  longitude: number;
+};
+
+export async function addVisit(data: AddVisitData): Promise<VisorVisit> {
+  // Find client within the transaction to ensure atomicity
+  const clientQuery = query(
+    clientsCollectionRef,
+    where("qrCodeValue", "==", data.qrCodeValue),
+    where("supervisorId", "==", data.supervisorId)
+  );
+
+  const clientSnapshot = await getDocs(clientQuery);
+
+  if (clientSnapshot.empty) {
+    throw new Error('Código QR no válido o no pertenece a un cliente de este supervisor.');
+  }
+
+  const clientDoc = clientSnapshot.docs[0];
+  const clientData = clientDoc.data() as VisorClient;
+
+  const visitData: Omit<VisorVisit, 'id'> = {
+    prefix: data.prefix,
+    supervisorId: data.supervisorId,
+    clientId: clientDoc.id,
+    clientName: clientData.name,
+    timestamp: new Date(),
+    latitude: data.latitude,
+    longitude: data.longitude,
+  };
+
+  const docRef = await addDoc(visitsCollectionRef, visitData);
+  return { ...visitData, id: docRef.id };
 }
 
     
