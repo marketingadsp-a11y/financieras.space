@@ -310,7 +310,7 @@ export default function QrReaderPage() {
                                 </div>
                             )}
                         </div>
-                        <AlertDialogTitle className="text-center text-2xl">¡Visita Registrada!</AlertDialogTitle>
+                        <AlertDialogTitle className="text-center text-2xl text-green-600">¡Visita Registrada!</AlertDialogTitle>
                         <AlertDialogDescription className="text-center">
                             Se ha registrado la visita para <strong>{visitSuccessInfo?.clientName}</strong> con éxito.
                         </AlertDialogDescription>
