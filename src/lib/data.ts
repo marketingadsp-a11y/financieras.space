@@ -380,6 +380,7 @@ export type CompanyProfile = {
   smsEmailTemplate?: string;
   resendFromEmail?: string;
   visorAppSuccessImageUrl?: string;
+  visorAppSuccessText?: string;
 };
 
 // --- Loan Control Tool Models ---

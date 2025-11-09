@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -67,6 +68,7 @@ export default function QrReaderPage() {
     const [isProcessingVisit, setIsProcessingVisit] = React.useState(false);
     const [showLocationErrorModal, setShowLocationErrorModal] = React.useState(false);
     const [successImageUrl, setSuccessImageUrl] = React.useState<string | null>(null);
+    const [successText, setSuccessText] = React.useState<string | null>(null);
 
     const fetchData = React.useCallback(async (supervisorId: string) => {
         try {
@@ -76,11 +78,14 @@ export default function QrReaderPage() {
                 const clientData = await getClientsBySupervisor(supervisorId);
                 setClients(clientData);
 
-                 // Fetch company profile for success image
+                 // Fetch company profile for success image and text
                 if (supervisorData.prefix) {
                     const profile = await getCompanyProfileByPrefix(supervisorData.prefix);
                     if (profile?.visorAppSuccessImageUrl) {
                         setSuccessImageUrl(profile.visorAppSuccessImageUrl);
+                    }
+                    if (profile?.visorAppSuccessText) {
+                        setSuccessText(profile.visorAppSuccessText);
                     }
                 }
             }
@@ -150,6 +155,7 @@ export default function QrReaderPage() {
         setAccessCode("");
         setError(null);
         setSuccessImageUrl(null);
+        setSuccessText(null);
     };
     
     const handleScanSuccess = async (qrCodeValue: string) => {
@@ -313,6 +319,7 @@ export default function QrReaderPage() {
                         <AlertDialogTitle className="text-center text-2xl text-green-600">¡Visita Registrada!</AlertDialogTitle>
                         <AlertDialogDescription className="text-center">
                             Se ha registrado la visita para <strong>{visitSuccessInfo?.clientName}</strong> con éxito.
+                             {successText && <p className="mt-4 text-blue-600 font-medium">{successText}</p>}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-center pt-4 gap-2">

@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getCompanyProfileByPrefix, saveCompanyProfile } from "@/services/company-profile-service";
-import { Loader2, Image, Save } from "lucide-react";
+import { Loader2, Image, Save, MessageSquare } from "lucide-react";
 import type { CompanyProfile } from "@/lib/data";
+import { Textarea } from "@/components/ui/textarea";
 
 export function VisorAppSettings() {
     const { user } = useAuth();
@@ -19,6 +20,7 @@ export function VisorAppSettings() {
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
     const [imageUrl, setImageUrl] = React.useState('');
+    const [successText, setSuccessText] = React.useState('');
 
     React.useEffect(() => {
         const fetchSettings = async () => {
@@ -30,6 +32,9 @@ export function VisorAppSettings() {
                 const profile = await getCompanyProfileByPrefix(user.prefix);
                 if (profile?.visorAppSuccessImageUrl) {
                     setImageUrl(profile.visorAppSuccessImageUrl);
+                }
+                if (profile?.visorAppSuccessText) {
+                    setSuccessText(profile.visorAppSuccessText);
                 }
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los ajustes.' });
@@ -44,7 +49,10 @@ export function VisorAppSettings() {
         if (!user?.prefix) return;
         setIsSaving(true);
         try {
-            await saveCompanyProfile(user.prefix, { visorAppSuccessImageUrl: imageUrl });
+            await saveCompanyProfile(user.prefix, { 
+                visorAppSuccessImageUrl: imageUrl,
+                visorAppSuccessText: successText,
+            });
             toast({ title: "Éxito", description: "Ajustes guardados correctamente." });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar los ajustes.' });
@@ -68,10 +76,10 @@ export function VisorAppSettings() {
             <CardHeader>
                 <CardTitle>Configuración de VisorApp</CardTitle>
                 <CardDescription>
-                    Personaliza la imagen que se muestra al registrar una visita exitosa en la aplicación de escaneo QR.
+                    Personaliza la pantalla que se muestra al registrar una visita exitosa.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
                 <div className="space-y-2">
                     <Label htmlFor="image-url">URL de la Imagen de Éxito</Label>
                     <div className="flex items-center gap-2">
@@ -86,10 +94,22 @@ export function VisorAppSettings() {
                 </div>
                 {imageUrl && (
                     <div className="border rounded-lg p-4 flex flex-col items-center gap-4">
-                        <p className="text-sm font-medium">Vista Previa</p>
+                        <p className="text-sm font-medium">Vista Previa de Imagen</p>
                         <img src={imageUrl} alt="Vista previa de la imagen de éxito" className="max-w-xs max-h-48 rounded-md object-contain" />
                     </div>
                 )}
+                 <div className="space-y-2">
+                    <Label htmlFor="success-text">Texto de Éxito Personalizado</Label>
+                    <div className="flex items-start gap-2">
+                        <MessageSquare className="h-5 w-5 text-muted-foreground mt-2"/>
+                        <Textarea
+                            id="success-text"
+                            placeholder="Ej. ¡Gracias por tu visita! Reporta cualquier incidencia."
+                            value={successText}
+                            onChange={(e) => setSuccessText(e.target.value)}
+                        />
+                    </div>
+                </div>
             </CardContent>
             <CardFooter>
                 <Button onClick={handleSave} disabled={isSaving}>
