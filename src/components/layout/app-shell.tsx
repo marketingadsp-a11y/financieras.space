@@ -646,8 +646,15 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <Link href="/tools/visor-app">
-                            <SidebarMenuButton asChild isActive={pathname.startsWith('/tools/visor-app')} tooltip="Supervisores">
+                            <SidebarMenuButton asChild isActive={pathname === '/tools/visor-app'} tooltip="Supervisores">
                                 <span><Users /><span>Supervisores</span></span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <Link href="/tools/visor-app/settings">
+                            <SidebarMenuButton asChild isActive={pathname.startsWith('/tools/visor-app/settings')} tooltip="Configuración">
+                                <span><Settings /><span>Configuración</span></span>
                             </SidebarMenuButton>
                         </Link>
                     </SidebarMenuItem>

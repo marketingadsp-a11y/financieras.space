@@ -118,6 +118,7 @@ export type RegistroOficinaPermission = keyof typeof REGISTRO_OFICINA_PERMISSION
 export const VISOR_APP_PERMISSIONS = {
   CAN_MANAGE_SUPERVISORS: 'Gestionar Supervisores',
   CAN_MANAGE_CLIENTS: 'Gestionar Clientes',
+  CAN_MANAGE_SETTINGS: 'Gestionar Configuración',
 } as const;
 export type VisorAppPermission = keyof typeof VISOR_APP_PERMISSIONS;
 
@@ -378,6 +379,7 @@ export type CompanyProfile = {
   smsApiKey?: string;
   smsEmailTemplate?: string;
   resendFromEmail?: string;
+  visorAppSuccessImageUrl?: string;
 };
 
 // --- Loan Control Tool Models ---
@@ -578,5 +580,3 @@ export type VisorVisit = {
   latitude?: number;
   longitude?: number;
 };
-
-    

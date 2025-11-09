@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
@@ -15,6 +16,7 @@ export async function getAllCompanyProfiles(): Promise<CompanyProfile[]> {
 
 // The document ID for a company profile is its prefix
 export async function getCompanyProfileByPrefix(prefix: string): Promise<CompanyProfile | null> {
+    if (!prefix) return null;
     const docRef = doc(db, "companyProfiles", prefix);
     const docSnap = await getDoc(docRef);
 
@@ -24,7 +26,7 @@ export async function getCompanyProfileByPrefix(prefix: string): Promise<Company
     return null;
 }
 
-export async function saveCompanyProfile(prefix: string, profileData: Omit<CompanyProfile, 'id'>): Promise<void> {
+export async function saveCompanyProfile(prefix: string, profileData: Partial<CompanyProfile>): Promise<void> {
     const docRef = doc(db, "companyProfiles", prefix);
     await setDoc(docRef, profileData, { merge: true });
 }
