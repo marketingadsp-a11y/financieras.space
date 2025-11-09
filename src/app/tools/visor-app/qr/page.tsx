@@ -223,6 +223,36 @@ export default function QrReaderPage() {
             description: error.message || 'No se pudo iniciar la cámara.',
         });
     };
+
+    const handleRequestLocationPermission = () => {
+        if (!navigator.geolocation) {
+            toast({
+                variant: 'destructive',
+                title: 'Navegador no compatible',
+                description: 'Tu navegador no soporta la geolocalización.',
+            });
+            return;
+        }
+
+        toast({
+            title: 'Solicitando permiso...',
+            description: 'Por favor, acepta la solicitud de ubicación en tu navegador.',
+        });
+
+        navigator.geolocation.getCurrentPosition(
+            () => {
+                toast({
+                    variant: 'success',
+                    title: '¡Permiso Concedido!',
+                    description: 'Ahora puedes continuar con el escaneo de visitas.',
+                });
+            },
+            () => {
+                setShowLocationErrorModal(true); // Reuse the existing modal for denial.
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    };
     
     const visitedClientIds = React.useMemo(() => {
         return new Set(visitsThisWeek.map(v => v.clientId));
@@ -311,10 +341,14 @@ export default function QrReaderPage() {
                         </div>
                     )}
                 </CardContent>
-                 <CardFooter>
+                 <CardFooter className="flex-col gap-2">
                     <Button variant="ghost" className="w-full" onClick={handleLogout}>
                         <LogOut className="mr-2" />
                         Cerrar Sesión
+                    </Button>
+                     <Button variant="secondary" className="w-full" onClick={handleRequestLocationPermission}>
+                        <MapPin className="mr-2" />
+                        Reactivar Ubicación
                     </Button>
                 </CardFooter>
             </Card>
@@ -378,3 +412,4 @@ export default function QrReaderPage() {
         </div>
     );
 }
+
