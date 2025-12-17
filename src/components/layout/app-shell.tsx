@@ -38,6 +38,7 @@ import {
   Percent,
   History,
   Upload,
+  HandCoins,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -710,6 +711,13 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                     </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
+               <SidebarMenuItem>
+                <Link href="/settings/compensations">
+                    <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/compensations')} tooltip="Gestionar Compensaciones">
+                         <span><HandCoins /><span>Gestionar Compensaciones</span></span>
+                    </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
           </SidebarMenu>
         </div>
       );
@@ -756,6 +764,13 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                                     <Briefcase />
                                     <span>Perfil de Empresa</span>
                                 </span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <Link href="/settings/compensations">
+                            <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/compensations')} tooltip="Gestionar Compensaciones">
+                                 <span><HandCoins /><span>Gestionar Compensaciones</span></span>
                             </SidebarMenuButton>
                         </Link>
                     </SidebarMenuItem>
@@ -1015,6 +1030,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Link href="/settings/company-profile">
                       <Briefcase className="mr-2 h-4 w-4" />
                       <span>Perfil de Empresa</span>
+                    </Link>
+                  </DropdownMenuItem>
+                   <DropdownMenuItem asChild>
+                    <Link href="/settings/compensations">
+                      <HandCoins className="mr-2 h-4 w-4" />
+                      <span>Gestionar Compensaciones</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
