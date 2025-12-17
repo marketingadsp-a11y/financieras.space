@@ -1,7 +1,7 @@
 
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -262,6 +262,14 @@ export const allTools: Tool[] = [
     href: "/tools/visor-app",
     icon: ScanEye,
     color: '#0ea5e9'
+  },
+  {
+    id: "compensacion-ejecutivos",
+    name: "Compensación de Ejecutivos",
+    description: "Calcula la nómina final de un ejecutivo en base a bonos y métricas.",
+    href: "/tools/compensacion-ejecutivos",
+    icon: HandCoins,
+    color: '#f43f5e'
   }
 ];
 
