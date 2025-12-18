@@ -127,9 +127,6 @@ export function CompensacionDashboard() {
       <Card className="max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle className="text-3xl">Cálculo de Compensación</CardTitle>
-          <CardDescription>
-            Selecciona un ejecutivo para calcular su nómina final basada en los bonos obtenidos.
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
           
