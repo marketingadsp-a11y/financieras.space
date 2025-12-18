@@ -7,8 +7,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription
 } from "@/components/ui/card";
-import { Loader2, Calendar, User, DollarSign, AlertTriangle, Gift, TrendingUp } from "lucide-react";
+import { Loader2, Calendar, User, DollarSign, AlertTriangle, Gift, TrendingUp, Separator } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getPayrollHistory } from "@/services/payroll-service";
@@ -25,25 +26,14 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Badge } from "@/components/ui/badge";
 import { format, startOfMonth, endOfMonth, getMonth, getYear } from "date-fns";
 import { es } from "date-fns/locale";
-import { Separator } from "../ui/separator";
 
-function groupHistoryByMonth(history: PayrollHistory[]) {
-  return history.reduce((acc, item) => {
-    const monthKey = format(item.date, "yyyy-MM");
-    if (!acc[monthKey]) {
-      acc[monthKey] = [];
-    }
-    acc[monthKey].push(item);
-    return acc;
-  }, {} as Record<string, PayrollHistory[]>);
-}
 
-const PayrollRecordAccordionItem = ({ item }: { item: PayrollHistory }) => {
+export const PayrollRecordAccordionItem = ({ item }: { item: PayrollHistory }) => {
     return (
         <AccordionItem value={item.id} className="border-b-0">
             <div className="border rounded-md shadow-sm bg-background data-[state=open]:bg-muted/30">
                 <AccordionTrigger className="p-4 hover:no-underline font-normal text-left">
-                     <div className="flex justify-between items-start gap-4 w-full">
+                     <div className="flex justify-between items-center gap-4 w-full">
                         <div className="text-left">
                             <h4 className="font-semibold text-lg text-primary">{item.executiveName}</h4>
                             <p className="text-xs text-muted-foreground">{format(item.date, "PPP p", { locale: es })}</p>
@@ -92,6 +82,18 @@ const PayrollRecordAccordionItem = ({ item }: { item: PayrollHistory }) => {
         </AccordionItem>
     );
 };
+
+
+function groupHistoryByMonth(history: PayrollHistory[]) {
+  return history.reduce((acc, item) => {
+    const monthKey = format(item.date, "yyyy-MM");
+    if (!acc[monthKey]) {
+      acc[monthKey] = [];
+    }
+    acc[monthKey].push(item);
+    return acc;
+  }, {} as Record<string, PayrollHistory[]>);
+}
 
 
 export function PayrollHistoryPanel() {
@@ -167,7 +169,7 @@ export function PayrollHistoryPanel() {
                         <p className="text-sm text-muted-foreground font-normal text-left">{groupedHistory[monthKey].length} registro(s)</p>
                         </div>
                     </div>
-                    <div className="text-right pr-4">
+                     <div className="text-right pr-4">
                         <p className="text-sm text-muted-foreground">Total del Mes</p>
                         <p className="text-lg font-bold text-primary">${monthlyTotal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
                     </div>

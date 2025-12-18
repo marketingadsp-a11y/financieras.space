@@ -6,14 +6,73 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, User, Loader2, Save } from "lucide-react";
+import { DollarSign, User, Loader2, Save, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { getCompensationConfig } from "@/services/compensation-service";
-import { savePayroll } from "@/services/payroll-service";
-import type { Executive, Bonus, CompensationConfig, SavedBonus } from "@/lib/data";
+import { savePayroll, getPayrollHistoryByExecutive } from "@/services/payroll-service";
+import type { Executive, Bonus, CompensationConfig, SavedBonus, PayrollHistory } from "@/lib/data";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { Accordion } from "@/components/ui/accordion";
+import { PayrollRecordAccordionItem } from "@/components/settings/payroll-history-panel";
+
+
+const HistoryModal = ({
+  isOpen,
+  onClose,
+  executive,
+}: {
+  isOpen: boolean,
+  onClose: () => void,
+  executive: Executive | undefined,
+}) => {
+    const [history, setHistory] = React.useState<PayrollHistory[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const { toast } = useToast();
+
+    React.useEffect(() => {
+        if (isOpen && executive) {
+            setIsLoading(true);
+            getPayrollHistoryByExecutive(executive.id)
+                .then(setHistory)
+                .catch(() => toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar el historial.' }))
+                .finally(() => setIsLoading(false));
+        }
+    }, [isOpen, executive, toast]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Historial de Nómina para {executive?.name}</DialogTitle>
+                    <DialogDescription>
+                        Mostrando todos los registros de pago guardados para este ejecutivo.
+                    </DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="max-h-[60vh]">
+                     <div className="pr-4 py-4">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center h-40"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Cargando historial...</div>
+                        ) : history.length > 0 ? (
+                            <Accordion type="multiple" className="w-full space-y-2">
+                                {history.map(item => (
+                                    <PayrollRecordAccordionItem key={item.id} item={item} />
+                                ))}
+                            </Accordion>
+                        ) : (
+                            <p className="text-center text-muted-foreground">No hay registros de nómina para este ejecutivo.</p>
+                        )}
+                    </div>
+                </ScrollArea>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 export function CompensacionDashboard() {
   const { user } = useAuth();
@@ -24,6 +83,8 @@ export function CompensacionDashboard() {
   
   const [selectedExecutiveId, setSelectedExecutiveId] = React.useState<string | null>(null);
   const [selectedBonusIds, setSelectedBonusIds] = React.useState<Set<string>>(new Set());
+
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -132,20 +193,28 @@ export function CompensacionDashboard() {
           
           <div className="space-y-2">
             <Label htmlFor="executive-select" className="text-lg font-semibold">1. Seleccionar Ejecutivo</Label>
-            <Select onValueChange={handleExecutiveChange} value={selectedExecutiveId || ""}>
-                <SelectTrigger id="executive-select">
-                    <SelectValue placeholder="Elige un ejecutivo..." />
-                </SelectTrigger>
-                <SelectContent>
-                    {config.executives && config.executives.length > 0 ? (
-                        config.executives.map(exec => (
-                            <SelectItem key={exec.id} value={exec.id}>{exec.name} ({exec.plaza})</SelectItem>
-                        ))
-                    ) : (
-                        <div className="p-4 text-center text-sm text-muted-foreground">No hay ejecutivos registrados.</div>
-                    )}
-                </SelectContent>
-            </Select>
+             <div className="flex items-center gap-2">
+                <Select onValueChange={handleExecutiveChange} value={selectedExecutiveId || ""}>
+                    <SelectTrigger id="executive-select" className="flex-grow">
+                        <SelectValue placeholder="Elige un ejecutivo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {config.executives && config.executives.length > 0 ? (
+                            config.executives.map(exec => (
+                                <SelectItem key={exec.id} value={exec.id}>{exec.name} ({exec.plaza})</SelectItem>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-sm text-muted-foreground">No hay ejecutivos registrados.</div>
+                        )}
+                    </SelectContent>
+                </Select>
+                 {selectedExecutive && (
+                    <Button variant="outline" onClick={() => setIsHistoryModalOpen(true)}>
+                        <History className="mr-2 h-4 w-4"/>
+                        Historial
+                    </Button>
+                )}
+             </div>
           </div>
           
           {selectedExecutive && (
@@ -158,7 +227,7 @@ export function CompensacionDashboard() {
                         {config.bonuses.map((bono) => (
                             <div 
                                 key={bono.id} 
-                                className="flex flex-grow items-center p-3 border rounded-lg cursor-pointer transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary"
+                                className="flex flex-1 min-w-[150px] items-center p-2 border rounded-lg cursor-pointer transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary"
                                 onClick={() => handleBonusToggle(bono.id)}
                             >
                                 <Checkbox 
@@ -166,10 +235,9 @@ export function CompensacionDashboard() {
                                     checked={selectedBonusIds.has(bono.id)}
                                     onCheckedChange={() => handleBonusToggle(bono.id)}
                                 />
-                                <Label htmlFor={bono.id} className="ml-3 text-sm font-medium cursor-pointer flex-grow">
-                                  {bono.name}
+                                <Label htmlFor={bono.id} className="ml-2 text-xs font-medium cursor-pointer flex-grow">
+                                  {bono.name} ({bono.percentage}%)
                                 </Label>
-                                <span className="ml-2 text-xs font-bold text-primary">({bono.percentage}%)</span>
                             </div>
                         ))}
                     </div>
@@ -219,6 +287,12 @@ export function CompensacionDashboard() {
             </CardFooter>
         )}
       </Card>
+      
+      <HistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        executive={selectedExecutive}
+      />
     </div>
   );
 }
