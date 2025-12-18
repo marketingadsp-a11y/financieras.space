@@ -115,7 +115,7 @@ export function CompensacionDashboard() {
               <div className="space-y-4">
                  <h3 className="text-xl font-semibold">2. Asignar Bonos</h3>
                   {(config.bonuses && config.bonuses.length > 0) ? (
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="flex flex-wrap gap-4">
                         {config.bonuses.map((bono) => (
                             <div 
                                 key={bono.id} 
@@ -132,7 +132,7 @@ export function CompensacionDashboard() {
                                 {bono.name}
                                 </Label>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right ml-4">
                                 <p className="text-lg font-semibold text-primary">
                                     +${(bonoBase * (bono.percentage / 100)).toLocaleString('es-MX', {minimumFractionDigits: 2})}
                                 </p>
@@ -192,4 +192,3 @@ export function CompensacionDashboard() {
     </div>
   );
 }
-
