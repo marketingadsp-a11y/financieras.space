@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, addDoc, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, orderBy, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { PayrollHistory } from "@/lib/data";
 
@@ -53,4 +53,10 @@ export async function getPayrollHistoryByExecutive(executiveId: string): Promise
     });
 
     return history.sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
+
+export async function deletePayroll(id: string): Promise<void> {
+    const docRef = doc(db, "payrollHistory", id);
+    await deleteDoc(docRef);
 }

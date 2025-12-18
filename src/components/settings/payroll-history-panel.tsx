@@ -9,10 +9,10 @@ import {
   CardTitle,
   CardDescription
 } from "@/components/ui/card";
-import { Loader2, Calendar, User, DollarSign, AlertTriangle, Gift, TrendingUp } from "lucide-react";
+import { Loader2, Calendar, User, DollarSign, AlertTriangle, Gift, TrendingUp, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getPayrollHistory } from "@/services/payroll-service";
+import { getPayrollHistory, deletePayroll } from "@/services/payroll-service";
 import { getCompensationConfig } from "@/services/compensation-service";
 import type { PayrollHistory, Executive } from "@/lib/data";
 import {
@@ -21,18 +21,44 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format, startOfMonth, endOfMonth, getMonth, getYear } from "date-fns";
 import { es } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 
 
-export const PayrollRecordAccordionItem = ({ item }: { item: PayrollHistory }) => {
+export const PayrollRecordAccordionItem = ({ item, onDelete }: { item: PayrollHistory, onDelete: (id: string) => void }) => {
+    const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+    const [confirmationCode, setConfirmationCode] = React.useState('');
+    const expectedCode = '0120';
+
+    const handleDelete = () => {
+        if (confirmationCode === expectedCode) {
+            onDelete(item.id);
+            setIsAlertOpen(false);
+            setConfirmationCode('');
+        }
+    }
+
     return (
         <AccordionItem value={item.id} className="border-b-0">
-            <div className="border rounded-md shadow-sm bg-background data-[state=open]:bg-muted/30">
+            <div className="border rounded-md shadow-sm bg-background data-[state=open]:bg-muted/30 group">
                 <AccordionTrigger className="p-4 hover:no-underline font-normal text-left">
                      <div className="flex justify-between items-center gap-4 w-full">
                         <div className="text-left">
@@ -48,6 +74,29 @@ export const PayrollRecordAccordionItem = ({ item }: { item: PayrollHistory }) =
                                 <p className="text-xs text-muted-foreground">Nómina Final</p>
                                 <p className="text-2xl font-bold text-primary">${item.finalPayroll.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
                             </div>
+                            <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+                                <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Confirmar Eliminación?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción es irreversible. Para eliminar el registro de nómina de <strong>{item.executiveName}</strong> del <strong>{format(item.date, "PPP", { locale: es })}</strong>, ingresa el código de confirmación.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <div className="py-2">
+                                        <Label htmlFor="confirmation-code">Código de Confirmación</Label>
+                                        <Input id="confirmation-code" type="password" value={confirmationCode} onChange={(e) => setConfirmationCode(e.target.value)} placeholder="Ingresa el código para eliminar" autoFocus />
+                                    </div>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel onClick={() => setConfirmationCode('')}>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDelete} disabled={confirmationCode !== expectedCode}>Eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
                     </div>
                 </AccordionTrigger>
@@ -107,34 +156,45 @@ export function PayrollHistoryPanel() {
   const [selectedExecutiveId, setSelectedExecutiveId] = React.useState<string | null>(null);
 
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      if (!user?.prefix) {
-        setIsLoading(false);
-        return;
-      }
-      setError(null);
-      try {
-        const [historyData, compensationData] = await Promise.all([
-          getPayrollHistory(user.prefix),
-          getCompensationConfig(user.prefix)
-        ]);
-        setHistory(historyData);
-        setExecutives(compensationData.executives || []);
-      } catch (error) {
-        const errorMessage = "No se pudo cargar el historial de nómina. Por favor, intenta de nuevo más tarde.";
-        setError(errorMessage);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No se pudo cargar el historial de nómina.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = React.useCallback(async () => {
+    if (!user?.prefix) {
+      setIsLoading(false);
+      return;
+    }
+    setError(null);
+    try {
+      const [historyData, compensationData] = await Promise.all([
+        getPayrollHistory(user.prefix),
+        getCompensationConfig(user.prefix)
+      ]);
+      setHistory(historyData);
+      setExecutives(compensationData.executives || []);
+    } catch (error) {
+      const errorMessage = "No se pudo cargar el historial de nómina. Por favor, intenta de nuevo más tarde.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo cargar el historial de nómina.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [user?.prefix, toast]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+  
+  const handleDeletePayroll = async (id: string) => {
+    try {
+        await deletePayroll(id);
+        toast({ title: "Éxito", description: "Registro de nómina eliminado." });
+        fetchData();
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo eliminar el registro." });
+    }
+  };
 
   const groupedHistory = React.useMemo(() => groupHistoryByMonth(history), [history]);
   const sortedMonths = React.useMemo(() => Object.keys(groupedHistory).sort((a,b) => b.localeCompare(a)), [groupedHistory]);
@@ -179,7 +239,7 @@ export function PayrollHistoryPanel() {
               <AccordionContent className="p-4 border-t space-y-2">
                  <Accordion type="multiple" className="w-full space-y-2">
                     {groupedHistory[monthKey].map((item) => (
-                      <PayrollRecordAccordionItem key={item.id} item={item} />
+                      <PayrollRecordAccordionItem key={item.id} item={item} onDelete={handleDeletePayroll} />
                     ))}
                  </Accordion>
               </AccordionContent>
@@ -236,7 +296,7 @@ export function PayrollHistoryPanel() {
                 executiveHistory.length > 0 ? (
                     <Accordion type="multiple" className="w-full space-y-2">
                         {executiveHistory.map(item => (
-                             <PayrollRecordAccordionItem key={item.id} item={item} />
+                             <PayrollRecordAccordionItem key={item.id} item={item} onDelete={handleDeletePayroll} />
                         ))}
                     </Accordion>
                 ) : (
