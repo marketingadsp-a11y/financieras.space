@@ -115,31 +115,22 @@ export function CompensacionDashboard() {
               <div className="space-y-4">
                  <h3 className="text-xl font-semibold">2. Asignar Bonos</h3>
                   {(config.bonuses && config.bonuses.length > 0) ? (
-                    <div className="flex flex-wrap gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                         {config.bonuses.map((bono) => (
                             <div 
                                 key={bono.id} 
-                                className="flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary"
+                                className="flex items-center p-3 border rounded-lg cursor-pointer transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary"
                                 onClick={() => handleBonusToggle(bono.id)}
                             >
-                            <div className="flex items-center space-x-3">
                                 <Checkbox 
                                     id={bono.id} 
                                     checked={selectedBonusIds.has(bono.id)}
                                     onCheckedChange={() => handleBonusToggle(bono.id)}
                                 />
-                                <Label htmlFor={bono.id} className="text-base font-medium cursor-pointer">
-                                {bono.name}
+                                <Label htmlFor={bono.id} className="ml-3 text-sm font-medium cursor-pointer flex-grow">
+                                  {bono.name}
                                 </Label>
-                            </div>
-                            <div className="text-right ml-4">
-                                <p className="text-lg font-semibold text-primary">
-                                    +${(bonoBase * (bono.percentage / 100)).toLocaleString('es-MX', {minimumFractionDigits: 2})}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    ({bono.percentage}%)
-                                </p>
-                            </div>
+                                <span className="ml-2 text-xs font-bold text-primary">({bono.percentage}%)</span>
                             </div>
                         ))}
                     </div>
