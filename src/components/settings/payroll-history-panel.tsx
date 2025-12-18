@@ -120,15 +120,21 @@ export function PayrollHistoryPanel() {
                             <h4 className="font-semibold text-lg text-primary">{item.executiveName}</h4>
                             <p className="text-xs text-muted-foreground">{format(item.date, "PPP p", { locale: es })}</p>
                         </div>
-                        <div className="text-right">
-                           <p className="text-xs text-muted-foreground">Nómina Final</p>
-                           <p className="text-2xl font-bold text-primary">${item.finalPayroll.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                        <div className="flex items-center gap-6 text-right">
+                           <div>
+                               <p className="text-xs text-green-600 font-semibold">Total Bonos Ganados</p>
+                               <p className="font-bold text-lg text-green-600">${item.totalBonusAmount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                           </div>
+                            <div>
+                               <p className="text-xs text-muted-foreground">Nómina Final</p>
+                               <p className="text-2xl font-bold text-primary">${item.finalPayroll.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                            </div>
                         </div>
                     </div>
                     
                     <Separator className="my-4"/>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
                            <p className="text-xs text-muted-foreground">Nómina Base</p>
                            <p className="font-semibold">${item.baseSalary.toLocaleString("es-MX")}</p>
@@ -136,10 +142,6 @@ export function PayrollHistoryPanel() {
                          <div>
                            <p className="text-xs text-muted-foreground">Bono Base (100%)</p>
                            <p className="font-semibold">${item.baseBonus.toLocaleString("es-MX")}</p>
-                        </div>
-                        <div>
-                           <p className="text-xs text-green-600 font-semibold">Total Bonos Ganados</p>
-                           <p className="font-bold text-green-600">${item.totalBonusAmount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
                         </div>
                     </div>
 
