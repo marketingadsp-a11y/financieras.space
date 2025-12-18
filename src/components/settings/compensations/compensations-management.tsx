@@ -43,34 +43,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { BonusForm, type BonusFormValues } from "./bonus-form";
 import { ExecutiveForm, type ExecutiveFormValues } from "./executive-form";
-
-// Mock data types - replace with actual types from your data library
-type Executive = { id: string; name: string; plaza: string; fechaIngreso: Date };
-type Bonus = { id: string; name: string; percentage: number };
-type CompensationConfig = {
-    baseSalary: number;
-    baseBonus: number;
-    bonuses: Bonus[];
-    executives: Executive[];
-}
-
-// TODO: Replace with actual service calls
-const getCompensationsConfig = async (prefix: string): Promise<CompensationConfig> => ({
-    baseSalary: 4000,
-    baseBonus: 3000,
-    bonuses: [
-        { id: 'b1', name: 'Fallo menor al 2%', percentage: 50 },
-        { id: 'b2', name: 'Recopilador', percentage: 15 },
-        { id: 'b3', name: 'Ubicación', percentage: 15 },
-        { id: 'b4', name: 'Reporte del Sábado', percentage: 20 },
-    ],
-    executives: [
-        { id: '1', name: 'JUAN PEREZ', plaza: 'Plaza A', fechaIngreso: new Date() },
-        { id: '2', name: 'MARIA GARCIA', plaza: 'Plaza B', fechaIngreso: new Date() },
-    ]
-});
-const saveCompensationsConfig = async (prefix: string, config: Partial<CompensationConfig>) => { console.log("Saving:", config); return Promise.resolve(); }
-
+import { getCompensationConfig, saveCompensationConfig } from "@/services/compensation-service";
+import type { Bonus, Executive } from "@/lib/data";
 
 export function CompensationsManagement() {
   const { user } = useAuth();
@@ -92,33 +66,35 @@ export function CompensationsManagement() {
   // Alert Dialog State
   const [itemToDelete, setItemToDelete] = React.useState<{type: 'bonus' | 'executive', id: string, name: string} | null>(null);
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      if (!user?.prefix) {
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      try {
-        const config = await getCompensationsConfig(user.prefix);
-        setBaseSalary(config.baseSalary);
-        setBaseBonus(config.baseBonus);
-        setBonuses(config.bonuses);
-        setExecutives(config.executives);
-      } catch (error) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos de compensación." });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = React.useCallback(async () => {
+    if (!user?.prefix) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const config = await getCompensationConfig(user.prefix);
+      setBaseSalary(config.baseSalary || 0);
+      setBaseBonus(config.baseBonus || 0);
+      setBonuses(config.bonuses || []);
+      setExecutives(config.executives || []);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos de compensación." });
+    } finally {
+      setIsLoading(false);
+    }
   }, [user?.prefix, toast]);
+  
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   const handleSaveConfigValue = async (field: 'baseSalary' | 'baseBonus', value: number) => {
     if (!user?.prefix) return;
     setIsSaving(true);
     try {
-      await saveCompensationsConfig(user.prefix, { [field]: value });
+      await saveCompensationConfig(user.prefix, { [field]: value });
       toast({ title: "Éxito", description: `${field === 'baseSalary' ? 'Nómina base' : 'Bono base'} actualizado.` });
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: `No se pudo guardar ${field === 'baseSalary' ? 'la nómina base' : 'el bono base'}.` });
@@ -138,25 +114,43 @@ export function CompensationsManagement() {
   }
   
   const handleBonusSubmit = async (values: BonusFormValues) => {
-      // Mock logic - replace with service call
+      if(!user?.prefix) return;
+      
+      let newBonuses = [...bonuses];
       if (editingBonus) {
-        setBonuses(bonuses.map(b => b.id === editingBonus.id ? { ...b, ...values } : b));
+        newBonuses = bonuses.map(b => b.id === editingBonus.id ? { ...b, ...values } : b);
       } else {
-        setBonuses([...bonuses, { ...values, id: `b${Date.now()}` }]);
+        newBonuses.push({ ...values, id: `b${Date.now()}` });
       }
-      toast({ title: "Éxito", description: `Bono ${editingBonus ? 'actualizado' : 'creado'}.` });
-      setBonusFormOpen(false);
+      
+      try {
+        await saveCompensationConfig(user.prefix, { bonuses: newBonuses });
+        setBonuses(newBonuses);
+        toast({ title: "Éxito", description: `Bono ${editingBonus ? 'actualizado' : 'creado'}.` });
+        setBonusFormOpen(false);
+      } catch (error) {
+         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el bono.'})
+      }
   }
 
   const handleExecutiveSubmit = async (values: ExecutiveFormValues) => {
-      // Mock logic - replace with service call
-      if (editingExecutive) {
-        setExecutives(executives.map(e => e.id === editingExecutive.id ? { ...e, ...values } : e));
+      if(!user?.prefix) return;
+      
+      let newExecutives = [...executives];
+       if (editingExecutive) {
+        newExecutives = executives.map(e => e.id === editingExecutive.id ? { ...e, ...values } : e);
       } else {
-        setExecutives([...executives, { ...values, id: `e${Date.now()}` }]);
+        newExecutives.push({ ...values, id: `e${Date.now()}` });
       }
-       toast({ title: "Éxito", description: `Ejecutivo ${editingExecutive ? 'actualizado' : 'creado'}.` });
-      setExecutiveFormOpen(false);
+
+      try {
+        await saveCompensationConfig(user.prefix, { executives: newExecutives });
+        setExecutives(newExecutives);
+        toast({ title: "Éxito", description: `Ejecutivo ${editingExecutive ? 'actualizado' : 'creado'}.` });
+        setExecutiveFormOpen(false);
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el ejecutivo.'})
+      }
   }
 
   const openDeleteAlert = (type: 'bonus' | 'executive', item: {id: string, name: string}) => {
@@ -176,7 +170,7 @@ export function CompensationsManagement() {
     }
     
     try {
-        await saveCompensationsConfig(user.prefix, { bonuses: newBonuses, executives: newExecutives });
+        await saveCompensationConfig(user.prefix, { bonuses: newBonuses, executives: newExecutives });
         setBonuses(newBonuses);
         setExecutives(newExecutives);
         toast({ title: "Éxito", description: `${itemToDelete.type === 'bonus' ? 'Bono' : 'Ejecutivo'} eliminado.` });

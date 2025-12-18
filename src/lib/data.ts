@@ -590,3 +590,16 @@ export type VisorVisit = {
   latitude?: number;
   longitude?: number;
 };
+
+
+// --- Compensacion de Ejecutivos ---
+export type Executive = { id: string; name: string; plaza: string; fechaIngreso: Date };
+export type Bonus = { id: string; name: string; percentage: number };
+
+export type CompensationConfig = {
+    id?: string; // prefix
+    baseSalary?: number;
+    baseBonus?: number;
+    bonuses?: Bonus[];
+    executives?: Executive[];
+}
