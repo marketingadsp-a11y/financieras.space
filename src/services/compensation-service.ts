@@ -19,6 +19,7 @@ const configFromDoc = (data: any): CompensationConfig => {
     const executives = (data.executives || []).map((exec: any) => ({
         ...exec,
         fechaIngreso: exec.fechaIngreso?.toDate ? exec.fechaIngreso.toDate() : new Date(),
+        status: exec.status || 'Activo', // Default to active if status is not set
     }));
     return { ...data, executives };
 };
@@ -29,6 +30,7 @@ const configToDoc = (config: Partial<CompensationConfig>): Partial<CompensationC
         const executivesWithTimestamp = config.executives.map(exec => ({
             ...exec,
             fechaIngreso: Timestamp.fromDate(new Date(exec.fechaIngreso)),
+            status: exec.status || 'Activo', // Ensure status is always set
         }));
         return { ...config, executives: executivesWithTimestamp };
     }

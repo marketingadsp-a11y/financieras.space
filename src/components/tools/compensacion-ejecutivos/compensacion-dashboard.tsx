@@ -70,7 +70,6 @@ const HistoryModal = ({
                 <DialogHeader>
                     <DialogTitle>Historial de Nómina para {executive?.name}</DialogTitle>
                 </DialogHeader>
-
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -92,6 +91,7 @@ const HistoryModal = ({
                     </Card>
                 </div>
 
+
                 <ScrollArea className="max-h-[50vh]">
                      <div className="pr-4 py-4">
                         {isLoading ? (
@@ -99,7 +99,7 @@ const HistoryModal = ({
                         ) : history.length > 0 ? (
                             <Accordion type="multiple" className="w-full space-y-2">
                                 {history.map(item => (
-                                    <PayrollRecordAccordionItem key={item.id} item={item} />
+                                    <PayrollRecordAccordionItem key={item.id} item={item} onDelete={() => {}} />
                                 ))}
                             </Accordion>
                         ) : (
@@ -199,6 +199,10 @@ export function CompensacionDashboard() {
     }
   };
 
+  const activeExecutives = React.useMemo(() => {
+    return (config.executives || []).filter(e => e.status === 'Activo');
+  }, [config.executives]);
+
   const selectedExecutive = config.executives?.find(e => e.id === selectedExecutiveId);
   
   const nominaBase = config.baseSalary || 0;
@@ -246,12 +250,12 @@ export function CompensacionDashboard() {
                         <SelectValue placeholder="Elige un ejecutivo..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {config.executives && config.executives.length > 0 ? (
-                            config.executives.map(exec => (
+                        {activeExecutives && activeExecutives.length > 0 ? (
+                            activeExecutives.map(exec => (
                                 <SelectItem key={exec.id} value={exec.id}>{exec.name} ({exec.plaza})</SelectItem>
                             ))
                         ) : (
-                            <div className="p-4 text-center text-sm text-muted-foreground">No hay ejecutivos registrados.</div>
+                            <div className="p-4 text-center text-sm text-muted-foreground">No hay ejecutivos activos registrados.</div>
                         )}
                     </SelectContent>
                 </Select>

@@ -1,4 +1,5 @@
 
+
 import type { Timestamp } from "firebase/firestore";
 import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins } from "lucide-react";
 
@@ -592,7 +593,13 @@ export type VisorVisit = {
 
 
 // --- Compensacion de Ejecutivos ---
-export type Executive = { id: string; name: string; plaza: string; fechaIngreso: Date };
+export type Executive = { 
+    id: string; 
+    name: string; 
+    plaza: string; 
+    fechaIngreso: Date;
+    status: 'Activo' | 'Inactivo';
+};
 export type Bonus = { id: string; name: string; percentage: number };
 
 export type CompensationConfig = {

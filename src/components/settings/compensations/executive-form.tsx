@@ -22,6 +22,7 @@ import { Loader2 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 
 const formSchema = z.object({
   name: z.string().min(3, "El nombre del ejecutivo es requerido."),
@@ -29,10 +30,11 @@ const formSchema = z.object({
   fechaIngreso: z.date({
     required_error: "La fecha de ingreso es requerida.",
   }),
+  status: z.enum(["Activo", "Inactivo"]),
 });
 
 export type ExecutiveFormValues = z.infer<typeof formSchema>;
-type Executive = { id: string; name: string; plaza: string, fechaIngreso: Date; }
+type Executive = { id: string; name: string; plaza: string, fechaIngreso: Date; status: 'Activo' | 'Inactivo' }
 
 type ExecutiveFormProps = {
   onSubmit: (data: ExecutiveFormValues) => void;
@@ -49,6 +51,7 @@ export function ExecutiveForm({ onSubmit, executive, isSubmitting }: ExecutiveFo
             name: executive?.name || "",
             plaza: executive?.plaza || "",
             fechaIngreso: executive?.fechaIngreso || new Date(),
+            status: executive?.status || 'Activo',
         },
     });
 
@@ -100,6 +103,24 @@ export function ExecutiveForm({ onSubmit, executive, isSubmitting }: ExecutiveFo
                         <FormMessage />
                     </FormItem>
                 )} />
+                
+                <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel>Estado del Ejecutivo</FormLabel>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value === "Activo"}
+                                    onCheckedChange={(checked) => field.onChange(checked ? "Activo" : "Inactivo")}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}

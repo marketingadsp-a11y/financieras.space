@@ -45,6 +45,7 @@ import { BonusForm, type BonusFormValues } from "./bonus-form";
 import { ExecutiveForm, type ExecutiveFormValues } from "./executive-form";
 import { getCompensationConfig, saveCompensationConfig } from "@/services/compensation-service";
 import type { Bonus, Executive } from "@/lib/data";
+import { Badge } from "@/components/ui/badge";
 
 export function CompensationsManagement() {
   const { user } = useAuth();
@@ -64,7 +65,7 @@ export function CompensationsManagement() {
   const [editingExecutive, setEditingExecutive] = React.useState<Executive | null>(null);
   
   // Alert Dialog State
-  const [itemToDelete, setItemToDelete] = React.useState<{type: 'bonus' | 'executive', id: string, name: string} | null>(null);
+  const [itemToDelete, setItemToDelete] = React.useState<{type: 'bonus', id: string, name: string} | null>(null);
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
@@ -153,7 +154,7 @@ export function CompensationsManagement() {
       }
   }
 
-  const openDeleteAlert = (type: 'bonus' | 'executive', item: {id: string, name: string}) => {
+  const openDeleteAlert = (type: 'bonus', item: {id: string, name: string}) => {
     setItemToDelete({ type, ...item });
   }
   
@@ -161,25 +162,25 @@ export function CompensationsManagement() {
     if (!itemToDelete || !user?.prefix) return;
     
     let newBonuses = [...bonuses];
-    let newExecutives = [...executives];
     
     if (itemToDelete.type === 'bonus') {
         newBonuses = bonuses.filter(b => b.id !== itemToDelete.id);
-    } else {
-        newExecutives = executives.filter(e => e.id !== itemToDelete.id);
     }
     
     try {
-        await saveCompensationConfig(user.prefix, { bonuses: newBonuses, executives: newExecutives });
+        await saveCompensationConfig(user.prefix, { bonuses: newBonuses });
         setBonuses(newBonuses);
-        setExecutives(newExecutives);
-        toast({ title: "Éxito", description: `${itemToDelete.type === 'bonus' ? 'Bono' : 'Ejecutivo'} eliminado.` });
+        toast({ title: "Éxito", description: `Bono eliminado.` });
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el elemento." });
     } finally {
         setItemToDelete(null);
     }
   }
+
+  const getStatusBadgeVariant = (status: "Activo" | "Inactivo") => {
+    return status === "Activo" ? "secondary" : "outline";
+  };
 
 
   if (isLoading) {
@@ -290,8 +291,9 @@ export function CompensationsManagement() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Nombre del Ejecutivo</TableHead>
+                                <TableHead>Nombre</TableHead>
                                 <TableHead>Plaza</TableHead>
+                                <TableHead>Estado</TableHead>
                                 <TableHead className="w-[100px] text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -300,9 +302,11 @@ export function CompensationsManagement() {
                                 <TableRow key={exec.id}>
                                     <TableCell className="font-medium">{exec.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{exec.plaza}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={getStatusBadgeVariant(exec.status)}>{exec.status}</Badge>
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openExecutiveForm(exec)}><Edit className="h-4 w-4"/></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => openDeleteAlert('executive', exec)}><Trash2 className="h-4 w-4"/></Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
