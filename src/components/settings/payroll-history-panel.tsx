@@ -9,7 +9,7 @@ import {
   CardTitle,
   CardDescription
 } from "@/components/ui/card";
-import { Loader2, Calendar, User, DollarSign, AlertTriangle, Gift, TrendingUp, Separator } from "lucide-react";
+import { Loader2, Calendar, User, DollarSign, AlertTriangle, Gift, TrendingUp } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getPayrollHistory } from "@/services/payroll-service";
@@ -26,6 +26,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Badge } from "@/components/ui/badge";
 import { format, startOfMonth, endOfMonth, getMonth, getYear } from "date-fns";
 import { es } from "date-fns/locale";
+import { Separator } from "@/components/ui/separator";
 
 
 export const PayrollRecordAccordionItem = ({ item }: { item: PayrollHistory }) => {

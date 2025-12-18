@@ -223,7 +223,7 @@ export function CompensacionDashboard() {
               <div className="space-y-4">
                  <h3 className="text-xl font-semibold">2. Asignar Bonos</h3>
                   {(config.bonuses && config.bonuses.length > 0) ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                         {config.bonuses.map((bono) => (
                             <div 
                                 key={bono.id} 
