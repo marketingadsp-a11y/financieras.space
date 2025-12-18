@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, User, Loader2, Save, History } from "lucide-react";
+import { DollarSign, User, Loader2, Save, History, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { getCompensationConfig } from "@/services/compensation-service";
@@ -44,6 +44,15 @@ const HistoryModal = ({
                 .finally(() => setIsLoading(false));
         }
     }, [isOpen, executive, toast]);
+    
+    const executiveSummary = React.useMemo(() => {
+        if (history.length === 0) return { totalPaid: 0, averagePayment: 0 };
+        const totalPaid = history.reduce((acc, item) => acc + item.finalPayroll, 0);
+        return {
+            totalPaid,
+            averagePayment: totalPaid / history.length,
+        }
+    }, [history]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -54,7 +63,29 @@ const HistoryModal = ({
                         Mostrando todos los registros de pago guardados para este ejecutivo.
                     </DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="max-h-[60vh]">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Pagado al Ejecutivo</CardTitle>
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-bold text-primary">${executiveSummary.totalPaid.toLocaleString("es-MX", {minimumFractionDigits: 2})}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Pago Promedio</CardTitle>
+                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-bold">${executiveSummary.averagePayment.toLocaleString("es-MX", {minimumFractionDigits: 2})}</p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <ScrollArea className="max-h-[50vh]">
                      <div className="pr-4 py-4">
                         {isLoading ? (
                             <div className="flex items-center justify-center h-40"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Cargando historial...</div>
