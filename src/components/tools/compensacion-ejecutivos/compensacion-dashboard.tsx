@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, User, Loader2, Save, History, TrendingUp } from "lucide-react";
+import { DollarSign, User, Loader2, Save, History, TrendingUp, icons } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { getCompensationConfig } from "@/services/compensation-service";
@@ -20,6 +20,16 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Accordion } from "@/components/ui/accordion";
 import { PayrollRecordAccordionItem } from "@/components/settings/payroll-history-panel";
+
+// Helper to get a Lucide icon by name
+const LucideIcon = ({ name, ...props }: { name: keyof typeof icons } & React.ComponentProps<"svg">) => {
+  const Icon = icons[name];
+  if (!Icon) {
+    // Return a default icon or null if the name is invalid
+    return <DollarSign {...props} />;
+  }
+  return <Icon {...props} />;
+};
 
 
 const HistoryModal = ({
@@ -61,7 +71,7 @@ const HistoryModal = ({
                     <DialogTitle>Historial de Nómina para {executive?.name}</DialogTitle>
                 </DialogHeader>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Pagado al Ejecutivo</CardTitle>
@@ -207,6 +217,15 @@ export function CompensacionDashboard() {
 
   const nominaFinal = nominaBase + totalBonusAmount;
   
+  const getBonusIcon = (bonusName: string): keyof typeof icons => {
+    const name = bonusName.toLowerCase();
+    if (name.includes('recopilador')) return 'HandCoins';
+    if (name.includes('ubicación')) return 'MapPin';
+    if (name.includes('reporte')) return 'FileText';
+    if (name.includes('falla')) return 'TrendingDown';
+    return 'Award'; // Default icon
+  };
+  
   if (isLoading) {
     return <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin mr-2" /> Cargando configuración...</div>
   }
@@ -251,21 +270,22 @@ export function CompensacionDashboard() {
               <div className="space-y-4">
                  <h3 className="text-xl font-semibold">2. Asignar Bonos</h3>
                   {(config.bonuses && config.bonuses.length > 0) ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {config.bonuses.map((bono) => (
                             <div 
                                 key={bono.id} 
-                                className="flex flex-1 min-w-[150px] items-center p-2 border rounded-lg cursor-pointer transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary"
+                                className="flex flex-col items-center justify-start gap-2 p-3 border rounded-lg cursor-pointer transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary"
                                 onClick={() => handleBonusToggle(bono.id)}
                             >
-                                <Checkbox 
+                                <LucideIcon name={getBonusIcon(bono.name)} className="h-6 w-6 text-muted-foreground mb-1" />
+                                <Label htmlFor={bono.id} className="text-xs text-center font-medium cursor-pointer flex-grow leading-tight">
+                                  {bono.name} ({bono.percentage}%)
+                                </Label>
+                                 <Checkbox 
                                     id={bono.id} 
                                     checked={selectedBonusIds.has(bono.id)}
                                     onCheckedChange={() => handleBonusToggle(bono.id)}
                                 />
-                                <Label htmlFor={bono.id} className="ml-2 text-xs font-medium cursor-pointer flex-grow">
-                                  {bono.name} ({bono.percentage}%)
-                                </Label>
                             </div>
                         ))}
                     </div>
