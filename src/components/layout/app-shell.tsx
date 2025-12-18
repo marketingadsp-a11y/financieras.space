@@ -718,6 +718,13 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                     </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
+               <SidebarMenuItem>
+                <Link href="/settings/payroll-history">
+                    <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/payroll-history')} tooltip="Historial de Nómina">
+                         <span><History /><span>Historial de Nómina</span></span>
+                    </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
           </SidebarMenu>
         </div>
       );
@@ -771,6 +778,13 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                         <Link href="/settings/compensations">
                             <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/compensations')} tooltip="Gestionar Compensaciones">
                                  <span><HandCoins /><span>Gestionar Compensaciones</span></span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <Link href="/settings/payroll-history">
+                            <SidebarMenuButton asChild isActive={pathname.startsWith('/settings/payroll-history')} tooltip="Historial de Nómina">
+                                 <span><History /><span>Historial de Nómina</span></span>
                             </SidebarMenuButton>
                         </Link>
                     </SidebarMenuItem>
@@ -1036,6 +1050,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Link href="/settings/compensations">
                       <HandCoins className="mr-2 h-4 w-4" />
                       <span>Gestionar Compensaciones</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/payroll-history">
+                        <History className="mr-2 h-4 w-4" />
+                        <span>Historial de Nómina</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
