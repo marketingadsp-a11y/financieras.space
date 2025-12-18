@@ -81,7 +81,7 @@ export function CompensacionDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8">
+    <div className="w-full">
       <Card className="max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle className="text-3xl">Cálculo de Compensación</CardTitle>
