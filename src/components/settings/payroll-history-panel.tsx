@@ -91,15 +91,23 @@ export function PayrollHistoryPanel() {
 
     if (sortedMonths.length > 0) {
       return (
-        <Accordion type="multiple" className="w-full space-y-4">
-          {sortedMonths.map((monthKey) => (
+        <Accordion type="multiple" className="w-full space-y-4" defaultValue={[sortedMonths[0]]}>
+          {sortedMonths.map((monthKey) => {
+            const monthlyTotal = groupedHistory[monthKey].reduce((acc, item) => acc + item.finalPayroll, 0);
+            return (
             <AccordionItem key={monthKey} value={monthKey} className="border rounded-lg">
               <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                <div className="flex items-center gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg"><Calendar className="h-6 w-6 text-primary"/></div>
-                    <div>
-                      <p className="font-semibold text-base capitalize">{format(new Date(monthKey + '-02'), "LLLL yyyy", { locale: es })}</p>
-                      <p className="text-sm text-muted-foreground font-normal">{groupedHistory[monthKey].length} registro(s)</p>
+                <div className="flex justify-between items-center w-full">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2 bg-primary/10 rounded-lg"><Calendar className="h-6 w-6 text-primary"/></div>
+                        <div>
+                        <p className="font-semibold text-base capitalize">{format(new Date(monthKey + '-02'), "LLLL yyyy", { locale: es })}</p>
+                        <p className="text-sm text-muted-foreground font-normal text-left">{groupedHistory[monthKey].length} registro(s)</p>
+                        </div>
+                    </div>
+                    <div className="text-right pr-4">
+                        <p className="text-sm text-muted-foreground">Total del Mes</p>
+                        <p className="text-lg font-bold text-primary">${monthlyTotal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
               </AccordionTrigger>
@@ -134,7 +142,7 @@ export function PayrollHistoryPanel() {
                 ))}
               </AccordionContent>
             </AccordionItem>
-          ))}
+          )})}
         </Accordion>
       );
     }
