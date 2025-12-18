@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, User, Loader2, Save, History, TrendingUp, icons } from "lucide-react";
+import { DollarSign, User, Loader2, Save, History, TrendingUp, icons, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { getCompensationConfig } from "@/services/compensation-service";
@@ -14,7 +14,8 @@ import { savePayroll, getPayrollHistoryByExecutive } from "@/services/payroll-se
 import type { Executive, Bonus, CompensationConfig, SavedBonus, PayrollHistory } from "@/lib/data";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -70,25 +71,25 @@ const HistoryModal = ({
                 <DialogHeader>
                     <DialogTitle>Historial de Nómina para {executive?.name}</DialogTitle>
                 </DialogHeader>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Pagado al Ejecutivo</CardTitle>
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-bold text-primary">${executiveSummary.totalPaid.toLocaleString("es-MX", {minimumFractionDigits: 2})}</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Pago Promedio</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-bold">${executiveSummary.averagePayment.toLocaleString("es-MX", {minimumFractionDigits: 2})}</p>
-                        </CardContent>
-                    </Card>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+                   <Card>
+                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                           <CardTitle className="text-sm font-medium">Total Pagado al Ejecutivo</CardTitle>
+                           <DollarSign className="h-4 w-4 text-muted-foreground" />
+                       </CardHeader>
+                       <CardContent>
+                           <p className="text-2xl font-bold text-primary">${executiveSummary.totalPaid.toLocaleString("es-MX",{minimumFractionDigits: 2})}</p>
+                       </CardContent>
+                   </Card>
+                   <Card>
+                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                           <CardTitle className="text-sm font-medium">Pago Promedio</CardTitle>
+                           <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                       </CardHeader>
+                       <CardContent>
+                           <p className="text-2xl font-bold">${executiveSummary.averagePayment.toLocaleString("es-MX",{minimumFractionDigits: 2})}</p>
+                       </CardContent>
+                   </Card>
                 </div>
 
 
@@ -123,6 +124,8 @@ export function CompensacionDashboard() {
   const [selectedBonusIds, setSelectedBonusIds] = React.useState<Set<string>>(new Set());
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = React.useState(false);
+  const [showSuccessModal, setShowSuccessModal] = React.useState(false);
+  const [lastSavedExecutiveName, setLastSavedExecutiveName] = React.useState('');
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -159,12 +162,18 @@ export function CompensacionDashboard() {
     setSelectedBonusIds(new Set()); // Reset bonuses when changing executive
   };
   
+  const resetForm = () => {
+    setSelectedExecutiveId(null);
+    setSelectedBonusIds(new Set());
+  }
+  
   const handleSavePayroll = async () => {
     if (!user?.prefix || !selectedExecutiveId || !selectedExecutive) {
         toast({ variant: 'destructive', title: 'Error', description: 'Por favor, selecciona un ejecutivo.'});
         return;
     }
     setIsSaving(true);
+    setLastSavedExecutiveName(selectedExecutive.name);
     try {
         const savedBonuses: SavedBonus[] = Array.from(selectedBonusIds).map(bonusId => {
             const bonusDetails = config.bonuses?.find(b => b.id === bonusId);
@@ -188,9 +197,11 @@ export function CompensacionDashboard() {
             finalPayroll: nominaFinal,
         });
 
-        toast({ title: 'Éxito', description: `Nómina para ${selectedExecutive.name} guardada.`});
-        // Optionally reset after saving
-        setSelectedBonusIds(new Set());
+        setShowSuccessModal(true);
+        setTimeout(() => {
+            setShowSuccessModal(false);
+            resetForm();
+        }, 3000);
 
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la nómina.'});
@@ -345,6 +356,20 @@ export function CompensacionDashboard() {
         onClose={() => setIsHistoryModalOpen(false)}
         executive={selectedExecutive}
       />
+      
+      <AlertDialog open={showSuccessModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader className="items-center text-center">
+            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                <CheckCircle className="h-10 w-10 text-green-600"/>
+            </div>
+            <AlertDialogTitle className="text-2xl text-green-600">¡Nómina Guardada!</AlertDialogTitle>
+            <AlertDialogDescription>
+              El registro de nómina para <strong>{lastSavedExecutiveName}</strong> se ha guardado correctamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
