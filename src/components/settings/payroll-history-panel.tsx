@@ -5,9 +5,6 @@ import * as React from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Loader2, Calendar, User, DollarSign, AlertTriangle, Gift, TrendingUp } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
@@ -43,8 +40,8 @@ const PayrollRecordAccordionItem = ({ item }: { item: PayrollHistory }) => {
     return (
         <AccordionItem value={item.id} className="border-b-0">
             <div className="border rounded-md shadow-sm bg-background data-[state=open]:bg-muted/30">
-                <AccordionTrigger className="p-4 hover:no-underline font-normal">
-                    <div className="flex justify-between items-start gap-4 w-full">
+                <AccordionTrigger className="p-4 hover:no-underline font-normal text-left">
+                     <div className="flex justify-between items-start gap-4 w-full">
                         <div className="text-left">
                             <h4 className="font-semibold text-lg text-primary">{item.executiveName}</h4>
                             <p className="text-xs text-muted-foreground">{format(item.date, "PPP p", { locale: es })}</p>
@@ -284,13 +281,7 @@ export function PayrollHistoryPanel() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Historial de Nómina</CardTitle>
-        <CardDescription>
-          Consulta el historial de todas las nóminas que se han guardado.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
           {renderContent()}
       </CardContent>
     </Card>
