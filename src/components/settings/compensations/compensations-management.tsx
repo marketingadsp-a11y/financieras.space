@@ -24,7 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogDescription
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -37,16 +36,28 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, User, Percent, DollarSign, Edit, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, User, Percent, DollarSign, Edit, Trash2, Trophy } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
+import { BonusForm, type BonusFormValues } from "./bonus-form";
+import { ExecutiveForm, type ExecutiveFormValues } from "./executive-form";
+
+// Mock data types - replace with actual types from your data library
+type Executive = { id: string; name: string; plaza: string; fechaIngreso: Date };
+type Bonus = { id: string; name: string; percentage: number };
+type CompensationConfig = {
+    baseSalary: number;
+    baseBonus: number;
+    bonuses: Bonus[];
+    executives: Executive[];
+}
 
 // TODO: Replace with actual service calls
-const getCompensationsConfig = async (prefix: string) => ({
+const getCompensationsConfig = async (prefix: string): Promise<CompensationConfig> => ({
     baseSalary: 4000,
+    baseBonus: 3000,
     bonuses: [
         { id: 'b1', name: 'Fallo menor al 2%', percentage: 50 },
         { id: 'b2', name: 'Recopilador', percentage: 15 },
@@ -54,11 +65,11 @@ const getCompensationsConfig = async (prefix: string) => ({
         { id: 'b4', name: 'Reporte del Sábado', percentage: 20 },
     ],
     executives: [
-        { id: '1', name: 'JUAN PEREZ' },
-        { id: '2', name: 'MARIA GARCIA' },
+        { id: '1', name: 'JUAN PEREZ', plaza: 'Plaza A', fechaIngreso: new Date() },
+        { id: '2', name: 'MARIA GARCIA', plaza: 'Plaza B', fechaIngreso: new Date() },
     ]
 });
-const saveCompensationsConfig = async (prefix: string, config: any) => { console.log("Saving:", config); return Promise.resolve(); }
+const saveCompensationsConfig = async (prefix: string, config: Partial<CompensationConfig>) => { console.log("Saving:", config); return Promise.resolve(); }
 
 
 export function CompensationsManagement() {
@@ -68,16 +79,17 @@ export function CompensationsManagement() {
   const [isSaving, setIsSaving] = React.useState(false);
 
   const [baseSalary, setBaseSalary] = React.useState(0);
-  const [bonuses, setBonuses] = React.useState<{id: string, name: string, percentage: number}[]>([]);
-  const [executives, setExecutives] = React.useState<{id: string, name: string}[]>([]);
+  const [baseBonus, setBaseBonus] = React.useState(0);
+  const [bonuses, setBonuses] = React.useState<Bonus[]>([]);
+  const [executives, setExecutives] = React.useState<Executive[]>([]);
 
   // Dialog State
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [dialogMode, setDialogMode] = React.useState<'new_bonus' | 'edit_bonus' | 'new_exec' | 'edit_exec'>('new_bonus');
-  const [editingItem, setEditingItem] = React.useState<any>(null);
+  const [bonusFormOpen, setBonusFormOpen] = React.useState(false);
+  const [executiveFormOpen, setExecutiveFormOpen] = React.useState(false);
+  const [editingBonus, setEditingBonus] = React.useState<Bonus | null>(null);
+  const [editingExecutive, setEditingExecutive] = React.useState<Executive | null>(null);
   
   // Alert Dialog State
-  const [alertOpen, setAlertOpen] = React.useState(false);
   const [itemToDelete, setItemToDelete] = React.useState<{type: 'bonus' | 'executive', id: string, name: string} | null>(null);
 
   React.useEffect(() => {
@@ -90,6 +102,7 @@ export function CompensationsManagement() {
       try {
         const config = await getCompensationsConfig(user.prefix);
         setBaseSalary(config.baseSalary);
+        setBaseBonus(config.baseBonus);
         setBonuses(config.bonuses);
         setExecutives(config.executives);
       } catch (error) {
@@ -101,28 +114,53 @@ export function CompensationsManagement() {
     fetchData();
   }, [user?.prefix, toast]);
 
-  const handleSaveBaseSalary = async () => {
+  const handleSaveConfigValue = async (field: 'baseSalary' | 'baseBonus', value: number) => {
     if (!user?.prefix) return;
     setIsSaving(true);
     try {
-      await saveCompensationsConfig(user.prefix, { baseSalary });
-      toast({ title: "Éxito", description: "Nómina base actualizada." });
+      await saveCompensationsConfig(user.prefix, { [field]: value });
+      toast({ title: "Éxito", description: `${field === 'baseSalary' ? 'Nómina base' : 'Bono base'} actualizado.` });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la nómina base." });
+      toast({ variant: "destructive", title: "Error", description: `No se pudo guardar ${field === 'baseSalary' ? 'la nómina base' : 'el bono base'}.` });
     } finally {
       setIsSaving(false);
     }
   };
   
-  const openDialog = (mode: typeof dialogMode, item: any | null = null) => {
-    setDialogMode(mode);
-    setEditingItem(item);
-    setDialogOpen(true);
+  const openBonusForm = (bonus: Bonus | null = null) => {
+    setEditingBonus(bonus);
+    setBonusFormOpen(true);
+  }
+  
+  const openExecutiveForm = (executive: Executive | null = null) => {
+    setEditingExecutive(executive);
+    setExecutiveFormOpen(true);
+  }
+  
+  const handleBonusSubmit = async (values: BonusFormValues) => {
+      // Mock logic - replace with service call
+      if (editingBonus) {
+        setBonuses(bonuses.map(b => b.id === editingBonus.id ? { ...b, ...values } : b));
+      } else {
+        setBonuses([...bonuses, { ...values, id: `b${Date.now()}` }]);
+      }
+      toast({ title: "Éxito", description: `Bono ${editingBonus ? 'actualizado' : 'creado'}.` });
+      setBonusFormOpen(false);
+  }
+
+  const handleExecutiveSubmit = async (values: ExecutiveFormValues) => {
+      // Mock logic - replace with service call
+      if (editingExecutive) {
+        setExecutives(executives.map(e => e.id === editingExecutive.id ? { ...e, ...values } : e));
+      } else {
+        setExecutives([...executives, { ...values, id: `e${Date.now()}` }]);
+      }
+       toast({ title: "Éxito", description: `Ejecutivo ${editingExecutive ? 'actualizado' : 'creado'}.` });
+      setExecutiveFormOpen(false);
   }
 
   const openDeleteAlert = (type: 'bonus' | 'executive', item: {id: string, name: string}) => {
     setItemToDelete({ type, ...item });
-    setAlertOpen(true);
   }
   
   const handleItemDelete = async () => {
@@ -145,7 +183,6 @@ export function CompensationsManagement() {
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el elemento." });
     } finally {
-        setAlertOpen(false);
         setItemToDelete(null);
     }
   }
@@ -161,9 +198,9 @@ export function CompensationsManagement() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-6">
-            <Card>
+    <div className="space-y-6">
+       <div className="grid gap-6 lg:grid-cols-2">
+           <Card>
                 <CardHeader>
                     <CardTitle>Nómina Base</CardTitle>
                     <CardDescription>Define el sueldo base semanal para todos los ejecutivos.</CardDescription>
@@ -171,33 +208,53 @@ export function CompensationsManagement() {
                 <CardContent>
                      <div className="space-y-2">
                         <Label htmlFor="base-salary">Monto de la Nómina Base</Label>
-                        <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <CurrencyInput
-                                id="base-salary"
-                                value={baseSalary}
-                                onValueChange={(value) => setBaseSalary(value || 0)}
-                                className="pl-9"
-                            />
-                        </div>
+                        <CurrencyInput
+                            id="base-salary"
+                            value={baseSalary}
+                            onValueChange={(value) => setBaseSalary(value || 0)}
+                        />
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onClick={handleSaveBaseSalary} disabled={isSaving}>
+                    <Button onClick={() => handleSaveConfigValue('baseSalary', baseSalary)} disabled={isSaving}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Guardar Nómina Base
                     </Button>
                 </CardFooter>
             </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Bono Base (100%)</CardTitle>
+                    <CardDescription>Monto máximo alcanzable con la suma de todos los bonos.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <div className="space-y-2">
+                        <Label htmlFor="base-bonus">Monto del Bono Base</Label>
+                        <CurrencyInput
+                            id="base-bonus"
+                            value={baseBonus}
+                            onValueChange={(value) => setBaseBonus(value || 0)}
+                        />
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={() => handleSaveConfigValue('baseBonus', baseBonus)} disabled={isSaving}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Guardar Bono Base
+                    </Button>
+                </CardFooter>
+            </Card>
+       </div>
 
-            <Card>
+        <div className="grid gap-6 lg:grid-cols-2">
+             <Card>
                 <CardHeader>
                      <div className="flex justify-between items-center">
                         <div>
                             <CardTitle>Bonos de Rendimiento</CardTitle>
                             <CardDescription>Crea y gestiona los bonos disponibles.</CardDescription>
                         </div>
-                        <Button size="sm" onClick={() => openDialog('new_bonus')}><PlusCircle className="mr-2 h-4 w-4"/>Agregar Bono</Button>
+                        <Button size="sm" onClick={() => openBonusForm()}><PlusCircle className="mr-2 h-4 w-4"/>Agregar Bono</Button>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -215,7 +272,7 @@ export function CompensationsManagement() {
                                     <TableCell className="font-medium">{bono.name}</TableCell>
                                     <TableCell className="text-right font-mono">{bono.percentage}%</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('edit_bonus', bono)}><Edit className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openBonusForm(bono)}><Edit className="h-4 w-4"/></Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => openDeleteAlert('bonus', bono)}><Trash2 className="h-4 w-4"/></Button>
                                     </TableCell>
                                 </TableRow>
@@ -225,8 +282,6 @@ export function CompensationsManagement() {
                 </CardContent>
             </Card>
 
-        </div>
-        <div>
              <Card>
                 <CardHeader>
                     <div className="flex justify-between items-center">
@@ -234,7 +289,7 @@ export function CompensationsManagement() {
                             <CardTitle>Ejecutivos</CardTitle>
                             <CardDescription>Administra la lista de ejecutivos en tu equipo.</CardDescription>
                         </div>
-                        <Button size="sm" onClick={() => openDialog('new_exec')}><PlusCircle className="mr-2 h-4 w-4"/>Agregar Ejecutivo</Button>
+                        <Button size="sm" onClick={() => openExecutiveForm()}><PlusCircle className="mr-2 h-4 w-4"/>Agregar Ejecutivo</Button>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -242,6 +297,7 @@ export function CompensationsManagement() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nombre del Ejecutivo</TableHead>
+                                <TableHead>Plaza</TableHead>
                                 <TableHead className="w-[100px] text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -249,8 +305,9 @@ export function CompensationsManagement() {
                             {executives.map(exec => (
                                 <TableRow key={exec.id}>
                                     <TableCell className="font-medium">{exec.name}</TableCell>
+                                    <TableCell className="text-muted-foreground">{exec.plaza}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('edit_exec', exec)}><Edit className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openExecutiveForm(exec)}><Edit className="h-4 w-4"/></Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => openDeleteAlert('executive', exec)}><Trash2 className="h-4 w-4"/></Button>
                                     </TableCell>
                                 </TableRow>
@@ -261,19 +318,25 @@ export function CompensationsManagement() {
             </Card>
         </div>
         
-        {/* Universal Dialog for Forms */}
-         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+         <Dialog open={bonusFormOpen} onOpenChange={(open) => { setBonusFormOpen(open); if(!open) setEditingBonus(null);}}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{dialogMode.includes('new') ? 'Agregar' : 'Editar'} {dialogMode.includes('bonus') ? 'Bono' : 'Ejecutivo'}</DialogTitle>
+                    <DialogTitle>{editingBonus ? 'Editar' : 'Agregar'} Bono</DialogTitle>
                 </DialogHeader>
-                 {/* TODO: Add a generic form component here */}
-                <p className="py-4">Contenido del formulario para {dialogMode}...</p>
+                <BonusForm onSubmit={handleBonusSubmit} bonus={editingBonus} />
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={executiveFormOpen} onOpenChange={(open) => { setExecutiveFormOpen(open); if(!open) setEditingExecutive(null);}}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{editingExecutive ? 'Editar' : 'Agregar'} Ejecutivo</DialogTitle>
+                </DialogHeader>
+                <ExecutiveForm onSubmit={handleExecutiveSubmit} executive={editingExecutive} />
             </DialogContent>
         </Dialog>
         
-        {/* Universal Alert for Deletion */}
-        <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
@@ -282,7 +345,7 @@ export function CompensationsManagement() {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleItemDelete}>Eliminar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
