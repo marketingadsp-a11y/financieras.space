@@ -5,6 +5,8 @@ import * as React from "react";
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Loader2, Calendar, User, DollarSign, AlertTriangle, Gift, TrendingUp } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
