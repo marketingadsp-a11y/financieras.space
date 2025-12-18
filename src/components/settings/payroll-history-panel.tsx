@@ -54,12 +54,12 @@ export function PayrollHistoryPanel() {
         const historyData = await getPayrollHistory(user.prefix);
         setHistory(historyData);
       } catch (error) {
-        const errorMessage = "No se pudo cargar el historial de nómina.";
+        const errorMessage = "No se pudo cargar el historial de nómina. Por favor, intenta de nuevo más tarde.";
         setError(errorMessage);
         toast({
           variant: "destructive",
           title: "Error",
-          description: errorMessage,
+          description: "No se pudo cargar el historial de nómina.",
         });
       } finally {
         setIsLoading(false);
@@ -113,55 +113,59 @@ export function PayrollHistoryPanel() {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="p-4 border-t space-y-4">
-                {groupedHistory[monthKey].map((item) => (
-                  <div key={item.id} className="p-4 border rounded-md shadow-sm bg-background">
-                    <div className="flex justify-between items-start gap-4">
-                        <div>
-                            <h4 className="font-semibold text-lg text-primary">{item.executiveName}</h4>
-                            <p className="text-xs text-muted-foreground">{format(item.date, "PPP p", { locale: es })}</p>
-                        </div>
-                        <div className="flex items-center gap-6 text-right">
-                           <div>
-                               <p className="text-xs text-green-600 font-semibold">Total Bonos Ganados</p>
-                               <p className="font-bold text-lg text-green-600">${item.totalBonusAmount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
-                           </div>
-                            <div>
-                               <p className="text-xs text-muted-foreground">Nómina Final</p>
-                               <p className="text-2xl font-bold text-primary">${item.finalPayroll.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <Separator className="my-4"/>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-xs text-muted-foreground">Nómina Base</p>
-                                <p className="font-semibold">${item.baseSalary.toLocaleString("es-MX")}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">Bono Base (100%)</p>
-                                <p className="font-semibold">${item.baseBonus.toLocaleString("es-MX")}</p>
-                            </div>
-                        </div>
-
-                        {item.bonuses.length > 0 && (
-                            <div className="space-y-2">
-                                <h5 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Gift className="h-4 w-4"/>Bonos Aplicados</h5>
-                                <div className="space-y-1">
-                                {item.bonuses.map(bono => (
-                                    <div key={bono.id} className="text-sm flex justify-between p-1.5 rounded bg-muted/50">
-                                        <span>- {bono.name} <span className="text-xs text-muted-foreground">({bono.percentage}%)</span></span>
-                                        <span className="font-mono font-medium">+${bono.amount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
+                 <Accordion type="multiple" className="w-full space-y-2">
+                    {groupedHistory[monthKey].map((item) => (
+                    <AccordionItem value={item.id} key={item.id} className="border rounded-md shadow-sm bg-background data-[state=open]:bg-muted/30">
+                        <AccordionTrigger className="p-4 hover:no-underline font-normal">
+                             <div className="flex justify-between items-start gap-4 w-full">
+                                <div>
+                                    <h4 className="font-semibold text-lg text-primary text-left">{item.executiveName}</h4>
+                                    <p className="text-xs text-muted-foreground text-left">{format(item.date, "PPP p", { locale: es })}</p>
+                                </div>
+                                <div className="flex items-center gap-6 text-right">
+                                    <div>
+                                        <p className="text-xs text-green-600 font-semibold">Total Bonos Ganados</p>
+                                        <p className="font-bold text-lg text-green-600">${item.totalBonusAmount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
                                     </div>
-                                ))}
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Nómina Final</p>
+                                        <p className="text-2xl font-bold text-primary">${item.finalPayroll.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                                    </div>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                  </div>
-                ))}
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4">
+                             <Separator className="mb-4"/>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                                <div className="space-y-4">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Nómina Base</p>
+                                        <p className="font-semibold">${item.baseSalary.toLocaleString("es-MX")}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Bono Base (100%)</p>
+                                        <p className="font-semibold">${item.baseBonus.toLocaleString("es-MX")}</p>
+                                    </div>
+                                </div>
+
+                                {item.bonuses.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h5 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Gift className="h-4 w-4"/>Bonos Aplicados</h5>
+                                        <div className="space-y-1">
+                                        {item.bonuses.map(bono => (
+                                            <div key={bono.id} className="text-sm flex justify-between p-1.5 rounded bg-muted/50">
+                                                <span>- {bono.name} <span className="text-xs text-muted-foreground">({bono.percentage}%)</span></span>
+                                                <span className="font-mono font-medium">+${bono.amount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                    ))}
+                 </Accordion>
               </AccordionContent>
             </AccordionItem>
           )})}
