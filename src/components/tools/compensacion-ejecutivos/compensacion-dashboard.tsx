@@ -59,9 +59,6 @@ const HistoryModal = ({
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Historial de Nómina para {executive?.name}</DialogTitle>
-                    <DialogDescription>
-                        Mostrando todos los registros de pago guardados para este ejecutivo.
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
