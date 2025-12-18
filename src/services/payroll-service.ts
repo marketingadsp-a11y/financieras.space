@@ -19,12 +19,11 @@ export async function savePayroll(data: Omit<PayrollHistory, 'id' | 'date'>): Pr
 export async function getPayrollHistory(prefix: string): Promise<PayrollHistory[]> {
     const q = query(
         payrollHistoryCollectionRef, 
-        where("prefix", "==", prefix),
-        orderBy("date", "desc")
+        where("prefix", "==", prefix)
     );
     const snapshot = await getDocs(q);
     
-    return snapshot.docs.map(doc => {
+    const history = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
             ...data,
@@ -32,4 +31,7 @@ export async function getPayrollHistory(prefix: string): Promise<PayrollHistory[
             date: (data.date as Timestamp).toDate(),
         } as PayrollHistory;
     });
+
+    // Sort by date in descending order in the application code
+    return history.sort((a, b) => b.date.getTime() - a.date.getTime());
 }
