@@ -10,7 +10,8 @@ import { DollarSign, User, Loader2, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { getCompensationConfig } from "@/services/compensation-service";
-import type { Executive, Bonus, CompensationConfig } from "@/lib/data";
+import { savePayroll } from "@/services/payroll-service";
+import type { Executive, Bonus, CompensationConfig, SavedBonus } from "@/lib/data";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +20,7 @@ export function CompensacionDashboard() {
   const { toast } = useToast();
   const [config, setConfig] = React.useState<CompensationConfig>({});
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isSaving, setIsSaving] = React.useState(false);
   
   const [selectedExecutiveId, setSelectedExecutiveId] = React.useState<string | null>(null);
   const [selectedBonusIds, setSelectedBonusIds] = React.useState<Set<string>>(new Set());
@@ -56,6 +58,46 @@ export function CompensacionDashboard() {
   const handleExecutiveChange = (executiveId: string) => {
     setSelectedExecutiveId(executiveId);
     setSelectedBonusIds(new Set()); // Reset bonuses when changing executive
+  };
+  
+  const handleSavePayroll = async () => {
+    if (!user?.prefix || !selectedExecutiveId || !selectedExecutive) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Por favor, selecciona un ejecutivo.'});
+        return;
+    }
+    setIsSaving(true);
+    try {
+        const savedBonuses: SavedBonus[] = Array.from(selectedBonusIds).map(bonusId => {
+            const bonusDetails = config.bonuses?.find(b => b.id === bonusId);
+            if (!bonusDetails) return null;
+            return {
+                id: bonusDetails.id,
+                name: bonusDetails.name,
+                percentage: bonusDetails.percentage,
+                amount: bonoBase * (bonusDetails.percentage / 100),
+            };
+        }).filter((b): b is SavedBonus => b !== null);
+
+        await savePayroll({
+            prefix: user.prefix,
+            executiveId: selectedExecutiveId,
+            executiveName: selectedExecutive.name,
+            baseSalary: nominaBase,
+            baseBonus: bonoBase,
+            bonuses: savedBonuses,
+            totalBonusAmount: totalBonusAmount,
+            finalPayroll: nominaFinal,
+        });
+
+        toast({ title: 'Éxito', description: `Nómina para ${selectedExecutive.name} guardada.`});
+        // Optionally reset after saving
+        setSelectedBonusIds(new Set());
+
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la nómina.'});
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const selectedExecutive = config.executives?.find(e => e.id === selectedExecutiveId);
@@ -115,11 +157,11 @@ export function CompensacionDashboard() {
               <div className="space-y-4">
                  <h3 className="text-xl font-semibold">2. Asignar Bonos</h3>
                   {(config.bonuses && config.bonuses.length > 0) ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="flex flex-wrap gap-2">
                         {config.bonuses.map((bono) => (
                             <div 
                                 key={bono.id} 
-                                className="flex items-center p-3 border rounded-lg cursor-pointer transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary"
+                                className="flex flex-grow items-center p-3 border rounded-lg cursor-pointer transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary"
                                 onClick={() => handleBonusToggle(bono.id)}
                             >
                                 <Checkbox 
@@ -173,9 +215,9 @@ export function CompensacionDashboard() {
         </CardContent>
         {selectedExecutive && (
             <CardFooter className="border-t pt-6">
-                <Button size="lg" disabled={true}>
-                    <Save className="mr-2"/>
-                    Guardar Nómina (Próximamente)
+                <Button size="lg" onClick={handleSavePayroll} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 animate-spin"/> : <Save className="mr-2"/>}
+                    {isSaving ? 'Guardando...' : 'Guardar Nómina'}
                 </Button>
             </CardFooter>
         )}

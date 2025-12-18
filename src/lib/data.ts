@@ -1,5 +1,4 @@
 
-
 import type { Timestamp } from "firebase/firestore";
 import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins } from "lucide-react";
 
@@ -602,4 +601,24 @@ export type CompensationConfig = {
     baseBonus?: number;
     bonuses?: Bonus[];
     executives?: Executive[];
+}
+
+export type SavedBonus = {
+    id: string;
+    name: string;
+    percentage: number;
+    amount: number;
+}
+
+export type PayrollHistory = {
+    id: string;
+    prefix: string;
+    date: Date;
+    executiveId: string;
+    executiveName: string;
+    baseSalary: number;
+    baseBonus: number;
+    bonuses: SavedBonus[];
+    totalBonusAmount: number;
+    finalPayroll: number;
 }
