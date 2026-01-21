@@ -56,6 +56,39 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date } => {
     return { start: startDate, end: endDate };
 };
 
+// Gets all weeks that have their Friday within the given month.
+function getMonthWeeks(monthDate: Date): { start: Date; end: Date }[] {
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth();
+    
+    let firstFridayDate = new Date(Date.UTC(year, month, 1, 12, 0, 0));
+    while (firstFridayDate.getUTCDay() !== 5) { // 5 = Friday
+        firstFridayDate.setUTCDate(firstFridayDate.getUTCDate() + 1);
+    }
+
+    const firstWeekStart = new Date(firstFridayDate);
+    firstWeekStart.setUTCDate(firstFridayDate.getUTCDate() - 6);
+    firstWeekStart.setUTCHours(0, 0, 0, 0);
+
+    const weeks = [];
+    for (let i = 0; i < 5; i++) { // Limit to 5 weeks to prevent infinite loops
+        const weekStart = new Date(firstWeekStart);
+        weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        weekEnd.setUTCHours(23, 59, 59, 999);
+        
+        if (weekEnd.getUTCMonth() === month) {
+            weeks.push({ start: weekStart, end: weekEnd });
+        } else if (weeks.length > 0) { 
+            break;
+        }
+    }
+    return weeks;
+}
+
+
 export function ConcentradoDashboard() {
   const [summaries, setSummaries] = React.useState<SummaryRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -72,9 +105,11 @@ export function ConcentradoDashboard() {
     setIsLoading(true);
 
     const { start: weekStart, end: weekEnd } = getWeekBoundaries(selectedDate);
+    
     const now = new Date();
-    const currentMonthStart = startOfMonth(now);
-    const currentMonthEnd = endOfMonth(now);
+    const weeksInCurrentMonth = getMonthWeeks(now);
+    const currentMonthStart = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[0].start : startOfMonth(now);
+    const currentMonthEnd = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[weeksInCurrentMonth.length - 1].end : endOfMonth(now);
     
     try {
         const oficinas = await getConcentradoOficinas(user.prefix);
