@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -11,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Edit, Calendar as CalendarIcon, DollarSign, Lock, Trash2, FileText } from "lucide-react";
+import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Edit, Calendar as CalendarIcon, DollarSign, Lock, FileText } from "lucide-react";
 import { ConcentradoRegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -268,42 +267,6 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
   
   const weeks = getWeeksForMonth(currentMonth);
 
-   const registrosDelMes = React.useMemo(() => {
-    const monthWeeksStartTimes = new Set(weeks.map(w => w.start.getTime()));
-    return allRegistros.filter(r => {
-        const registroStartTime = new Date(r.weekStartDate).getTime();
-        return monthWeeksStartTimes.has(registroStartTime);
-    });
-  }, [allRegistros, weeks]);
-
-  const monthlyTotals = React.useMemo(() => {
-    return registrosDelMes.reduce((acc, registro) => {
-        acc.fondoInicio += registro.fondoInicio || 0;
-        acc.venta += registro.venta || 0;
-        acc.recolectado += registro.recolectado || 0;
-        acc.gastos += registro.gastos || 0;
-        acc.fondoSiguienteSemana += registro.fondoSiguienteSemana || 0;
-        acc.cajaChica += registro.cajaChica || 0;
-        acc.seguros += registro.seguros || 0;
-        acc.interesMensual += registro.interesMensual || 0;
-        acc.carteraVencida += registro.carteraVencida || 0;
-        acc.debe += registro.debe || 0;
-        acc.saliente += registro.saliente || 0;
-        acc.falla += registro.falla || 0;
-        acc.recuperado += registro.recuperado || 0;
-        acc.adelantos += registro.adelantos || 0;
-        acc.semanaExtra += registro.semanaExtra || 0;
-        return acc;
-    }, {
-        fondoInicio: 0, venta: 0, recolectado: 0, gastos: 0,
-        fondoSiguienteSemana: 0, cajaChica: 0, seguros: 0,
-        interesMensual: 0, carteraVencida: 0, debe: 0, saliente: 0,
-        falla: 0, recuperado: 0, adelantos: 0, semanaExtra: 0
-    });
-  }, [registrosDelMes]);
-  
-  const totalDelMes = Object.values(monthlyTotals).reduce((sum, value) => sum + value, 0);
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-40">
@@ -340,34 +303,6 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
                 </Button>
             </div>
         </div>
-      
-        <Card className="bg-primary/5">
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle>Resumen del Mes</CardTitle>
-                        <CardDescription>Totales calculados para el período seleccionado.</CardDescription>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setIsDeleteMonthAuthOpen(true)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {Object.entries(monthlyTotals).map(([key, value]) => (
-                        <div key={key} className="p-4 rounded-lg bg-background shadow-sm">
-                            <p className="text-sm text-muted-foreground capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
-                            <p className="text-2xl font-bold flex items-center gap-1"><DollarSign className="h-5 w-5 text-muted-foreground"/> {value.toLocaleString('es-MX')}</p>
-                        </div>
-                    ))}
-                </div>
-                <div className="mt-4 p-4 rounded-lg bg-blue-500/10 text-blue-700 shadow-sm text-center">
-                    <p className="text-sm font-medium">TOTAL DEL MES</p>
-                    <div className="text-3xl font-bold flex items-center justify-center gap-1"><DollarSign className="h-6 w-6"/> {totalDelMes.toLocaleString('es-MX')}</div>
-                </div>
-            </CardContent>
-        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {weeks.map((week, index) => {
