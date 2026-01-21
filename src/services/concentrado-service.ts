@@ -69,6 +69,34 @@ export async function getRegistrosByOficina(oficinaId: string): Promise<Concentr
     return registros;
 }
 
+export async function getAllConcentradoRegistros(prefix: string): Promise<ConcentradoSemanal[]> {
+    const q = query(registrosSemanalCollectionRef, where("prefix", "==", prefix));
+    const snapshot = await getDocs(q);
+    
+    const registros = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        const toDateSafe = (timestamp: any): Date => {
+             if (!timestamp) return new Date(0);
+             if (timestamp instanceof Timestamp) return timestamp.toDate();
+             if (timestamp && typeof (timestamp as any).toDate === 'function') return (timestamp as any).toDate();
+             if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+                const d = new Date(timestamp);
+                if (!isNaN(d.getTime())) return d;
+             }
+             return new Date(0);
+        };
+        
+        return {
+            ...data,
+            id: docSnap.id,
+            weekStartDate: toDateSafe(data.weekStartDate),
+            updatedAt: toDateSafe(data.updatedAt),
+        } as ConcentradoSemanal;
+    });
+
+    return registros;
+}
+
 export async function addOrUpdateRegistroSemanal(registro: Omit<ConcentradoSemanal, 'id'>) {
     const startDate = registro.weekStartDate;
     

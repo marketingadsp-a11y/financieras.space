@@ -39,6 +39,7 @@ import {
   History,
   Upload,
   HandCoins,
+  DollarSign,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -686,6 +687,16 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                             <span>
                                 <Building />
                                 <span>Gestión de Oficinas</span>
+                            </span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/tools/concentrado/caja-chica">
+                        <SidebarMenuButton asChild isActive={pathname === "/tools/concentrado/caja-chica"} tooltip="Ver Caja Chica">
+                            <span>
+                                <DollarSign />
+                                <span>Ver Caja Chica</span>
                             </span>
                         </SidebarMenuButton>
                     </Link>
