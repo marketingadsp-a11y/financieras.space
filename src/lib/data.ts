@@ -1,7 +1,7 @@
 
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins, NotebookText } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -47,7 +47,7 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales' | 'registro-oficina' | 'visor-app';
+  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales' | 'registro-oficina' | 'visor-app' | 'compensacion-ejecutivos' | 'concentrado';
   prefix?: string;
   createdBy?: string;
   sucursalAccess?: SucursalAccess[]; // Array of sucursal access objects for 'income-expenses'
@@ -270,6 +270,14 @@ export const allTools: Tool[] = [
     href: "/tools/compensacion-ejecutivos",
     icon: HandCoins,
     color: '#f43f5e'
+  },
+  {
+    id: "concentrado",
+    name: "Concentrado",
+    description: "Lleva el concentrado de las oficinas y registra datos desde cada panel.",
+    href: "/tools/concentrado",
+    icon: NotebookText,
+    color: '#16a34a'
   }
 ];
 
