@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ConcentradoOficina, ConcentradoSemanal } from "@/lib/data";
 
@@ -85,4 +85,48 @@ export async function addOrUpdateRegistroSemanal(registro: Omit<ConcentradoSeman
     };
 
     await setDoc(docRef, dataWithTimestamps, { merge: true });
+}
+
+function getMonthCycleBoundaries(monthDate: Date): { start: Date; end: Date } {
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth();
+    
+    let firstFridayDate = new Date(Date.UTC(year, month, 1, 12, 0, 0));
+    while (firstFridayDate.getUTCDay() !== 5) {
+        firstFridayDate.setUTCDate(firstFridayDate.getUTCDate() + 1);
+    }
+    const firstWeekStart = new Date(firstFridayDate);
+    firstWeekStart.setUTCDate(firstFridayDate.getUTCDate() - 6);
+
+    let lastFridayDate = new Date(Date.UTC(year, month + 1, 0, 12, 0, 0)); // Last day of the current month
+    while (lastFridayDate.getUTCDay() !== 5) {
+        lastFridayDate.setUTCDate(lastFridayDate.getUTCDate() - 1);
+    }
+    const lastWeekEnd = new Date(lastFridayDate);
+    lastWeekEnd.setUTCHours(23, 59, 59, 999);
+
+    return { start: firstWeekStart, end: lastWeekEnd };
+}
+
+export async function deleteRegistrosByMonth(oficinaId: string, month: Date): Promise<void> {
+    const { start, end } = getMonthCycleBoundaries(month);
+
+    const q = query(
+        registrosSemanalCollectionRef,
+        where("oficinaId", "==", oficinaId),
+        where("weekStartDate", ">=", Timestamp.fromDate(start)),
+        where("weekStartDate", "<=", Timestamp.fromDate(end))
+    );
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return; // Nothing to delete
+    }
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
 }
