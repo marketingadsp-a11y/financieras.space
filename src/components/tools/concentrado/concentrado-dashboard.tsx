@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -176,7 +177,6 @@ export function ConcentradoDashboard() {
       <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
-                <CardTitle>Concentrado de Oficinas</CardTitle>
                 <CardDescription>
                 Resumen de todos los registros de las oficinas para la semana seleccionada.
                 </CardDescription>
