@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -10,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Edit, Calendar as CalendarIcon, DollarSign, Lock, FileText } from "lucide-react";
+import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Edit, Calendar as CalendarIcon, DollarSign, Lock, FileText, Trash2 } from "lucide-react";
 import { ConcentradoRegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,7 @@ const WeekCard = ({
     const weekEndDate = new Date(week.end);
     weekEndDate.setUTCHours(23, 59, 59, 999);
     const hasWeekPassed = isPast(weekEndDate);
+    const isFutureWeek = new Date() < week.start;
 
     return (
         <Card className="flex flex-col">
@@ -128,7 +130,7 @@ const WeekCard = ({
                 ) : (
                     <div className="text-center py-6 h-full flex flex-col justify-center items-center">
                         <p className="text-muted-foreground mb-4">No hay datos registrados.</p>
-                         <Button onClick={() => onRegister(week, null)}>Registrar Datos</Button>
+                         <Button onClick={() => onRegister(week, null)} disabled={isFutureWeek}>Registrar Datos</Button>
                     </div>
                 )}
             </CardContent>
@@ -278,11 +280,18 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
 
   return (
     <div className="space-y-6">
-       <Button variant="outline" asChild>
-            <Link href="/tools/concentrado/oficinas">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Oficinas
-            </Link>
-        </Button>
+       <div className="flex justify-between items-center">
+            <Button variant="outline" asChild>
+                <Link href="/tools/concentrado/oficinas">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Oficinas
+                </Link>
+            </Button>
+            <div className="flex items-center gap-2">
+                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setIsDeleteMonthAuthOpen(true)}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+       </div>
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
