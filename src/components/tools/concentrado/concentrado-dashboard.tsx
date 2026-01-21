@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -152,15 +151,15 @@ export function ConcentradoDashboard() {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead className="font-semibold">Oficina</TableHead>
-                        <TableHead className="text-right font-semibold">Fondo Inicio</TableHead>
-                        <TableHead className="text-right font-semibold">Venta</TableHead>
-                        <TableHead className="text-right font-semibold">Caja Chica</TableHead>
-                        <TableHead className="text-right font-semibold">Recolectado</TableHead>
-                        <TableHead className="text-right font-semibold">Gastos</TableHead>
-                        <TableHead className="text-right font-semibold">Fondo Sig. Semana</TableHead>
-                        <TableHead className="text-right font-semibold">Seguros</TableHead>
-                        <TableHead className="text-right font-semibold">Interés Mensual</TableHead>
+                        <TableHead className="font-semibold border-r">Oficina</TableHead>
+                        <TableHead className="text-right font-semibold border-r">Fondo Inicio</TableHead>
+                        <TableHead className="text-right font-semibold border-r">Venta</TableHead>
+                        <TableHead className="text-right font-semibold border-r">Caja Chica</TableHead>
+                        <TableHead className="text-right font-semibold border-r">Recolectado</TableHead>
+                        <TableHead className="text-right font-semibold border-r">Gastos</TableHead>
+                        <TableHead className="text-right font-semibold border-r">Fondo Sig. Semana</TableHead>
+                        <TableHead className="text-right font-semibold border-r">Seguros</TableHead>
+                        <TableHead className="text-right font-semibold border-r">Interés Mensual</TableHead>
                         <TableHead className="text-right font-semibold">Cartera Vencida</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -168,15 +167,15 @@ export function ConcentradoDashboard() {
                     {summaries.length > 0 ? (
                         summaries.map(summary => (
                             <TableRow key={summary.oficinaId}>
-                                <TableCell className="font-medium">{summary.oficinaName}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(summary.fondoInicio)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(summary.venta)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(summary.cajaChica)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(summary.recolectado)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(summary.gastos)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(summary.fondoSiguienteSemana)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(summary.seguros)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(summary.interesMensual)}</TableCell>
+                                <TableCell className="font-medium border-r">{summary.oficinaName}</TableCell>
+                                <TableCell className="text-right border-r">{formatCurrency(summary.fondoInicio)}</TableCell>
+                                <TableCell className="text-right border-r">{formatCurrency(summary.venta)}</TableCell>
+                                <TableCell className="text-right border-r">{formatCurrency(summary.cajaChica)}</TableCell>
+                                <TableCell className="text-right border-r">{formatCurrency(summary.recolectado)}</TableCell>
+                                <TableCell className="text-right border-r">{formatCurrency(summary.gastos)}</TableCell>
+                                <TableCell className="text-right border-r">{formatCurrency(summary.fondoSiguienteSemana)}</TableCell>
+                                <TableCell className="text-right border-r">{formatCurrency(summary.seguros)}</TableCell>
+                                <TableCell className="text-right border-r">{formatCurrency(summary.interesMensual)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(summary.carteraVencida)}</TableCell>
                             </TableRow>
                         ))
@@ -189,16 +188,16 @@ export function ConcentradoDashboard() {
                     )}
                 </TableBody>
                  <TableFooter>
-                    <TableRow className="font-bold bg-muted/50">
-                        <TableCell>TOTALES</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totals.fondoInicio)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totals.venta)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totals.cajaChica)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totals.recolectado)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totals.gastos)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totals.fondoSiguienteSemana)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totals.seguros)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totals.interesMensual)}</TableCell>
+                    <TableRow className="font-bold bg-gradient-to-r from-[hsl(var(--sidebar-background))] to-[hsl(var(--sidebar-accent))] text-sidebar-foreground hover:from-[hsl(var(--sidebar-accent))] hover:to-[hsl(var(--sidebar-background))]">
+                        <TableCell className="border-r border-sidebar-border">TOTALES</TableCell>
+                        <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.fondoInicio)}</TableCell>
+                        <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.venta)}</TableCell>
+                        <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.cajaChica)}</TableCell>
+                        <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.recolectado)}</TableCell>
+                        <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.gastos)}</TableCell>
+                        <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.fondoSiguienteSemana)}</TableCell>
+                        <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.seguros)}</TableCell>
+                        <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.interesMensual)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(totals.carteraVencida)}</TableCell>
                     </TableRow>
                 </TableFooter>
