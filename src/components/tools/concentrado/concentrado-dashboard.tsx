@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -175,12 +174,7 @@ export function ConcentradoDashboard() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-            <div>
-                <CardDescription>
-                Resumen de todos los registros de las oficinas para la semana seleccionada.
-                </CardDescription>
-            </div>
+        <div className="flex flex-col sm:flex-row justify-end sm:items-center gap-4">
              <div className="flex items-center gap-2">
                 <p className="text-lg font-semibold text-primary text-right">{weekDateRange}</p>
                 <div className="flex items-center gap-1">
