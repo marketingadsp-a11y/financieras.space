@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ConcentradoOficina } from "@/lib/data";
 
@@ -12,6 +12,12 @@ export async function getConcentradoOficinas(prefix: string): Promise<Concentrad
     const snapshot = await getDocs(q);
     const oficinas = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ConcentradoOficina[];
     return oficinas.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getConcentradoOficinaById(id: string): Promise<ConcentradoOficina | null> {
+    const docRef = doc(db, "concentrado_oficinas", id);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as ConcentradoOficina : null;
 }
 
 export async function addConcentradoOficina(oficina: Omit<ConcentradoOficina, 'id'>): Promise<ConcentradoOficina> {
