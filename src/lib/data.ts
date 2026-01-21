@@ -577,6 +577,30 @@ export type ConcentradoOficina = {
   name: string;
 };
 
+export type ConcentradoSemanal = {
+  id: string; // Composite key: `${oficinaId}_${weekStartDate.toISOString()}`
+  oficinaId: string;
+  prefix: string;
+  weekStartDate: Date;
+  fondoInicio: number;
+  venta: number;
+  recolectado: number;
+  gastos: number;
+  fondoSiguienteSemana: number;
+  cajaChica: number;
+  seguros: number;
+  interesMensual: number;
+  carteraVencida: number;
+  debe: number;
+  saliente: number;
+  falla: number;
+  recuperado: number;
+  adelantos: number;
+  semanaExtra: number;
+  updatedAt: Date;
+  updatedBy: string;
+};
+
 // --- VisorApp ---
 export type VisorSupervisor = {
     id: string;
