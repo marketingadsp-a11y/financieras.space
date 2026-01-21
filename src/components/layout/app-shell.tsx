@@ -680,6 +680,16 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <Link href="/tools/concentrado/oficinas">
+                        <SidebarMenuButton asChild isActive={pathname === "/tools/concentrado/oficinas"} tooltip="Gestión de Oficinas">
+                            <span>
+                                <Building />
+                                <span>Gestión de Oficinas</span>
+                            </span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
             </SidebarMenu>
         </SidebarGroup>
     );

@@ -570,6 +570,13 @@ export type OficinaSemanalRegistro = {
     updatedBy: string;
 };
 
+// --- Concentrado Tool Models ---
+export type ConcentradoOficina = {
+  id: string;
+  prefix: string;
+  name: string;
+};
+
 // --- VisorApp ---
 export type VisorSupervisor = {
     id: string;
