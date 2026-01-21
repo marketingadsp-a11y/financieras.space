@@ -17,24 +17,38 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
     
-    const anchorDate = new Date(Date.UTC(year, month - 1, 25, 12, 0, 0));
+    // Find the date of the first Friday of the month
+    let firstFridayDate = new Date(Date.UTC(year, month, 1, 12, 0, 0));
+    while (firstFridayDate.getUTCDay() !== 5) { // 5 = Friday
+        firstFridayDate.setUTCDate(firstFridayDate.getUTCDate() + 1);
+    }
 
-    let cycleStart = new Date(anchorDate);
-    const dayOfWeek = cycleStart.getUTCDay(); 
-    
-    const daysToSubtract = (dayOfWeek + 1) % 7;
-    cycleStart.setUTCDate(cycleStart.getUTCDate() - daysToSubtract);
-    
+    // The cycle starts on the Saturday of the week containing the first Friday.
+    const firstWeekStart = new Date(firstFridayDate);
+    firstWeekStart.setUTCDate(firstFridayDate.getUTCDate() - 6);
+    firstWeekStart.setUTCHours(0, 0, 0, 0);
+
     const weeks = [];
-    for (let i = 0; i < 4; i++) {
-        const weekStart = new Date(cycleStart);
-        weekStart.setUTCDate(cycleStart.getUTCDate() + (i * 7));
+    let currentWeekStart = firstWeekStart;
+
+    for (let i = 0; i < 6; i++) { // Generate up to 6 weeks to be safe
+        const weekStart = new Date(currentWeekStart);
+        weekStart.setUTCDate(currentWeekStart.getUTCDate() + (i * 7));
 
         const weekEnd = new Date(weekStart);
         weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
         weekEnd.setUTCHours(23, 59, 59, 999);
 
-        weeks.push({ start: weekStart, end: weekEnd });
+        // A week belongs to the month if its Friday is in that month.
+        if (weekEnd.getUTCMonth() === month) {
+            weeks.push({ start: weekStart, end: weekEnd });
+        } else {
+            // If the first week we check is already in the next month, something is wrong,
+            // but if we have weeks and the next is in another month, we are done.
+            if (weeks.length > 0) {
+                break;
+            }
+        }
     }
 
     return weeks;
