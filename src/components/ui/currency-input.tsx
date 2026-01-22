@@ -12,9 +12,10 @@ interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
 
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ value: propValue, onValueChange, className, ...props }, ref) => {
-    const inputRef = React.useRef<HTMLInputElement>(null);
+    const [displayValue, setDisplayValue] = React.useState<string>("");
+    const [isFocused, setIsFocused] = React.useState(false);
 
-    const formatValue = (num: number | undefined): string => {
+    const format = (num: number | undefined) => {
         if (num === undefined || num === null) return "";
         return num.toLocaleString('es-MX', {
             minimumFractionDigits: 2,
@@ -22,60 +23,65 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
         });
     };
 
-    const [displayValue, setDisplayValue] = React.useState<string>(formatValue(propValue));
+    const parse = (str: string): number | undefined => {
+        const cleaned = str.replace(/[^0-9.]/g, '');
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? undefined : num;
+    };
 
     React.useEffect(() => {
-        setDisplayValue(formatValue(propValue));
-    }, [propValue]);
+        if (!isFocused) {
+            setDisplayValue(format(propValue));
+        }
+    }, [propValue, isFocused]);
 
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        setIsFocused(true);
+        if (propValue === 0) {
+            setDisplayValue('');
+        } else if (propValue !== undefined && propValue !== null) {
+            setDisplayValue(String(propValue));
+        }
+        e.target.select();
+        props.onFocus?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        setIsFocused(false);
+        const currentVal = parse(displayValue);
+        const finalValue = currentVal === undefined ? 0 : currentVal;
+
+        if (propValue !== finalValue) {
+            onValueChange(finalValue);
+        }
+        
+        setDisplayValue(format(finalValue));
+
+        props.onBlur?.(e);
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { value, selectionStart } = e.target;
-        
-        // Remove all non-digit characters except the decimal point
-        const rawValue = value.replace(/[^0-9.]/g, '');
-        const parts = rawValue.split('.');
-        
-        // Ensure there's only one decimal point
-        const numericString = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('')}` : parts[0];
+        const rawValue = e.target.value;
+        const decimalParts = rawValue.split('.');
+        if (decimalParts.length > 2) {
+             return;
+        }
 
-        // How many separators were there before?
-        const separatorsBefore = (displayValue.match(/,/g) || []).length;
-        
-        const numericValue = parseFloat(numericString);
-        onValueChange(isNaN(numericValue) ? undefined : numericValue);
-
-        const newFormattedValue = numericValue.toLocaleString('es-MX', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-
-        // How many separators are there now?
-        const separatorsAfter = (newFormattedValue.match(/,/g) || []).length;
-        const separatorDiff = separatorsAfter - separatorsBefore;
-
-        // Adjust cursor position
-        const newCursorPosition = (selectionStart || 0) + separatorDiff;
-        
-        // We need to set the state and then adjust the cursor in a useEffect
-        // because the input's value isn't updated in the DOM immediately.
-        setDisplayValue(newFormattedValue);
-        
-        // Using a timeout to set cursor position after the re-render
-        setTimeout(() => {
-            if (inputRef.current) {
-                inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
-            }
-        }, 0);
+        setDisplayValue(rawValue);
+        const numericValue = parse(rawValue);
+        onValueChange(numericValue);
     };
+
 
     return (
       <Input
-        ref={inputRef}
+        ref={ref}
         type="text"
         inputMode="decimal"
         className={cn("font-mono", className)}
         value={displayValue}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         onChange={handleChange}
         {...props}
       />
