@@ -157,6 +157,7 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [selectedWeek, setSelectedWeek] = React.useState<{start: Date, end: Date} | null>(null);
   const [existingDataForForm, setExistingDataForForm] = React.useState<ConcentradoSemanal | null>(null);
+  const [isFondoInicioDisabled, setIsFondoInicioDisabled] = React.useState(false);
 
   // Authorization State
   const [isAuthDialogOpen, setIsAuthDialogOpen] = React.useState(false);
@@ -207,12 +208,32 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
     weekEndDate.setUTCHours(23, 59, 59, 999);
     const hasWeekPassed = isPast(weekEndDate);
     
-    if (isWeekClosed || (hasWeekPassed && existingData)) {
+    if (isWeekClosed || (hasWeekPassed && !!existingData)) {
         setWeekToAuthorize({ week, data: existingData || null });
         setIsAuthDialogOpen(true);
     } else {
+        const previousWeekStartDate = new Date(week.start);
+        previousWeekStartDate.setUTCDate(previousWeekStartDate.getUTCDate() - 7);
+        
+        const previousRegistro = allRegistros.find(r => {
+            const registroDateUTC = new Date(r.weekStartDate).getTime();
+            const prevWeekStartUTC = previousWeekStartDate.getTime();
+            return registroDateUTC === prevWeekStartUTC;
+        });
+
+        let isFondoDisabled = false;
+        const dataForForm: Partial<ConcentradoSemanal> = { ...(existingData || {}) };
+
+        if (previousRegistro && previousRegistro.fondoSiguienteSemana > 0) {
+            dataForForm.fondoInicio = previousRegistro.fondoSiguienteSemana;
+            isFondoDisabled = true;
+        } else if (!existingData) {
+            dataForForm.fondoInicio = 0;
+        }
+
+        setExistingDataForForm(dataForForm as ConcentradoSemanal | null);
+        setIsFondoInicioDisabled(isFondoDisabled);
         setSelectedWeek(week);
-        setExistingDataForForm(existingData || null);
         setIsFormOpen(true);
     }
   };
@@ -220,8 +241,29 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
   const handleAuthorization = () => {
     if (authCode === '012004') {
         if (weekToAuthorize) {
-            setSelectedWeek(weekToAuthorize.week);
-            setExistingDataForForm(weekToAuthorize.data);
+            const week = weekToAuthorize.week;
+            const existingData = weekToAuthorize.data;
+
+            const previousWeekStartDate = new Date(week.start);
+            previousWeekStartDate.setUTCDate(previousWeekStartDate.getUTCDate() - 7);
+            
+            const previousRegistro = allRegistros.find(r => {
+                const registroDateUTC = new Date(r.weekStartDate).getTime();
+                const prevWeekStartUTC = previousWeekStartDate.getTime();
+                return registroDateUTC === prevWeekStartUTC;
+            });
+
+            let isFondoDisabled = false;
+            const dataForForm: Partial<ConcentradoSemanal> = { ...(existingData || {}) };
+
+            if (previousRegistro && previousRegistro.fondoSiguienteSemana > 0) {
+                dataForForm.fondoInicio = previousRegistro.fondoSiguienteSemana;
+                isFondoDisabled = true;
+            }
+
+            setExistingDataForForm(dataForForm as ConcentradoSemanal | null);
+            setIsFondoInicioDisabled(isFondoDisabled);
+            setSelectedWeek(week);
             setIsFormOpen(true);
         }
         closeAuthDialog();
@@ -350,6 +392,7 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
             onSubmit={handleFormSubmit}
             existingData={existingDataForForm}
             week={selectedWeek}
+            isFondoInicioDisabled={isFondoInicioDisabled}
         />
 
         <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
