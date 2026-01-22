@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -21,9 +20,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Loader2, AlertTriangle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
-import type { ConcentradoOficina } from "@/lib/data";
-import { getConcentradoOficinas, deleteRegistrosPorSemanas } from "@/services/concentrado-service";
+import { Loader2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, LockOpen } from "lucide-react";
+import type { ConcentradoOficina, ConcentradoWeeklyClosure } from "@/lib/data";
+import { getConcentradoOficinas, deleteRegistrosPorSemanas, getWeeklyClosures, setWeeklyClosure } from "@/services/concentrado-service";
 import { format, subMonths, addMonths } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -64,7 +63,9 @@ export function ConcentradoSettingsPanel() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [oficinas, setOficinas] = React.useState<ConcentradoOficina[]>([]);
+    const [weeklyClosures, setWeeklyClosures] = React.useState<ConcentradoWeeklyClosure[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [isDeleting, setIsDeleting] = React.useState(false);
 
     const [selectedOficinaIds, setSelectedOficinaIds] = React.useState<Set<string>>(new Set());
@@ -74,17 +75,43 @@ export function ConcentradoSettingsPanel() {
     
     const DELETION_CODE = "012004";
 
-    React.useEffect(() => {
+    const fetchData = React.useCallback(async () => {
         if (!user?.prefix) {
             setIsLoading(false);
             return;
         }
         setIsLoading(true);
-        getConcentradoOficinas(user.prefix)
-            .then(setOficinas)
-            .catch(() => toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar las oficinas." }))
-            .finally(() => setIsLoading(false));
+        try {
+            const [oficinasData, closuresData] = await Promise.all([
+                getConcentradoOficinas(user.prefix),
+                getWeeklyClosures(user.prefix),
+            ]);
+            setOficinas(oficinasData);
+            setWeeklyClosures(closuresData);
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos." });
+        } finally {
+            setIsLoading(false);
+        }
     }, [user?.prefix, toast]);
+
+    React.useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleReopenWeek = async (weekStartDate: Date) => {
+        if (!user?.prefix) return;
+        setIsSubmitting(true);
+        try {
+            await setWeeklyClosure(user.prefix, weekStartDate, false);
+            toast({ title: "Éxito", description: "La semana ha sido re-abierta." });
+            fetchData(); // Refetch all data
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo re-abrir la semana." });
+        } finally {
+            setIsSubmitting(false);
+        }
+      };
 
     const weeksOfMonth = getWeeksForMonth(currentMonth);
     const allOficinasSelected = selectedOficinaIds.size === oficinas.length && oficinas.length > 0;
@@ -144,102 +171,169 @@ export function ConcentradoSettingsPanel() {
         }
     };
 
+    const closedWeeksInMonth = weeksOfMonth.filter(week => 
+        weeklyClosures.some(c => c.isClosed && new Date(c.weekStartDate).getTime() === week.start.getTime())
+    );
+
     return (
-      <Card className="border-destructive">
-        <CardHeader>
-          <div className="flex items-start gap-4">
-              <div className="p-2 bg-destructive/10 rounded-lg">
-                  <AlertTriangle className="h-6 w-6 text-destructive"/>
-              </div>
-              <div>
-                  <CardTitle>Zona de Peligro</CardTitle>
-                  <CardDescription>
-                  Acciones irreversibles para eliminar registros de la herramienta Concentrado.
-                  </CardDescription>
-              </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-            <div>
-                <h3 className="font-semibold mb-2">1. Selecciona el Mes</h3>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-lg font-semibold capitalize w-48 text-center">
-                        {format(currentMonth, "LLLL yyyy", { locale: es })}
-                    </span>
-                    <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h3 className="font-semibold mb-2">2. Selecciona Oficinas</h3>
+        <div className="space-y-6">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Ajustes de Concentrado</CardTitle>
+                    <CardDescription>
+                        Gestiona las semanas cerradas y realiza operaciones de limpieza de datos.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <h3 className="font-semibold mb-2">Selecciona el Mes a Gestionar</h3>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-lg font-semibold capitalize w-48 text-center">
+                            {format(currentMonth, "LLLL yyyy", { locale: es })}
+                        </span>
+                        <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Gestionar Semanas Cerradas</CardTitle>
+                    <CardDescription>
+                        Re-abre semanas que fueron cerradas para permitir nuevas ediciones.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
                     {isLoading ? <Loader2 className="animate-spin" /> : (
-                         <ScrollArea className="h-48 rounded-md border p-4">
-                            <div className="flex items-center space-x-2 mb-2 pb-2 border-b">
-                                <Checkbox id="all-oficinas" checked={allOficinasSelected} onCheckedChange={handleSelectAllOficinas} />
-                                <Label htmlFor="all-oficinas" className="font-semibold">Seleccionar Todas</Label>
-                            </div>
-                            {oficinas.map(oficina => (
-                                <div key={oficina.id} className="flex items-center space-x-2 my-1">
-                                    <Checkbox id={oficina.id} checked={selectedOficinaIds.has(oficina.id)} onCheckedChange={(checked) => handleSelectOficina(oficina.id, !!checked)} />
-                                    <Label htmlFor={oficina.id}>{oficina.name}</Label>
+                    <div className="mt-4 space-y-2">
+                        {closedWeeksInMonth.map((week, index) => {
+                             const closure = weeklyClosures.find(c => c.isClosed && new Date(c.weekStartDate).getTime() === week.start.getTime());
+                             if (!closure) return null; // Should not happen due to filter, but for type safety.
+
+                            return (
+                                <div key={index} className="flex justify-between items-center p-3 border rounded-lg bg-muted/50">
+                                    <div>
+                                        <p className="font-semibold">Semana del {format(week.start, 'dd/MM')} al {format(week.end, 'dd/MM/yyyy')}</p>
+                                    </div>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="secondary">
+                                                <LockOpen className="mr-2 h-4 w-4" />
+                                                Re-abrir Semana
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Confirmar reapertura?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Esto permitirá que se ingresen y editen nuevos datos en esta semana para todas las oficinas.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleReopenWeek(week.start)} disabled={isSubmitting}>
+                                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                    Sí, re-abrir
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
-                            ))}
-                         </ScrollArea>
+                            )
+                        })}
+                        {closedWeeksInMonth.length === 0 && (
+                            <p className="text-center text-muted-foreground py-4">No hay semanas cerradas en este mes.</p>
+                        )}
+                    </div>
                     )}
+                </CardContent>
+            </Card>
+
+            <Card className="border-destructive">
+                <CardHeader>
+                <div className="flex items-start gap-4">
+                    <div className="p-2 bg-destructive/10 rounded-lg">
+                        <AlertTriangle className="h-6 w-6 text-destructive"/>
+                    </div>
+                    <div>
+                        <CardTitle>Zona de Peligro: Eliminar Registros</CardTitle>
+                        <CardDescription>
+                        Esta sección es para la eliminación masiva de datos. Úsala con extrema precaución.
+                        </CardDescription>
+                    </div>
                 </div>
-                 <div>
-                    <h3 className="font-semibold mb-2">3. Selecciona Semanas</h3>
-                    <div className="space-y-2 rounded-md border p-4">
-                        <div className="flex items-center space-x-2 mb-2 pb-2 border-b">
-                            <Checkbox id="all-weeks" checked={allWeeksSelected} onCheckedChange={handleSelectAllWeeks} />
-                            <Label htmlFor="all-weeks" className="font-semibold">Seleccionar Todas</Label>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 className="font-semibold mb-2">1. Selecciona Oficinas</h3>
+                            {isLoading ? <Loader2 className="animate-spin" /> : (
+                                <ScrollArea className="h-48 rounded-md border p-4">
+                                    <div className="flex items-center space-x-2 mb-2 pb-2 border-b">
+                                        <Checkbox id="all-oficinas" checked={allOficinasSelected} onCheckedChange={handleSelectAllOficinas} />
+                                        <Label htmlFor="all-oficinas" className="font-semibold">Seleccionar Todas</Label>
+                                    </div>
+                                    {oficinas.map(oficina => (
+                                        <div key={oficina.id} className="flex items-center space-x-2 my-1">
+                                            <Checkbox id={oficina.id} checked={selectedOficinaIds.has(oficina.id)} onCheckedChange={(checked) => handleSelectOficina(oficina.id, !!checked)} />
+                                            <Label htmlFor={oficina.id}>{oficina.name}</Label>
+                                        </div>
+                                    ))}
+                                </ScrollArea>
+                            )}
                         </div>
-                        {weeksOfMonth.map((week, index) => (
-                             <div key={index} className="flex items-center space-x-2 my-1">
-                                <Checkbox id={`week-${index}`} checked={selectedWeekIndices.has(index)} onCheckedChange={(checked) => handleSelectWeek(index, !!checked)} />
-                                <Label htmlFor={`week-${index}`}>Semana {index + 1}: {format(week.start, 'dd/MM')} - {format(week.end, 'dd/MM')}</Label>
+                        <div>
+                            <h3 className="font-semibold mb-2">2. Selecciona Semanas del Mes</h3>
+                            <div className="space-y-2 rounded-md border p-4">
+                                <div className="flex items-center space-x-2 mb-2 pb-2 border-b">
+                                    <Checkbox id="all-weeks" checked={allWeeksSelected} onCheckedChange={handleSelectAllWeeks} />
+                                    <Label htmlFor="all-weeks" className="font-semibold">Seleccionar Todas</Label>
+                                </div>
+                                {weeksOfMonth.map((week, index) => (
+                                    <div key={index} className="flex items-center space-x-2 my-1">
+                                        <Checkbox id={`week-${index}`} checked={selectedWeekIndices.has(index)} onCheckedChange={(checked) => handleSelectWeek(index, !!checked)} />
+                                        <Label htmlFor={`week-${index}`}>Semana {index + 1}: {format(week.start, 'dd/MM')} - {format(week.end, 'dd/MM')}</Label>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        </div>
                     </div>
-                </div>
-            </div>
-        </CardContent>
-        <CardFooter>
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={selectedOficinaIds.size === 0 || selectedWeekIndices.size === 0}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Eliminar Registros Seleccionados
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción eliminará <strong>{selectedWeekIndices.size}</strong> semana(s) de datos para <strong>{selectedOficinaIds.size}</strong> oficina(s). Esta acción no se puede deshacer.
-                            Para confirmar, ingresa el código de seguridad.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <div className="py-2">
-                        <Label htmlFor="confirmation-code">Código de Seguridad</Label>
-                        <Input id="confirmation-code" type="password" value={confirmationCode} onChange={(e) => setConfirmationCode(e.target.value)} placeholder="Ingresa el código para eliminar" autoFocus/>
-                    </div>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setConfirmationCode('')}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting || confirmationCode !== DELETION_CODE}>
-                            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            Sí, eliminar
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </CardFooter>
-      </Card>
+                </CardContent>
+                <CardFooter>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={selectedOficinaIds.size === 0 || selectedWeekIndices.size === 0}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Eliminar Registros Seleccionados
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción eliminará <strong>{selectedWeekIndices.size}</strong> semana(s) de datos para <strong>{selectedOficinaIds.size}</strong> oficina(s). Esta acción no se puede deshacer.
+                                    Para confirmar, ingresa el código de seguridad.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <div className="py-2">
+                                <Label htmlFor="confirmation-code">Código de Seguridad</Label>
+                                <Input id="confirmation-code" type="password" value={confirmationCode} onChange={(e) => setConfirmationCode(e.target.value)} placeholder="Ingresa el código para eliminar" autoFocus/>
+                            </div>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setConfirmationCode('')}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} disabled={isDeleting || confirmationCode !== DELETION_CODE}>
+                                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                    Sí, eliminar
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </CardFooter>
+            </Card>
+        </div>
     );
 }
