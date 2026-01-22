@@ -19,6 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, addDays, isSameDay, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { OficinaPanel } from "./oficina-panel";
 
 type SummaryRow = {
   oficinaId: string;
@@ -96,6 +98,7 @@ export function ConcentradoDashboard() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   const [totalCajaChicaMes, setTotalCajaChicaMes] = React.useState(0);
+  const [selectedOficinaId, setSelectedOficinaId] = React.useState<string | null>(null);
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
@@ -245,7 +248,8 @@ export function ConcentradoDashboard() {
         </div>
         <Card>
         <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-end sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div />
                 <div className="flex items-center gap-2">
                     <p className="text-lg font-semibold text-primary text-right">{weekDateRange}</p>
                     <div className="flex items-center gap-1">
@@ -283,7 +287,11 @@ export function ConcentradoDashboard() {
                             {summaries.length > 0 ? (
                                 summaries.map(summary => (
                                     <TableRow key={summary.oficinaId}>
-                                        <TableCell className="font-medium border-r">{summary.oficinaName}</TableCell>
+                                        <TableCell className="font-medium border-r">
+                                            <Button variant="link" onClick={() => setSelectedOficinaId(summary.oficinaId)} className="p-0 h-auto text-left justify-start">
+                                                {summary.oficinaName}
+                                            </Button>
+                                        </TableCell>
                                         <TableCell className="text-right border-r">{formatCurrency(summary.fondoInicio)}</TableCell>
                                         <TableCell className="text-right border-r">{formatCurrency(summary.venta)}</TableCell>
                                         <TableCell className="text-right border-r">{formatCurrency(summary.cajaChica)}</TableCell>
@@ -322,6 +330,17 @@ export function ConcentradoDashboard() {
             )}
         </CardContent>
         </Card>
+        
+        <Dialog open={!!selectedOficinaId} onOpenChange={(isOpen) => !isOpen && setSelectedOficinaId(null)}>
+            <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
+                 <DialogHeader>
+                    <DialogTitle>Panel de Oficina: {summaries.find(s => s.oficinaId === selectedOficinaId)?.oficinaName}</DialogTitle>
+                </DialogHeader>
+                <div className="flex-grow overflow-y-auto -mx-6 px-6">
+                    {selectedOficinaId && <OficinaPanel oficinaId={selectedOficinaId} />}
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
