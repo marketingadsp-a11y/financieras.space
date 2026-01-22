@@ -208,7 +208,7 @@ export function ConcentradoDashboard() {
   const handleCurrentWeek = () => setSelectedDate(new Date());
 
   const { start: weekStart, end: weekEnd } = getWeekBoundaries(selectedDate);
-  const weekDateRange = `Semana del ${format(weekStart, "dd 'de' LLLL", { locale: es })} al ${format(endOfWeek, "dd 'de' LLLL 'de' yyyy", { locale: es })}`;
+  const weekDateRange = `Semana del ${format(weekStart, "dd 'de' LLLL", { locale: es })} al ${format(weekEnd, "dd 'de' LLLL 'de' yyyy", { locale: es })}`;
   
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -413,3 +413,5 @@ export function ConcentradoDashboard() {
     </div>
   );
 }
+
+    
