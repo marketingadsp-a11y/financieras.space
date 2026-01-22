@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -17,7 +16,7 @@ import { getConcentradoOficinas, getRegistrosByOficina, getAllConcentradoRegistr
 import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { format, startOfWeek, endOfWeek, addDays, isSameDay, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -277,7 +276,10 @@ export function ConcentradoDashboard() {
                     <p className="text-sm text-muted-foreground mb-4">Cierra la semana para prevenir modificaciones accidentales en los registros. Para editar una semana cerrada, se requerirá un código de autorización.</p>
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" disabled={isCurrentWeekClosed}>
+                            <Button
+                                disabled={isCurrentWeekClosed}
+                                className="bg-gradient-to-r from-[hsl(var(--sidebar-background))] to-[hsl(var(--sidebar-accent))] text-sidebar-foreground hover:from-[hsl(var(--sidebar-accent))] hover:to-[hsl(var(--sidebar-background))]"
+                            >
                                 <Lock className="mr-2 h-4 w-4" /> Cerrar Semana Actual
                             </Button>
                         </AlertDialogTrigger>
@@ -413,5 +415,3 @@ export function ConcentradoDashboard() {
     </div>
   );
 }
-
-    
