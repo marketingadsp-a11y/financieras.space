@@ -60,6 +60,23 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
     defaultValues: existingData || {},
   });
 
+  const watchedValues = form.watch();
+
+  React.useEffect(() => {
+    const fondoInicio = watchedValues.fondoInicio || 0;
+    const venta = watchedValues.venta || 0;
+    const recolectado = watchedValues.recolectado || 0;
+    const gastos = watchedValues.gastos || 0;
+    
+    const calculatedFondoSiguiente = fondoInicio - venta + recolectado - gastos;
+    
+    if (watchedValues.fondoSiguienteSemana !== calculatedFondoSiguiente) {
+      form.setValue('fondoSiguienteSemana', calculatedFondoSiguiente, { shouldValidate: true });
+    }
+
+  }, [watchedValues.fondoInicio, watchedValues.venta, watchedValues.recolectado, watchedValues.gastos, form, watchedValues.fondoSiguienteSemana]);
+
+
   React.useEffect(() => {
     if (isOpen) {
       form.reset(existingData || {
@@ -117,7 +134,7 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
                   <FormField control={form.control} name="venta" render={({ field }) => (<FormItem><FormLabel>Venta</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="recolectado" render={({ field }) => (<FormItem><FormLabel>Recolectado</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="gastos" render={({ field }) => (<FormItem><FormLabel>Gastos</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="fondoSiguienteSemana" render={({ field }) => (<FormItem><FormLabel>Fondo Siguiente Semana</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="fondoSiguienteSemana" render={({ field }) => (<FormItem><FormLabel>Fondo Siguiente Semana</FormLabel><FormControl><CurrencyInput {...field} disabled /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="cajaChica" render={({ field }) => (<FormItem><FormLabel>Caja Chica</FormLabel><FormControl><CurrencyInput {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField
                       control={form.control}
