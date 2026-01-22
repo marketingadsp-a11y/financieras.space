@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, writeBatch } from "firebase/firestore";
@@ -157,4 +158,39 @@ export async function deleteRegistrosByMonth(oficinaId: string, month: Date): Pr
     });
 
     await batch.commit();
+}
+
+
+export async function deleteRegistrosPorSemanas(
+  oficinaIds: string[],
+  weekStartDates: Date[]
+): Promise<void> {
+  if (oficinaIds.length === 0 || weekStartDates.length === 0) {
+    return;
+  }
+
+  let batch = writeBatch(db);
+  let operationCount = 0;
+
+  for (const oficinaId of oficinaIds) {
+    for (const startDate of weekStartDates) {
+      const dateString = `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth() + 1).padStart(2, '0')}-${String(startDate.getUTCDate()).padStart(2, '0')}`;
+      const docId = `${oficinaId}_${dateString}`;
+      const docRef = doc(db, "concentrado_registros_semanal", docId);
+      
+      batch.delete(docRef);
+      operationCount++;
+
+      // Firebase batch writes have a limit of 500 operations.
+      if (operationCount >= 499) {
+          await batch.commit();
+          batch = writeBatch(db); // Start a new batch
+          operationCount = 0;
+      }
+    }
+  }
+
+  if (operationCount > 0) {
+    await batch.commit();
+  }
 }

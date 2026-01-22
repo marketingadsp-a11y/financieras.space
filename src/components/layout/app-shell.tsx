@@ -712,6 +712,16 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/tools/concentrado/settings">
+                        <SidebarMenuButton asChild isActive={pathname === "/tools/concentrado/settings"} tooltip="Ajustes y Zona de Peligro">
+                            <span>
+                                <Settings />
+                                <span>Ajustes</span>
+                            </span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
             </SidebarMenu>
         </SidebarGroup>
     );
