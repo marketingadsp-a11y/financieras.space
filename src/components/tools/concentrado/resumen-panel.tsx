@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -16,7 +17,7 @@ import { getConcentradoOficinas, getAllConcentradoRegistros } from "@/services/c
 import type { ConcentradoOficina, ConcentradoSemanal } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from "date-fns";
+import { format, addMonths, subMonths, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 
@@ -41,6 +42,41 @@ const formatCurrency = (value: number) => {
     }).format(value);
 };
 
+// Helper function to get all weeks where the Friday falls within the given month.
+function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth();
+    
+    let firstFridayDate = new Date(Date.UTC(year, month, 1, 12, 0, 0));
+    while (firstFridayDate.getUTCDay() !== 5) { // 5 = Friday
+        firstFridayDate.setUTCDate(firstFridayDate.getUTCDate() + 1);
+    }
+
+    const firstWeekStart = new Date(firstFridayDate);
+    firstWeekStart.setUTCDate(firstFridayDate.getUTCDate() - 6);
+    firstWeekStart.setUTCHours(0, 0, 0, 0);
+
+    const weeks = [];
+    for (let i = 0; i < 5; i++) { // Check up to 5 weeks to cover all possibilities
+        const weekStart = new Date(firstWeekStart);
+        weekStart.setUTCDate(firstWeekStart.getUTCDate() + (i * 7));
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        weekEnd.setUTCHours(23, 59, 59, 999);
+        
+        // Include the week if its Friday is in the current month
+        if (weekEnd.getUTCMonth() === month) {
+            weeks.push({ start: weekStart, end: weekEnd });
+        } else if (weeks.length > 0) {
+            // If we have pushed weeks and the next one is in a new month, we are done.
+            break;
+        }
+    }
+    return weeks;
+}
+
+
 export function ResumenPanel() {
   const [summaries, setSummaries] = React.useState<MonthlySummaryRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -55,8 +91,14 @@ export function ResumenPanel() {
     }
     setIsLoading(true);
 
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
+    const weeksOfMonth = getWeeksForMonth(currentMonth);
+    if (weeksOfMonth.length === 0) {
+        setSummaries([]);
+        setIsLoading(false);
+        return;
+    }
+    const monthCycleStart = weeksOfMonth[0].start;
+    const monthCycleEnd = weeksOfMonth[weeksOfMonth.length - 1].end;
     
     try {
         const [oficinas, allRegistros] = await Promise.all([
@@ -67,7 +109,7 @@ export function ResumenPanel() {
         const monthlySummaries = oficinas.map(oficina => {
             const registrosDelMes = allRegistros.filter(r => {
                 const registroDate = new Date(r.weekStartDate);
-                return registroDate >= monthStart && registroDate <= monthEnd && r.oficinaId === oficina.id;
+                return registroDate >= monthCycleStart && registroDate <= monthCycleEnd && r.oficinaId === oficina.id;
             });
             
             const firstWeekRecord = registrosDelMes.sort((a,b) => a.weekStartDate.getTime() - b.weekStartDate.getTime())[0];
