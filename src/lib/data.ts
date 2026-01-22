@@ -577,6 +577,13 @@ export type ConcentradoOficina = {
   name: string;
 };
 
+export type ConcentradoWeeklyClosure = {
+  id: string; // e.g., `${prefix}_${weekStartDate.toISOString()}`
+  prefix: string;
+  weekStartDate: Date;
+  isClosed: boolean;
+};
+
 export type ConcentradoSemanal = {
   id: string; // Composite key: `${oficinaId}_${weekStartDate.toISOString()}`
   oficinaId: string;

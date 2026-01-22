@@ -4,10 +4,11 @@
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { ConcentradoOficina, ConcentradoSemanal } from "@/lib/data";
+import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure } from "@/lib/data";
 
 const oficinasCollectionRef = collection(db, "concentrado_oficinas");
 const registrosSemanalCollectionRef = collection(db, "concentrado_registros_semanal");
+const weeklyClosuresCollectionRef = collection(db, "concentrado_weekly_closures");
 
 
 export async function getConcentradoOficinas(prefix: string): Promise<ConcentradoOficina[]> {
@@ -193,4 +194,30 @@ export async function deleteRegistrosPorSemanas(
   if (operationCount > 0) {
     await batch.commit();
   }
+}
+
+// --- Weekly Closure Functions ---
+export async function getWeeklyClosures(prefix: string): Promise<ConcentradoWeeklyClosure[]> {
+    const q = query(weeklyClosuresCollectionRef, where("prefix", "==", prefix));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+            ...data,
+            id: docSnap.id,
+            weekStartDate: (data.weekStartDate as Timestamp).toDate(),
+        } as ConcentradoWeeklyClosure;
+    });
+}
+
+export async function setWeeklyClosure(prefix: string, weekStartDate: Date, isClosed: boolean): Promise<void> {
+    const dateString = `${weekStartDate.getUTCFullYear()}-${String(weekStartDate.getUTCMonth() + 1).padStart(2, '0')}-${String(weekStartDate.getUTCDate()).padStart(2, '0')}`;
+    const docId = `${prefix}_${dateString}`;
+    const docRef = doc(db, "concentrado_weekly_closures", docId);
+    
+    await setDoc(docRef, {
+        prefix,
+        weekStartDate: Timestamp.fromDate(weekStartDate),
+        isClosed,
+    }, { merge: true });
 }

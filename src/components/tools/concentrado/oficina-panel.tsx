@@ -1,12 +1,13 @@
 
+
 "use client";
 
 import * as React from "react";
 import Link from "next/link";
 import { format, subMonths, addMonths, isPast } from "date-fns";
 import { es } from "date-fns/locale";
-import { getConcentradoOficinaById, getRegistrosByOficina, addOrUpdateRegistroSemanal, deleteRegistrosByMonth } from "@/services/concentrado-service";
-import type { ConcentradoOficina, ConcentradoSemanal } from "@/lib/data";
+import { getConcentradoOficinaById, getRegistrosByOficina, addOrUpdateRegistroSemanal, deleteRegistrosByMonth, getWeeklyClosures } from "@/services/concentrado-service";
+import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -63,12 +64,14 @@ const WeekCard = ({
     week, 
     weekIndex, 
     registro,
-    onRegister
+    onRegister,
+    isClosed
 }: { 
     week: { start: Date, end: Date }, 
     weekIndex: number, 
     registro: ConcentradoSemanal | null,
-    onRegister: (week: {start: Date, end: Date}, existingData?: ConcentradoSemanal | null) => void
+    onRegister: (week: {start: Date, end: Date}, existingData?: ConcentradoSemanal | null) => void,
+    isClosed: boolean
 }) => {
     
     const conceptos = [
@@ -96,6 +99,8 @@ const WeekCard = ({
     const hasWeekPassed = isPast(weekEndDate);
     const isFutureWeek = new Date() < week.start;
 
+    const isLocked = isClosed || (hasWeekPassed && !!registro);
+
     return (
         <Card className="flex flex-col">
             <CardHeader>
@@ -105,7 +110,7 @@ const WeekCard = ({
                     Semana {weekIndex + 1}
                 </div>
                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onRegister(week, registro)}>
-                    {hasWeekPassed && registro ? <Lock className="h-4 w-4 text-amber-500" /> : <Edit className="h-4 w-4" />}
+                    {isLocked ? <Lock className="h-4 w-4 text-amber-500" /> : <Edit className="h-4 w-4" />}
                 </Button>
               </CardTitle>
               <CardDescription>
@@ -129,8 +134,8 @@ const WeekCard = ({
                     </div>
                 ) : (
                     <div className="text-center py-6 h-full flex flex-col justify-center items-center">
-                        <p className="text-muted-foreground mb-4">No hay datos registrados.</p>
-                         <Button onClick={() => onRegister(week, null)} disabled={isFutureWeek}>Registrar Datos</Button>
+                        <p className="text-muted-foreground mb-4">{isClosed ? "Semana cerrada." : "No hay datos registrados."}</p>
+                         <Button onClick={() => onRegister(week, null)} disabled={isFutureWeek || isClosed}>Registrar Datos</Button>
                     </div>
                 )}
             </CardContent>
@@ -144,6 +149,7 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
   const { toast } = useToast();
   const [oficina, setOficina] = React.useState<ConcentradoOficina | null>(null);
   const [allRegistros, setAllRegistros] = React.useState<ConcentradoSemanal[]>([]);
+  const [weeklyClosures, setWeeklyClosures] = React.useState<ConcentradoWeeklyClosure[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [currentMonth, setCurrentMonth] = React.useState(new Date(new Date().setUTCHours(12, 0, 0, 0)));
   
@@ -162,14 +168,17 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
   const [isDeletingMonth, setIsDeletingMonth] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
-      const [oficinaData, registrosData] = await Promise.all([
+      const [oficinaData, registrosData, closuresData] = await Promise.all([
           getConcentradoOficinaById(oficinaId),
-          getRegistrosByOficina(oficinaId)
+          getRegistrosByOficina(oficinaId),
+          getWeeklyClosures(user.prefix!)
       ]);
       setOficina(oficinaData);
       setAllRegistros(registrosData);
+      setWeeklyClosures(closuresData);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -179,7 +188,7 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [oficinaId, toast]);
+  }, [oficinaId, toast, user]);
 
   React.useEffect(() => {
     fetchData();
@@ -189,12 +198,17 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
   const handleNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
   
   const handleRegisterClick = (week: {start: Date, end: Date}, existingData?: ConcentradoSemanal | null) => {
+    const isWeekClosed = weeklyClosures.some(c => 
+        c.isClosed &&
+        new Date(c.weekStartDate).getTime() === week.start.getTime()
+    );
+
     const weekEndDate = new Date(week.end);
     weekEndDate.setUTCHours(23, 59, 59, 999);
     const hasWeekPassed = isPast(weekEndDate);
     
-    if (hasWeekPassed && existingData) { // Only require auth if editing a past week
-        setWeekToAuthorize({ week, data: existingData });
+    if (isWeekClosed || (hasWeekPassed && existingData)) {
+        setWeekToAuthorize({ week, data: existingData || null });
         setIsAuthDialogOpen(true);
     } else {
         setSelectedWeek(week);
@@ -204,7 +218,7 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
   };
   
   const handleAuthorization = () => {
-    if (authCode === '0120') {
+    if (authCode === '012004') {
         if (weekToAuthorize) {
             setSelectedWeek(weekToAuthorize.week);
             setExistingDataForForm(weekToAuthorize.data);
@@ -321,7 +335,12 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
                     return registroDateUTC === weekStartUTC;
                 }) || null;
                 
-                return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} />
+                const isWeekClosed = weeklyClosures.some(c => 
+                    c.isClosed &&
+                    new Date(c.weekStartDate).getTime() === week.start.getTime()
+                );
+                
+                return <WeekCard key={index} week={week} weekIndex={index} registro={registro} onRegister={handleRegisterClick} isClosed={isWeekClosed} />
             })}
         </div>
         
@@ -338,7 +357,7 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
                 <DialogHeader>
                     <DialogTitle>Código de Autorización Requerido</DialogTitle>
                     <DialogDescription>
-                        Estás intentando editar una semana que ya ha finalizado. Por favor, ingresa el código de autorización para continuar.
+                        Estás intentando editar una semana que ya ha finalizado o ha sido cerrada. Por favor, ingresa el código de autorización para continuar.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">

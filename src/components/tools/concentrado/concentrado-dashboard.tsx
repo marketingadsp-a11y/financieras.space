@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -11,15 +12,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Loader2, ChevronLeft, ChevronRight, History, DollarSign } from "lucide-react";
-import { getConcentradoOficinas, getRegistrosByOficina } from "@/services/concentrado-service";
-import type { ConcentradoOficina, ConcentradoSemanal } from "@/lib/data";
+import { Loader2, ChevronLeft, ChevronRight, History, DollarSign, Lock, LockOpen } from "lucide-react";
+import { getConcentradoOficinas, getRegistrosByOficina, getAllConcentradoRegistros, getWeeklyClosures, setWeeklyClosure } from "@/services/concentrado-service";
+import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, addDays, isSameDay, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle as AlertDialogTitleComponent,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { OficinaPanel } from "./oficina-panel";
 
 type SummaryRow = {
@@ -99,6 +112,8 @@ export function ConcentradoDashboard() {
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   const [totalCajaChicaMes, setTotalCajaChicaMes] = React.useState(0);
   const [selectedOficinaId, setSelectedOficinaId] = React.useState<string | null>(null);
+  const [weeklyClosures, setWeeklyClosures] = React.useState<ConcentradoWeeklyClosure[]>([]);
+
 
   const fetchData = React.useCallback(async () => {
     if (!user?.prefix) {
@@ -115,13 +130,13 @@ export function ConcentradoDashboard() {
     const currentMonthEnd = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[weeksInCurrentMonth.length - 1].end : endOfMonth(now);
     
     try {
-        const oficinas = await getConcentradoOficinas(user.prefix);
-        let allRegistros: ConcentradoSemanal[] = [];
-        
-        for (const oficina of oficinas) {
-            const registros = await getRegistrosByOficina(oficina.id);
-            allRegistros.push(...registros);
-        }
+        const [oficinas, allRegistros, closures] = await Promise.all([
+            getConcentradoOficinas(user.prefix),
+            getAllConcentradoRegistros(user.prefix),
+            getWeeklyClosures(user.prefix)
+        ]);
+
+        setWeeklyClosures(closures);
 
         const monthlyCajaChicaTotal = allRegistros
             .filter(r => {
@@ -193,12 +208,30 @@ export function ConcentradoDashboard() {
   const handleCurrentWeek = () => setSelectedDate(new Date());
 
   const { start: weekStart, end: weekEnd } = getWeekBoundaries(selectedDate);
-  const weekDateRange = `Semana del ${format(weekStart, "dd 'de' LLLL", { locale: es })} al ${format(weekEnd, "dd 'de' LLLL 'de' yyyy", { locale: es })}`;
+  const weekDateRange = `Semana del ${format(weekStart, "dd 'de' LLLL", { locale: es })} al ${format(endOfWeek, "dd 'de' LLLL 'de' yyyy", { locale: es })}`;
   
   const today = new Date();
   today.setHours(0,0,0,0);
   const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 6 });
   const isNextWeekDisabled = isSameDay(startOfWeek(selectedDate, { weekStartsOn: 6 }), startOfCurrentWeek) || selectedDate > today;
+
+  const handleCloseWeek = async () => {
+    if (!user?.prefix) return;
+    try {
+        await setWeeklyClosure(user.prefix, weekStart, true);
+        toast({ title: "Semana Cerrada", description: "Ya no se podrán registrar nuevos datos para esta semana sin autorización." });
+        fetchData();
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cerrar la semana.' });
+    }
+  };
+
+  const isCurrentWeekClosed = React.useMemo(() => {
+    return weeklyClosures.some(c => 
+        c.isClosed &&
+        new Date(c.weekStartDate).getTime() === weekStart.getTime()
+    );
+  }, [weeklyClosures, weekStart]);
 
 
   const totals = React.useMemo(() => {
@@ -228,23 +261,59 @@ export function ConcentradoDashboard() {
 
   return (
     <div className="space-y-6">
-        <div className="flex justify-end">
-            <Card className="max-w-sm bg-gradient-to-r from-[hsl(var(--sidebar-background))] to-[hsl(var(--sidebar-accent))] text-sidebar-foreground">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                        Caja Chica (Mes Actual)
-                    </CardTitle>
-                    <DollarSign className="h-4 w-4 text-sidebar-foreground/70" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+                 <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-bold">Acciones de la Semana</h2>
+                         {isCurrentWeekClosed ? (
+                            <Badge variant="destructive"><Lock className="mr-2 h-4 w-4"/>Cerrada</Badge>
+                         ) : (
+                            <Badge variant="secondary"><LockOpen className="mr-2 h-4 w-4"/>Abierta</Badge>
+                         )}
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-3xl font-bold">
-                        {formatCurrency(totalCajaChicaMes)}
-                    </div>
-                    <p className="text-xs text-sidebar-foreground/70">
-                        Suma de la caja chica de todas las oficinas en el mes en curso.
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">Cierra la semana para prevenir modificaciones accidentales en los registros. Para editar una semana cerrada, se requerirá un código de autorización.</p>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={isCurrentWeekClosed}>
+                                <Lock className="mr-2 h-4 w-4" /> Cerrar Semana Actual
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitleComponent>¿Confirmar Cierre de Semana?</AlertDialogTitleComponent>
+                                <AlertDialogDescription>
+                                    Esta acción bloqueará la edición de registros para la semana <strong>{weekDateRange}</strong> en todas las oficinas. ¿Deseas continuar?
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleCloseWeek}>Sí, Cerrar Semana</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </CardContent>
             </Card>
+            <div className="lg:col-span-1 flex justify-end">
+                <Card className="w-full bg-gradient-to-r from-[hsl(var(--sidebar-background))] to-[hsl(var(--sidebar-accent))] text-sidebar-foreground">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                            Caja Chica (Mes Actual)
+                        </CardTitle>
+                        <DollarSign className="h-4 w-4 text-sidebar-foreground/70" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold">
+                            {formatCurrency(totalCajaChicaMes)}
+                        </div>
+                        <p className="text-xs text-sidebar-foreground/70">
+                            Suma de la caja chica de todas las oficinas en el mes en curso.
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
         <Card>
         <CardHeader>
