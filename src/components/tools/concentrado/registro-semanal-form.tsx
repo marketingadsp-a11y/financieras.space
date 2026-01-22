@@ -70,11 +70,11 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
     
     const calculatedFondoSiguiente = fondoInicio - venta + recolectado - gastos;
     
-    if (watchedValues.fondoSiguienteSemana !== calculatedFondoSiguiente) {
-      form.setValue('fondoSiguienteSemana', calculatedFondoSiguiente, { shouldValidate: true });
+    // Only set value if it's different to avoid re-renders
+    if (form.getValues('fondoSiguienteSemana') !== calculatedFondoSiguiente) {
+        form.setValue('fondoSiguienteSemana', calculatedFondoSiguiente, { shouldValidate: true });
     }
-
-  }, [watchedValues.fondoInicio, watchedValues.venta, watchedValues.recolectado, watchedValues.gastos, form, watchedValues.fondoSiguienteSemana]);
+  }, [watchedValues.fondoInicio, watchedValues.venta, watchedValues.recolectado, watchedValues.gastos, form]);
 
 
   React.useEffect(() => {
@@ -101,7 +101,11 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
 
   const handleFormSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
-    await onSubmit(values);
+    // Ensure all values are numbers before submitting
+    const numericValues = Object.fromEntries(
+        Object.entries(values).map(([key, value]) => [key, Number(value) || 0])
+    ) as FormValues;
+    await onSubmit(numericValues);
     setIsSubmitting(false);
   };
   
@@ -131,7 +135,7 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
               <ScrollArea className="h-[60vh] p-1">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pr-4">
                   {/* Left Column */}
-                  <div className="md:col-span-1 space-y-4 bg-muted/30 p-4 rounded-lg border">
+                  <div className="md:col-span-1 space-y-4 bg-primary/5 p-4 rounded-lg border">
                     <FormField control={form.control} name="fondoInicio" render={({ field }) => (<FormItem><FormLabel>Fondo de Inicio</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled={isFondoInicioDisabled} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="venta" render={({ field }) => (<FormItem><FormLabel>Venta</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="recolectado" render={({ field }) => (<FormItem><FormLabel>Recolectado</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
