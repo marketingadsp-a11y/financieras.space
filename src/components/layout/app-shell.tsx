@@ -40,6 +40,7 @@ import {
   Upload,
   HandCoins,
   DollarSign,
+  Calendar,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -677,6 +678,16 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                             <span>
                                 <LayoutDashboard />
                                 <span>Dashboard</span>
+                            </span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/tools/concentrado/resumen">
+                        <SidebarMenuButton asChild isActive={pathname === "/tools/concentrado/resumen"} tooltip="Resumen Mensual">
+                            <span>
+                                <Calendar />
+                                <span>Resumen</span>
                             </span>
                         </SidebarMenuButton>
                     </Link>
