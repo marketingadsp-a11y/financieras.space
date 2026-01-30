@@ -151,21 +151,21 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
               <ScrollArea className="h-[60vh] p-1">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pr-4">
                   {/* Column 1: Flujo Principal */}
-                  <div className="space-y-2 bg-blue-500/10 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <FormField control={form.control} name="fondoInicio" render={({ field }) => (<FormItem><FormLabel>Fondo de Inicio</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled={isFondoInicioDisabled} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="venta" render={({ field }) => (<FormItem><FormLabel>Venta</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="recolectado" render={({ field }) => (<FormItem><FormLabel>Recolectado</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="gastos" render={({ field }) => (<FormItem><FormLabel>Gastos</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="fondoSiguienteSemana" render={({ field }) => (<FormItem><FormLabel>Fondo Siguiente Semana</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled /></FormControl><FormMessage /></FormItem>)} />
+                  <div className="space-y-1 bg-blue-500/10 p-2 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <FormField control={form.control} name="fondoInicio" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Fondo de Inicio</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled={isFondoInicioDisabled} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="venta" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Venta</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="recolectado" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Recolectado</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="gastos" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Gastos</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="fondoSiguienteSemana" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Fondo Siguiente Semana</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled /></FormControl><FormMessage /></FormItem>)} />
                   </div>
                   {/* Column 2: Conceptos Financieros */}
-                   <div className="space-y-2 bg-green-500/10 p-4 rounded-lg border border-green-200 dark:border-green-800">
-                    <FormField control={form.control} name="cajaChica" render={({ field }) => (<FormItem><FormLabel>Caja Chica</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                   <div className="space-y-1 bg-green-500/10 p-2 rounded-lg border border-green-200 dark:border-green-800">
+                    <FormField control={form.control} name="cajaChica" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Caja Chica</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField
                       control={form.control}
                       name="seguros"
                       render={({ field }) => (
-                          <FormItem>
+                          <FormItem className="space-y-1">
                               <FormLabel>Seguros</FormLabel>
                               <div className="flex items-center gap-2">
                                   <FormControl>
@@ -179,18 +179,18 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
                           </FormItem>
                       )}
                     />
-                    <FormField control={form.control} name="interesMensual" render={({ field }) => (<FormItem><FormLabel>Interés Mensual</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="carteraVencida" render={({ field }) => (<FormItem><FormLabel>Cartera Vencida</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="capitalMensual" render={({ field }) => (<FormItem><FormLabel>Capital Mensual</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="interesMensual" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Interés Mensual</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="carteraVencida" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Cartera Vencida</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="capitalMensual" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Capital Mensual</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                   </div>
                   {/* Column 3: Otros Conceptos */}
-                  <div className="space-y-2 bg-yellow-500/10 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                    <FormField control={form.control} name="debe" render={({ field }) => (<FormItem><FormLabel>Debe</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="saliente" render={({ field }) => (<FormItem><FormLabel>Saliente</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="falla" render={({ field }) => (<FormItem><FormLabel>Falla</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem><FormLabel>Recuperado</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="adelantos" render={({ field }) => (<FormItem><FormLabel>Adelantos</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="semanaExtra" render={({ field }) => (<FormItem><FormLabel>Semana Extra</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                  <div className="space-y-1 bg-yellow-500/10 p-2 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <FormField control={form.control} name="debe" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Debe</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="saliente" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Saliente</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="falla" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Falla</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="recuperado" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Recuperado</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="adelantos" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Adelantos</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="semanaExtra" render={({ field }) => (<FormItem className="space-y-1"><FormLabel>Semana Extra</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                   </div>
                 </div>
               </ScrollArea>
