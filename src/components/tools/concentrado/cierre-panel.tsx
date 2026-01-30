@@ -182,7 +182,7 @@ export function CierrePanel() {
                 const weekStartUTC = new Date(week.start).getTime();
                 return registroDateUTC === weekStartUTC;
             });
-            return registrosDeLaSemana.reduce((sum, r) => sum + (r.cajaChica || 0) + (r.capitalMensual || 0) + (r.interesMensual || 0) + (r.carteraVencida || 0) + (r.seguros || 0), 0);
+            return registrosDeLaSemana.reduce((sum, r) => sum + (r.cajaChica || 0), 0);
         });
     }, [allRegistros, weeksOfMonth]);
     
@@ -237,7 +237,7 @@ export function CierrePanel() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader><CardTitle>Totales por Semana</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Totales por Semana (Caja Chica)</CardTitle></CardHeader>
                     <CardContent className="space-y-2">
                         {weeklyTotals.map((total, index) => (
                             <div key={index} className="flex justify-between items-center p-3 rounded-md bg-muted/50">
