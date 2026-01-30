@@ -352,11 +352,7 @@ export function CierrePanel() {
             </div>
             
              <Card>
-                <CardHeader>
-                    <CardTitle>Registros Manuales del Cierre</CardTitle>
-                    <CardDescription>Ingresa los montos correspondientes a estos conceptos para el mes.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-1"><Label>Financieras</Label><CurrencyInput value={cierreData.financieras} onValueChange={(v) => handleManualDataChange('financieras', v || 0)} /></div>
                         <div className="space-y-1"><Label>Multas</Label><CurrencyInput value={cierreData.multas} onValueChange={(v) => handleManualDataChange('multas', v || 0)} /></div>
