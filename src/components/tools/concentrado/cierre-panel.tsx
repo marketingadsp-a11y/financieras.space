@@ -67,35 +67,43 @@ const formatCurrency = (value: number) => {
 const RentaDialog = ({ onAddRenta }: { onAddRenta: (item: Omit<RentaItem, 'id'>) => void }) => {
     const [description, setDescription] = React.useState('');
     const [amount, setAmount] = React.useState<number | undefined>();
+    const [isOpen, setIsOpen] = React.useState(false);
+
 
     const handleAdd = () => {
         if (description && amount) {
             onAddRenta({ description, amount });
             setDescription('');
             setAmount(undefined);
+            setIsOpen(false);
         }
     }
 
     return (
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Agregar Renta</DialogTitle>
-                <DialogDescription>Añade un nuevo concepto de renta con su descripción y monto.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="renta-desc">Descripción</Label>
-                    <Input id="renta-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej. Renta Oficina Principal" />
+         <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline"><PlusCircle className="mr-2"/>Agregar Renta</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Agregar Renta</DialogTitle>
+                    <DialogDescription>Añade un nuevo concepto de renta con su descripción y monto.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="renta-desc">Descripción</Label>
+                        <Input id="renta-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej. Renta Oficina Principal" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="renta-amount">Monto</Label>
+                        <CurrencyInput id="renta-amount" value={amount} onValueChange={setAmount} placeholder="0.00" />
+                    </div>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="renta-amount">Monto</Label>
-                    <CurrencyInput id="renta-amount" value={amount} onValueChange={setAmount} placeholder="0.00" />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button onClick={handleAdd} disabled={!description || !amount}>Agregar</Button>
-            </DialogFooter>
-        </DialogContent>
+                <DialogFooter>
+                    <Button onClick={handleAdd} disabled={!description || !amount}>Agregar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -108,7 +116,7 @@ export function CierrePanel() {
     });
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
-    const [isRentaDialogOpen, setIsRentaDialogOpen] = React.useState(false);
+
     const [currentMonth, setCurrentMonth] = React.useState(new Date());
 
     const fetchData = React.useCallback(async () => {
@@ -124,7 +132,8 @@ export function CierrePanel() {
             ]);
             setAllRegistros(registrosData);
             if (cierreDataFromDb) {
-                setCierreData(cierreDataFromDb);
+                // Ensure rentas is always an array
+                setCierreData({ ...cierreDataFromDb, rentas: cierreDataFromDb.rentas || [] });
             }
             
         } catch (error) {
@@ -148,15 +157,14 @@ export function CierrePanel() {
     const handleAddRenta = (item: Omit<RentaItem, 'id'>) => {
         setCierreData(prev => ({
             ...prev,
-            rentas: [...prev.rentas, { ...item, id: `r${Date.now()}` }]
+            rentas: [...(prev.rentas || []), { ...item, id: `r${Date.now()}` }]
         }));
-        setIsRentaDialogOpen(false);
     }
     
     const handleRemoveRenta = (id: string) => {
         setCierreData(prev => ({
             ...prev,
-            rentas: prev.rentas.filter(r => r.id !== id)
+            rentas: (prev.rentas || []).filter(r => r.id !== id)
         }));
     }
     
@@ -200,7 +208,7 @@ export function CierrePanel() {
         }, { capitalMensual: 0, interesMensual: 0, carteraVencida: 0, seguros: 0 });
     }, [allRegistros, weeksOfMonth]);
     
-    const totalRentas = cierreData.rentas.reduce((sum, r) => sum + r.amount, 0);
+    const totalRentas = (cierreData.rentas || []).reduce((sum, r) => sum + r.amount, 0);
 
     if (isLoading) {
         return (
@@ -239,12 +247,17 @@ export function CierrePanel() {
                 <Card>
                     <CardHeader><CardTitle>Totales por Semana (Caja Chica)</CardTitle></CardHeader>
                     <CardContent className="space-y-2">
-                        {weeklyTotals.map((total, index) => (
-                            <div key={index} className="flex justify-between items-center p-3 rounded-md bg-muted/50">
-                                <span className="font-semibold">Semana {index + 1}</span>
-                                <span className="font-mono text-lg">{formatCurrency(total)}</span>
-                            </div>
-                        ))}
+                        {weeklyTotals.map((total, index) => {
+                           if (index < weeksOfMonth.length) { // Only show for existing weeks
+                             return (
+                                <div key={index} className="flex justify-between items-center p-3 rounded-md bg-muted/50">
+                                    <span className="font-semibold">Semana {index + 1}</span>
+                                    <span className="font-mono text-lg">{formatCurrency(total)}</span>
+                                </div>
+                            )
+                           }
+                           return null;
+                        })}
                     </CardContent>
                 </Card>
                 
@@ -286,16 +299,11 @@ export function CierrePanel() {
                      <div className="space-y-2 pt-4">
                         <div className="flex justify-between items-center">
                             <Label>Rentas</Label>
-                             <Dialog open={isRentaDialogOpen} onOpenChange={setIsRentaDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button size="sm" variant="outline"><PlusCircle className="mr-2"/>Agregar Renta</Button>
-                                </DialogTrigger>
-                                <RentaDialog onAddRenta={handleAddRenta} />
-                            </Dialog>
+                             <RentaDialog onAddRenta={handleAddRenta} />
                         </div>
                         <div className="border rounded-lg p-2 space-y-1">
-                            {cierreData.rentas.length > 0 ? (
-                                cierreData.rentas.map(renta => (
+                            {(cierreData.rentas || []).length > 0 ? (
+                                (cierreData.rentas || []).map(renta => (
                                     <div key={renta.id} className="flex justify-between items-center p-1.5 rounded-md hover:bg-muted">
                                         <span className="text-sm">{renta.description}</span>
                                         <div className="flex items-center gap-2">
@@ -322,3 +330,5 @@ export function CierrePanel() {
         </div>
     );
 }
+
+    
