@@ -598,6 +598,7 @@ export type ConcentradoSemanal = {
   seguros: number;
   interesMensual: number;
   carteraVencida: number;
+  capitalMensual: number;
   debe: number;
   saliente: number;
   falla: number;

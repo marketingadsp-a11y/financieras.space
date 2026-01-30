@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -12,11 +13,11 @@ import {
 } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2, ChevronLeft, ChevronRight, History, DollarSign, Lock, LockOpen } from "lucide-react";
-import { getConcentradoOficinas, getRegistrosByOficina, getAllConcentradoRegistros, getWeeklyClosures, setWeeklyClosure } from "@/services/concentrado-service";
+import { getConcentradoOficinas, getAllConcentradoRegistros, getWeeklyClosures, setWeeklyClosure } from "@/services/concentrado-service";
 import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { format, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
+import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -45,6 +46,7 @@ type SummaryRow = {
   fondoSiguienteSemana: number;
   seguros: number;
   interesMensual: number;
+  capitalMensual: number;
   carteraVencida: number;
 };
 
@@ -124,9 +126,11 @@ export function ConcentradoDashboard() {
     const { start: weekStart, end: weekEnd } = getWeekBoundaries(selectedDate);
     
     const now = new Date();
-    const weeksInCurrentMonth = getMonthWeeks(now);
-    const currentMonthStart = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[0].start : startOfMonth(now);
-    const currentMonthEnd = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[weeksInCurrentMonth.length - 1].end : endOfMonth(now);
+    const currentMonthDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const weeksInCurrentMonth = getMonthWeeks(currentMonthDate);
+    
+    const currentMonthStart = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[0].start : new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[weeksInCurrentMonth.length - 1].end : new Date(now.getFullYear(), now.getMonth() + 1, 0);
     
     try {
         const [oficinas, allRegistros, closures] = await Promise.all([
@@ -163,6 +167,7 @@ export function ConcentradoDashboard() {
                 acc.fondoSiguienteSemana += r.fondoSiguienteSemana || 0;
                 acc.seguros += r.seguros || 0;
                 acc.interesMensual += r.interesMensual || 0;
+                acc.capitalMensual += r.capitalMensual || 0;
                 acc.carteraVencida += r.carteraVencida || 0;
                 return acc;
             }, {
@@ -174,6 +179,7 @@ export function ConcentradoDashboard() {
                 fondoSiguienteSemana: 0,
                 seguros: 0,
                 interesMensual: 0,
+                capitalMensual: 0,
                 carteraVencida: 0,
             });
 
@@ -243,6 +249,7 @@ export function ConcentradoDashboard() {
         acc.fondoSiguienteSemana += s.fondoSiguienteSemana;
         acc.seguros += s.seguros;
         acc.interesMensual += s.interesMensual;
+        acc.capitalMensual += s.capitalMensual;
         acc.carteraVencida += s.carteraVencida;
         return acc;
     }, {
@@ -254,6 +261,7 @@ export function ConcentradoDashboard() {
         fondoSiguienteSemana: 0,
         seguros: 0,
         interesMensual: 0,
+        capitalMensual: 0,
         carteraVencida: 0,
     });
   }, [summaries]);
@@ -278,7 +286,7 @@ export function ConcentradoDashboard() {
                         <AlertDialogTrigger asChild>
                             <Button
                                 disabled={isCurrentWeekClosed}
-                                className="bg-gradient-to-r from-[hsl(var(--sidebar-background))] to-[hsl(var(--sidebar-accent))] text-sidebar-foreground hover:from-[hsl(var(--sidebar-accent))] hover:to-[hsl(var(--sidebar-background))]"
+                                className="bg-gradient-to-r from-blue-700 to-blue-900 text-white hover:from-blue-600 hover:to-blue-800"
                             >
                                 <Lock className="mr-2 h-4 w-4" /> Cerrar Semana Actual
                             </Button>
@@ -351,6 +359,7 @@ export function ConcentradoDashboard() {
                                 <TableHead className="text-right font-semibold border-r">Fondo Sig. Semana</TableHead>
                                 <TableHead className="text-right font-semibold border-r">Seguros</TableHead>
                                 <TableHead className="text-right font-semibold border-r">Interés Mensual</TableHead>
+                                <TableHead className="text-right font-semibold border-r">Capital Mensual</TableHead>
                                 <TableHead className="text-right font-semibold">Cartera Vencida</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -371,12 +380,13 @@ export function ConcentradoDashboard() {
                                         <TableCell className="text-right border-r">{formatCurrency(summary.fondoSiguienteSemana)}</TableCell>
                                         <TableCell className="text-right border-r">{formatCurrency(summary.seguros)}</TableCell>
                                         <TableCell className="text-right border-r">{formatCurrency(summary.interesMensual)}</TableCell>
+                                        <TableCell className="text-right border-r">{formatCurrency(summary.capitalMensual)}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(summary.carteraVencida)}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={10} className="h-24 text-center">
+                                    <TableCell colSpan={11} className="h-24 text-center">
                                         No hay datos registrados en ninguna oficina para esta semana.
                                     </TableCell>
                                 </TableRow>
@@ -393,6 +403,7 @@ export function ConcentradoDashboard() {
                                 <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.fondoSiguienteSemana)}</TableCell>
                                 <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.seguros)}</TableCell>
                                 <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.interesMensual)}</TableCell>
+                                <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.capitalMensual)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(totals.carteraVencida)}</TableCell>
                             </TableRow>
                         </TableFooter>

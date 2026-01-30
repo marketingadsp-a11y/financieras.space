@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -33,6 +34,7 @@ type MonthlySummaryRow = {
   fondoSiguienteSemana: number;
   seguros: number;
   interesMensual: number;
+  capitalMensual: number;
   carteraVencida: number;
 };
 
@@ -124,6 +126,7 @@ export function ResumenPanel() {
                 acc.gastos += r.gastos || 0;
                 acc.seguros += r.seguros || 0;
                 acc.interesMensual += r.interesMensual || 0;
+                acc.capitalMensual += r.capitalMensual || 0;
                 acc.carteraVencida += r.carteraVencida || 0;
                 return acc;
             }, {
@@ -133,6 +136,7 @@ export function ResumenPanel() {
                 gastos: 0,
                 seguros: 0,
                 interesMensual: 0,
+                capitalMensual: 0,
                 carteraVencida: 0,
             });
 
@@ -179,6 +183,7 @@ export function ResumenPanel() {
         acc.fondoSiguienteSemana += s.fondoSiguienteSemana;
         acc.seguros += s.seguros;
         acc.interesMensual += s.interesMensual;
+        acc.capitalMensual += s.capitalMensual;
         acc.carteraVencida += s.carteraVencida;
         return acc;
     }, {
@@ -190,6 +195,7 @@ export function ResumenPanel() {
         fondoSiguienteSemana: 0,
         seguros: 0,
         interesMensual: 0,
+        capitalMensual: 0,
         carteraVencida: 0,
     });
   }, [summaries]);
@@ -232,6 +238,7 @@ export function ResumenPanel() {
                             <TableHead className="text-right font-semibold border-r">Fondo Sig. Semana</TableHead>
                             <TableHead className="text-right font-semibold border-r">Seguros</TableHead>
                             <TableHead className="text-right font-semibold border-r">Interés Mensual</TableHead>
+                            <TableHead className="text-right font-semibold border-r">Capital Mensual</TableHead>
                             <TableHead className="text-right font-semibold">Cartera Vencida</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -252,12 +259,13 @@ export function ResumenPanel() {
                                     <TableCell className="text-right border-r">{formatCurrency(summary.fondoSiguienteSemana)}</TableCell>
                                     <TableCell className="text-right border-r">{formatCurrency(summary.seguros)}</TableCell>
                                     <TableCell className="text-right border-r">{formatCurrency(summary.interesMensual)}</TableCell>
+                                    <TableCell className="text-right border-r">{formatCurrency(summary.capitalMensual)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(summary.carteraVencida)}</TableCell>
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={10} className="h-24 text-center">
+                                <TableCell colSpan={11} className="h-24 text-center">
                                     No hay datos registrados en ninguna oficina para este mes.
                                 </TableCell>
                             </TableRow>
@@ -274,6 +282,7 @@ export function ResumenPanel() {
                             <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.fondoSiguienteSemana)}</TableCell>
                             <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.seguros)}</TableCell>
                             <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.interesMensual)}</TableCell>
+                            <TableCell className="text-right border-r border-sidebar-border">{formatCurrency(totals.capitalMensual)}</TableCell>
                             <TableCell className="text-right">{formatCurrency(totals.carteraVencida)}</TableCell>
                         </TableRow>
                     </TableFooter>

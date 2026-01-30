@@ -83,6 +83,7 @@ const WeekCard = ({
         { label: "Caja Chica", value: registro?.cajaChica },
         { label: "Seguros", value: registro?.seguros },
         { label: "Interés Mensual", value: registro?.interesMensual },
+        { label: "Capital Mensual", value: registro?.capitalMensual },
         { label: "Cartera Vencida", value: registro?.carteraVencida },
         { label: "Debe", value: registro?.debe },
         { label: "Saliente", value: registro?.saliente },
