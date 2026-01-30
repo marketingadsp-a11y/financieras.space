@@ -4,11 +4,13 @@
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, getDoc, setDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure } from "@/lib/data";
+import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure, ConcentradoCierre } from "@/lib/data";
+import { format } from "date-fns";
 
 const oficinasCollectionRef = collection(db, "concentrado_oficinas");
 const registrosSemanalCollectionRef = collection(db, "concentrado_registros_semanal");
 const weeklyClosuresCollectionRef = collection(db, "concentrado_weekly_closures");
+const cierresCollectionRef = collection(db, "concentrado_cierres_mensuales");
 
 
 export async function getConcentradoOficinas(prefix: string): Promise<ConcentradoOficina[]> {
@@ -220,4 +222,35 @@ export async function setWeeklyClosure(prefix: string, weekStartDate: Date, isCl
         weekStartDate: Timestamp.fromDate(weekStartDate),
         isClosed,
     }, { merge: true });
+}
+
+// --- Monthly Cierre Functions ---
+
+export async function getCierreMensual(prefix: string, month: Date): Promise<ConcentradoCierre | null> {
+    const monthId = `${format(month, "yyyy-MM")}`;
+    const docId = `${prefix}_${monthId}`;
+    const docRef = doc(db, cierresCollectionRef, docId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as ConcentradoCierre;
+    }
+    
+    // If it doesn't exist, return a default structure
+    return {
+        id: docId,
+        prefix,
+        financieras: 0,
+        multas: 0,
+        interesMesPasado: 0,
+        prestamistasMes: 0,
+        rentas: [],
+    };
+}
+
+export async function saveCierreMensual(cierre: Omit<ConcentradoCierre, 'id'>, month: Date): Promise<void> {
+    const monthId = `${format(month, "yyyy-MM")}`;
+    const docId = `${cierre.prefix}_${monthId}`;
+    const docRef = doc(db, cierresCollectionRef, docId);
+    await setDoc(docRef, cierre, { merge: true });
 }

@@ -609,6 +609,23 @@ export type ConcentradoSemanal = {
   updatedBy: string;
 };
 
+export type RentaItem = {
+  id: string;
+  description: string;
+  amount: number;
+};
+
+export type ConcentradoCierre = {
+  id: string; // YYYY-MM
+  prefix: string;
+  financieras: number;
+  multas: number;
+  interesMesPasado: number;
+  prestamistasMes: number;
+  rentas: RentaItem[];
+};
+
+
 // --- VisorApp ---
 export type VisorSupervisor = {
     id: string;
