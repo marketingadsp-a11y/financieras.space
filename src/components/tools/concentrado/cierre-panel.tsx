@@ -330,8 +330,7 @@ export function CierrePanel() {
                 </Card>
                 
                 <Card>
-                    <CardHeader><CardTitle>Totales por Concepto (Mensual)</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-2 pt-6">
                         <div className="flex justify-between items-center p-3 rounded-md bg-muted/50">
                             <span className="font-semibold">Capital Mensual</span>
                             <span className="font-mono text-lg">{formatCurrency(monthlyConceptTotals.capitalMensual)}</span>
