@@ -233,7 +233,16 @@ export async function getCierreMensual(prefix: string, month: Date): Promise<Con
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as ConcentradoCierre;
+        const data = docSnap.data();
+        return { 
+            id: docSnap.id,
+            prefix: data.prefix,
+            financieras: data.financieras || 0,
+            multas: data.multas || 0,
+            interesMesPasado: data.interesMesPasado || 0,
+            prestamistasMes: data.prestamistasMes || 0,
+            rentas: data.rentas || [],
+         } as ConcentradoCierre;
     }
     
     // If it doesn't exist, return a default structure
