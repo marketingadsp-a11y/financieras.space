@@ -166,9 +166,7 @@ export function CierrePanel() {
                 getCierreMensual(user.prefix, currentMonth),
             ]);
             setAllRegistros(registrosData || []);
-            setCierreData(cierreDataFromDb || {
-                financieras: 0, multas: 0, interesMesPasado: 0, prestamistasMes: 0, rentas: [], pasivos: []
-            });
+            setCierreData(cierreDataFromDb);
             
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -272,10 +270,10 @@ export function CierrePanel() {
         monthlyConceptTotals.interesMensual +
         monthlyConceptTotals.carteraVencida +
         monthlyConceptTotals.seguros +
-        (cierreData.financieras || 0) +
-        (cierreData.multas || 0) +
-        (cierreData.interesMesPasado || 0) +
-        (cierreData.prestamistasMes || 0) +
+        (cierreData?.financieras || 0) +
+        (cierreData?.multas || 0) +
+        (cierreData?.interesMesPasado || 0) +
+        (cierreData?.prestamistasMes || 0) -
         totalRentas -
         totalPasivos;
 
@@ -432,7 +430,7 @@ export function CierrePanel() {
                         <div className="my-6">
                             <span className="text-6xl font-bold tracking-tighter animate-pulse">{formatCurrency(totalAEntregar)}</span>
                         </div>
-                        <CardDescription className="text-indigo-200">Este es el resultado final del cierre del mes, restando los pasivos.</CardDescription>
+                        <CardDescription className="text-indigo-200">Este es el resultado final del cierre del mes, restando las rentas y pasivos.</CardDescription>
                     </div>
                 </div>
             </Card>
