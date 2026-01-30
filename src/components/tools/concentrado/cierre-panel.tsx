@@ -4,25 +4,17 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoCierre, RentaItem, PasivoItem } from "@/lib/data";
-import { getConcentradoOficinas, getAllConcentradoRegistros, getCierreMensual, saveCierreMensual } from "@/services/concentrado-service";
+import type { ConcentradoSemanal, ConcentradoCierre, RentaItem, PasivoItem } from "@/lib/data";
+import { getAllConcentradoRegistros, getCierreMensual, saveCierreMensual } from "@/services/concentrado-service";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ChevronLeft, ChevronRight, Calendar, DollarSign, PlusCircle, Trash2, Save } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Save, PlusCircle, Trash2 } from "lucide-react";
 import { format, subMonths, addMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogTrigger,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription, } from "@/components/ui/dialog";
 
 // This function needs to be identical to the one in oficina-panel.tsx
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
@@ -173,20 +165,13 @@ export function CierrePanel() {
                 getAllConcentradoRegistros(user.prefix),
                 getCierreMensual(user.prefix, currentMonth),
             ]);
-            setAllRegistros(registrosData);
-            if (cierreDataFromDb) {
-                setCierreData({ 
-                    ...cierreDataFromDb, 
-                    rentas: cierreDataFromDb.rentas || [],
-                    pasivos: cierreDataFromDb.pasivos || [],
-                });
-            } else {
-                 setCierreData({
-                    financieras: 0, multas: 0, interesMesPasado: 0, prestamistasMes: 0, rentas: [], pasivos: []
-                });
-            }
+            setAllRegistros(registrosData || []);
+            setCierreData(cierreDataFromDb || {
+                financieras: 0, multas: 0, interesMesPasado: 0, prestamistasMes: 0, rentas: [], pasivos: []
+            });
             
         } catch (error) {
+            console.error("Error fetching data:", error);
             toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos de cierre." });
         } finally {
             setIsLoading(false);
@@ -248,6 +233,7 @@ export function CierrePanel() {
     const weeksOfMonth = React.useMemo(() => getWeeksForMonth(currentMonth), [currentMonth]);
     
     const weeklyTotals = React.useMemo(() => {
+        if (!weeksOfMonth.length || !allRegistros.length) return [];
         return weeksOfMonth.map((week) => {
             const registrosDeLaSemana = allRegistros.filter(r => {
                 const registroDateUTC = new Date(r.weekStartDate).getTime();
@@ -258,9 +244,12 @@ export function CierrePanel() {
         });
     }, [allRegistros, weeksOfMonth]);
 
-    const totalCajaChicaSemanas = weeklyTotals.reduce((sum, total) => sum + total, 0);
+    const totalCajaChicaSemanas = (weeklyTotals || []).reduce((sum, total) => sum + total, 0);
     
     const monthlyConceptTotals = React.useMemo(() => {
+        if (!allRegistros.length) {
+             return { capitalMensual: 0, interesMensual: 0, carteraVencida: 0, seguros: 0 };
+        }
         const monthRegistros = allRegistros.filter(r => {
             const registroDate = new Date(r.weekStartDate);
             return weeksOfMonth.some(week => registroDate >= week.start && registroDate <= week.end);
@@ -274,8 +263,8 @@ export function CierrePanel() {
         }, { capitalMensual: 0, interesMensual: 0, carteraVencida: 0, seguros: 0 });
     }, [allRegistros, weeksOfMonth]);
     
-    const totalRentas = (cierreData.rentas || []).reduce((sum, r) => sum + r.amount, 0);
-    const totalPasivos = (cierreData.pasivos || []).reduce((sum, p) => sum + p.amount, 0);
+    const totalRentas = (cierreData?.rentas || []).reduce((sum, r) => sum + r.amount, 0);
+    const totalPasivos = (cierreData?.pasivos || []).reduce((sum, p) => sum + p.amount, 0);
 
     const totalAEntregar = 
         totalCajaChicaSemanas +
@@ -328,7 +317,7 @@ export function CierrePanel() {
                 <Card>
                     <CardHeader><CardTitle>Totales por Semana (Caja Chica)</CardTitle></CardHeader>
                     <CardContent className="space-y-2">
-                        {weeklyTotals.map((total, index) => {
+                        {(weeklyTotals || []).map((total, index) => {
                            if (index < weeksOfMonth.length) {
                              return (
                                 <div key={index} className="flex justify-between items-center p-3 rounded-md bg-muted/50">
@@ -343,7 +332,7 @@ export function CierrePanel() {
                 </Card>
                 
                 <Card>
-                    <CardHeader><CardTitle>Totales por Concepto</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Totales por Concepto (Mensual)</CardTitle></CardHeader>
                     <CardContent className="space-y-2">
                         <div className="flex justify-between items-center p-3 rounded-md bg-muted/50">
                             <span className="font-semibold">Capital Mensual</span>
@@ -384,7 +373,7 @@ export function CierrePanel() {
                                 <RentaDialog onAddRenta={handleAddRenta} />
                             </div>
                             <div className="border rounded-lg p-2 space-y-1 min-h-[100px]">
-                                {(cierreData.rentas || []).length > 0 ? (
+                                {(cierreData?.rentas || []).length > 0 ? (
                                     (cierreData.rentas || []).map(renta => (
                                         <div key={renta.id} className="flex justify-between items-center p-1.5 rounded-md hover:bg-muted">
                                             <span className="text-sm">{renta.description}</span>
@@ -407,7 +396,7 @@ export function CierrePanel() {
                                 <PasivoDialog onAddPasivo={handleAddPasivo} />
                             </div>
                             <div className="border rounded-lg p-2 space-y-1 min-h-[100px]">
-                                {(cierreData.pasivos || []).length > 0 ? (
+                                {(cierreData?.pasivos || []).length > 0 ? (
                                     (cierreData.pasivos || []).map(pasivo => (
                                         <div key={pasivo.id} className="flex justify-between items-center p-1.5 rounded-md hover:bg-muted">
                                             <span className="text-sm">{pasivo.description}</span>
@@ -450,7 +439,3 @@ export function CierrePanel() {
         </div>
     );
 }
-
-    
-
-    

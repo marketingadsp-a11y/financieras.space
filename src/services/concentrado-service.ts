@@ -226,15 +226,30 @@ export async function setWeeklyClosure(prefix: string, weekStartDate: Date, isCl
 
 // --- Monthly Cierre Functions ---
 
-export async function getCierreMensual(prefix: string, month: Date): Promise<ConcentradoCierre | null> {
+export async function getCierreMensual(prefix: string, month: Date): Promise<Omit<ConcentradoCierre, 'id' | 'prefix'> | null> {
     const monthId = `${format(month, "yyyy-MM")}`;
     const docId = `${prefix}_${monthId}`;
     const docRef = doc(db, cierresCollectionRef, docId);
     const docSnap = await getDoc(docRef);
 
-    const defaultCierre = {
-        id: docId,
-        prefix,
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        // Defensive check to ensure rentas and pasivos are arrays
+        const rentas = Array.isArray(data.rentas) ? data.rentas : [];
+        const pasivos = Array.isArray(data.pasivos) ? data.pasivos : [];
+
+        return {
+            financieras: data.financieras || 0,
+            multas: data.multas || 0,
+            interesMesPasado: data.interesMesPasado || 0,
+            prestamistasMes: data.prestamistasMes || 0,
+            rentas,
+            pasivos,
+         } as Omit<ConcentradoCierre, 'id' | 'prefix'>;
+    }
+    
+    // If it doesn't exist, return a default structure instead of null
+    return {
         financieras: 0,
         multas: 0,
         interesMesPasado: 0,
@@ -242,28 +257,8 @@ export async function getCierreMensual(prefix: string, month: Date): Promise<Con
         rentas: [],
         pasivos: [],
     };
-
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        // Ensure rentas and pasivos are arrays, even if they are malformed in the DB
-        const rentas = Array.isArray(data.rentas) ? data.rentas : [];
-        const pasivos = Array.isArray(data.pasivos) ? data.pasivos : [];
-
-        return { 
-            id: docSnap.id,
-            prefix: data.prefix,
-            financieras: data.financieras || 0,
-            multas: data.multas || 0,
-            interesMesPasado: data.interesMesPasado || 0,
-            prestamistasMes: data.prestamistasMes || 0,
-            rentas,
-            pasivos,
-         } as ConcentradoCierre;
-    }
-    
-    // If it doesn't exist, return a default structure
-    return defaultCierre;
 }
+
 
 export async function saveCierreMensual(cierre: Omit<ConcentradoCierre, 'id'>, month: Date): Promise<void> {
     const monthId = `${format(month, "yyyy-MM")}`;
