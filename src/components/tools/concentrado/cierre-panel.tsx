@@ -8,13 +8,16 @@ import type { ConcentradoSemanal, ConcentradoCierre, RentaItem, PasivoItem } fro
 import { getAllConcentradoRegistros, getCierreMensual, saveCierreMensual } from "@/services/concentrado-service";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ChevronLeft, ChevronRight, Save, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Save, PlusCircle, Trash2, FileText } from "lucide-react";
 import { format, subMonths, addMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription, } from "@/components/ui/dialog";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
 
 // This function needs to be identical to the one in oficina-panel.tsx
 function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
@@ -276,6 +279,112 @@ export function CierrePanel() {
         (cierreData?.prestamistasMes || 0) -
         totalRentas -
         totalPasivos;
+        
+    const handleExportPDF = () => {
+        const doc = new jsPDF();
+        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+
+        // 1. Header
+        doc.setFillColor(41, 51, 61); // A dark, modern slate color
+        doc.rect(0, 0, pageWidth, 28, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Reporte de Cierre Mensual", 14, 18);
+
+        // 2. Subheader
+        doc.setTextColor(100);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Mes de: ${format(currentMonth, "LLLL yyyy", { locale: es })}`, 14, 38);
+        doc.text(`Generado el: ${format(new Date(), "PPP", { locale: es })}`, pageWidth - 14, 38, { align: 'right' });
+
+        let finalY = 50;
+
+        // 3. Totales (like cards)
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        doc.text("RESUMEN DE TOTALES", 14, finalY);
+        finalY += 2;
+        doc.setLineWidth(0.1);
+        doc.line(14, finalY, pageWidth - 14, finalY);
+        finalY += 8;
+
+        const totalData = [
+            ["Caja Chica del Mes", formatCurrency(totalCajaChicaSemanas)],
+            ["Capital Mensual", formatCurrency(monthlyConceptTotals.capitalMensual)],
+            ["Interés Mensual", formatCurrency(monthlyConceptTotals.interesMensual)],
+            ["Cobranza Cartera Vencida", formatCurrency(monthlyConceptTotals.carteraVencida)],
+            ["Cobranza de Seguros", formatCurrency(monthlyConceptTotals.seguros)],
+            ["Financieras", formatCurrency(cierreData?.financieras || 0)],
+            ["Multas", formatCurrency(cierreData?.multas || 0)],
+            ["Interés Mes Pasado", formatCurrency(cierreData?.interesMesPasado || 0)],
+            ["Prestamistas Mes", formatCurrency(cierreData?.prestamistasMes || 0)],
+        ];
+        autoTable(doc, {
+            startY: finalY,
+            body: totalData,
+            theme: 'plain',
+            styles: { fontSize: 10 },
+            columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY;
+
+        // 4. Rentas y Pasivos
+        finalY += 10;
+         const expenseData: (string | { content: string; styles: any })[][] = [];
+        
+        if ((cierreData.rentas || []).length > 0) {
+            (cierreData.rentas || []).forEach(r => {
+                expenseData.push([`  - ${r.description}`, formatCurrency(r.amount)])
+            })
+        }
+         expenseData.push([{ content: "Total Rentas", styles: { fontStyle: 'bold' } }, { content: formatCurrency(totalRentas), styles: { halign: 'right' } }])
+        
+         if ((cierreData.pasivos || []).length > 0) {
+            (cierreData.pasivos || []).forEach(p => {
+                expenseData.push([`  - ${p.description}`, formatCurrency(p.amount)])
+            })
+        }
+        expenseData.push([{ content: "Total Pasivos (Gastos)", styles: { fontStyle: 'bold' } }, { content: formatCurrency(totalPasivos), styles: { halign: 'right' } }])
+
+
+        autoTable(doc, {
+            startY: finalY,
+            head: [['REDUCCIONES', 'MONTO']],
+            body: expenseData,
+            theme: 'striped',
+            headStyles: { fillColor: [220, 53, 69] }, // Destructive color
+            styles: { fontSize: 9 },
+            columnStyles: { 1: { halign: 'right' } }
+        })
+        finalY = (doc as any).lastAutoTable.finalY;
+        
+        // 5. Total a Entregar
+        finalY += 15;
+        doc.setFillColor(33, 150, 243); // A nice blue
+        doc.setDrawColor(33, 150, 243);
+        doc.roundedRect(14, finalY, pageWidth - 28, 25, 3, 3, 'FD');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text("TOTAL A ENTREGAR", pageWidth / 2, finalY + 10, { align: 'center' });
+        doc.setFontSize(22);
+        doc.text(formatCurrency(totalAEntregar), pageWidth / 2, finalY + 19, { align: 'center' });
+        finalY += 30;
+
+        // Footer
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.text(`Página ${i} de ${pageCount}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
+        }
+        
+        doc.save(`Reporte_Cierre_${format(currentMonth, "LLLL_yyyy", { locale: es })}.pdf`);
+    };
 
 
     if (isLoading) {
@@ -294,7 +403,6 @@ export function CierrePanel() {
                     <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                         <div>
                             <CardTitle>Cierre Mensual</CardTitle>
-                            <CardDescription>Resumen total de las oficinas y registro de conceptos manuales para el cierre del mes.</CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="outline" size="icon" onClick={handlePrevMonth}>
@@ -305,6 +413,9 @@ export function CierrePanel() {
                             </span>
                             <Button variant="outline" size="icon" onClick={handleNextMonth}>
                                 <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                                <FileText className="mr-2 h-4 w-4" /> Exportar PDF
                             </Button>
                         </div>
                     </div>
