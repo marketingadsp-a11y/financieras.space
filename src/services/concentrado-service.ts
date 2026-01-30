@@ -242,6 +242,7 @@ export async function getCierreMensual(prefix: string, month: Date): Promise<Con
             interesMesPasado: data.interesMesPasado || 0,
             prestamistasMes: data.prestamistasMes || 0,
             rentas: data.rentas || [],
+            pasivos: data.pasivos || [],
          } as ConcentradoCierre;
     }
     
@@ -254,6 +255,7 @@ export async function getCierreMensual(prefix: string, month: Date): Promise<Con
         interesMesPasado: 0,
         prestamistasMes: 0,
         rentas: [],
+        pasivos: [],
     };
 }
 

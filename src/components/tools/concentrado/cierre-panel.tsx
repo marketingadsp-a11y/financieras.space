@@ -4,7 +4,7 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoCierre, RentaItem } from "@/lib/data";
+import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoCierre, RentaItem, PasivoItem } from "@/lib/data";
 import { getConcentradoOficinas, getAllConcentradoRegistros, getCierreMensual, saveCierreMensual } from "@/services/concentrado-service";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -107,12 +107,55 @@ const RentaDialog = ({ onAddRenta }: { onAddRenta: (item: Omit<RentaItem, 'id'>)
     )
 }
 
+const PasivoDialog = ({ onAddPasivo }: { onAddPasivo: (item: Omit<PasivoItem, 'id'>) => void }) => {
+    const [description, setDescription] = React.useState('');
+    const [amount, setAmount] = React.useState<number | undefined>();
+    const [isOpen, setIsOpen] = React.useState(false);
+
+
+    const handleAdd = () => {
+        if (description && amount) {
+            onAddPasivo({ description, amount });
+            setDescription('');
+            setAmount(undefined);
+            setIsOpen(false);
+        }
+    }
+
+    return (
+         <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline"><PlusCircle className="mr-2"/>Agregar Pasivo</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Agregar Pasivo</DialogTitle>
+                    <DialogDescription>Añade un nuevo concepto de pasivo (gasto) con su descripción y monto.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="pasivo-desc">Concepto</Label>
+                        <Input id="pasivo-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej. Pago de nómina" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="pasivo-amount">Monto</Label>
+                        <CurrencyInput id="pasivo-amount" value={amount} onValueChange={setAmount} placeholder="0.00" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleAdd} disabled={!description || !amount}>Agregar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export function CierrePanel() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [allRegistros, setAllRegistros] = React.useState<ConcentradoSemanal[]>([]);
     const [cierreData, setCierreData] = React.useState<Omit<ConcentradoCierre, 'id' | 'prefix'>>({
-        financieras: 0, multas: 0, interesMesPasado: 0, prestamistasMes: 0, rentas: []
+        financieras: 0, multas: 0, interesMesPasado: 0, prestamistasMes: 0, rentas: [], pasivos: []
     });
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
@@ -132,8 +175,15 @@ export function CierrePanel() {
             ]);
             setAllRegistros(registrosData);
             if (cierreDataFromDb) {
-                // Ensure rentas is always an array
-                setCierreData({ ...cierreDataFromDb, rentas: cierreDataFromDb.rentas || [] });
+                setCierreData({ 
+                    ...cierreDataFromDb, 
+                    rentas: cierreDataFromDb.rentas || [],
+                    pasivos: cierreDataFromDb.pasivos || [],
+                });
+            } else {
+                 setCierreData({
+                    financieras: 0, multas: 0, interesMesPasado: 0, prestamistasMes: 0, rentas: [], pasivos: []
+                });
             }
             
         } catch (error) {
@@ -165,6 +215,20 @@ export function CierrePanel() {
         setCierreData(prev => ({
             ...prev,
             rentas: (prev.rentas || []).filter(r => r.id !== id)
+        }));
+    }
+
+    const handleAddPasivo = (item: Omit<PasivoItem, 'id'>) => {
+        setCierreData(prev => ({
+            ...prev,
+            pasivos: [...(prev.pasivos || []), { ...item, id: `p${Date.now()}` }]
+        }));
+    }
+    
+    const handleRemovePasivo = (id: string) => {
+        setCierreData(prev => ({
+            ...prev,
+            pasivos: (prev.pasivos || []).filter(p => p.id !== id)
         }));
     }
     
@@ -209,6 +273,7 @@ export function CierrePanel() {
     }, [allRegistros, weeksOfMonth]);
     
     const totalRentas = (cierreData.rentas || []).reduce((sum, r) => sum + r.amount, 0);
+    const totalPasivos = (cierreData.pasivos || []).reduce((sum, p) => sum + p.amount, 0);
 
     if (isLoading) {
         return (
@@ -248,7 +313,7 @@ export function CierrePanel() {
                     <CardHeader><CardTitle>Totales por Semana (Caja Chica)</CardTitle></CardHeader>
                     <CardContent className="space-y-2">
                         {weeklyTotals.map((total, index) => {
-                           if (index < weeksOfMonth.length) { // Only show for existing weeks
+                           if (index < weeksOfMonth.length) {
                              return (
                                 <div key={index} className="flex justify-between items-center p-3 rounded-md bg-muted/50">
                                     <span className="font-semibold">Semana {index + 1}</span>
@@ -296,27 +361,52 @@ export function CierrePanel() {
                         <div className="space-y-1"><Label>Interés Mes Pasado</Label><CurrencyInput value={cierreData.interesMesPasado} onValueChange={(v) => handleManualDataChange('interesMesPasado', v || 0)} /></div>
                         <div className="space-y-1"><Label>Prestamistas Mes</Label><CurrencyInput value={cierreData.prestamistasMes} onValueChange={(v) => handleManualDataChange('prestamistasMes', v || 0)} /></div>
                     </div>
-                     <div className="space-y-2 pt-4">
-                        <div className="flex justify-between items-center">
-                            <Label>Rentas</Label>
-                             <RentaDialog onAddRenta={handleAddRenta} />
-                        </div>
-                        <div className="border rounded-lg p-2 space-y-1">
-                            {(cierreData.rentas || []).length > 0 ? (
-                                (cierreData.rentas || []).map(renta => (
-                                    <div key={renta.id} className="flex justify-between items-center p-1.5 rounded-md hover:bg-muted">
-                                        <span className="text-sm">{renta.description}</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-mono">{formatCurrency(renta.amount)}</span>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveRenta(renta.id)}><Trash2 className="h-4 w-4"/></Button>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <Label>Rentas</Label>
+                                <RentaDialog onAddRenta={handleAddRenta} />
+                            </div>
+                            <div className="border rounded-lg p-2 space-y-1 min-h-[100px]">
+                                {(cierreData.rentas || []).length > 0 ? (
+                                    (cierreData.rentas || []).map(renta => (
+                                        <div key={renta.id} className="flex justify-between items-center p-1.5 rounded-md hover:bg-muted">
+                                            <span className="text-sm">{renta.description}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono">{formatCurrency(renta.amount)}</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveRenta(renta.id)}><Trash2 className="h-4 w-4"/></Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
-                            ) : (<p className="text-sm text-muted-foreground text-center p-2">No hay rentas registradas.</p>)}
+                                    ))
+                                ) : (<p className="text-sm text-muted-foreground text-center p-2">No hay rentas registradas.</p>)}
+                            </div>
+                            <div className="flex justify-between items-center font-bold p-2 bg-muted rounded-md">
+                                <span>Total de Rentas</span>
+                                <span>{formatCurrency(totalRentas)}</span>
+                            </div>
                         </div>
-                        <div className="flex justify-between items-center font-bold p-2 bg-muted rounded-md">
-                            <span>Total de Rentas</span>
-                            <span>{formatCurrency(totalRentas)}</span>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <Label>Pasivos (Gastos)</Label>
+                                <PasivoDialog onAddPasivo={handleAddPasivo} />
+                            </div>
+                            <div className="border rounded-lg p-2 space-y-1 min-h-[100px]">
+                                {(cierreData.pasivos || []).length > 0 ? (
+                                    (cierreData.pasivos || []).map(pasivo => (
+                                        <div key={pasivo.id} className="flex justify-between items-center p-1.5 rounded-md hover:bg-muted">
+                                            <span className="text-sm">{pasivo.description}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono">{formatCurrency(pasivo.amount)}</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemovePasivo(pasivo.id)}><Trash2 className="h-4 w-4"/></Button>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (<p className="text-sm text-muted-foreground text-center p-2">No hay pasivos registrados.</p>)}
+                            </div>
+                            <div className="flex justify-between items-center font-bold p-2 bg-muted rounded-md">
+                                <span>Total de Pasivos</span>
+                                <span>{formatCurrency(totalPasivos)}</span>
+                            </div>
                         </div>
                     </div>
                 </CardContent>

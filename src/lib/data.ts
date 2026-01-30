@@ -615,6 +615,12 @@ export type RentaItem = {
   amount: number;
 };
 
+export type PasivoItem = {
+  id: string;
+  description: string;
+  amount: number;
+};
+
 export type ConcentradoCierre = {
   id: string; // YYYY-MM
   prefix: string;
@@ -623,6 +629,7 @@ export type ConcentradoCierre = {
   interesMesPasado: number;
   prestamistasMes: number;
   rentas: RentaItem[];
+  pasivos: PasivoItem[];
 };
 
 
