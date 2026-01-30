@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -23,7 +22,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 const formSchema = z.object({
   fondoInicio: z.coerce.number().min(0).default(0),
   venta: z.coerce.number().min(0).default(0),
-  recolectado: z.coerce.number().min(0).default(0),
+  recolectado: z.coerce.number().default(0),
   gastos: z.coerce.number().min(0).default(0),
   fondoSiguienteSemana: z.coerce.number().default(0),
   cajaChica: z.coerce.number().min(0).default(0),
@@ -72,11 +71,25 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
     
     const calculatedFondoSiguiente = fondoInicio - venta + recolectado - gastos;
     
-    // Only set value if it's different to avoid re-renders
     if (form.getValues('fondoSiguienteSemana') !== calculatedFondoSiguiente) {
         form.setValue('fondoSiguienteSemana', calculatedFondoSiguiente, { shouldValidate: true });
     }
   }, [watchedValues.fondoInicio, watchedValues.venta, watchedValues.recolectado, watchedValues.gastos, form]);
+  
+  React.useEffect(() => {
+    const debe = Number(watchedValues.debe) || 0;
+    const saliente = Number(watchedValues.saliente) || 0;
+    const falla = Number(watchedValues.falla) || 0;
+    const recuperado = Number(watchedValues.recuperado) || 0;
+    const adelantos = Number(watchedValues.adelantos) || 0;
+    const semanaExtra = Number(watchedValues.semanaExtra) || 0;
+
+    const calculatedRecolectado = debe - saliente - falla + recuperado + adelantos + semanaExtra;
+
+    if (form.getValues('recolectado') !== calculatedRecolectado) {
+        form.setValue('recolectado', calculatedRecolectado, { shouldValidate: true });
+    }
+  }, [watchedValues.debe, watchedValues.saliente, watchedValues.falla, watchedValues.recuperado, watchedValues.adelantos, watchedValues.semanaExtra, form]);
 
 
   React.useEffect(() => {
@@ -141,7 +154,7 @@ export function ConcentradoRegistroSemanalForm({ isOpen, onClose, onSubmit, exis
                   <div className="space-y-4 bg-blue-500/10 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                     <FormField control={form.control} name="fondoInicio" render={({ field }) => (<FormItem><FormLabel>Fondo de Inicio</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled={isFondoInicioDisabled} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="venta" render={({ field }) => (<FormItem><FormLabel>Venta</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="recolectado" render={({ field }) => (<FormItem><FormLabel>Recolectado</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="recolectado" render={({ field }) => (<FormItem><FormLabel>Recolectado</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="gastos" render={({ field }) => (<FormItem><FormLabel>Gastos</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="fondoSiguienteSemana" render={({ field }) => (<FormItem><FormLabel>Fondo Siguiente Semana</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} disabled /></FormControl><FormMessage /></FormItem>)} />
                   </div>
