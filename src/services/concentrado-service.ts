@@ -226,10 +226,10 @@ export async function setWeeklyClosure(prefix: string, weekStartDate: Date, isCl
 
 // --- Monthly Cierre Functions ---
 
-export async function getCierreMensual(prefix: string, month: Date): Promise<Omit<ConcentradoCierre, 'id' | 'prefix'> | null> {
+export async function getCierreMensual(prefix: string, month: Date): Promise<Omit<ConcentradoCierre, 'id' | 'prefix'>> {
     const monthId = `${format(month, "yyyy-MM")}`;
     const docId = `${prefix}_${monthId}`;
-    const docRef = doc(db, cierresCollectionRef, docId);
+    const docRef = doc(cierresCollectionRef, docId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -263,6 +263,6 @@ export async function getCierreMensual(prefix: string, month: Date): Promise<Omi
 export async function saveCierreMensual(cierre: Omit<ConcentradoCierre, 'id'>, month: Date): Promise<void> {
     const monthId = `${format(month, "yyyy-MM")}`;
     const docId = `${cierre.prefix}_${monthId}`;
-    const docRef = doc(db, cierresCollectionRef, docId);
+    const docRef = doc(cierresCollectionRef, docId);
     await setDoc(docRef, cierre, { merge: true });
 }
