@@ -232,22 +232,7 @@ export async function getCierreMensual(prefix: string, month: Date): Promise<Con
     const docRef = doc(db, cierresCollectionRef, docId);
     const docSnap = await getDoc(docRef);
 
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        return { 
-            id: docSnap.id,
-            prefix: data.prefix,
-            financieras: data.financieras || 0,
-            multas: data.multas || 0,
-            interesMesPasado: data.interesMesPasado || 0,
-            prestamistasMes: data.prestamistasMes || 0,
-            rentas: data.rentas || [],
-            pasivos: data.pasivos || [],
-         } as ConcentradoCierre;
-    }
-    
-    // If it doesn't exist, return a default structure
-    return {
+    const defaultCierre = {
         id: docId,
         prefix,
         financieras: 0,
@@ -257,6 +242,27 @@ export async function getCierreMensual(prefix: string, month: Date): Promise<Con
         rentas: [],
         pasivos: [],
     };
+
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        // Ensure rentas and pasivos are arrays, even if they are malformed in the DB
+        const rentas = Array.isArray(data.rentas) ? data.rentas : [];
+        const pasivos = Array.isArray(data.pasivos) ? data.pasivos : [];
+
+        return { 
+            id: docSnap.id,
+            prefix: data.prefix,
+            financieras: data.financieras || 0,
+            multas: data.multas || 0,
+            interesMesPasado: data.interesMesPasado || 0,
+            prestamistasMes: data.prestamistasMes || 0,
+            rentas,
+            pasivos,
+         } as ConcentradoCierre;
+    }
+    
+    // If it doesn't exist, return a default structure
+    return defaultCierre;
 }
 
 export async function saveCierreMensual(cierre: Omit<ConcentradoCierre, 'id'>, month: Date): Promise<void> {
