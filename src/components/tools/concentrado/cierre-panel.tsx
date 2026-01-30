@@ -313,7 +313,7 @@ export function CierrePanel() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader><CardTitle>Totales por Semana (Caja Chica)</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>CAJAS CHICAS</CardTitle></CardHeader>
                     <CardContent className="space-y-2">
                         {(weeklyTotals || []).map((total, index) => {
                            if (index < weeksOfMonth.length) {
