@@ -257,6 +257,8 @@ export function CierrePanel() {
             return registrosDeLaSemana.reduce((sum, r) => sum + (r.cajaChica || 0), 0);
         });
     }, [allRegistros, weeksOfMonth]);
+
+    const totalCajaChicaSemanas = weeklyTotals.reduce((sum, total) => sum + total, 0);
     
     const monthlyConceptTotals = React.useMemo(() => {
         const monthRegistros = allRegistros.filter(r => {
@@ -274,6 +276,20 @@ export function CierrePanel() {
     
     const totalRentas = (cierreData.rentas || []).reduce((sum, r) => sum + r.amount, 0);
     const totalPasivos = (cierreData.pasivos || []).reduce((sum, p) => sum + p.amount, 0);
+
+    const totalAEntregar = 
+        totalCajaChicaSemanas +
+        monthlyConceptTotals.capitalMensual +
+        monthlyConceptTotals.interesMensual +
+        monthlyConceptTotals.carteraVencida +
+        monthlyConceptTotals.seguros +
+        (cierreData.financieras || 0) +
+        (cierreData.multas || 0) +
+        (cierreData.interesMesPasado || 0) +
+        (cierreData.prestamistasMes || 0) +
+        totalRentas -
+        totalPasivos;
+
 
     if (isLoading) {
         return (
@@ -417,8 +433,24 @@ export function CierrePanel() {
                     </Button>
                 </CardFooter>
              </Card>
+
+            <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-2xl overflow-hidden">
+                <div className="relative p-8">
+                    <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white/10 rounded-full opacity-50"></div>
+                    <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 bg-white/10 rounded-full opacity-50"></div>
+                    <div className="relative text-center">
+                        <CardTitle className="text-xl font-semibold tracking-wider uppercase">Total a Entregar</CardTitle>
+                        <div className="my-6">
+                            <span className="text-6xl font-bold tracking-tighter animate-pulse">{formatCurrency(totalAEntregar)}</span>
+                        </div>
+                        <CardDescription className="text-indigo-200">Este es el resultado final del cierre del mes, restando los pasivos.</CardDescription>
+                    </div>
+                </div>
+            </Card>
         </div>
     );
 }
+
+    
 
     
