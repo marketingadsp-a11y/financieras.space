@@ -28,6 +28,14 @@ const fromDoc = (doc: any): EmpleadoVacaciones => {
         fechaIngresoDate = new Date();
     }
 
+    const birthdayFromDb = data.birthday;
+    let birthdayDate: Date | undefined;
+    if (birthdayFromDb && typeof birthdayFromDb.toDate === 'function') {
+        birthdayDate = birthdayFromDb.toDate();
+    } else if (birthdayFromDb) {
+        birthdayDate = new Date(birthdayFromDb);
+    }
+
     return {
         id: doc.id,
         prefix: data.prefix,
@@ -35,6 +43,7 @@ const fromDoc = (doc: any): EmpleadoVacaciones => {
         fechaIngreso: fechaIngresoDate,
         sueldoSemanal: data.sueldoSemanal,
         diasTomados: data.diasTomados || 0,
+        birthday: birthdayDate,
     };
 };
 
@@ -42,6 +51,9 @@ const toDoc = (empleado: Partial<Omit<EmpleadoVacaciones, 'id'>>) => {
     const data: any = { ...empleado };
     if (empleado.fechaIngreso) {
         data.fechaIngreso = Timestamp.fromDate(new Date(empleado.fechaIngreso));
+    }
+    if (empleado.birthday) {
+        data.birthday = Timestamp.fromDate(new Date(empleado.birthday));
     }
     return data;
 };
@@ -145,5 +157,5 @@ export async function getVacationRequests(prefix: string): Promise<VacationReque
         } as VacationRequest;
     });
     // Sort by startDate in descending order in the application code
-    return requests.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+    return requests.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }

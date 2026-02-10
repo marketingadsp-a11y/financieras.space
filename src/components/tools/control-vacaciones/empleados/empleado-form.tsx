@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -29,6 +30,7 @@ const formSchema = z.object({
   fechaIngreso: z.date({
     required_error: "La fecha de ingreso es requerida.",
   }),
+  birthday: z.date().optional(),
   sueldoSemanal: z.coerce.number().min(0, "El sueldo debe ser un número positivo."),
 });
 
@@ -48,6 +50,7 @@ export function EmpleadoForm({ onSubmit, empleado, isSubmitting }: EmpleadoFormP
         defaultValues: {
             name: empleado?.name || "",
             fechaIngreso: empleado?.fechaIngreso ? new Date(empleado.fechaIngreso) : new Date(),
+            birthday: empleado?.birthday ? new Date(empleado.birthday) : undefined,
             sueldoSemanal: empleado?.sueldoSemanal || 0,
         },
     });
@@ -56,7 +59,8 @@ export function EmpleadoForm({ onSubmit, empleado, isSubmitting }: EmpleadoFormP
         if(empleado) {
             form.reset({
                 ...empleado,
-                fechaIngreso: new Date(empleado.fechaIngreso)
+                fechaIngreso: new Date(empleado.fechaIngreso),
+                birthday: empleado.birthday ? new Date(empleado.birthday) : undefined,
             });
         }
     }, [empleado, form]);
@@ -97,7 +101,42 @@ export function EmpleadoForm({ onSubmit, empleado, isSubmitting }: EmpleadoFormP
                                         mode="single" 
                                         selected={field.value} 
                                         onSelect={field.onChange} 
+                                        captionLayout="dropdown-buttons"
+                                        fromYear={new Date().getFullYear() - 50}
+                                        toYear={new Date().getFullYear()}
                                         disabled={(date) => date > new Date()} 
+                                        initialFocus 
+                                        locale={es}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="birthday"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>Fecha de Cumpleaños</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                        {field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar 
+                                        mode="single" 
+                                        selected={field.value} 
+                                        onSelect={field.onChange} 
+                                        captionLayout="dropdown-buttons"
+                                        fromYear={new Date().getFullYear() - 100}
+                                        toYear={new Date().getFullYear()}
                                         initialFocus 
                                         locale={es}
                                     />

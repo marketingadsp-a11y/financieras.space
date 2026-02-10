@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -59,18 +60,13 @@ export function EmpleadosTable({ data, rules, onEdit, onDelete }: EmpleadosTable
     if (months > 0) {
         parts.push(`${months} mes${months !== 1 ? 'es' : ''}`);
     }
-    if (days > 0) {
+    if (days > 0 && years < 1) { // Only show days if less than a year
         parts.push(`${days} día${days !== 1 ? 's' : ''}`);
     }
     
     if (parts.length === 0) return 'Menos de un día';
     
-    if (parts.length > 1) {
-        const last = parts.pop();
-        return parts.join(', ') + ' y ' + last;
-    }
-
-    return parts[0];
+    return parts.join(', ');
   };
 
   const getVacationDays = (fechaIngreso: Date) => {
@@ -97,6 +93,7 @@ export function EmpleadosTable({ data, rules, onEdit, onDelete }: EmpleadosTable
             <TableHead>Nombre</TableHead>
             <TableHead>Fecha de Ingreso</TableHead>
             <TableHead>Antigüedad</TableHead>
+            <TableHead>Cumpleaños</TableHead>
             <TableHead>Días Disponibles</TableHead>
             <TableHead>Días Restantes</TableHead>
             <TableHead className="text-right">Sueldo Semanal</TableHead>
@@ -115,6 +112,15 @@ export function EmpleadosTable({ data, rules, onEdit, onDelete }: EmpleadosTable
                 <TableCell className="font-medium">{empleado.name}</TableCell>
                 <TableCell>{format(new Date(empleado.fechaIngreso), "PPP", { locale: es })}</TableCell>
                 <TableCell>{calculateAntiguedad(new Date(empleado.fechaIngreso))}</TableCell>
+                <TableCell>
+                  {empleado.birthday ? (
+                    <div className="font-semibold p-1 rounded-md bg-gradient-to-tr from-green-100 to-green-200 text-green-800 dark:from-green-900/50 dark:to-green-800/50 dark:text-green-200">
+                      {format(new Date(empleado.birthday), "dd 'de' LLLL", { locale: es })}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">N/A</span>
+                  )}
+                </TableCell>
                  <TableCell>
                   {elegible ? `${disponible} días` : <Badge variant="outline">No Elegible</Badge>}
                 </TableCell>
@@ -161,7 +167,7 @@ export function EmpleadosTable({ data, rules, onEdit, onDelete }: EmpleadosTable
             )})
           ) : (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
+              <TableCell colSpan={8} className="h-24 text-center">
                 No hay empleados registrados.
               </TableCell>
             </TableRow>
