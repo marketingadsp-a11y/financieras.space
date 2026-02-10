@@ -1,7 +1,7 @@
 
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins, NotebookText } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins, NotebookText, CalendarDays } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -47,7 +47,7 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales' | 'registro-oficina' | 'visor-app' | 'compensacion-ejecutivos' | 'concentrado';
+  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales' | 'registro-oficina' | 'visor-app' | 'compensacion-ejecutivos' | 'concentrado' | 'control-vacaciones';
   prefix?: string;
   createdBy?: string;
   sucursalAccess?: SucursalAccess[]; // Array of sucursal access objects for 'income-expenses'
@@ -278,6 +278,14 @@ export const allTools: Tool[] = [
     href: "/tools/concentrado",
     icon: NotebookText,
     color: '#16a34a'
+  },
+  {
+    id: "control-vacaciones",
+    name: "Control de Vacaciones",
+    description: "Gestiona y lleva el control de los días de vacaciones de los empleados.",
+    href: "/tools/control-vacaciones",
+    icon: CalendarDays,
+    color: '#f59e0b'
   }
 ];
 

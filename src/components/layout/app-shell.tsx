@@ -42,6 +42,7 @@ import {
   DollarSign,
   Calendar,
   CalendarCheck,
+  CalendarDays,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -379,6 +380,7 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
   const isRegistroOficinaPath = pathname.startsWith('/tools/registro-oficina');
   const isVisorAppPath = pathname.startsWith('/tools/visor-app');
   const isConcentradoPath = pathname.startsWith('/tools/concentrado');
+  const isControlVacacionesPath = pathname.startsWith('/tools/control-vacaciones');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -737,6 +739,26 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
         </SidebarGroup>
     );
     }
+    
+    if (isControlVacacionesPath) {
+    return (
+        <SidebarGroup>
+            <SidebarGroupLabel>CONTROL DE VACACIONES</SidebarGroupLabel>
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <Link href="/tools/control-vacaciones">
+                        <SidebarMenuButton asChild isActive={pathname === "/tools/control-vacaciones"} tooltip="Dashboard de Vacaciones">
+                            <span>
+                                <LayoutDashboard />
+                                <span>Dashboard</span>
+                            </span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarGroup>
+    );
+    }
 
 
   const renderAdminNav = () => {
@@ -983,6 +1005,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isRegistroOficinaPath = pathname.startsWith('/tools/registro-oficina');
   const isVisorAppPath = pathname.startsWith('/tools/visor-app');
   const isConcentradoPath = pathname.startsWith('/tools/concentrado');
+  const isControlVacacionesPath = pathname.startsWith('/tools/control-vacaciones');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return customTools.find(tool => tool.id === 'cartera-vencida');
@@ -994,6 +1017,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (isRegistroOficinaPath) return customTools.find(tool => tool.id === 'registro-oficina');
     if (isVisorAppPath) return customTools.find(tool => tool.id === 'visor-app');
     if (isConcentradoPath) return customTools.find(tool => tool.id === 'concentrado');
+    if (isControlVacacionesPath) return customTools.find(tool => tool.id === 'control-vacaciones');
     return null;
   }
 
@@ -1014,7 +1038,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return user.username;
   }
 
-  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath || isRegistroOficinaPath || isVisorAppPath || isConcentradoPath) && !user.isSuperAdmin;
+  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath || isRegistroOficinaPath || isVisorAppPath || isConcentradoPath || isControlVacacionesPath) && !user.isSuperAdmin;
   
   const isGlobalAdmin = !user.isSuperAdmin && !user.isToolAdmin && !user.isPlazaUser;
 
