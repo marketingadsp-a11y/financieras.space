@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -100,7 +99,7 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
   const deduction = React.useMemo(() => {
     if (permissionType === 'sueldo' && selectedEmployee && daysRequested > 0) {
       const dailySalary = selectedEmployee.sueldoSemanal / 6;
-      return dailySalary * daysRequested;
+      return Math.floor(dailySalary * daysRequested);
     }
     return 0;
   }, [selectedEmployee, daysRequested, permissionType]);
