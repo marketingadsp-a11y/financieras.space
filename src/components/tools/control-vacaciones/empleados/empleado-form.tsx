@@ -29,7 +29,7 @@ const formSchema = z.object({
   fechaIngreso: z.date({
     required_error: "La fecha de ingreso es requerida.",
   }),
-  sueldoSemanal: z.coerce.number().positive("El sueldo debe ser un número positivo."),
+  sueldoSemanal: z.coerce.number().min(0, "El sueldo debe ser un número positivo."),
 });
 
 export type EmpleadoFormValues = z.infer<typeof formSchema>;
@@ -48,7 +48,7 @@ export function EmpleadoForm({ onSubmit, empleado, isSubmitting }: EmpleadoFormP
         defaultValues: {
             name: empleado?.name || "",
             fechaIngreso: empleado?.fechaIngreso ? new Date(empleado.fechaIngreso) : new Date(),
-            sueldoSemanal: empleado?.sueldoSemanal || undefined,
+            sueldoSemanal: empleado?.sueldoSemanal || 0,
         },
     });
     

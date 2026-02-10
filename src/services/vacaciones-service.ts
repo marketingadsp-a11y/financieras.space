@@ -13,11 +13,25 @@ const vacationRequestsCollectionRef = collection(db, "vacaciones_requests");
 // --- Empleado Functions ---
 const fromDoc = (doc: any): EmpleadoVacaciones => {
     const data = doc.data();
+    
+    // Safely handle date conversion
+    const fechaIngresoFromDb = data.fechaIngreso;
+    let fechaIngresoDate: Date;
+    if (fechaIngresoFromDb && typeof fechaIngresoFromDb.toDate === 'function') {
+        fechaIngresoDate = fechaIngresoFromDb.toDate();
+    } else if (fechaIngresoFromDb) {
+        // Fallback for strings or other formats if needed
+        fechaIngresoDate = new Date(fechaIngresoFromDb);
+    } else {
+        // Fallback if field is missing
+        fechaIngresoDate = new Date();
+    }
+
     return {
         id: doc.id,
         prefix: data.prefix,
         name: data.name,
-        fechaIngreso: (data.fechaIngreso as Timestamp).toDate(),
+        fechaIngreso: fechaIngresoDate,
         sueldoSemanal: data.sueldoSemanal,
         diasTomados: data.diasTomados || 0,
     };
