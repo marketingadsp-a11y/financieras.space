@@ -45,12 +45,13 @@ import {
     CommandList,
   } from "@/components/ui/command";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar as CalendarIcon, Loader2, Check, ChevronsUpDown, CalendarDays, Wallet, User, CheckCircle, XCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Check, ChevronsUpDown, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { getEmpleados, getVacationRules, addVacationRequest, getVacationRequests } from "@/services/vacaciones-service";
@@ -62,6 +63,9 @@ const formSchema = z.object({
   daysRequested: z.coerce.number().min(1, "Debe solicitar al menos 1 día."),
   startDate: z.date({ required_error: "La fecha de inicio es requerida." }),
   authorizer: z.string().min(3, "El nombre del autorizador es requerido."),
+  permissionType: z.enum(['vacaciones', 'sueldo'], {
+    required_error: "Debes seleccionar un tipo de permiso."
+  }),
 });
 type FormValues = z.infer<typeof formSchema>;
 
@@ -111,6 +115,7 @@ export function ControlVacacionesDashboard() {
   const employeeId = watch("employeeId");
   const daysRequested = watch("daysRequested");
   const startDate = watch("startDate");
+  const permissionType = watch("permissionType");
   const selectedEmployee = React.useMemo(() => employees.find(e => e.id === employeeId), [employees, employeeId]);
   
   const availableDays = React.useMemo(() => {
@@ -122,17 +127,18 @@ export function ControlVacacionesDashboard() {
       return totalDays - (selectedEmployee.diasTomados || 0);
   }, [selectedEmployee, rules]);
 
-  const permissionInfo = React.useMemo(() => {
-    if (!selectedEmployee || !daysRequested || daysRequested <= 0) return { type: null, deduction: 0 };
-    if (daysRequested <= availableDays) return { type: 'vacaciones', deduction: 0 };
-    const dailySalary = selectedEmployee.sueldoSemanal / 6;
-    return { type: 'sueldo', deduction: dailySalary * daysRequested };
-  }, [selectedEmployee, daysRequested, availableDays]);
+  const deduction = React.useMemo(() => {
+    if (permissionType === 'sueldo' && selectedEmployee && daysRequested > 0) {
+      const dailySalary = selectedEmployee.sueldoSemanal / 6;
+      return dailySalary * daysRequested;
+    }
+    return 0;
+  }, [selectedEmployee, daysRequested, permissionType]);
   
   const returnDate = React.useMemo(() => startDate && daysRequested > 0 ? addDays(startDate, daysRequested) : null, [startDate, daysRequested]);
   
   const onSubmit = async (data: FormValues) => {
-    if (!user?.prefix || !selectedEmployee || !returnDate || !permissionInfo.type) {
+    if (!user?.prefix || !selectedEmployee || !returnDate) {
         toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para registrar la solicitud.' });
         return;
     }
@@ -145,9 +151,9 @@ export function ControlVacacionesDashboard() {
             daysRequested: data.daysRequested,
             startDate: data.startDate,
             returnDate,
-            type: permissionInfo.type as 'vacaciones' | 'sueldo',
+            type: data.permissionType,
             authorizer: data.authorizer,
-            deductedAmount: permissionInfo.deduction,
+            deductedAmount: deduction,
         });
         toast({ title: 'Éxito', description: 'Solicitud de vacaciones registrada.'});
         reset({ daysRequested: 1, authorizer: user.name || "" });
@@ -175,7 +181,7 @@ export function ControlVacacionesDashboard() {
            ) : (
              <Form {...form}>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
                     <FormField control={control} name="employeeId" render={({ field }) => (
                       <FormItem className="flex flex-col"><FormLabel>Empleado</FormLabel>
                         <Popover open={openCombobox} onOpenChange={setOpenCombobox}><PopoverTrigger asChild>
@@ -212,19 +218,64 @@ export function ControlVacacionesDashboard() {
                         </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover>
                         <FormMessage />
                       </FormItem>)} />
-                    <FormField control={control} name="authorizer" render={({ field }) => (<FormItem><FormLabel>Autorizado por</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                   </div>
-
+                  
                   {selectedEmployee && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-muted/30">
-                        <div><p className="text-sm font-semibold">Días Disponibles</p><p className="text-lg">{availableDays} días</p></div>
-                        <div><p className="text-sm font-semibold">Fecha de Regreso</p><p className="text-lg">{returnDate ? format(returnDate, "PPP", {locale: es}) : 'N/A'}</p></div>
-                        <div><p className="text-sm font-semibold">Tipo de Permiso</p><p className="text-lg capitalize">{permissionInfo.type || 'N/A'}</p></div>
-                        <div><p className="text-sm font-semibold">Descuento</p><p className="text-lg">${permissionInfo.deduction.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p></div>
+                    <div className="space-y-4">
+                        <FormField
+                            control={control}
+                            name="permissionType"
+                            render={({ field }) => (
+                                <FormItem className="space-y-3">
+                                <FormLabel>Tipo de Permiso</FormLabel>
+                                <FormControl>
+                                    <RadioGroup
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                    className="flex flex-col space-y-2"
+                                    >
+                                    <FormItem className="flex items-center space-x-3 space-y-0 p-4 border rounded-md has-[:checked]:border-primary">
+                                        <FormControl>
+                                        <RadioGroupItem value="vacaciones" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal w-full">
+                                            A cuenta de vacaciones ({availableDays} días disponibles)
+                                        </FormLabel>
+                                    </FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0 p-4 border rounded-md has-[:checked]:border-primary">
+                                        <FormControl>
+                                        <RadioGroupItem value="sueldo" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal w-full">
+                                        Con descuento a sueldo
+                                        </FormLabel>
+                                    </FormItem>
+                                    </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {permissionType === 'vacaciones' && daysRequested > availableDays && (
+                            <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Días insuficientes</AlertTitle>
+                                <AlertDescription>
+                                    El empleado no tiene suficientes días de vacaciones disponibles. Si continúas, el registro podría resultar en un balance negativo de días.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/30">
+                            <div><p className="text-sm font-semibold">Fecha de Regreso</p><p className="text-lg">{returnDate ? format(returnDate, "PPP", {locale: es}) : 'N/A'}</p></div>
+                            <div><p className="text-sm font-semibold">Descuento</p><p className="text-lg">${deduction.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p></div>
+                             <FormField control={control} name="authorizer" render={({ field }) => (<FormItem><FormLabel>Autorizado por</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </div>
                     </div>
                   )}
 
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting || !selectedEmployee}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                     Registrar Permiso
                   </Button>
