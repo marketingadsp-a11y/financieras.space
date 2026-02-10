@@ -49,6 +49,37 @@ import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
+// Helper function to calculate the return date, skipping Sundays
+function addWorkDays(startDate: Date, days: number): Date {
+  let returnDate = new Date(startDate);
+  let daysCounted = 0;
+  
+  if (days <= 0) return returnDate;
+
+  // This loop finds the last day of leave
+  while (daysCounted < days) {
+    // Only count if it's not a Sunday
+    if (returnDate.getDay() !== 0) { 
+      daysCounted++;
+    }
+    // If we haven't found all leave days, move to the next day
+    if (daysCounted < days) {
+       returnDate.setDate(returnDate.getDate() + 1);
+    }
+  }
+
+  // The return date is the day AFTER the last day of leave
+  returnDate.setDate(returnDate.getDate() + 1);
+
+  // If the return day happens to be a Sunday, skip to Monday
+  if (returnDate.getDay() === 0) {
+    returnDate.setDate(returnDate.getDate() + 1);
+  }
+
+  return returnDate;
+}
+
+
 const formSchema = z.object({
   employeeId: z.string().min(1, "Debes seleccionar un empleado."),
   daysRequested: z.coerce.number().min(1, "Debe solicitar al menos 1 día."),
@@ -108,7 +139,7 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
   
   const returnDate = React.useMemo(() => {
     if (!startDate || !daysRequested || daysRequested <= 0) return null;
-    return addDays(new Date(startDate), daysRequested);
+    return addWorkDays(startDate, daysRequested);
   }, [startDate, daysRequested]);
   
   const handleDialogSubmit = async (data: FormValues) => {
@@ -286,3 +317,4 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
     </Dialog>
   );
 }
+
