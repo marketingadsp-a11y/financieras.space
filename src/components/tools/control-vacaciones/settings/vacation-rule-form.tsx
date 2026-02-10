@@ -42,7 +42,11 @@ export function VacationRuleForm({ onSubmit, rule, isSubmitting }: VacationRuleF
     });
     
     React.useEffect(() => {
-        if(rule) form.reset(rule);
+        if(rule) {
+          form.reset(rule);
+        } else {
+          form.reset({ year: undefined, days: undefined });
+        }
     }, [rule, form]);
 
     return (
@@ -55,7 +59,7 @@ export function VacationRuleForm({ onSubmit, rule, isSubmitting }: VacationRuleF
                         <FormItem>
                             <FormLabel>Año de Antigüedad</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="Ej. 1" {...field} />
+                                <Input type="number" placeholder="Ej. 1" {...field} value={field.value ?? ''} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -68,7 +72,7 @@ export function VacationRuleForm({ onSubmit, rule, isSubmitting }: VacationRuleF
                         <FormItem>
                             <FormLabel>Días de Vacaciones</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="Ej. 12" {...field} />
+                                <Input type="number" placeholder="Ej. 12" {...field} value={field.value ?? ''} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
