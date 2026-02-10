@@ -1,11 +1,14 @@
+
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, Timestamp, runTransaction, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { EmpleadoVacaciones, VacationRule } from "@/lib/data";
+import type { EmpleadoVacaciones, VacationRule, VacationRequest } from "@/lib/data";
 
 const empleadosCollectionRef = collection(db, "vacaciones_empleados");
 const vacationRulesCollectionRef = collection(db, "vacaciones_rules");
+const vacationRequestsCollectionRef = collection(db, "vacaciones_requests");
+
 
 // --- Empleado Functions ---
 const fromDoc = (doc: any): EmpleadoVacaciones => {
@@ -72,4 +75,50 @@ export async function updateVacationRule(id: string, rule: Partial<Omit<Vacation
 export async function deleteVacationRule(id: string) {
     const ruleDoc = doc(db, "vacaciones_rules", id);
     await deleteDoc(ruleDoc);
+}
+
+// --- Vacation Request Functions ---
+
+export async function addVacationRequest(requestData: Omit<VacationRequest, 'id' | 'createdAt'>): Promise<VacationRequest> {
+  const requestWithTimestamp = {
+    ...requestData,
+    createdAt: Timestamp.now(),
+    startDate: Timestamp.fromDate(requestData.startDate),
+    returnDate: Timestamp.fromDate(requestData.returnDate),
+  };
+
+  const employeeRef = doc(db, "vacaciones_empleados", requestData.employeeId);
+
+  await runTransaction(db, async (transaction) => {
+    const newRequestRef = doc(vacationRequestsCollectionRef);
+    transaction.set(newRequestRef, requestWithTimestamp);
+
+    if (requestData.type === 'vacaciones') {
+      const employeeDoc = await transaction.get(employeeRef);
+      if (!employeeDoc.exists()) {
+        throw new Error("El empleado para esta solicitud no existe.");
+      }
+      const currentDaysTaken = employeeDoc.data().diasTomados || 0;
+      const newDaysTaken = currentDaysTaken + requestData.daysRequested;
+      transaction.update(employeeRef, { diasTomados: newDaysTaken });
+    }
+  });
+
+  return { ...requestData, id: 'temp-id-after-save', createdAt: new Date() };
+}
+
+export async function getVacationRequests(prefix: string): Promise<VacationRequest[]> {
+    const q = query(vacationRequestsCollectionRef, where("prefix", "==", prefix), orderBy("startDate", "desc"));
+    const snapshot = await getDocs(q);
+    const requests = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            startDate: (data.startDate as Timestamp).toDate(),
+            returnDate: (data.returnDate as Timestamp).toDate(),
+            createdAt: (data.createdAt as Timestamp).toDate(),
+        } as VacationRequest;
+    });
+    return requests;
 }

@@ -725,3 +725,17 @@ export type VacationRule = {
   year: number;
   days: number;
 };
+
+export type VacationRequest = {
+  id: string;
+  prefix: string;
+  employeeId: string;
+  employeeName: string;
+  daysRequested: number;
+  startDate: Date;
+  returnDate: Date;
+  type: 'vacaciones' | 'sueldo';
+  authorizer: string;
+  createdAt: Date;
+  deductedAmount?: number; // For salary deduction
+};
