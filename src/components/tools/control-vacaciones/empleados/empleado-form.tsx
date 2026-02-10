@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import * as React from "react";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -86,13 +87,20 @@ export function EmpleadoForm({ onSubmit, empleado, isSubmitting }: EmpleadoFormP
                                 <PopoverTrigger asChild>
                                     <FormControl>
                                     <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                        {field.value ? format(field.value, "PPP") : <span>Selecciona una fecha</span>}
+                                        {field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
                                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                     </Button>
                                     </FormControl>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date()} initialFocus />
+                                    <Calendar 
+                                        mode="single" 
+                                        selected={field.value} 
+                                        onSelect={field.onChange} 
+                                        disabled={(date) => date > new Date()} 
+                                        initialFocus 
+                                        locale={es}
+                                    />
                                 </PopoverContent>
                             </Popover>
                             <FormMessage />
@@ -106,7 +114,11 @@ export function EmpleadoForm({ onSubmit, empleado, isSubmitting }: EmpleadoFormP
                         <FormItem>
                             <FormLabel>Sueldo Semanal</FormLabel>
                             <FormControl>
-                                <CurrencyInput placeholder="0.00" {...field} />
+                                <CurrencyInput
+                                    placeholder="0.00"
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
