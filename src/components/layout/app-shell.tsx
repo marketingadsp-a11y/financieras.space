@@ -755,6 +755,16 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/tools/control-vacaciones/empleados">
+                        <SidebarMenuButton asChild isActive={pathname.startsWith("/tools/control-vacaciones/empleados")} tooltip="Gestión de Empleados">
+                            <span>
+                                <Users />
+                                <span>Empleados</span>
+                            </span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
             </SidebarMenu>
         </SidebarGroup>
     );
@@ -1025,7 +1035,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   const getUserRoleLabel = () => {
     if (user.isSuperAdmin && !impersonation) return 'Financieras MX';
-    if (user.isToolAdmin) return 'Admin de Herramienta';
+    if (user.isToolAdmin) return 'Admin de Ferramenta';
     if (user.isPlazaUser) return 'Usuario de Plaza';
     return 'Admin';
   }

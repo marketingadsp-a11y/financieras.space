@@ -708,3 +708,12 @@ export type PayrollHistory = {
     totalBonusAmount: number;
     finalPayroll: number;
 }
+
+// --- Control de Vacaciones ---
+export type EmpleadoVacaciones = {
+  id: string;
+  prefix: string;
+  name: string;
+  fechaIngreso: Date;
+  sueldoSemanal: number;
+};
