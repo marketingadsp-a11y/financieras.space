@@ -765,6 +765,16 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <Link href="/tools/control-vacaciones/settings">
+                        <SidebarMenuButton asChild isActive={pathname.startsWith("/tools/control-vacaciones/settings")} tooltip="Ajustes de Vacaciones">
+                            <span>
+                                <Settings />
+                                <span>Ajustes</span>
+                            </span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
             </SidebarMenu>
         </SidebarGroup>
     );
