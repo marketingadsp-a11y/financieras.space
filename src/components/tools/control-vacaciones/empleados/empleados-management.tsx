@@ -9,13 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { EmpleadosTable } from "./empleados-table";
 import { EmpleadoForm, type EmpleadoFormValues } from "./empleado-form";
-import { getEmpleados, addEmpleado, updateEmpleado, deleteEmpleado } from "@/services/vacaciones-service";
-import type { EmpleadoVacaciones } from "@/lib/data";
+import { getEmpleados, addEmpleado, updateEmpleado, deleteEmpleado, getVacationRules } from "@/services/vacaciones-service";
+import type { EmpleadoVacaciones, VacationRule } from "@/lib/data";
 
 export function EmpleadosManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [empleados, setEmpleados] = React.useState<EmpleadoVacaciones[]>([]);
+  const [rules, setRules] = React.useState<VacationRule[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingEmpleado, setEditingEmpleado] = React.useState<EmpleadoVacaciones | null>(null);
@@ -27,10 +28,14 @@ export function EmpleadosManagement() {
     }
     setIsLoading(true);
     try {
-      const data = await getEmpleados(user.prefix);
+      const [data, rulesData] = await Promise.all([
+        getEmpleados(user.prefix),
+        getVacationRules(user.prefix),
+      ]);
       setEmpleados(data);
+      setRules(rulesData);
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los empleados." });
+      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos." });
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +124,7 @@ export function EmpleadosManagement() {
             <span>Cargando empleados...</span>
           </div>
         ) : (
-          <EmpleadosTable data={empleados} onEdit={handleEdit} onDelete={handleDelete} />
+          <EmpleadosTable data={empleados} rules={rules} onEdit={handleEdit} onDelete={handleDelete} />
         )}
       </CardContent>
     </Card>

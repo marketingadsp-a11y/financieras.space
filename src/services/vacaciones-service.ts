@@ -16,6 +16,7 @@ const fromDoc = (doc: any): EmpleadoVacaciones => {
         name: data.name,
         fechaIngreso: (data.fechaIngreso as Timestamp).toDate(),
         sueldoSemanal: data.sueldoSemanal,
+        diasTomados: data.diasTomados || 0,
     };
 };
 

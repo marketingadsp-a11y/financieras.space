@@ -29,17 +29,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { EmpleadoVacaciones } from "@/lib/data";
-import { format, intervalToDuration } from "date-fns";
+import type { EmpleadoVacaciones, VacationRule } from "@/lib/data";
+import { format, intervalToDuration, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 
 type EmpleadosTableProps = {
   data: EmpleadoVacaciones[];
+  rules: VacationRule[];
   onEdit: (empleado: EmpleadoVacaciones) => void;
   onDelete: (id: string) => void;
 };
 
-export function EmpleadosTable({ data, onEdit, onDelete }: EmpleadosTableProps) {
+export function EmpleadosTable({ data, rules, onEdit, onDelete }: EmpleadosTableProps) {
 
   const calculateAntiguedad = (fechaIngreso: Date) => {
     if (!fechaIngreso || !(fechaIngreso instanceof Date) || isNaN(fechaIngreso.getTime())) {
@@ -63,6 +65,22 @@ export function EmpleadosTable({ data, onEdit, onDelete }: EmpleadosTableProps) 
     return parts.length > 0 ? parts.join(' y ') : 'Menos de un día';
   };
 
+  const getVacationDays = (fechaIngreso: Date) => {
+      const yearsOfService = differenceInYears(new Date(), new Date(fechaIngreso));
+      if (yearsOfService < 1) {
+          return { disponible: 0, elegible: false };
+      }
+
+      const applicableRule = rules
+          .filter(r => r.year <= yearsOfService)
+          .sort((a, b) => b.year - a.year)[0];
+
+      return {
+          disponible: applicableRule ? applicableRule.days : 0,
+          elegible: true
+      };
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -71,17 +89,30 @@ export function EmpleadosTable({ data, onEdit, onDelete }: EmpleadosTableProps) 
             <TableHead>Nombre</TableHead>
             <TableHead>Fecha de Ingreso</TableHead>
             <TableHead>Antigüedad</TableHead>
+            <TableHead>Días Disponibles</TableHead>
+            <TableHead>Días Restantes</TableHead>
             <TableHead className="text-right">Sueldo Semanal</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.length > 0 ? (
-            data.map((empleado) => (
+            data.map((empleado) => {
+              const { disponible, elegible } = getVacationDays(empleado.fechaIngreso);
+              const diasTomados = empleado.diasTomados || 0;
+              const diasRestantes = disponible - diasTomados;
+              
+              return (
               <TableRow key={empleado.id}>
                 <TableCell className="font-medium">{empleado.name}</TableCell>
                 <TableCell>{format(new Date(empleado.fechaIngreso), "PPP", { locale: es })}</TableCell>
                 <TableCell>{calculateAntiguedad(new Date(empleado.fechaIngreso))}</TableCell>
+                 <TableCell>
+                  {elegible ? `${disponible} días` : <Badge variant="outline">No Elegible</Badge>}
+                </TableCell>
+                <TableCell>
+                  {elegible ? `${diasRestantes} días` : '-'}
+                </TableCell>
                 <TableCell className="text-right font-mono">${(empleado.sueldoSemanal || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</TableCell>
                 <TableCell className="text-right">
                     <AlertDialog>
@@ -119,10 +150,10 @@ export function EmpleadosTable({ data, onEdit, onDelete }: EmpleadosTableProps) 
                     </AlertDialog>
                 </TableCell>
               </TableRow>
-            ))
+            )})
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={7} className="h-24 text-center">
                 No hay empleados registrados.
               </TableCell>
             </TableRow>

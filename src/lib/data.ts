@@ -716,6 +716,7 @@ export type EmpleadoVacaciones = {
   name: string;
   fechaIngreso: Date;
   sueldoSemanal: number;
+  diasTomados?: number;
 };
 
 export type VacationRule = {
