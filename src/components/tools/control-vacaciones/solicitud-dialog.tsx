@@ -204,8 +204,8 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
                                 <FormControl>
                                     <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="relative">
-                                            <RadioGroupItem value="vacaciones" id="tipo-vacaciones" className="peer sr-only" />
-                                            <Label htmlFor="tipo-vacaciones" className="flex h-full flex-col rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                                            <RadioGroupItem value="vacaciones" id="tipo-vacaciones" className="peer sr-only" disabled={availableDays <= 0} />
+                                            <Label htmlFor="tipo-vacaciones" className="flex h-full flex-col rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
                                                 <span className="mb-1 block font-semibold text-lg">A cuenta de vacaciones</span>
                                                 <span className="block text-sm text-muted-foreground">{availableDays} días disponibles</span>
                                             </Label>
