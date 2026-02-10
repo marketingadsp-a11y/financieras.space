@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -19,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle, Cake, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -99,9 +100,85 @@ export function ControlVacacionesDashboard() {
     }
   };
 
+  const { todayBirthdays, upcomingBirthdays } = React.useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentDay = today.getDate();
+
+    const todayBdays: EmpleadoVacaciones[] = [];
+    const upcomingBdays: EmpleadoVacaciones[] = [];
+
+    employees.forEach(emp => {
+      if (emp.birthday) {
+        const birthday = new Date(emp.birthday);
+        const birthMonth = birthday.getMonth();
+        const birthDay = birthday.getDate();
+
+        if (birthMonth === currentMonth && birthDay === currentDay) {
+          todayBdays.push(emp);
+        } else if (birthMonth === currentMonth && birthDay > currentDay) {
+          upcomingBdays.push(emp);
+        }
+      }
+    });
+
+    // Sort upcoming birthdays by date
+    upcomingBdays.sort((a, b) => new Date(a.birthday!).getDate() - new Date(b.birthday!).getDate());
+
+    return { todayBirthdays: todayBdays, upcomingBirthdays: upcomingBdays };
+  }, [employees]);
+
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Cumpleaños del Mes</CardTitle>
+          <CardDescription>Celebraciones de cumpleaños para el mes en curso.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2">
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Cumpleaños de Hoy</h3>
+            {todayBirthdays.length > 0 ? (
+              <div className="space-y-4">
+                {todayBirthdays.map(emp => (
+                  <div key={emp.id} className="p-6 rounded-lg bg-gradient-to-br from-yellow-100 to-amber-200 dark:from-yellow-900/50 dark:to-amber-800/50 text-center">
+                    <Cake className="mx-auto h-16 w-16 text-amber-500 mb-4" />
+                    <p className="text-2xl font-bold text-amber-800 dark:text-amber-300">{emp.name}</p>
+                    <p className="text-lg text-muted-foreground">{format(new Date(emp.birthday!), "dd 'de' LLLL", { locale: es })}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                <p>No hay cumpleaños hoy.</p>
+              </div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Próximos Cumpleaños</h3>
+            {isLoading ? (
+                <div className="flex justify-center items-center h-40"><Loader2 className="mr-2 h-4 w-4 animate-spin"/></div>
+            ) : upcomingBirthdays.length > 0 ? (
+              <div className="space-y-2">
+                {upcomingBirthdays.map(emp => (
+                  <div key={emp.id} className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <Gift className="h-5 w-5 text-muted-foreground" />
+                      <span className="font-medium">{emp.name}</span>
+                    </div>
+                    <span className="font-semibold">{format(new Date(emp.birthday!), "dd 'de' LLLL", { locale: es })}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                <p>No hay más cumpleaños este mes.</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
