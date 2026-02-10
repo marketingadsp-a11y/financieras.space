@@ -52,17 +52,25 @@ export function EmpleadosTable({ data, rules, onEdit, onDelete }: EmpleadosTable
     const months = duration.months || 0;
     const days = duration.days || 0;
     
-    const totalMonths = years * 12 + months;
-
     let parts = [];
-    if (totalMonths > 0) {
-        parts.push(`${totalMonths} mes${totalMonths !== 1 ? 'es' : ''}`);
+    if (years > 0) {
+        parts.push(`${years} año${years !== 1 ? 's' : ''}`);
+    }
+    if (months > 0) {
+        parts.push(`${months} mes${months !== 1 ? 'es' : ''}`);
     }
     if (days > 0) {
         parts.push(`${days} día${days !== 1 ? 's' : ''}`);
     }
     
-    return parts.length > 0 ? parts.join(' y ') : 'Menos de un día';
+    if (parts.length === 0) return 'Menos de un día';
+    
+    if (parts.length > 1) {
+        const last = parts.pop();
+        return parts.join(', ') + ' y ' + last;
+    }
+
+    return parts[0];
   };
 
   const getVacationDays = (fechaIngreso: Date) => {
