@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { EmpleadoVacaciones } from "@/lib/data";
-import { format } from "date-fns";
+import { format, intervalToDuration } from "date-fns";
 import { es } from "date-fns/locale";
 
 type EmpleadosTableProps = {
@@ -40,6 +40,29 @@ type EmpleadosTableProps = {
 };
 
 export function EmpleadosTable({ data, onEdit, onDelete }: EmpleadosTableProps) {
+
+  const calculateAntiguedad = (fechaIngreso: Date) => {
+    if (!fechaIngreso || !(fechaIngreso instanceof Date) || isNaN(fechaIngreso.getTime())) {
+      return "Fecha inválida";
+    }
+    const duration = intervalToDuration({ start: new Date(fechaIngreso), end: new Date() });
+    const years = duration.years || 0;
+    const months = duration.months || 0;
+    const days = duration.days || 0;
+    
+    const totalMonths = years * 12 + months;
+
+    let parts = [];
+    if (totalMonths > 0) {
+        parts.push(`${totalMonths} mes${totalMonths !== 1 ? 'es' : ''}`);
+    }
+    if (days > 0) {
+        parts.push(`${days} día${days !== 1 ? 's' : ''}`);
+    }
+    
+    return parts.length > 0 ? parts.join(' y ') : 'Menos de un día';
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -47,6 +70,7 @@ export function EmpleadosTable({ data, onEdit, onDelete }: EmpleadosTableProps) 
           <TableRow>
             <TableHead>Nombre</TableHead>
             <TableHead>Fecha de Ingreso</TableHead>
+            <TableHead>Antigüedad</TableHead>
             <TableHead className="text-right">Sueldo Semanal</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
@@ -56,7 +80,8 @@ export function EmpleadosTable({ data, onEdit, onDelete }: EmpleadosTableProps) 
             data.map((empleado) => (
               <TableRow key={empleado.id}>
                 <TableCell className="font-medium">{empleado.name}</TableCell>
-                <TableCell>{format(empleado.fechaIngreso, "PPP", { locale: es })}</TableCell>
+                <TableCell>{format(new Date(empleado.fechaIngreso), "PPP", { locale: es })}</TableCell>
+                <TableCell>{calculateAntiguedad(new Date(empleado.fechaIngreso))}</TableCell>
                 <TableCell className="text-right font-mono">${(empleado.sueldoSemanal || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</TableCell>
                 <TableCell className="text-right">
                     <AlertDialog>
@@ -97,7 +122,7 @@ export function EmpleadosTable({ data, onEdit, onDelete }: EmpleadosTableProps) 
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={4} className="h-24 text-center">
+              <TableCell colSpan={5} className="h-24 text-center">
                 No hay empleados registrados.
               </TableCell>
             </TableRow>
