@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, subWeeks, addWeeks } from "date-fns";
 import { es } from "date-fns/locale";
 
 import {
@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, PlusCircle, Cake, Gift } from "lucide-react";
+import { Loader2, PlusCircle, Cake, Gift, ChevronLeft, ChevronRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -28,14 +28,84 @@ import { useAuth } from "@/context/auth-context";
 import { getEmpleados, getVacationRules, addVacationRequest, getVacationRequests } from "@/services/vacaciones-service";
 import type { EmpleadoVacaciones, VacationRule, VacationRequest } from "@/lib/data";
 import { SolicitudDialog } from "./solicitud-dialog";
+import { cn } from "@/lib/utils";
 
-type FormValues = {
-  employeeId: string;
-  daysRequested: number;
-  startDate: Date;
-  authorizer: string;
-  permissionType: 'vacaciones' | 'sueldo';
+
+// New Weekly Calendar Component
+const WeeklyCalendarView = ({ requests, employees }: { requests: VacationRequest[], employees: EmpleadoVacaciones[] }) => {
+    const [currentDate, setCurrentDate] = React.useState(new Date());
+
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday
+    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 }); // Sunday
+    const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+    const requestsByDay: { [key: string]: VacationRequest[] } = {};
+
+    days.forEach(day => {
+        const dayKey = format(day, 'yyyy-MM-dd');
+        requestsByDay[dayKey] = requests.filter(req => {
+            // The returnDate is the day they are back, so the interval ends the day before.
+            const interval = { start: req.startDate, end: subDays(req.returnDate, 1) };
+            return isWithinInterval(day, interval);
+        });
+    });
+
+    const handlePrevWeek = () => setCurrentDate(subWeeks(currentDate, 1));
+    const handleNextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Calendario Semanal de Permisos</CardTitle>
+                        <CardDescription>
+                            {format(weekStart, "d 'de' LLLL", { locale: es })} - {format(weekEnd, "d 'de' LLLL 'de' yyyy", { locale: es })}
+                        </CardDescription>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" onClick={handlePrevWeek}>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" onClick={() => setCurrentDate(new Date())}>Hoy</Button>
+                        <Button variant="outline" size="icon" onClick={handleNextWeek}>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-7 border-t border-l">
+                    {days.map(day => {
+                        const dayKey = format(day, 'yyyy-MM-dd');
+                        const dayRequests = requestsByDay[dayKey] || [];
+                        const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+
+                        return (
+                            <div key={day.toString()} className={cn("p-2 border-r border-b min-h-[120px] flex flex-col", isToday && "bg-blue-50 dark:bg-blue-900/20")}>
+                                <div className="flex justify-between items-baseline">
+                                     <span className={cn("font-semibold", isToday && "text-blue-600")}>{format(day, 'd')}</span>
+                                    <span className="text-xs text-muted-foreground">{format(day, 'eee', { locale: es })}</span>
+                                </div>
+                                <div className="mt-2 space-y-1 flex-grow">
+                                    {dayRequests.map(req => (
+                                        <div key={req.id} className={cn("p-1.5 rounded-md text-xs", req.type === 'vacaciones' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800')}>
+                                            <p className="font-semibold truncate flex items-center gap-1.5">
+                                                <User className="h-3 w-3" />
+                                                {req.employeeName}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            </CardContent>
+        </Card>
+    );
 };
+
 
 export function ControlVacacionesDashboard() {
   const { user } = useAuth();
@@ -99,6 +169,14 @@ export function ControlVacacionesDashboard() {
         toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo registrar la solicitud.' });
     }
   };
+  
+  type FormValues = {
+      employeeId: string;
+      daysRequested: number;
+      startDate: Date;
+      authorizer: string;
+      permissionType: 'vacaciones' | 'sueldo';
+  };
 
   const { todayBirthdays, upcomingBirthdays } = React.useMemo(() => {
     const today = new Date();
@@ -134,7 +212,6 @@ export function ControlVacacionesDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Cumpleaños del Mes</CardTitle>
-          
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
           <div>
@@ -179,6 +256,9 @@ export function ControlVacacionesDashboard() {
           </div>
         </CardContent>
       </Card>
+      
+      <WeeklyCalendarView requests={requests} employees={employees} />
+
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -215,7 +295,7 @@ export function ControlVacacionesDashboard() {
                             <TableCell>{format(req.startDate, "PPP", { locale: es })}</TableCell>
                             <TableCell>{format(req.returnDate, "PPP", { locale: es })}</TableCell>
                             <TableCell>{req.daysRequested}</TableCell>
-                            <TableCell><Badge variant={req.type === 'vacaciones' ? 'secondary' : 'destructive'} className="capitalize">{req.type}</Badge></TableCell>
+                            <TableCell><Badge variant={req.type === 'vacaciones' ? 'secondary' : 'destructive'} className="capitalize">{req.type === 'vacaciones' ? 'Vacaciones' : 'Sueldo'}</Badge></TableCell>
                             <TableCell>{req.authorizer}</TableCell>
                             <TableCell>${(req.deductedAmount || 0).toLocaleString()}</TableCell>
                         </TableRow>

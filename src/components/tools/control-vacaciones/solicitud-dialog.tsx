@@ -38,7 +38,7 @@ import {
     CommandList,
   } from "@/components/ui/command";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar as CalendarIcon, Loader2, Check, ChevronsUpDown, AlertTriangle, User, CalendarDays, Wallet, Hash } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Check, ChevronsUpDown, AlertTriangle, User, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -47,6 +47,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { EmpleadoVacaciones, VacationRule, User } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 const formSchema = z.object({
   employeeId: z.string().min(1, "Debes seleccionar un empleado."),
@@ -107,13 +108,7 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
   
   const returnDate = React.useMemo(() => {
     if (!startDate || !daysRequested || daysRequested <= 0) return null;
-    let currentDate = new Date(startDate);
-    let daysAdded = 0;
-    while (daysAdded < daysRequested) {
-        currentDate = addDays(currentDate, 1);
-        daysAdded++;
-    }
-    return currentDate;
+    return addDays(new Date(startDate), daysRequested);
   }, [startDate, daysRequested]);
   
   const handleDialogSubmit = async (data: FormValues) => {
@@ -145,63 +140,68 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
                 
                 {/* Columna Izquierda: Detalles del permiso */}
                 <div className="space-y-6">
-                    {/* --- Empleado --- */}
-                    <FormField control={control} name="employeeId" render={({ field }) => (
-                        <FormItem className="flex flex-col"><FormLabel>Empleado</FormLabel>
-                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}><PopoverTrigger asChild>
-                            <FormControl>
-                            <Button variant="outline" role="combobox" className={cn("justify-between w-full", !field.value && "text-muted-foreground")}>
-                                {field.value ? employees.find(e => e.id === field.value)?.name : "Selecciona un empleado"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                            </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command>
-                            <CommandInput placeholder="Buscar empleado..." />
-                            <CommandList><CommandEmpty>No se encontró el empleado.</CommandEmpty><CommandGroup>
-                            {employees.map((employee) => (
-                                <CommandItem value={employee.name} key={employee.id} onSelect={() => { setValue("employeeId", employee.id); setOpenCombobox(false); }}>
-                                <Check className={cn("mr-2 h-4 w-4", employee.id === field.value ? "opacity-100" : "opacity-0")} />
-                                {employee.name}
-                                </CommandItem>
-                            ))}
-                            </CommandGroup></CommandList>
-                        </Command></PopoverContent></Popover>
-                        <FormMessage />
-                        </FormItem>
-                    )} />
+                    <div>
+                        <h3 className="text-lg font-semibold mb-2">1. Seleccionar Empleado</h3>
+                        <FormField control={control} name="employeeId" render={({ field }) => (
+                            <FormItem className="flex flex-col"><FormLabel className="sr-only">Empleado</FormLabel>
+                            <Popover open={openCombobox} onOpenChange={setOpenCombobox}><PopoverTrigger asChild>
+                                <FormControl>
+                                <Button variant="outline" role="combobox" className={cn("justify-between w-full", !field.value && "text-muted-foreground")}>
+                                    {field.value ? employees.find(e => e.id === field.value)?.name : "Selecciona un empleado"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command>
+                                <CommandInput placeholder="Buscar empleado..." />
+                                <CommandList><CommandEmpty>No se encontró el empleado.</CommandEmpty><CommandGroup>
+                                {employees.map((employee) => (
+                                    <CommandItem value={employee.name} key={employee.id} onSelect={() => { setValue("employeeId", employee.id); setOpenCombobox(false); }}>
+                                    <Check className={cn("mr-2 h-4 w-4", employee.id === field.value ? "opacity-100" : "opacity-0")} />
+                                    {employee.name}
+                                    </CommandItem>
+                                ))}
+                                </CommandGroup></CommandList>
+                            </Command></PopoverContent></Popover>
+                            <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
 
                      {selectedEmployee && (
                         <>
-                           {/* --- Dias y Fecha --- */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={control} name="daysRequested" render={({ field }) => (<FormItem><FormLabel>Días Solicitados</FormLabel><FormControl><Input type="number" min="1" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={control} name="startDate" render={({ field }) => (
-                                    <FormItem className="flex flex-col"><FormLabel>Fecha de Inicio</FormLabel>
-                                    <Popover><PopoverTrigger asChild>
-                                        <FormControl>
-                                        <Button variant={"outline"} className={cn("justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                                            <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona fecha</span>}
-                                        </Button>
-                                        </FormControl>
-                                    </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover>
-                                    <FormMessage />
-                                    </FormItem>)} />
+                           <Separator />
+                           <div>
+                                <h3 className="text-lg font-semibold mb-2">2. Detalles del Permiso</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField control={control} name="daysRequested" render={({ field }) => (<FormItem><FormLabel>Días Solicitados</FormLabel><FormControl><Input type="number" min="1" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name="startDate" render={({ field }) => (
+                                        <FormItem className="flex flex-col"><FormLabel>Fecha de Inicio</FormLabel>
+                                        <Popover><PopoverTrigger asChild>
+                                            <FormControl>
+                                            <Button variant={"outline"} className={cn("justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona fecha</span>}
+                                            </Button>
+                                            </FormControl>
+                                        </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover>
+                                        <FormMessage />
+                                        </FormItem>)} />
+                                </div>
                             </div>
-
-                            {/* --- Tipo de Permiso --- */}
+                           <Separator />
+                           <div>
+                             <h3 className="text-lg font-semibold mb-2">3. Tipo de Permiso</h3>
                              <FormField
                                 control={control}
                                 name="permissionType"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Tipo de Permiso</FormLabel>
                                     <FormControl>
                                         <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 gap-4">
                                             <div className="relative">
                                                 <RadioGroupItem value="vacaciones" id="tipo-vacaciones" className="peer sr-only" disabled={availableDays <= 0} />
                                                 <Label htmlFor="tipo-vacaciones" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-600 [&:has([data-state=checked])]:border-green-600 cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
-                                                    <CalendarDays className="mb-3 h-6 w-6 text-green-600" />
+                                                    <CalendarIcon className="mb-3 h-6 w-6 text-green-600" />
                                                     <span className="mb-1 block font-semibold">A cuenta de vacaciones</span>
                                                     <span className="block text-sm text-muted-foreground">{availableDays} días disponibles</span>
                                                 </Label>
@@ -220,6 +220,7 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
                                     </FormItem>
                                 )}
                             />
+                           </div>
                         </>
                      )}
                 </div>
@@ -254,7 +255,7 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
                             
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Resumen del Permiso</CardTitle>
+                                    <CardTitle className="text-lg">4. Resumen y Autorización</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                      <div className="flex justify-between items-center text-lg">
@@ -285,4 +286,3 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
     </Dialog>
   );
 }
-
