@@ -122,7 +122,7 @@ export async function addVacationRequest(requestData: Omit<VacationRequest, 'id'
 }
 
 export async function getVacationRequests(prefix: string): Promise<VacationRequest[]> {
-    const q = query(vacationRequestsCollectionRef, where("prefix", "==", prefix), orderBy("startDate", "desc"));
+    const q = query(vacationRequestsCollectionRef, where("prefix", "==", prefix));
     const snapshot = await getDocs(q);
     const requests = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -134,5 +134,6 @@ export async function getVacationRequests(prefix: string): Promise<VacationReque
             createdAt: (data.createdAt as Timestamp).toDate(),
         } as VacationRequest;
     });
-    return requests;
+    // Sort by startDate in descending order in the application code
+    return requests.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 }
