@@ -134,7 +134,6 @@ export function ControlVacacionesDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Cumpleaños del Mes</CardTitle>
-          <CardDescription>Celebraciones de cumpleaños para el mes en curso.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
           <div>
