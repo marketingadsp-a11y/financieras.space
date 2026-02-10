@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, Timestamp, runTransaction, orderBy } from "firebase/firestore";
@@ -104,16 +105,25 @@ export async function addVacationRequest(requestData: Omit<VacationRequest, 'id'
   const employeeRef = doc(db, "vacaciones_empleados", requestData.employeeId);
 
   await runTransaction(db, async (transaction) => {
-    const newRequestRef = doc(vacationRequestsCollectionRef);
-    transaction.set(newRequestRef, requestWithTimestamp);
+    let newDaysTaken: number | undefined;
 
+    // --- READ PHASE ---
+    // All reads must happen before any writes.
     if (requestData.type === 'vacaciones') {
       const employeeDoc = await transaction.get(employeeRef);
       if (!employeeDoc.exists()) {
         throw new Error("El empleado para esta solicitud no existe.");
       }
       const currentDaysTaken = employeeDoc.data().diasTomados || 0;
-      const newDaysTaken = currentDaysTaken + requestData.daysRequested;
+      newDaysTaken = currentDaysTaken + requestData.daysRequested;
+    }
+
+    // --- WRITE PHASE ---
+    // Now we can perform all writes.
+    const newRequestRef = doc(vacationRequestsCollectionRef);
+    transaction.set(newRequestRef, requestWithTimestamp);
+
+    if (requestData.type === 'vacaciones' && newDaysTaken !== undefined) {
       transaction.update(employeeRef, { diasTomados: newDaysTaken });
     }
   });
