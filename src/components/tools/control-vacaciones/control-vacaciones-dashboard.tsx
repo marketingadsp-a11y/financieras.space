@@ -134,6 +134,7 @@ export function ControlVacacionesDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Cumpleaños del Mes</CardTitle>
+          
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
           <div>
@@ -200,6 +201,7 @@ export function ControlVacacionesDashboard() {
                     <TableRow>
                         <TableHead>Empleado</TableHead>
                         <TableHead>Fecha Permiso</TableHead>
+                        <TableHead>Fecha de Regreso</TableHead>
                         <TableHead>Días</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead>Autorizado Por</TableHead>
@@ -211,6 +213,7 @@ export function ControlVacacionesDashboard() {
                         <TableRow key={req.id}>
                             <TableCell className="font-medium">{req.employeeName}</TableCell>
                             <TableCell>{format(req.startDate, "PPP", { locale: es })}</TableCell>
+                            <TableCell>{format(req.returnDate, "PPP", { locale: es })}</TableCell>
                             <TableCell>{req.daysRequested}</TableCell>
                             <TableCell><Badge variant={req.type === 'vacaciones' ? 'secondary' : 'destructive'} className="capitalize">{req.type}</Badge></TableCell>
                             <TableCell>{req.authorizer}</TableCell>
@@ -218,7 +221,7 @@ export function ControlVacacionesDashboard() {
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">Aún no hay solicitudes registradas.</TableCell>
+                            <TableCell colSpan={7} className="h-24 text-center">Aún no hay solicitudes registradas.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
