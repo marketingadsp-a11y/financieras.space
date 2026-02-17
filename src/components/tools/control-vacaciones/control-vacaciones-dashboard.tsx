@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -321,11 +320,9 @@ export function ControlVacacionesDashboard() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
                                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setRequestToDelete(req); }} className="text-destructive focus:text-destructive">
-                                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
+                                        <DropdownMenuItem onSelect={() => setRequestToDelete(req)} className="text-destructive focus:text-destructive">
+                                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                        </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
