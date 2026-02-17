@@ -157,5 +157,32 @@ export async function getVacationRequests(prefix: string): Promise<VacationReque
         } as VacationRequest;
     });
     // Sort by startDate in descending order in the application code
-    return requests.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return requests.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+}
+
+export async function deleteVacationRequest(requestId: string): Promise<void> {
+  const requestRef = doc(db, "vacaciones_requests", requestId);
+
+  await runTransaction(db, async (transaction) => {
+    const requestDoc = await transaction.get(requestRef);
+    if (!requestDoc.exists()) {
+      throw new Error("La solicitud que intentas eliminar no existe.");
+    }
+    
+    const requestData = requestDoc.data() as VacationRequest;
+
+    // If it was a vacation type, revert the days taken from the employee
+    if (requestData.type === 'vacaciones') {
+      const employeeRef = doc(db, "vacaciones_empleados", requestData.employeeId);
+      const employeeDoc = await transaction.get(employeeRef);
+      if (employeeDoc.exists()) {
+        const employeeData = employeeDoc.data() as EmpleadoVacaciones;
+        const newDaysTaken = (employeeData.diasTomados || 0) - requestData.daysRequested;
+        transaction.update(employeeRef, { diasTomados: Math.max(0, newDaysTaken) });
+      }
+    }
+
+    // Delete the request itself
+    transaction.delete(requestRef);
+  });
 }

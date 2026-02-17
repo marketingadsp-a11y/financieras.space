@@ -20,15 +20,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, PlusCircle, Cake, Gift, ChevronLeft, ChevronRight, User } from "lucide-react";
+import { Loader2, PlusCircle, Cake, Gift, ChevronLeft, ChevronRight, User, MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
-import { getEmpleados, getVacationRules, addVacationRequest, getVacationRequests } from "@/services/vacaciones-service";
+import { getEmpleados, getVacationRules, addVacationRequest, getVacationRequests, deleteVacationRequest } from "@/services/vacaciones-service";
 import type { EmpleadoVacaciones, VacationRule, VacationRequest } from "@/lib/data";
 import { SolicitudDialog } from "./solicitud-dialog";
 import { cn } from "@/lib/utils";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
 // New Weekly Calendar Component
@@ -115,6 +117,7 @@ export function ControlVacacionesDashboard() {
   const [requests, setRequests] = React.useState<VacationRequest[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [requestToDelete, setRequestToDelete] = React.useState<VacationRequest | null>(null);
 
 
   const fetchData = React.useCallback(async () => {
@@ -169,6 +172,18 @@ export function ControlVacacionesDashboard() {
         toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo registrar la solicitud.' });
     }
   };
+
+  const handleDeleteRequest = async () => {
+    if (!requestToDelete) return;
+    try {
+        await deleteVacationRequest(requestToDelete.id);
+        toast({ title: "Éxito", description: "Solicitud eliminada correctamente." });
+        setRequestToDelete(null);
+        fetchData();
+    } catch(e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo eliminar la solicitud.' });
+    }
+  }
   
   type FormValues = {
       employeeId: string;
@@ -286,6 +301,7 @@ export function ControlVacacionesDashboard() {
                         <TableHead>Tipo</TableHead>
                         <TableHead>Autorizado Por</TableHead>
                         <TableHead>Descuento</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -298,10 +314,25 @@ export function ControlVacacionesDashboard() {
                             <TableCell><Badge variant={req.type === 'vacaciones' ? 'secondary' : 'destructive'} className="capitalize">{req.type === 'vacaciones' ? 'Vacaciones' : 'Sueldo'}</Badge></TableCell>
                             <TableCell>{req.authorizer}</TableCell>
                             <TableCell>${(req.deductedAmount || 0).toLocaleString()}</TableCell>
+                            <TableCell className="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setRequestToDelete(req); }} className="text-destructive focus:text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">Aún no hay solicitudes registradas.</TableCell>
+                            <TableCell colSpan={8} className="h-24 text-center">Aún no hay solicitudes registradas.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -309,6 +340,21 @@ export function ControlVacacionesDashboard() {
            )}
         </CardContent>
       </Card>
+      
+      <AlertDialog open={!!requestToDelete} onOpenChange={(open) => !open && setRequestToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción eliminará la solicitud de permiso para <strong>{requestToDelete?.employeeName}</strong>. Si fue un permiso de vacaciones, los días se devolverán al empleado.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteRequest}>Eliminar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
 
       <SolicitudDialog
         isOpen={isDialogOpen}
