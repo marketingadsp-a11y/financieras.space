@@ -230,8 +230,8 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
                                     <FormControl>
                                         <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 gap-4">
                                             <div className="relative">
-                                                <RadioGroupItem value="vacaciones" id="tipo-vacaciones" className="peer sr-only" disabled={availableDays <= 0} />
-                                                <Label htmlFor="tipo-vacaciones" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-600 [&:has([data-state=checked])]:border-green-600 cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+                                                <RadioGroupItem value="vacaciones" id="tipo-vacaciones" className="peer sr-only" />
+                                                <Label htmlFor="tipo-vacaciones" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-600 [&:has([data-state=checked])]:border-green-600 cursor-pointer">
                                                     <CalendarIcon className="mb-3 h-6 w-6 text-green-600" />
                                                     <span className="mb-1 block font-semibold">A cuenta de vacaciones</span>
                                                     <span className="block text-sm text-muted-foreground">{availableDays} días disponibles</span>
@@ -274,12 +274,12 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
                                 </CardContent>
                             </Card>
 
-                            {permissionType === 'vacaciones' && daysRequested > availableDays && (
+                            {permissionType === 'vacaciones' && availableDays < daysRequested && (
                                 <Alert variant="destructive">
                                     <AlertTriangle className="h-4 w-4" />
                                     <AlertTitle>Días insuficientes</AlertTitle>
                                     <AlertDescription>
-                                        El empleado no tiene suficientes días de vacaciones. El registro resultará en un balance negativo.
+                                       El empleado no tiene días de vacaciones disponibles. Los días solicitados se descontarán de futuros períodos vacacionales que acumule.
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -317,4 +317,3 @@ export function SolicitudDialog({ isOpen, onOpenChange, onSubmit, user, employee
     </Dialog>
   );
 }
-
