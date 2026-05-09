@@ -137,9 +137,6 @@ export function RecallDialog({
                 <Lock className="h-5 w-5" />
                 Acceso Restringido
               </DialogTitle>
-              <DialogDescription>
-                Este módulo contiene funciones críticas y requiere autorización de nivel superior.
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
               <div className="flex flex-col items-center justify-center text-center space-y-4">
