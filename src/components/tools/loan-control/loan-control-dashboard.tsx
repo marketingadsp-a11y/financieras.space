@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -9,7 +8,7 @@ import { useAuth } from "@/context/auth-context";
 import type { Plaza, LoanControlPermission } from "@/lib/data";
 import { getPlazas, updatePlaza } from "@/services/plaza-service";
 import { clearDataByPrefix } from "@/services/loan-control-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search, FileSpreadsheet, FileText, Edit } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search, FileSpreadsheet, FileText, Edit, RefreshCcw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -28,6 +27,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { PlazaEditDialog } from "./plaza-edit-dialog";
+import { RecallDialog } from "./recall-dialog";
 
 
 const PlazaCard = ({ plaza, onEdit, canEdit }: { plaza: Plaza, onEdit: (plaza: Plaza) => void, canEdit: boolean }) => {
@@ -110,6 +110,7 @@ export function LoanControlDashboard() {
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isImportModalOpen, setImportModalOpen] = React.useState(false);
+    const [isRecallModalOpen, setRecallModalOpen] = React.useState(false);
     const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
     const [importMode, setImportMode] = React.useState<'add' | 'replace'>('add');
     const [isImporting, setIsImporting] = React.useState(false);
@@ -294,6 +295,7 @@ export function LoanControlDashboard() {
 
     const canEditPlazaNames = hasPermission('loan-control', 'CAN_EDIT_PLAZA_NAMES');
     const canDeleteAllData = hasPermission('loan-control', 'CAN_DELETE_ALL_DATA');
+    const isFortunaAdmin = user?.prefix === 'fortuna' && user?.username === 'admin';
 
     if (isLoading) {
         return (
@@ -316,6 +318,11 @@ export function LoanControlDashboard() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                     {isFortunaAdmin && (
+                        <Button variant="outline" onClick={() => setRecallModalOpen(true)}>
+                            <RefreshCcw className="mr-2 h-4 w-4" /> Recall
+                        </Button>
+                     )}
                      <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                         <DialogTrigger asChild>
                             <Button>
@@ -390,11 +397,11 @@ export function LoanControlDashboard() {
                             </DropdownMenu>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
-                                <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
-                                <AlertDialogDescription>
-                                    Esta acción es irreversible y eliminará permanentemente <strong>TODAS</strong> las plazas, carteras, grupos y clientes de Control de Préstamo para el prefijo <strong>{user?.prefix}</strong>.
-                                    Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
-                                </AlertDialogDescription>
+                                    <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
+                                    <AlertDialogDescription>
+                                        Esta acción es irreversible y eliminará permanentemente <strong>TODAS</strong> las plazas, carteras, grupos y clientes de Control de Préstamo para el prefijo <strong>{user?.prefix}</strong>.
+                                        Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                                    </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <Input
                                 value={deleteConfirmationText}
@@ -420,7 +427,7 @@ export function LoanControlDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StatCard title="Total Prestado (Filtrado)" value={summary.totalLoaned} />
-                <StatCard title="Total Pendiente (Filtrado)" value={summary.totalDue} />
+                <StatCard title="Total Pendiente (Filtrado)" value={summary.totalDebt} />
             </div>
 
             <Card>
@@ -502,6 +509,15 @@ export function LoanControlDashboard() {
                 onClose={() => setEditingPlaza(null)}
                 onSave={handleUpdatePlaza}
             />
+
+            {isFortunaAdmin && (
+                <RecallDialog
+                    isOpen={isRecallModalOpen}
+                    onClose={() => setRecallModalOpen(false)}
+                    plazas={plazas}
+                    onSuccess={fetchPlazasForUser}
+                />
+            )}
         </div>
     );
 }

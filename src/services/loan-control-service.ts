@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { 
@@ -372,4 +370,90 @@ export async function importFullLoanData(
     if (operationCount > 0) {
         await batch.commit();
     }
+}
+
+// --- Recall Functionality ---
+
+export async function performRecall(
+    plazaId: string,
+    operation: 'sum' | 'subtract',
+    multiple: number,
+    totalAmount: number,
+    userName: string
+): Promise<{ success: boolean; totalApplied: number; customersAffected: number }> {
+    const q = query(customersCollectionRef, where("plazaId", "==", plazaId));
+    const snapshot = await getDocs(q);
+    const customers = snapshot.docs.map(customerFromDoc);
+
+    if (customers.length === 0) {
+        throw new Error("No hay clientes en esta plaza para realizar el ajuste.");
+    }
+
+    let currentRecalled = 0;
+    let customersAffected = new Set<string>();
+    let batch = writeBatch(db);
+    let operationCount = 0;
+
+    // Use a while loop to keep applying units until target reached or no more changes possible
+    let changedInLastPass = true;
+    while (currentRecalled < totalAmount && changedInLastPass) {
+        changedInLastPass = false;
+
+        for (const customer of customers) {
+            if (currentRecalled >= totalAmount) break;
+
+            let amountToApply = multiple;
+            if (currentRecalled + amountToApply > totalAmount) {
+                amountToApply = totalAmount - currentRecalled;
+            }
+
+            if (operation === 'subtract') {
+                // Ensure we don't go negative or below the status threshold
+                if (customer.dueAmount < amountToApply || customer.loanAmount < amountToApply) continue;
+                
+                customer.loanAmount -= amountToApply;
+                customer.dueAmount -= amountToApply;
+                customer.status = customer.dueAmount <= 0 ? 'Pagado' : 'Pendiente';
+            } else {
+                customer.loanAmount += amountToApply;
+                customer.dueAmount += amountToApply;
+                customer.status = 'Pendiente';
+            }
+
+            currentRecalled += amountToApply;
+            customersAffected.add(customer.id);
+            changedInLastPass = true;
+
+            // Prepare doc update
+            batch.update(doc(db, "customers", customer.id), {
+                loanAmount: customer.loanAmount,
+                dueAmount: customer.dueAmount,
+                status: customer.status
+            });
+
+            operationCount++;
+            if (operationCount >= 450) {
+                await batch.commit();
+                batch = writeBatch(db);
+                operationCount = 0;
+            }
+        }
+    }
+
+    if (operationCount > 0) {
+        await batch.commit();
+    }
+    
+    // Log in history
+    const historyLog: Omit<HistoryLog, 'id'> = {
+        prefix: customers[0].prefix || 'N/A',
+        toolContext: 'loan-control',
+        type: 'update',
+        timestamp: new Date(),
+        userName: userName,
+        details: `Se realizó RECALL (${operation === 'sum' ? 'Suma' : 'Resta'}) de un total de $${totalAmount.toLocaleString()} en múltiplos de $${multiple}. Clientes afectados: ${customersAffected.size}.`,
+    };
+    await addDoc(historyCollectionRef, historyLog);
+
+    return { success: true, totalApplied: currentRecalled, customersAffected: customersAffected.size };
 }
