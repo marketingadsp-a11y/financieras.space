@@ -89,7 +89,7 @@ const PlazaCard = ({ plaza, onEdit, canEdit }: { plaza: Plaza, onEdit: (plaza: P
     )
 };
 
-const StatCard = ({ title, value }: { title: string; value: number; }) => (
+const StatCard = ({ title, value }: { title: string; value: number | undefined; }) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -97,7 +97,7 @@ const StatCard = ({ title, value }: { title: string; value: number; }) => (
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">
-            ${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${(value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </div>
       </CardContent>
     </Card>
@@ -120,6 +120,14 @@ export function LoanControlDashboard() {
     const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
     const [editingPlaza, setEditingPlaza] = React.useState<Plaza | null>(null);
 
+    const [summary, setSummary] = React.useState({ 
+        totalDebt: 0, 
+        totalClients: 0, 
+        recoveredClients: 0, 
+        recoveryRate: 0, 
+        totalLoaned: 0 
+    });
+
 
     const fetchPlazasForUser = React.useCallback(async () => {
         if (!user) return;
@@ -128,6 +136,12 @@ export function LoanControlDashboard() {
             const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
             const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, startDate, endDate, toolContext: 'loan-control' });
             setPlazas(plazasFromDb);
+
+            // Update summary stats based on current filters
+            const totalLoaned = plazasFromDb.reduce((acc, p) => acc + (p.totalLoanAmount || 0), 0);
+            const totalDebt = plazasFromDb.reduce((acc, p) => acc + (p.pendingDebt || 0), 0);
+            setSummary(prev => ({ ...prev, totalLoaned, totalDebt }));
+
         } catch (error) {
             console.error("Failed to fetch plazas", error);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las plazas.' });
@@ -227,7 +241,7 @@ export function LoanControlDashboard() {
         );
     }, [plazas, searchTerm]);
 
-    const summary = React.useMemo(() => {
+    const filteredSummary = React.useMemo(() => {
         return filteredPlazas.reduce((acc, plaza) => {
             acc.totalLoaned += plaza.totalLoanAmount || 0;
             acc.totalDue += plaza.pendingDebt || 0;
@@ -253,8 +267,8 @@ export function LoanControlDashboard() {
         const doc = new jsPDF();
         doc.text("Resumen de Plazas - Control de Préstamo", 14, 16);
         doc.text(`Rango de Fechas: ${getDateRangeString()}`, 14, 22);
-        doc.text(`Total Prestado (Filtrado): $${summary.totalLoaned.toLocaleString('es-MX')}`, 14, 28);
-        doc.text(`Total Pendiente (Filtrado): $${summary.totalDue.toLocaleString('es-MX')}`, 14, 34);
+        doc.text(`Total Prestado (Filtrado): $${filteredSummary.totalLoaned.toLocaleString('es-MX')}`, 14, 28);
+        doc.text(`Total Pendiente (Filtrado): $${filteredSummary.totalDue.toLocaleString('es-MX')}`, 14, 34);
 
         autoTable(doc, {
             startY: 40,
@@ -426,8 +440,8 @@ export function LoanControlDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard title="Total Prestado (Filtrado)" value={summary.totalLoaned} />
-                <StatCard title="Total Pendiente (Filtrado)" value={summary.totalDebt} />
+                <StatCard title="Total Prestado (Filtrado)" value={filteredSummary.totalLoaned} />
+                <StatCard title="Total Pendiente (Filtrado)" value={filteredSummary.totalDue} />
             </div>
 
             <Card>
