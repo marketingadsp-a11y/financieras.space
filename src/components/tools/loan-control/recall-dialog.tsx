@@ -132,11 +132,8 @@ export function RecallDialog({
       <DialogContent className="sm:max-w-md">
         {!isUnlocked ? (
           <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-red-600">
-                <Lock className="h-5 w-5" />
-                Acceso Restringido
-              </DialogTitle>
+            <DialogHeader className="p-0 h-0 overflow-hidden">
+              <DialogTitle className="sr-only">Autorización Requerida</DialogTitle>
             </DialogHeader>
             <div className="space-y-6 py-4">
               <div className="flex flex-col items-center justify-center text-center space-y-4">
