@@ -131,42 +131,48 @@ export function RecallDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         {!isUnlocked ? (
-          <div className="space-y-6 py-4">
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
-              <div className="p-4 bg-red-500/10 rounded-full">
-                <Lock className="h-10 w-10 text-red-600" />
-              </div>
-              <div className="space-y-2">
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <Lock className="h-5 w-5" />
+                Acceso Restringido
+              </DialogTitle>
+              <DialogDescription>
+                Este módulo contiene funciones críticas y requiere autorización de nivel superior.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              <div className="flex flex-col items-center justify-center text-center space-y-4">
+                <div className="p-4 bg-red-500/10 rounded-full">
+                  <ShieldAlert className="h-10 w-10 text-red-600" />
+                </div>
                 <h3 className="text-xl font-bold text-red-600">Fallo en abrir este módulo</h3>
-                <p className="text-sm text-muted-foreground px-6">
-                  Este módulo contiene funciones críticas y requiere una autorización de nivel superior para ejecutarse.
-                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="auth-pass" className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  Llave de Autorización
+                </Label>
+                <Input
+                  id="auth-pass"
+                  type="password"
+                  placeholder="••••••••"
+                  value={unlockPass}
+                  onChange={(e) => setUnlockPass(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                  autoFocus
+                  className="text-center font-mono tracking-widest"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Button>
+                <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleUnlock}>
+                  Confirmar Identidad
+                </Button>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="auth-pass" className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <ShieldAlert className="h-3 w-3" /> Llave de Autorización
-              </Label>
-              <Input
-                id="auth-pass"
-                type="password"
-                placeholder="••••••••"
-                value={unlockPass}
-                onChange={(e) => setUnlockPass(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
-                autoFocus
-                className="text-center font-mono tracking-widest"
-              />
-            </div>
-
-            <div className="flex gap-2">
-               <Button variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Button>
-               <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleUnlock}>
-                 Confirmar Identidad
-               </Button>
-            </div>
-          </div>
+          </>
         ) : (
           <>
             <DialogHeader>
