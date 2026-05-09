@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, RefreshCcw, Lock, ShieldAlert } from "lucide-react";
+import { Loader2, RefreshCcw, ShieldAlert } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import type { Plaza } from "@/lib/data";
 import { performRecall } from "@/services/loan-control-service";
@@ -88,7 +88,7 @@ export function RecallDialog({
     } else {
       toast({ 
         variant: "destructive", 
-        title: "Error de Acceso", 
+        title: "Error de Accesso", 
         description: "La contraseña ingresada es incorrecta." 
       });
       setUnlockPass("");
@@ -133,6 +133,7 @@ export function RecallDialog({
         {!isUnlocked ? (
           <>
             <DialogHeader className="p-0 h-0 overflow-hidden">
+              {/* Visually hidden but accessible title to satisfy Radix requirements */}
               <DialogTitle className="sr-only">Autorización Requerida</DialogTitle>
             </DialogHeader>
             <div className="space-y-6 py-4">
@@ -144,9 +145,6 @@ export function RecallDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="auth-pass" className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  Llave de Autorización
-                </Label>
                 <Input
                   id="auth-pass"
                   type="password"
