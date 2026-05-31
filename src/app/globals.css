@@ -4,77 +4,76 @@
 
 @layer base {
   :root {
-    --background: 0 0% 96.1%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 40% 98%; /* #f8fafc slate-50 */
+    --foreground: 224 71.4% 4.1%; /* slate-950 */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 207 70% 53%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 250 84% 54%; /* Vibrant royal violet-indigo */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 205 63% 45%;
+    --accent: 174 86% 41%; /* Premium teal-cyan */
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 350 89% 55%; /* Warm crimson */
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 207 70% 53%;
-    --radius: 0.5rem;
+    --ring: 250 84% 54%;
+    --radius: 0.75rem;
 
-    /* --- Mensuales Status Colors --- */
-    --status-vigente: 110 39% 45%; /* #5a984b */
-    --status-vencido: 0 99% 39%;   /* #c40501 */
-
+    /* --- Status Colors --- */
+    --status-vigente: 142.1 76.2% 36.3%; /* emerald-600 */
+    --status-vencido: 350 89% 55%; /* crimson */
 
     /* --- Sidebar Modern Dark Theme --- */
     --sidebar-background: 224 71% 4%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-border: 217.2 32.6% 12.5%;
-    --sidebar-primary: 207 70% 53%;
+    --sidebar-primary: 250 84% 54%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 217.2 32.6% 20%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-ring: 207 70% 53%;
+    --sidebar-ring: 250 84% 54%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 224 71.4% 4.1%; /* deep slate-950 */
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 224 71.4% 7%; /* slate-900 with dark tint */
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 224 71.4% 7%;
     --popover-foreground: 210 40% 98%;
-    --primary: 207 70% 53%;
+    --primary: 250 84% 54%;
     --primary-foreground: 210 40% 98%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 205 63% 45%;
+    --accent: 174 86% 41%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 350 89% 55%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 207 70% 53%;
+    --ring: 250 84% 54%;
     
-    /* --- Mensuales Status Colors --- */
-    --status-vigente: 110 39% 45%; /* #5a984b */
-    --status-vencido: 0 99% 39%;   /* #c40501 */
+    /* --- Status Colors --- */
+    --status-vigente: 142.1 76.2% 36.3%;
+    --status-vencido: 350 89% 55%;
 
     /* --- Sidebar Modern Dark Theme --- */
-    --sidebar-background: 224 71% 4%;
+    --sidebar-background: 224 71% 3%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-border: 217.2 32.6% 12.5%;
-    --sidebar-primary: 207 70% 53%;
+    --sidebar-primary: 250 84% 54%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 217.2 32.6% 20%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-ring: 207 70% 53%;
+    --sidebar-ring: 250 84% 54%;
   }
 }
 
@@ -83,7 +82,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground scroll-smooth;
   }
   /* Hide spinner buttons on number inputs */
   input[type=number]::-webkit-inner-spin-button,
@@ -93,5 +92,64 @@
   }
   input[type=number] {
     -moz-appearance: textfield;
+  }
+}
+
+/* --- Custom Premium Components and Utilities --- */
+@layer utilities {
+  .premium-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(253, 254, 255, 0.95) 100%);
+    border: 1px solid rgba(241, 245, 249, 1);
+    box-shadow: 0 4px 20px -2px rgba(148, 163, 184, 0.08), 0 2px 8px -1px rgba(148, 163, 184, 0.04);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark .premium-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid rgba(51, 65, 85, 0.4);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3), 0 2px 8px -1px rgba(0, 0, 0, 0.2);
+  }
+
+  .premium-card:hover {
+    transform: translateY(-3px) scale(1.005);
+    box-shadow: 0 12px 30px -4px rgba(148, 163, 184, 0.15), 0 4px 12px -2px rgba(148, 163, 184, 0.08);
+  }
+
+  .glassmorphic {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .dark .glassmorphic {
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-600 to-accent;
+  }
+
+  .glowing-border:focus-within {
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary));
+  }
+
+  /* Custom Elegant Scrollbar */
+  .scroll-premium::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scroll-premium::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-premium::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 9999px;
+  }
+  .scroll-premium::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.5);
   }
 }

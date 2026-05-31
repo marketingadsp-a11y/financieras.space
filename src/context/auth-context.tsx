@@ -13,7 +13,7 @@ import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import type { PlazaAccess, Admin, SucursalAccess, IncomeExpensesPermission, LoanControlPermission, LoanControlPermissions, LinkedAdminAccess, FlujoPermissions, FlujoPermission, Permission, OverduePortfolioPermissions, OverduePortfolioPermission, RegistroOficinaAccess, RegistroOficinaPermission, VisorAppPermissions, VisorAppPermission } from '@/lib/data';
 import { getCustomizedTools, VISOR_APP_PERMISSIONS } from '@/lib/data';
 
-interface User {
+export interface User {
   id: string;
   username: string;
   name: string;
@@ -338,9 +338,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         {loading ? (
              <div className="flex h-screen items-center justify-center">Cargando...</div>
         ) : user && !pathIsPublic ? (
-            <AppShell>{children}</AppShell>
-        ) : (
+             <AppShell>{children}</AppShell>
+        ) : pathIsPublic ? (
              children
+        ) : (
+             <div className="flex h-screen items-center justify-center">Cargando...</div>
         )}
     </AuthContext.Provider>
   );

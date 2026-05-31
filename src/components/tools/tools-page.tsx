@@ -7,7 +7,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight, Loader2, Upload } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import type { Plaza, Customer } from "@/lib/data";
@@ -24,62 +24,72 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 const StatCard = ({ title, value, icon: Icon, isCurrency = false, description }: { title: string; value: number | string; icon: React.ElementType, isCurrency?: boolean, description?: string }) => (
-    <Card>
+    <Card className="premium-card">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold tracking-tight text-slate-500 dark:text-slate-400">{title}</CardTitle>
+            <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-md">
+                <Icon className="h-4 w-4 text-primary" />
+            </div>
         </CardHeader>
-        <CardContent>
-            <div className="text-2xl font-bold">
+        <CardContent className="pt-2">
+            <div className="text-2xl font-bold tracking-tight text-gradient bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">
                 {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
             </div>
-             {description && <p className="text-xs text-muted-foreground">{description}</p>}
+             {description && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 font-medium">{description}</p>}
         </CardContent>
     </Card>
 );
 
-const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }) => (
-     <Card className="bg-destructive/90 text-destructive-foreground">
+const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }: { title: string; value: number | string; icon: React.ElementType; isCurrency?: boolean }) => (
+     <Card className="premium-card bg-gradient-to-br from-rose-500 to-red-600 text-white border-none shadow-lg shadow-rose-500/10">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-destructive-foreground/70" />
+            <CardTitle className="text-sm font-semibold tracking-tight text-rose-100">{title}</CardTitle>
+            <div className="p-1.5 bg-white/20 rounded-md backdrop-blur-sm">
+                <Icon className="h-4 w-4 text-white" />
+            </div>
         </CardHeader>
-        <CardContent>
-            <div className="text-3xl font-bold">
+        <CardContent className="pt-2">
+            <div className="text-3xl font-extrabold tracking-tight">
                 {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
             </div>
         </CardContent>
     </Card>
-)
+);
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
-    <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-                <Building className="h-5 w-5 text-muted-foreground" />
-                {plaza.name}
-            </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            <div>
-                <p className="text-sm text-muted-foreground">Deuda Pendiente</p>
-                <p className="text-2xl font-bold text-destructive">
-                    ${plaza.pendingDebt.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-            </div>
-            <div>
-                <div className="flex justify-between text-sm text-muted-foreground mb-1">
-                    <span>Tasa de Recuperación</span>
-                    <span>{plaza.recoveryRate.toFixed(1)}%</span>
+    <Card className="premium-card flex flex-col justify-between overflow-hidden group">
+        <CardHeader className="p-4">
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-primary rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
+                    <Building className="h-6 w-6" />
                 </div>
-                <Progress value={plaza.recoveryRate} aria-label={`${plaza.recoveryRate}% de recuperación`} />
+                <div>
+                    <CardTitle className="text-base font-semibold leading-tight">{plaza.name}</CardTitle>
+                    <p className="text-xs text-muted-foreground">Prefijo: {plaza.prefix || 'N/A'}</p>
+                </div>
             </div>
-            <Button asChild className="w-full">
-               <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
-                    Ver Detalles <ArrowRight className="ml-2" />
+        </CardHeader>
+        <CardContent className="flex-grow space-y-4 px-4 pb-4">
+             <div className="space-y-1">
+                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Deuda Pendiente</span>
+                <p className="text-xl font-bold text-red-500 dark:text-red-400">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
+            </div>
+            <div className="space-y-1">
+                <div className="flex justify-between items-baseline">
+                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tasa de Recuperación</span>
+                    <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400">{plaza.recoveryRate.toFixed(1)}%</span>
+                </div>
+                <Progress value={plaza.recoveryRate} className="h-2 bg-slate-100 dark:bg-slate-800" />
+            </div>
+        </CardContent>
+        <CardFooter className="p-2 border-t bg-slate-50/50 dark:bg-slate-900/50">
+            <Button asChild className="w-full" variant="ghost" size="sm">
+                <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
+                    Administrar Plaza
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
             </Button>
-        </CardContent>
+        </CardFooter>
     </Card>
 );
 
@@ -236,7 +246,7 @@ export function ToolsPage() {
                     });
                 }
                 
-                await addMultipleCustomers(parsedCustomers, importMode, user.prefix);
+                await addMultipleCustomers(parsedCustomers, importMode, user.prefix!);
                 toast({ title: "Éxito", description: `${parsedCustomers.length} clientes importados.` });
                 await fetchData(); // Refresh data
                 setImportModalOpen(false);

@@ -175,7 +175,7 @@ export async function addPayment(customerId: string, paymentAmount: number, user
             prefix: customerData.prefix || 'N/A',
             toolContext: 'loan-control',
             type: 'payment',
-            timestamp: Timestamp.now(),
+            timestamp: new Date(),
             userName: userName,
             details: `Abono de $${paymentAmount} a ${customerData.name}. Saldo anterior: $${previousDueAmount}. Saldo nuevo: $${newDueAmount > 0 ? newDueAmount : 0}.`,
             customerName: customerData.name,
@@ -336,7 +336,13 @@ export async function importFullLoanData(
             return isNaN(num) ? 0 : num;
         };
 
-        const loanAmount = parseNumeric(row.Prestamo);
+        const loanAmountRaw = row.Prestamo !== undefined ? row.Prestamo : 
+                              (row.Préstamo !== undefined ? row.Préstamo : 
+                              (row.prestamo !== undefined ? row.prestamo : 
+                              (row.préstamo !== undefined ? row.préstamo : 
+                              (row.PRESTAMO !== undefined ? row.PRESTAMO : 
+                              (row.PRÉSTAMO !== undefined ? row.PRÉSTAMO : 0)))));
+        const loanAmount = parseNumeric(loanAmountRaw);
         const dueAmountRaw = row.Saldo !== undefined ? row.Saldo : row.adeudo;
         const dueAmount = dueAmountRaw !== undefined && String(dueAmountRaw).trim() !== "" ? parseNumeric(dueAmountRaw) : loanAmount;
 
@@ -360,6 +366,7 @@ export async function importFullLoanData(
             installmentsDue: parseInt(String(row.Vencidos || 0), 10) || 0,
             dueAmount: dueAmount,
             fechaPrestamo: fechaPrestamoDate ? Timestamp.fromDate(fechaPrestamoDate) : null,
+            toolContext: 'loan-control',
         };
         
         const customerRef = doc(customersCollectionRef);
@@ -408,14 +415,12 @@ export async function performRecall(
             }
 
             if (operation === 'subtract') {
-                // Ensure we don't go negative or below the status threshold
-                if (customer.dueAmount < amountToApply || customer.loanAmount < amountToApply) continue;
+                // Ensure we don't go negative
+                if (customer.dueAmount < amountToApply) continue;
                 
-                customer.loanAmount -= amountToApply;
                 customer.dueAmount -= amountToApply;
                 customer.status = customer.dueAmount <= 0 ? 'Pagado' : 'Pendiente';
             } else {
-                customer.loanAmount += amountToApply;
                 customer.dueAmount += amountToApply;
                 customer.status = 'Pendiente';
             }
@@ -424,9 +429,8 @@ export async function performRecall(
             customersAffected.add(customer.id);
             changedInLastPass = true;
 
-            // Prepare doc update
+            // Prepare doc update (only modify active debt and status, keeping loanAmount static)
             batch.update(doc(db, "customers", customer.id), {
-                loanAmount: customer.loanAmount,
                 dueAmount: customer.dueAmount,
                 status: customer.status
             });
@@ -456,4 +460,60 @@ export async function performRecall(
     await addDoc(historyCollectionRef, historyLog);
 
     return { success: true, totalApplied: currentRecalled, customersAffected: customersAffected.size };
+}
+
+export async function getLoanControlPlazaDetailData(plazaId: string): Promise<{
+    plaza: Plaza | null;
+    carteras: (LoanControlCartera & { grupoCount: number; totalLoaned: number; totalDue: number })[];
+}> {
+    const plazaDocRef = doc(db, "plazas", plazaId);
+    
+    // Fetch plaza, carteras, grupos, and customers all in parallel on the server
+    const [plazaSnap, carterasSnap, gruposSnap, customersSnap] = await Promise.all([
+        getDoc(plazaDocRef),
+        getDocs(query(carterasCollectionRef, where("plazaId", "==", plazaId))),
+        getDocs(query(gruposCollectionRef, where("plazaId", "==", plazaId))),
+        getDocs(query(customersCollectionRef, where("plazaId", "==", plazaId)))
+    ]);
+
+    if (!plazaSnap.exists()) {
+        return { plaza: null, carteras: [] };
+    }
+
+    const plazaData = plazaSnap.data();
+    const plaza = {
+        id: plazaSnap.id,
+        ...plazaData,
+        pendingDebt: plazaData.pendingDebt || 0,
+        recoveryRate: plazaData.recoveryRate || 0,
+        totalLoanAmount: plazaData.totalLoanAmount || 0,
+    } as Plaza;
+
+    const carteras = carterasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as LoanControlCartera[];
+    const grupos = gruposSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as LoanControlGrupo[];
+    const customers = customersSnap.docs.map(customerFromDoc);
+
+    const carterasWithStats = carteras.map(cartera => {
+        const carteraGrupos = grupos.filter(g => g.carteraId === cartera.id);
+        let totalLoaned = 0;
+        let totalDue = 0;
+
+        carteraGrupos.forEach(grupo => {
+            const grupoCustomers = customers.filter(c => c.loanControlGroupId === grupo.id);
+            totalLoaned += grupoCustomers.reduce((acc, c) => acc + (c.loanAmount || 0), 0);
+            totalDue += grupoCustomers.reduce((acc, c) => acc + (c.dueAmount || 0), 0);
+        });
+
+        return {
+            ...cartera,
+            grupoCount: carteraGrupos.length,
+            totalLoaned,
+            totalDue,
+        };
+    });
+
+    return {
+        plaza,
+        carteras: carterasWithStats,
+    };
 }

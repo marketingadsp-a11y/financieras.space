@@ -136,26 +136,26 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
     const expectedConfirmationText = grupoToDelete ? `${grupoToDelete.name} eliminar` : '';
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             <NavPanel plazaId={plaza.id} />
-            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Grupos de {cartera.name}</h1>
-                    <p className="text-muted-foreground">
-                        Gestiona los grupos de esta cartera de la plaza {plaza.name}.
+                    <h1 className="text-xl font-bold tracking-tight text-gradient">Grupos de {cartera.name}</h1>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Gestiona los grupos activos de esta cartera de la plaza {plaza.name}.
                     </p>
                 </div>
-                <div className="flex-shrink-0 flex items-center gap-2">
+                <div className="flex-shrink-0 flex items-center gap-1.5">
                     <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
                         <DialogTrigger asChild>
-                            <Button>
-                                <Users className="mr-2 h-4 w-4" />
+                            <Button className="h-8 text-xs bg-gradient-to-r from-primary to-indigo-650 hover:from-primary/95 hover:to-indigo-650/95 text-white shadow-md shadow-primary/10 hover:shadow-lg hover:shadow-primary/20 hover:translate-y-[-1px] transition-all duration-300">
+                                <Users className="mr-1.5 h-3.5 w-3.5" />
                                 Crear Grupo
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="glassmorphic border-white/20 dark:border-slate-800/40">
                             <DialogHeader>
-                                <DialogTitle>{editingGrupo ? 'Editar' : 'Crear'} Grupo</DialogTitle>
+                                <DialogTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">{editingGrupo ? 'Editar' : 'Crear'} Grupo</DialogTitle>
                             </DialogHeader>
                             <GrupoForm 
                                 onSubmit={handleFormSubmit}
@@ -167,84 +167,80 @@ export function CarteraDetail({ carteraId }: { carteraId: string }) {
                 </div>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar grupo por nombre..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 w-full md:w-1/3"
-                        />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    {filteredGrupos.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredGrupos.map(grupo => (
-                                <Card key={grupo.id} className="flex flex-col group transition-all hover:shadow-lg hover:-translate-y-1">
-                                     <CardHeader>
-                                        <div className="flex justify-between items-start">
-                                            <div className="p-3 bg-primary/10 rounded-lg">
-                                                <Users className="h-6 w-6 text-primary" />
-                                            </div>
-                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(grupo)}><Edit className="h-4 w-4" /></Button>
-                                                <AlertDialog open={!!grupoToDelete && grupoToDelete.id === grupo.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => openDeleteDialog(grupo)}><Trash2 className="h-4 w-4" /></Button>
-                                                    </AlertDialogTrigger>
-                                                     <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitleComponent>¿Estás seguro?</AlertDialogTitleComponent>
-                                                            <AlertDialogDescription>
-                                                                Esta acción es irreversible y eliminará el grupo y desasignará a sus clientes.
-                                                                Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <Input
-                                                          value={deleteConfirmationText}
-                                                          onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                                                          placeholder={expectedConfirmationText}
-                                                          autoFocus
-                                                        />
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction
-                                                                disabled={deleteConfirmationText !== expectedConfirmationText}
-                                                                onClick={handleDeleteGrupo}
-                                                                className="bg-destructive hover:bg-destructive/90"
-                                                            >
-                                                                Eliminar
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </div>
-                                        <CardTitle className="text-xl mt-4">{grupo.name}</CardTitle>
-                                    </CardHeader>
-                                    <CardFooter>
-                                        <Button asChild className="w-full">
-                                            <Link href={`/tools/loan-control/grupo/${grupo.id}`}>
-                                                Administrar Clientes
-                                                <ArrowRight className="ml-2 h-4 w-4" />
-                                            </Link>
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            ))}
-                        </div>
-                    ) : (
-                        <Card>
-                            <CardContent className="pt-6 text-center text-muted-foreground">
-                                No hay grupos {searchTerm ? 'que coincidan con la búsqueda' : 'en esta cartera. ¡Crea el primero!'}.
-                            </CardContent>
+            <div className="flex justify-start">
+                <div className="relative glowing-border rounded-lg w-full max-w-sm">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-550" />
+                    <Input
+                        placeholder="Buscar grupo por nombre..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8 h-8 text-xs w-full bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus-visible:ring-primary focus-visible:ring-1 focus-visible:ring-offset-0"
+                    />
+                </div>
+            </div>
+
+            {filteredGrupos.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                    {filteredGrupos.map(grupo => (
+                        <Card key={grupo.id} className="premium-card group overflow-hidden relative p-2">
+                            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary to-indigo-500 opacity-80" />
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-primary rounded-lg shrink-0">
+                                        <Users className="h-3.5 w-3.5 text-primary" />
+                                    </div>
+                                    <span className="text-xs font-bold leading-tight tracking-tight text-slate-800 dark:text-slate-100 truncate">{grupo.name}</span>
+                                </div>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-400" onClick={() => openForm(grupo)}><Edit className="h-3.5 w-3.5" /></Button>
+                                    <AlertDialog open={!!grupoToDelete && grupoToDelete.id === grupo.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-rose-500 hover:text-rose-650 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg" onClick={() => openDeleteDialog(grupo)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                        </AlertDialogTrigger>
+                                         <AlertDialogContent className="glassmorphic border-white/20 dark:border-slate-800/40">
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitleComponent className="text-lg font-bold text-slate-800 dark:text-slate-100">¿Estás seguro?</AlertDialogTitleComponent>
+                                                <AlertDialogDescription className="text-sm text-muted-foreground">
+                                                    Esta acción es irreversible y eliminará el grupo <strong>{grupo.name}</strong> y desasignará a sus clientes.
+                                                    Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <Input
+                                              value={deleteConfirmationText}
+                                              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                                              placeholder={expectedConfirmationText}
+                                              className="bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus-visible:ring-rose-500 focus-visible:ring-1"
+                                              autoFocus
+                                            />
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel className="border-slate-200 dark:border-slate-800">Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    disabled={deleteConfirmationText !== expectedConfirmationText}
+                                                    onClick={handleDeleteGrupo}
+                                                    className="bg-destructive hover:bg-destructive/90 text-white"
+                                                >
+                                                    Eliminar
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    <Button asChild variant="ghost" size="icon" className="h-6 w-6 text-primary hover:text-primary hover:bg-primary/10 rounded-lg">
+                                        <Link href={`/tools/loan-control/grupo/${grupo.id}`}>
+                                            <ArrowRight className="h-3.5 w-3.5" />
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </div>
                         </Card>
-                    )}
-                </CardContent>
-            </Card>
+                    ))}
+                </div>
+            ) : (
+                <Card className="premium-card border-dashed bg-slate-50/20 dark:bg-slate-900/10">
+                    <CardContent className="pt-8 pb-8 text-center text-sm text-muted-foreground">
+                        No hay grupos {searchTerm ? 'que coincidan con la búsqueda' : 'en esta cartera. ¡Crea el primero!'}.
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

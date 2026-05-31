@@ -5,6 +5,7 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, 
 import { db } from "@/lib/firebase";
 import type { Plaza, Customer } from "@/lib/data";
 import { getCustomersByPlaza } from "./customer-service";
+import { customerFromDoc } from "./customer-service-helper";
 
 const plazasCollectionRef = collection(db, "plazas");
 const customersCollectionRef = collection(db, "customers");
@@ -32,11 +33,31 @@ export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, 
     const q = query(plazasCollectionRef, ...constraints);
     const plazasSnapshot = await getDocs(q);
     
-    const plazasWithCalculations = await Promise.all(plazasSnapshot.docs.map(async (doc) => {
+    // Fetch all customers for prefix and toolContext in a single query to avoid N+1 waterfall queries
+    let allCustomers: Customer[] = [];
+    if (prefix) {
+        let customerConstraints = [where("prefix", "==", prefix)];
+        if (toolContext) {
+            customerConstraints.push(where("toolContext", "==", toolContext));
+        }
+        const customersSnapshot = await getDocs(query(customersCollectionRef, ...customerConstraints));
+        allCustomers = customersSnapshot.docs.map(customerFromDoc);
+    } else {
+        // Fallback for fetchAll (SuperAdmin or cases without prefix)
+        let customerConstraints = [];
+        if (toolContext) {
+            customerConstraints.push(where("toolContext", "==", toolContext));
+        }
+        const customersSnapshot = await getDocs(query(customersCollectionRef, ...customerConstraints));
+        allCustomers = customersSnapshot.docs.map(customerFromDoc);
+    }
+    
+    const plazasWithCalculations = plazasSnapshot.docs.map((doc) => {
         const plazaData = doc.data() as Omit<Plaza, 'id' | 'totalLoanAmount'>;
         const plazaId = doc.id;
         
-        const allCustomersInPlaza = await getCustomersByPlaza(plazaId);
+        // Filter in memory instead of executing separate Firestore queries for each plaza
+        const allCustomersInPlaza = allCustomers.filter(c => c.plazaId === plazaId);
         
         // Filter customers by date range in the application code
         const filteredCustomers = allCustomersInPlaza.filter(customer => {
@@ -61,7 +82,6 @@ export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, 
         const recoveredClients = filteredCustomers.filter(c => c.dueAmount <= 0).length;
         const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
 
-
         return {
             id: plazaId,
             name: plazaData.name,
@@ -71,7 +91,7 @@ export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, 
             toolContext: plazaData.toolContext,
             totalLoanAmount: totalLoanAmount,
         };
-    }));
+    });
 
     return plazasWithCalculations;
 }
@@ -147,4 +167,46 @@ export async function deleteAllPlazasByPrefix(prefix: string, toolContext: 'over
     
     // 4. Commit all deletions at once
     await batch.commit();
+}
+
+export async function getPlazaDetailData(plazaId: string, prefix?: string): Promise<{
+    plaza: Plaza | null;
+    companyProfile: any | null;
+    customers: Customer[];
+}> {
+    const plazaDocRef = doc(db, "plazas", plazaId);
+    const profileCollectionRef = collection(db, "companyProfiles");
+    const customersCollectionRef = collection(db, "customers");
+    
+    const promises: [Promise<any>, Promise<any>, Promise<any>] = [
+        getDoc(plazaDocRef),
+        prefix ? getDoc(doc(db, "companyProfiles", prefix)) : Promise.resolve(null),
+        getDocs(query(customersCollectionRef, where("plazaId", "==", plazaId)))
+    ];
+    
+    const [plazaSnap, profileSnap, customersSnap] = await Promise.all(promises);
+    
+    let plaza: Plaza | null = null;
+    if (plazaSnap.exists()) {
+        const plazaData = plazaSnap.data();
+        plaza = {
+            id: plazaSnap.id,
+            ...plazaData,
+            pendingDebt: plazaData.pendingDebt || 0,
+            recoveryRate: plazaData.recoveryRate || 0,
+            totalLoanAmount: plazaData.totalLoanAmount || 0,
+        } as Plaza;
+    }
+    
+    const companyProfile = (profileSnap && profileSnap.exists()) 
+        ? { id: profileSnap.id, ...profileSnap.data() } 
+        : null;
+        
+    const customers = customersSnap.docs.map(customerFromDoc);
+    
+    return {
+        plaza,
+        companyProfile,
+        customers
+    };
 }

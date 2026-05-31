@@ -32,56 +32,52 @@ import { RecallDialog } from "./recall-dialog";
 
 const PlazaCard = ({ plaza, onEdit, canEdit }: { plaza: Plaza, onEdit: (plaza: Plaza) => void, canEdit: boolean }) => {
     return (
-        <Card className="group flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 p-2">
-            <CardHeader className="p-1">
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 bg-primary/10 rounded-lg w-fit">
-                            <Building className="h-5 w-5 text-primary transition-transform duration-300 group-hover:scale-110" />
+        <Card className="premium-card group flex flex-col overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary to-indigo-500 opacity-80" />
+            <CardHeader className="p-3 pb-1.5">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
+                            <Building className="h-4 w-4 text-primary transition-transform duration-300 group-hover:scale-110" />
                         </div>
-                        <div>
-                            <CardTitle className="text-sm font-semibold leading-tight">{plaza.name}</CardTitle>
-                            <CardDescription className="text-xs">Prefijo: {plaza.prefix}</CardDescription>
+                        <div className="min-w-0">
+                            <CardTitle className="text-xs font-bold leading-tight tracking-tight text-slate-800 dark:text-slate-100 truncate">{plaza.name}</CardTitle>
+                            <CardDescription className="text-[10px] text-muted-foreground truncate">Prefijo: {plaza.prefix}</CardDescription>
                         </div>
                     </div>
                     {canEdit && (
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-50 group-hover:opacity-100">
-                                    <MoreHorizontal className="h-4 w-4" />
+                                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg opacity-50 hover:opacity-100 transition-opacity">
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => onEdit(plaza)}>
-                                    <Edit className="mr-2 h-4 w-4" /> Editar Nombre
+                            <DropdownMenuContent align="end" className="glassmorphic">
+                                <DropdownMenuItem onSelect={() => onEdit(plaza)} className="cursor-pointer text-xs">
+                                    <Edit className="mr-1.5 h-3.5 w-3.5" /> Editar Nombre
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
-                        </DropdownMenu>
+                         </DropdownMenu>
                     )}
                 </div>
             </CardHeader>
-            <CardContent className="flex-grow space-y-2 px-3 pb-3">
-                 <div className="space-y-1">
-                     <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-green-500"/> PRESTADO</span>
-                    <p className="text-base font-bold">${(plaza.totalLoanAmount || 0).toLocaleString('es-MX')}</p>
-                </div>
-                 <div className="space-y-1">
-                     <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingDown className="h-3 w-3 text-red-500"/> PENDIENTE</span>
-                    <p className="text-base font-bold text-destructive">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
-                </div>
-                <div className="space-y-1">
-                    <div className="flex justify-between items-baseline">
-                         <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Target className="h-3 w-3 text-blue-500"/> RECUPERACIÓN</span>
-                        <span className="text-xs font-bold">{plaza.recoveryRate.toFixed(1)}%</span>
+            <CardContent className="flex-grow space-y-2 px-3 pb-3 pt-0">
+                <div className="grid grid-cols-2 gap-1.5">
+                    <div className="bg-slate-50/50 dark:bg-slate-900/40 p-1.5 rounded-lg border border-slate-100/50 dark:border-slate-800/50">
+                        <span className="text-[9px] font-bold text-slate-500 tracking-wider flex items-center gap-1"><TrendingUp className="h-3 w-3 text-emerald-500"/> PRESTADO</span>
+                        <p className="text-xs font-extrabold tracking-tight mt-0.5">${(plaza.totalLoanAmount || 0).toLocaleString('es-MX')}</p>
                     </div>
-                    <Progress value={plaza.recoveryRate} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-blue-400 [&>div]:to-blue-600" />
+                    <div className="bg-slate-50/50 dark:bg-slate-900/40 p-1.5 rounded-lg border border-slate-100/50 dark:border-slate-800/50">
+                        <span className="text-[9px] font-bold text-slate-500 tracking-wider flex items-center gap-1"><TrendingDown className="h-3 w-3 text-rose-500"/> PENDIENTE</span>
+                        <p className="text-xs font-extrabold tracking-tight text-rose-600 dark:text-rose-455 mt-0.5">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
+                    </div>
                 </div>
             </CardContent>
-            <CardFooter className="p-2 border-t">
-                <Button asChild className="w-full" variant="ghost" size="sm">
+            <CardFooter className="p-1.5 border-t bg-slate-50/30 dark:bg-slate-900/10 px-3">
+                <Button asChild className="w-full justify-between hover:bg-primary/5 hover:text-primary transition-all duration-300 rounded-lg h-7 text-[10px]" variant="ghost" size="sm">
                     <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
-                        Administrar
-                        <ArrowRight className="ml-2 h-4 w-4" />
+                        <span className="font-bold">Administrar Plaza</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                 </Button>
             </CardFooter>
@@ -89,17 +85,20 @@ const PlazaCard = ({ plaza, onEdit, canEdit }: { plaza: Plaza, onEdit: (plaza: P
     )
 };
 
-const StatCard = ({ title, value }: { title: string; value: number | undefined; }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <DollarSign className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
-            ${(value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+const StatCard = ({ title, value, icon: Icon, colorClass }: { title: string; value: number | undefined; icon: React.ElementType; colorClass: string }) => (
+    <Card className="premium-card overflow-hidden relative p-3">
+      <div className={cn("absolute top-0 left-0 w-1 h-full", colorClass)} />
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">{title}</p>
+          <p className="text-lg font-black tracking-tight text-slate-850 dark:text-slate-150 mt-0.5">
+              ${(value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
         </div>
-      </CardContent>
+        <div className="p-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-lg shrink-0">
+          <Icon className="h-4 w-4 text-muted-foreground opacity-70" />
+        </div>
+      </div>
     </Card>
 );
 
@@ -135,7 +134,8 @@ export function LoanControlDashboard() {
         try {
             const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
             const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, startDate, endDate, toolContext: 'loan-control' });
-            setPlazas(plazasFromDb);
+            const sortedPlazas = [...plazasFromDb].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+            setPlazas(sortedPlazas);
 
             // Update summary stats based on current filters
             const totalLoaned = plazasFromDb.reduce((acc, p) => acc + (p.totalLoanAmount || 0), 0);
@@ -264,24 +264,213 @@ export function LoanControlDashboard() {
 
     const exportToPDF = () => {
         if (filteredPlazas.length === 0) return;
+
+        // Separate active and inactive plazas
+        const activePlazas = filteredPlazas.filter(p => (p.totalLoanAmount || 0) > 0 || (p.pendingDebt || 0) > 0);
+        const inactivePlazas = filteredPlazas.filter(p => (p.totalLoanAmount || 0) === 0 && (p.pendingDebt || 0) === 0);
+
+        // Calculate totals only for active plazas
+        const pdfTotalLoaned = activePlazas.reduce((acc, p) => acc + (p.totalLoanAmount || 0), 0);
+        const pdfTotalDue = activePlazas.reduce((acc, p) => acc + (p.pendingDebt || 0), 0);
+
         const doc = new jsPDF();
-        doc.text("Resumen de Plazas - Control de Préstamo", 14, 16);
-        doc.text(`Rango de Fechas: ${getDateRangeString()}`, 14, 22);
-        doc.text(`Total Prestado (Filtrado): $${filteredSummary.totalLoaned.toLocaleString('es-MX')}`, 14, 28);
-        doc.text(`Total Pendiente (Filtrado): $${filteredSummary.totalDue.toLocaleString('es-MX')}`, 14, 34);
+
+        // 1. Header Block (Indigo Theme)
+        doc.setFillColor(30, 27, 75); // Deep Indigo (#1e1b4b)
+        doc.rect(14, 15, 182, 22, 'F');
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(255, 255, 255);
+        doc.text("CONTROL DE PRÉSTAMOS - REPORTE EJECUTIVO", 20, 24);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(203, 213, 225); // Slate 300
+        doc.text(`Rango de Fechas: ${getDateRangeString()}`, 20, 31);
+        
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Fecha: ${format(new Date(), 'dd/MM/yyyy')}`, 145, 27);
+
+        // 2. KPI Cards
+        const cardWidth = 58;
+        const cardHeight = 22;
+        const cardY = 43;
+
+        // Card 1: Total Prestado (Green Theme)
+        doc.setFillColor(240, 253, 244); // light green
+        doc.rect(14, cardY, cardWidth, cardHeight, 'F');
+        doc.setDrawColor(187, 247, 208); // border green
+        doc.rect(14, cardY, cardWidth, cardHeight, 'S');
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(22, 101, 52); // green-800
+        doc.text("TOTAL PRESTADO (ACTIVAS)", 18, cardY + 6);
+        doc.setFontSize(11);
+        doc.text(`$${pdfTotalLoaned.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 18, cardY + 14);
+
+        // Card 2: Deuda Pendiente (Red Theme)
+        doc.setFillColor(254, 242, 242); // light red
+        doc.rect(14 + cardWidth + 4, cardY, cardWidth, cardHeight, 'F');
+        doc.setDrawColor(254, 202, 202); // border red
+        doc.rect(14 + cardWidth + 4, cardY, cardWidth, cardHeight, 'S');
+        
+        doc.setFontSize(7);
+        doc.setTextColor(153, 27, 27); // red-800
+        doc.text("DEUDA PENDIENTE (ACTIVAS)", 14 + cardWidth + 8, cardY + 6);
+        doc.setFontSize(11);
+        doc.text(`$${pdfTotalDue.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14 + cardWidth + 8, cardY + 14);
+
+        // Card 3: Plazas Activas (Indigo Theme)
+        doc.setFillColor(238, 242, 255); // light indigo
+        doc.rect(14 + (cardWidth * 2) + 8, cardY, cardWidth, cardHeight, 'F');
+        doc.setDrawColor(199, 210, 254); // border indigo
+        doc.rect(14 + (cardWidth * 2) + 8, cardY, cardWidth, cardHeight, 'S');
+        
+        doc.setFontSize(7);
+        doc.setTextColor(55, 48, 163); // indigo-800
+        doc.text("PLAZAS ACTIVAS / TOTAL", 14 + (cardWidth * 2) + 12, cardY + 6);
+        doc.setFontSize(11);
+        doc.text(`${activePlazas.length} de ${filteredPlazas.length}`, 14 + (cardWidth * 2) + 12, cardY + 14);
+
+        // 3. Visual Chart: Comparative Bar Chart
+        let nextY = 72;
+        if (activePlazas.length > 0) {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(15, 23, 42); // slate-900
+            doc.text("DISTRIBUCIÓN DE CARTERA POR PLAZA (TOP 5)", 14, nextY);
+
+            // Chart Legend
+            doc.setFillColor(74, 222, 128); // green
+            doc.rect(125, nextY - 3, 3, 3, 'F');
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+            doc.setTextColor(71, 85, 105);
+            doc.text("Prestado", 130, nextY - 0.5);
+
+            doc.setFillColor(248, 113, 113); // red
+            doc.rect(155, nextY - 3, 3, 3, 'F');
+            doc.text("Pendiente", 160, nextY - 0.5);
+
+            // Draw horizontal bars
+            const sortedActive = [...activePlazas].sort((a, b) => (b.totalLoanAmount || 0) - (a.totalLoanAmount || 0));
+            const topActive = sortedActive.slice(0, 5);
+            const maxLoaned = Math.max(...topActive.map(p => p.totalLoanAmount || 0), 1);
+
+            let chartY = nextY + 7;
+            topActive.forEach((p) => {
+                const name = p.name;
+                const loaned = p.totalLoanAmount || 0;
+                const due = p.pendingDebt || 0;
+                const barWidthMax = 65; // mm max width
+
+                const loanedWidth = (loaned / maxLoaned) * barWidthMax;
+                const dueWidth = (due / maxLoaned) * barWidthMax;
+
+                // Name
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(7.5);
+                doc.setTextColor(51, 65, 85);
+                doc.text(name, 14, chartY);
+
+                // Prestado Bar
+                doc.setFillColor(240, 253, 244); // bg
+                doc.rect(65, chartY - 2.5, barWidthMax, 3, 'F');
+                doc.setFillColor(74, 222, 128); // bar green
+                doc.rect(65, chartY - 2.5, loanedWidth, 3, 'F');
+
+                // Pendiente Bar
+                doc.setFillColor(254, 242, 242); // bg
+                doc.rect(65, chartY + 1.5, barWidthMax, 3, 'F');
+                doc.setFillColor(248, 113, 113); // bar red
+                doc.rect(65, chartY + 1.5, dueWidth, 3, 'F');
+
+                // Labels
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(6.5);
+                doc.setTextColor(22, 101, 52);
+                doc.text(`$${loaned.toLocaleString('es-MX', {maximumFractionDigits:0})}`, 65 + barWidthMax + 2, chartY - 0.5);
+                doc.setTextColor(153, 27, 27);
+                doc.text(`$${due.toLocaleString('es-MX', {maximumFractionDigits:0})}`, 65 + barWidthMax + 2, chartY + 3.5);
+
+                chartY += 10;
+            });
+            nextY = chartY + 4;
+        }
+
+        // 4. Active Plazas Table
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text("DETALLE DE PLAZAS ACTIVAS", 14, nextY);
 
         autoTable(doc, {
-            startY: 40,
-            head: [['Plaza', 'Prefijo', 'Total Prestado', 'Deuda Pendiente', 'Recuperación (%)']],
-            body: filteredPlazas.map(p => [
+            startY: nextY + 3,
+            head: [['Plaza', 'Prefijo', 'Total Prestado', 'Deuda Pendiente']],
+            body: activePlazas.map(p => [
                 p.name,
                 p.prefix || 'N/A',
-                `$${(p.totalLoanAmount || 0).toLocaleString('es-MX')}`,
-                `$${(p.pendingDebt || 0).toLocaleString('es-MX')}`,
-                `${p.recoveryRate.toFixed(1)}%`
+                `$${(p.totalLoanAmount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                `$${(p.pendingDebt || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             ]),
+            headStyles: {
+                fillColor: [30, 27, 75],
+                textColor: [255, 255, 255],
+                fontSize: 8,
+                fontStyle: 'bold',
+            },
+            bodyStyles: {
+                fontSize: 7.5,
+            },
+            alternateRowStyles: {
+                fillColor: [248, 250, 252],
+            },
+            margin: { left: 14, right: 14 },
         });
-        const fileName = `Resumen_Plazas_Control_Prestamo_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+
+        nextY = (doc as any).lastAutoTable.finalY + 10;
+
+        // 5. Inactive Plazas Table (separated, not in metrics)
+        if (inactivePlazas.length > 0) {
+            // Check if we need a new page for inactive plazas table
+            if (nextY > 260) {
+                doc.addPage();
+                nextY = 20;
+            }
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(100, 116, 139); // cool slate
+            doc.text("PLAZAS SIN OPERACIÓN (SALDO EN $0)", 14, nextY);
+
+            autoTable(doc, {
+                startY: nextY + 3,
+                head: [['Plaza', 'Prefijo', 'Estado']],
+                body: inactivePlazas.map(p => [
+                    p.name,
+                    p.prefix || 'N/A',
+                    'Sin actividad registrada'
+                ]),
+                headStyles: {
+                    fillColor: [100, 116, 139],
+                    textColor: [255, 255, 255],
+                    fontSize: 8,
+                    fontStyle: 'bold',
+                },
+                bodyStyles: {
+                    fontSize: 7.5,
+                    textColor: [100, 116, 139],
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252],
+                },
+                margin: { left: 14, right: 14 },
+            });
+        }
+
+        const fileName = `Reporte_Ejecutivo_Control_Prestamo_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
         doc.save(fileName);
     };
 
@@ -292,7 +481,6 @@ export function LoanControlDashboard() {
             'Prefijo': p.prefix,
             'Total Prestado': p.totalLoanAmount,
             'Deuda Pendiente': p.pendingDebt,
-            'Tasa de Recuperación (%)': p.recoveryRate,
         }));
         
         const worksheet = XLSX.utils.json_to_sheet([]);
@@ -323,96 +511,120 @@ export function LoanControlDashboard() {
     const expectedConfirmationText = "ELIMINAR TODO";
   
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div className="space-y-4">
+            <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Control de Préstamo</h1>
-                    <p className="text-muted-foreground">
-                        Selecciona una plaza para organizar clientes en carteras y grupos.
+                    <h1 className="text-2xl font-extrabold tracking-tight text-gradient">Control de Préstamos</h1>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        Gestiona y organiza clientes en carteras, grupos y plazas de forma ágil y visual.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                      {isFortunaAdmin && (
-                        <Button variant="outline" onClick={() => setRecallModalOpen(true)}>
-                            <RefreshCcw className="mr-2 h-4 w-4" /> Recall
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setRecallModalOpen(true)}
+                            className="h-8 text-xs border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 transition-all duration-200"
+                        >
+                            <RefreshCcw className="mr-1.5 h-3.5 w-3.5 animate-spin-hover" /> Recall
                         </Button>
                      )}
                      <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                         <DialogTrigger asChild>
-                            <Button>
-                                <Upload className="mr-2 h-4 w-4" /> Importar desde Excel
+                            <Button className="h-8 text-xs bg-gradient-to-r from-primary to-indigo-650 hover:from-primary/95 hover:to-indigo-650/95 text-white shadow-md shadow-primary/10 hover:shadow-lg hover:shadow-primary/20 hover:translate-y-[-1px] transition-all duration-300">
+                                <Upload className="mr-1.5 h-3.5 w-3.5" /> Importar
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-xl">
+                        <DialogContent className="sm:max-w-xl glassmorphic border-white/20 dark:border-slate-800/40">
                             <DialogHeader>
-                                <DialogTitle>Importación Masiva (Plaza {'>'} Cartera {'>'} Grupo {'>'} Cliente)</DialogTitle>
-                                <DialogDescriptionComponent>
+                                <DialogTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                                    Importación Masiva
+                                </DialogTitle>
+                                <DialogDescriptionComponent className="text-xs text-muted-foreground mt-2">
                                   Selecciona un archivo de Excel (`.xlsx`, `.xls`) para una importación completa.
                                   Las columnas deben tener encabezados como: Plaza, Cartera, Grupo, Nombre, Prestamo, etc.
                                 </DialogDescriptionComponent>
                             </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="space-y-2">
-                                  <Label>Modo de Importación</Label>
-                                  <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex items-center gap-6">
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="add" id="r1" />
-                                      <Label htmlFor="r1">Añadir a existentes</Label>
+                            <div className="grid gap-5 py-4">
+                                <div className="space-y-3 bg-slate-50/50 dark:bg-slate-900/30 p-3.5 rounded-xl border border-slate-150/40 dark:border-slate-800/40">
+                                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-355 tracking-wide">MODO DE IMPORTACIÓN</Label>
+                                  <RadioGroup defaultValue="add" value={importMode} onValueChange={(value) => setImportMode(value as any)} className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                    <div className="flex items-center space-x-2 bg-white dark:bg-slate-950 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-800 flex-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">
+                                      <RadioGroupItem value="add" id="r1" className="text-primary border-slate-300 dark:border-slate-700" />
+                                      <Label htmlFor="r1" className="text-xs font-medium cursor-pointer">Añadir a existentes</Label>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="replace" id="r2" />
-                                      <Label htmlFor="r2">Reemplazar todos los datos de este prefijo</Label>
+                                    <div className="flex items-center space-x-2 bg-white dark:bg-slate-950 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-800 flex-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">
+                                      <RadioGroupItem value="replace" id="r2" className="text-rose-500 border-slate-300 dark:border-slate-700" />
+                                      <Label htmlFor="r2" className="text-xs font-medium cursor-pointer text-rose-650 dark:text-rose-450">Reemplazar datos</Label>
                                     </div>
                                   </RadioGroup>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="excel-file">Archivo de Excel</Label>
+                                    <Label htmlFor="excel-file" className="text-xs font-bold text-slate-700 dark:text-slate-355 tracking-wide">ARCHIVO DE EXCEL</Label>
                                     <Input 
                                         id="excel-file"
                                         type="file"
                                         accept=".xlsx, .xls"
                                         onChange={handleFileChange}
+                                        className="bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus-visible:ring-primary focus-visible:ring-1 cursor-pointer"
                                     />
                                 </div>
                             </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
-                                <Button onClick={handleImport} disabled={isImporting || !selectedFile}>
+                            <DialogFooter className="gap-2 sm:gap-0">
+                                <Button variant="outline" onClick={() => setImportModalOpen(false)} className="border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900">Cancelar</Button>
+                                <Button 
+                                    onClick={handleImport} 
+                                    disabled={isImporting || !selectedFile}
+                                    className="bg-gradient-to-r from-primary to-indigo-650 text-white"
+                                >
                                     {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4"/>}
                                     {isImporting ? 'Importando...' : 'Importar Archivo'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
                       </Dialog>
-                    <Button variant="outline" size="sm" onClick={exportToExcel} disabled={filteredPlazas.length === 0}>
-                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={exportToExcel} 
+                        disabled={filteredPlazas.length === 0}
+                        className="h-8 text-xs border-slate-200 dark:border-slate-850 bg-white/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
+                    >
+                        <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Excel
                     </Button>
-                    <Button variant="outline" size="sm" onClick={exportToPDF} disabled={filteredPlazas.length === 0}>
-                        <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={exportToPDF} 
+                        disabled={filteredPlazas.length === 0}
+                        className="h-8 text-xs border-slate-200 dark:border-slate-855 bg-white/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
+                    >
+                        <FileText className="mr-1.5 h-3.5 w-3.5 text-rose-600 dark:text-rose-455" /> PDF
                     </Button>
                     {canDeleteAllData && (
                          <AlertDialog>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon">
-                                    <MoreHorizontal className="h-4 w-4" />
+                                <Button variant="outline" size="icon" className="h-8 w-8 border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50">
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
                                 </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Más Opciones</DropdownMenuLabel>
+                                <DropdownMenuContent align="end" className="glassmorphic">
+                                <DropdownMenuLabel className="text-xs font-bold text-muted-foreground tracking-wider">MÁS OPCIONES</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={e => e.preventDefault()}>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Eliminar Todos los Datos
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer text-xs" onSelect={e => e.preventDefault()}>
+                                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                    Eliminar Datos
                                     </DropdownMenuItem>
                                 </AlertDialogTrigger>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            <AlertDialogContent>
+                            <AlertDialogContent className="glassmorphic border-white/20 dark:border-slate-800/40">
                                 <AlertDialogHeader>
-                                    <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
-                                    <AlertDialogDescription>
+                                    <AlertDialogTitleComponent className="text-lg font-bold text-slate-800 dark:text-slate-100">¿Estás absolutamente seguro?</AlertDialogTitleComponent>
+                                    <AlertDialogDescription className="text-sm text-muted-foreground">
                                         Esta acción es irreversible y eliminará permanentemente <strong>TODAS</strong> las plazas, carteras, grupos y clientes de Control de Préstamo para el prefijo <strong>{user?.prefix}</strong>.
                                         Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
                                     </AlertDialogDescription>
@@ -421,14 +633,15 @@ export function LoanControlDashboard() {
                                 value={deleteConfirmationText}
                                 onChange={(e) => setDeleteConfirmationText(e.target.value)}
                                 placeholder={expectedConfirmationText}
+                                className="bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus-visible:ring-rose-500 focus-visible:ring-1"
                                 autoFocus
                                 />
                                 <AlertDialogFooterComponent>
-                                <AlertDialogCancel onClick={() => setDeleteConfirmationText('')}>Cancelar</AlertDialogCancel>
+                                <AlertDialogCancel onClick={() => setDeleteConfirmationText('')} className="border-slate-200 dark:border-slate-800">Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
                                     onClick={handleDeleteAllData}
                                     disabled={deleteConfirmationText !== expectedConfirmationText}
-                                    className="bg-destructive hover:bg-destructive/90"
+                                    className="bg-destructive hover:bg-destructive/90 text-white"
                                 >
                                     Sí, eliminar todo
                                 </AlertDialogAction>
@@ -439,41 +652,35 @@ export function LoanControlDashboard() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard title="Total Prestado (Filtrado)" value={filteredSummary.totalLoaned} />
-                <StatCard title="Total Pendiente (Filtrado)" value={filteredSummary.totalDue} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <StatCard title="Total Prestado (Filtrado)" value={filteredSummary.totalLoaned} icon={TrendingUp} colorClass="bg-gradient-to-b from-indigo-500 to-indigo-650" />
+                <StatCard title="Total Pendiente (Filtrado)" value={filteredSummary.totalDue} icon={TrendingDown} colorClass="bg-gradient-to-b from-rose-500 to-rose-600" />
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Filtros</CardTitle>
-                    <CardDescription>
-                        Filtra la información por nombre de plaza y/o rango de fechas de préstamo.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col md:flex-row gap-2 items-center">
-                    <div className="relative flex-grow w-full">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Card className="premium-card bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-slate-100 dark:border-slate-800/80 p-3">
+                <div className="flex flex-col lg:flex-row gap-2 items-center">
+                    <div className="relative flex-grow w-full glowing-border rounded-lg">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-550" />
                         <Input
                             placeholder="Buscar por nombre de plaza..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 w-full"
+                            className="pl-8 h-8 text-xs w-full bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus-visible:ring-primary focus-visible:ring-1 focus-visible:ring-offset-0"
                         />
                     </div>
-                    <div className="flex items-center gap-2 w-full md:w-auto">
+                    <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button
                                 id="date-start"
                                 variant={"outline"}
-                                className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
+                                className={cn("w-full sm:w-[130px] h-8 justify-start text-left font-medium bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 text-[11px]", !startDate && "text-muted-foreground")}
                                 >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {startDate ? format(startDate, "PPP", {locale: es}) : <span>Fecha de inicio</span>}
+                                <CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-slate-455 dark:text-slate-500" />
+                                {startDate ? format(startDate, "dd/MM/yyyy") : <span>Fecha inicio</span>}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent className="w-auto p-0 glassmorphic border-slate-100 dark:border-slate-855" align="start">
                                 <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
                             </PopoverContent>
                         </Popover>
@@ -482,22 +689,26 @@ export function LoanControlDashboard() {
                                 <Button
                                 id="date-end"
                                 variant={"outline"}
-                                className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
+                                className={cn("w-full sm:w-[130px] h-8 justify-start text-left font-medium bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 text-[11px]", !endDate && "text-muted-foreground")}
                                 >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {endDate ? format(endDate, "PPP", {locale: es}) : <span>Fecha de fin</span>}
+                                <CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-slate-455 dark:text-slate-500" />
+                                {endDate ? format(endDate, "dd/MM/yyyy") : <span>Fecha fin</span>}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent className="w-auto p-0 glassmorphic border-slate-100 dark:border-slate-855" align="start">
                                 <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
                             </PopoverContent>
                         </Popover>
-                        <Button variant="ghost" onClick={clearFilters}>
-                            <FilterX className="mr-2 h-4 w-4" />
+                        <Button 
+                            variant="ghost" 
+                            onClick={clearFilters}
+                            className="h-8 text-xs text-slate-500 hover:text-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 px-2.5 transition-all duration-200 shrink-0"
+                        >
+                            <FilterX className="mr-1.5 h-3.5 w-3.5" />
                             Limpiar
                         </Button>
                     </div>
-                </CardContent>
+                </div>
             </Card>
 
 
@@ -508,10 +719,10 @@ export function LoanControlDashboard() {
                     ))}
                 </div>
             ) : (
-                <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-center text-muted-foreground">
-                            {plazas.length > 0 ? "No se encontraron plazas que coincidan con los filtros." : "No hay plazas disponibles. Un administrador debe crear una primero o puedes importarlas masivamente."}
+                <Card className="premium-card border-dashed bg-slate-50/20 dark:bg-slate-900/10">
+                    <CardContent className="pt-8 pb-8">
+                        <p className="text-center text-sm text-muted-foreground">
+                            {plazas.length > 0 ? "No se encontraron plazas que coincidan con los filtros de búsqueda." : "No hay plazas disponibles en esta cuenta. Importa datos desde un archivo de Excel para comenzar."}
                         </p>
                     </CardContent>
                 </Card>

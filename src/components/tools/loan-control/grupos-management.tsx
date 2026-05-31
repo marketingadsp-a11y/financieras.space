@@ -115,56 +115,57 @@ export function GruposManagement({ plazaId }: { plazaId: string }) {
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Gestión de Grupos de la Plaza</CardTitle>
-                <CardDescription>
-                    Administra todos los grupos de esta plaza, organizados por cartera.
+        <Card className="premium-card bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-slate-100 dark:border-slate-800/80">
+            <CardHeader className="p-3 pb-2 border-b border-slate-100 dark:border-slate-800/40">
+                <CardTitle className="text-sm font-bold text-slate-800 dark:text-slate-100">Gestión de Grupos de la Plaza</CardTitle>
+                <CardDescription className="text-[11px] text-muted-foreground mt-0.5">
+                    Administra todos los grupos de esta plaza, organizados por cartera asignada.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-3">
                 {accordionItems.length > 0 ? (
-                    <Accordion type="multiple" className="w-full space-y-4" defaultValue={Object.keys(groupedByCartera)}>
+                    <Accordion type="multiple" className="w-full space-y-2" defaultValue={Object.keys(groupedByCartera)}>
                         {accordionItems.map(([carteraId, { carteraName, grupos: carteraGrupos }]) => (
-                            <AccordionItem key={carteraId} value={carteraId} className="border rounded-lg">
-                                <AccordionTrigger className="px-4 py-3 text-lg hover:no-underline">
-                                    <div className="flex items-center gap-3">
-                                        <Folder className="h-5 w-5 text-muted-foreground" />
-                                        <span>Cartera: {carteraName} ({carteraGrupos.length} grupos)</span>
+                            <AccordionItem key={carteraId} value={carteraId} className="border border-slate-100 dark:border-slate-800/60 rounded-lg overflow-hidden bg-white/50 dark:bg-slate-950/20 shadow-sm">
+                                <AccordionTrigger className="px-3.5 py-2.5 text-xs hover:no-underline hover:bg-slate-50/50 dark:hover:bg-slate-900/20 text-slate-800 dark:text-slate-100 font-bold transition-all">
+                                    <div className="flex items-center gap-2">
+                                        <Folder className="h-4 w-4 text-indigo-500" />
+                                        <span>Cartera: {carteraName} <span className="text-[10px] font-semibold text-muted-foreground ml-1">({carteraGrupos.length} grupos)</span></span>
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="p-4 border-t">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <AccordionContent className="p-3 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/15 dark:bg-slate-900/10">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                         {carteraGrupos.map(grupo => (
-                                            <Card key={grupo.id} className="group flex flex-col justify-between">
-                                                <CardHeader className="flex-row items-start justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <Users className="h-5 w-5 text-primary" />
-                                                        <p className="font-semibold">{grupo.name}</p>
-                                                    </div>
-                                                    <div className="flex items-center">
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openForm(grupo)}><Edit className="h-4 w-4" /></Button>
-                                                        <AlertDialog open={!!grupoToDelete && grupoToDelete.id === grupo.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => openDeleteDialog(grupo)}><Trash2 className="h-4 w-4" /></Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitleComponent>¿Estás seguro?</AlertDialogTitleComponent>
-                                                                    <AlertDialogDescription>
-                                                                        Esta acción es irreversible y eliminará el grupo y desasignará a sus clientes.
-                                                                        Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <Input value={deleteConfirmationText} onChange={(e) => setDeleteConfirmationText(e.target.value)} placeholder={expectedConfirmationText} autoFocus />
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                    <AlertDialogAction disabled={deleteConfirmationText !== expectedConfirmationText} onClick={handleDeleteGrupo} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </div>
-                                                </CardHeader>
+                                            <Card key={grupo.id} className="premium-card flex items-center justify-between p-2 group relative overflow-hidden">
+                                                <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-gradient-to-b from-primary to-indigo-500 opacity-80" />
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-primary rounded-lg shrink-0">
+                                                         <Users className="h-3.5 w-3.5 text-indigo-550" />
+                                                     </div>
+                                                     <p className="font-bold text-xs text-slate-800 dark:text-slate-100 leading-tight truncate">{grupo.name}</p>
+                                                 </div>
+                                                 <div className="flex items-center gap-0.5 shrink-0 opacity-60 hover:opacity-100 group-hover:opacity-100 transition-opacity duration-200">
+                                                     <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-660 dark:text-slate-355" onClick={() => openForm(grupo)}><Edit className="h-3 w-3" /></Button>
+                                                     <AlertDialog open={!!grupoToDelete && grupoToDelete.id === grupo.id} onOpenChange={(open) => !open && closeDeleteDialog()}>
+                                                         <AlertDialogTrigger asChild>
+                                                             <Button variant="ghost" size="icon" className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg" onClick={() => openDeleteDialog(grupo)}><Trash2 className="h-3 w-3" /></Button>
+                                                         </AlertDialogTrigger>
+                                                         <AlertDialogContent className="glassmorphic border-white/20 dark:border-slate-800/40">
+                                                             <AlertDialogHeader>
+                                                                 <AlertDialogTitleComponent className="text-lg font-bold text-slate-800 dark:text-slate-100">¿Estás seguro?</AlertDialogTitleComponent>
+                                                                 <AlertDialogDescription className="text-sm text-muted-foreground">
+                                                                     Esta acción es irreversible y eliminará el grupo <strong>{grupo.name}</strong> y desasignará a sus clientes.
+                                                                     Para confirmar, escribe <strong className="text-foreground">{expectedConfirmationText}</strong>.
+                                                                 </AlertDialogDescription>
+                                                             </AlertDialogHeader>
+                                                             <Input value={deleteConfirmationText} onChange={(e) => setDeleteConfirmationText(e.target.value)} placeholder={expectedConfirmationText} className="bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus-visible:ring-rose-500 focus-visible:ring-1" autoFocus />
+                                                             <AlertDialogFooter>
+                                                                 <AlertDialogCancel className="border-slate-200 dark:border-slate-800">Cancelar</AlertDialogCancel>
+                                                                 <AlertDialogAction disabled={deleteConfirmationText !== expectedConfirmationText} onClick={handleDeleteGrupo} className="bg-destructive hover:bg-destructive/90 text-white">Eliminar</AlertDialogAction>
+                                                             </AlertDialogFooter>
+                                                         </AlertDialogContent>
+                                                     </AlertDialog>
+                                                 </div>
                                             </Card>
                                         ))}
                                     </div>
@@ -174,15 +175,15 @@ export function GruposManagement({ plazaId }: { plazaId: string }) {
                     </Accordion>
                 ) : (
                     <div className="text-center py-10 text-muted-foreground">
-                        <p>No hay grupos en esta plaza.</p>
-                        <p className="text-sm">Primero, crea carteras y luego grupos dentro de ellas.</p>
+                        <p className="text-sm font-medium">No hay grupos creados en esta plaza.</p>
+                        <p className="text-xs text-slate-400 mt-1">Primero, crea carteras y luego añade grupos dentro de ellas en el panel de carteras.</p>
                     </div>
                 )}
 
                  <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                    <DialogContent>
+                    <DialogContent className="glassmorphic border-white/20 dark:border-slate-800/40">
                         <DialogHeader>
-                            <DialogTitle>Editar Grupo</DialogTitle>
+                            <DialogTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">Editar Grupo</DialogTitle>
                         </DialogHeader>
                         <GrupoForm 
                             onSubmit={handleFormSubmit}

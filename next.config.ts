@@ -19,6 +19,12 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = [...(config.externals || []), '@opentelemetry/exporter-jaeger'];
+    }
+    return config;
+  },
   images: {
     remotePatterns: [
       {

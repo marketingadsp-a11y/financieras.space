@@ -24,78 +24,74 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-const StatCard = ({ title, value, icon: Icon, isCurrency = false, description, colorClass = 'text-card-foreground' }: { title: string; value: number | string; icon: React.ElementType, isCurrency?: boolean, description?: string, colorClass?: string }) => (
-    <Card>
+const StatCard = ({ title, value, icon: Icon, isCurrency = false, description }: { title: string; value: number | string; icon: React.ElementType, isCurrency?: boolean, description?: string }) => (
+    <Card className="premium-card">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold tracking-tight text-slate-500 dark:text-slate-400">{title}</CardTitle>
+            <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-md">
+                <Icon className="h-4 w-4 text-primary" />
+            </div>
         </CardHeader>
-        <CardContent>
-            <div className={cn("text-2xl font-bold", colorClass)}>
+        <CardContent className="pt-2">
+            <div className="text-2xl font-bold tracking-tight text-gradient bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">
                 {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
             </div>
-             {description && <p className="text-xs text-muted-foreground">{description}</p>}
+             {description && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 font-medium">{description}</p>}
         </CardContent>
     </Card>
 );
 
 const DestructiveStatCard = ({ title, value, icon: Icon, isCurrency = false }) => (
-     <Card className="bg-destructive/90 text-destructive-foreground">
+     <Card className="premium-card bg-gradient-to-br from-rose-500 to-red-600 text-white border-none shadow-lg shadow-rose-500/10">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-destructive-foreground/70" />
+            <CardTitle className="text-sm font-semibold tracking-tight text-rose-100">{title}</CardTitle>
+            <div className="p-1.5 bg-white/20 rounded-md backdrop-blur-sm">
+                <Icon className="h-4 w-4 text-white" />
+            </div>
         </CardHeader>
-        <CardContent>
-            <div className="text-3xl font-bold">
+        <CardContent className="pt-2">
+            <div className="text-3xl font-extrabold tracking-tight">
                 {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
             </div>
         </CardContent>
     </Card>
-)
+);
 
 const PlazaCard = ({ plaza }: { plaza: Plaza }) => (
-    <Card 
-        className="group flex flex-col transition-all duration-300 ease-in-out hover:-translate-y-1.5 p-2 border-2 border-transparent hover:border-primary hover:shadow-primary/20"
-        style={{ '--tool-color': 'hsl(var(--primary))' } as React.CSSProperties}
-    >
-        <style jsx>{`
-            .card-glow:hover {
-                box-shadow: 0 10px 15px -3px var(--tool-color, #0002), 0 4px 6px -4px var(--tool-color, #0001);
-            }
-        `}</style>
+    <Card className="premium-card flex flex-col justify-between overflow-hidden group">
         <CardHeader className="p-4">
             <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg w-fit">
-                    <Building className="h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-primary rounded-lg w-fit transition-transform duration-300 group-hover:scale-110">
+                    <Building className="h-6 w-6" />
                 </div>
                 <div>
                     <CardTitle className="text-base font-semibold leading-tight">{plaza.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground">Prefijo: {plaza.prefix}</p>
+                    <p className="text-xs text-muted-foreground">Prefijo: {plaza.prefix || 'N/A'}</p>
                 </div>
             </div>
         </CardHeader>
         <CardContent className="flex-grow space-y-4 px-4 pb-4">
              <div className="space-y-1">
-                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-green-500"/> PRESTADO</span>
+                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-emerald-500"/> PRESTADO</span>
                 <p className="text-xl font-bold">${(plaza.totalLoanAmount || 0).toLocaleString('es-MX')}</p>
             </div>
              <div className="space-y-1">
-                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingDown className="h-3 w-3 text-red-500"/> PENDIENTE</span>
-                <p className="text-xl font-bold text-destructive">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
+                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><TrendingDown className="h-3 w-3 text-rose-500"/> PENDIENTE</span>
+                <p className="text-xl font-bold text-red-500 dark:text-red-400">${(plaza.pendingDebt || 0).toLocaleString('es-MX')}</p>
             </div>
             <div className="space-y-1">
                 <div className="flex justify-between items-baseline">
-                     <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Target className="h-3 w-3 text-blue-500"/> RECUPERACIÓN</span>
-                    <span className="text-sm font-bold">{plaza.recoveryRate.toFixed(1)}%</span>
+                     <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Target className="h-3 w-3 text-indigo-500"/> RECUPERACIÓN</span>
+                    <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400">{plaza.recoveryRate.toFixed(1)}%</span>
                 </div>
-                <Progress value={plaza.recoveryRate} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-blue-400 [&>div]:to-blue-600" />
+                <Progress value={plaza.recoveryRate} className="h-2 bg-slate-100 dark:bg-slate-800" />
             </div>
         </CardContent>
-        <CardFooter className="p-2 border-t">
+        <CardFooter className="p-2 border-t bg-slate-50/50 dark:bg-slate-900/50">
             <Button asChild className="w-full" variant="ghost" size="sm">
                 <Link href={`/tools/overdue-portfolio/plaza/${plaza.id}`}>
                     Administrar Plaza
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
             </Button>
         </CardFooter>

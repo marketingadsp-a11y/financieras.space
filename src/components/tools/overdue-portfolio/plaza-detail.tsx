@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { CustomerForm } from "@/components/tools/overdue-portfolio/customer-form";
 import type { Plaza, Customer, CompanyProfile } from "@/lib/data";
-import { getPlazaById } from "@/services/plaza-service";
+import { getPlazaById, getPlazaDetailData } from "@/services/plaza-service";
 import { getCustomersByPlaza, addCustomer, deleteCustomersByPlaza, addMultipleCustomers, deleteCustomer, deleteCustomersByPromoter } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerCard } from "@/components/tools/overdue-portfolio/customer-card";
@@ -78,26 +78,38 @@ import {
 } from "@/components/ui/select"
 
 const StatCard = ({ title, value, icon: Icon, description, isCurrency = false, variant = 'default' }: { title: string; value: number; icon: React.ElementType, description?: string, isCurrency?: boolean, variant?: 'default' | 'destructive' }) => {
-    const cardClasses = {
-        default: "bg-card text-card-foreground",
-        destructive: "bg-destructive/90 text-destructive-foreground",
+    if (variant === 'destructive') {
+        return (
+             <Card className="premium-card bg-gradient-to-br from-rose-500 to-red-600 text-white border-none shadow-lg shadow-rose-500/10">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-semibold tracking-tight text-rose-100">{title}</CardTitle>
+                    <div className="p-1.5 bg-white/20 rounded-md backdrop-blur-sm">
+                        <Icon className="h-4 w-4 text-white" />
+                    </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                    <div className="text-2xl font-bold tracking-tight">
+                        {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
+                    </div>
+                    {description && <p className="text-xs text-rose-100 mt-1 font-medium">{description}</p>}
+                </CardContent>
+            </Card>
+        )
     }
-    const iconClasses = {
-        default: "text-muted-foreground",
-        destructive: "text-destructive-foreground/70",
-    }
-    
+
     return (
-        <Card className={cardClasses[variant]}>
+        <Card className="premium-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                <Icon className={`h-4 w-4 ${iconClasses[variant]}`} />
+                <CardTitle className="text-sm font-semibold tracking-tight text-slate-500 dark:text-slate-400">{title}</CardTitle>
+                <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-md">
+                    <Icon className="h-4 w-4 text-primary" />
+                </div>
             </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">
+            <CardContent className="pt-2">
+                <div className="text-2xl font-bold tracking-tight text-gradient bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">
                     {isCurrency ? `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}
                 </div>
-                {description && <p className="text-xs text-muted-foreground">{description}</p>}
+                {description && <p className="text-xs text-muted-foreground mt-1 font-medium">{description}</p>}
             </CardContent>
         </Card>
     );
@@ -129,16 +141,11 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   const fetchPlazaAndCustomers = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const plazaData = await getPlazaById(plazaId);
-      
-      if(user?.prefix){
-        const profile = await getCompanyProfileByPrefix(user.prefix);
-        setCompanyProfile(profile);
-      }
+      const { plaza: plazaData, companyProfile: profile, customers: customerData } = await getPlazaDetailData(plazaId, user?.prefix);
       
       if (plazaData) {
         setPlaza(plazaData);
-        const customerData = await getCustomersByPlaza(plazaId);
+        setCompanyProfile(profile);
         setCustomers(customerData);
       } else {
         toast({ variant: "destructive", title: "Error", description: "No se encontró la plaza especificada." });

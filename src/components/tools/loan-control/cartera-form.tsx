@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -46,21 +45,29 @@ export function CarteraForm({ onSubmit, cartera, isSubmitting = false }: Cartera
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 pt-2">
                 <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Nombre de la Cartera</FormLabel>
+                        <FormItem className="space-y-1.5">
+                            <FormLabel className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Nombre de la Cartera</FormLabel>
                             <FormControl>
-                                <Input placeholder="Ej. Cartera A" {...field} />
+                                <Input 
+                                    placeholder="Ej. Cartera A" 
+                                    {...field} 
+                                    className="bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus-visible:ring-primary focus-visible:ring-1 focus-visible:ring-offset-0"
+                                />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage className="text-xs text-rose-500" />
                         </FormItem>
                     )}
                 />
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-primary to-indigo-650 hover:from-primary/95 hover:to-indigo-650/95 text-white mt-2 transition-all duration-350 hover:shadow-md hover:shadow-primary/10" 
+                    disabled={isSubmitting}
+                >
                     {isEditing ? 'Guardar Cambios' : 'Crear Cartera'}
                 </Button>
             </form>

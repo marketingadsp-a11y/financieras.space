@@ -2,9 +2,10 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, Timestamp, runTransaction, orderBy } from "firebase/firestore";
+import { collection, getDocs, getDoc, setDoc, addDoc, updateDoc, deleteDoc, doc, query, where, Timestamp, runTransaction, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { EmpleadoVacaciones, VacationRule, VacationRequest } from "@/lib/data";
+import { ai } from "@/ai/genkit";
 
 const empleadosCollectionRef = collection(db, "vacaciones_empleados");
 const vacationRulesCollectionRef = collection(db, "vacaciones_rules");
@@ -185,4 +186,221 @@ export async function deleteVacationRequest(requestId: string): Promise<void> {
     // Delete the request itself
     transaction.delete(requestRef);
   });
+}
+
+export type VacationSettings = {
+    id?: string;
+    prefix: string;
+    logoUrl?: string;
+    mascotUrl?: string;
+    cardPrompt?: string;
+    imgbbApiKey?: string;
+};
+
+export async function getVacationSettings(prefix: string): Promise<VacationSettings | null> {
+    try {
+        const settingsDocRef = doc(db, "vacaciones_settings", prefix);
+        const settingsDoc = await getDoc(settingsDocRef);
+        if (settingsDoc.exists()) {
+            const data = settingsDoc.data();
+            return {
+                id: settingsDoc.id,
+                prefix: data.prefix || prefix,
+                logoUrl: data.logoUrl || "",
+                mascotUrl: data.mascotUrl || "",
+                cardPrompt: data.cardPrompt || "",
+                imgbbApiKey: data.imgbbApiKey || "",
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error("Failed to get vacation settings", error);
+        return null;
+    }
+}
+
+export async function saveVacationSettings(prefix: string, settings: Omit<VacationSettings, 'prefix'>): Promise<void> {
+    const settingsDocRef = doc(db, "vacaciones_settings", prefix);
+    await setDoc(settingsDocRef, {
+        ...settings,
+        prefix,
+        updatedAt: Timestamp.now()
+    }, { merge: true });
+}
+
+export async function generateBirthdayMessage(employeeName: string): Promise<string> {
+    try {
+        const response = await ai.generate({
+            prompt: `Escribe un mensaje corto de felicitación de cumpleaños muy profesional, motivador y cálido para un empleado de nuestra empresa llamado ${employeeName}. 
+El mensaje debe ser corto (máximo 140 caracteres, idealmente 2 líneas breves) para que quepa en una tarjeta de felicitación de diseño formal de la empresa.
+El tono debe ser corporativo pero amigable, cercano y agradecido.
+Por favor, NO incluyas el nombre del empleado en el mensaje en sí (por ejemplo, no empieces con "Feliz cumpleaños Juan" o similar, solo escribe la dedicatoria/deseo).
+Escribe UNICAMENTE la dedicatoria corta de felicitación, sin comillas, sin introducciones ni explicaciones.`,
+        });
+        return response.text.trim();
+    } catch (error) {
+        console.error("Failed to generate birthday message", error);
+        return "Le deseamos un excelente día lleno de éxito, salud y felicidad en su vida profesional y personal.";
+    }
+}
+
+export async function generateAICard(
+    employeeName: string,
+    settings: VacationSettings | null,
+    customPrompt?: string
+): Promise<string> {
+    try {
+        const parts: any[] = [];
+        
+        let promptText = customPrompt || settings?.cardPrompt || "";
+        if (!promptText.trim()) {
+            promptText = "Genera una tarjeta de felicitación alegre de cumpleaños para nuestro colaborador {name}. El diseño debe ser muy alegre, con mucho confeti y globos festivos sobre un fondo de tono claro y colorido (evita tonos oscuros). Integra el logotipo y la mascota adjuntos de forma de celebración.";
+        }
+        
+        // Shorten name to first two words for the card prompt/generation
+        const words = employeeName.trim().split(/\s+/);
+        const shortName = words.slice(0, 2).join(" ");
+        
+        // Reemplazar marcador de nombre
+        promptText = promptText.replace(/{name}|{nombre}|{employeeName}/gi, shortName);
+        
+        parts.push({ text: promptText });
+        
+        const getContentType = (dataUrl: string) => {
+            const match = dataUrl.match(/^data:([^;]+);base64,/);
+            return match ? match[1] : "image/png";
+        };
+        
+        if (settings?.logoUrl && settings.logoUrl.startsWith("data:")) {
+            parts.push({
+                media: {
+                    url: settings.logoUrl,
+                    contentType: getContentType(settings.logoUrl)
+                }
+            });
+        }
+        
+        if (settings?.mascotUrl && settings.mascotUrl.startsWith("data:")) {
+            parts.push({
+                media: {
+                    url: settings.mascotUrl,
+                    contentType: getContentType(settings.mascotUrl)
+                }
+            });
+        }
+        
+        console.log("Generando tarjeta con Nano Banana (gemini-2.5-flash-image) para:", employeeName);
+        const response = await ai.generate({
+            model: 'googleai/gemini-2.5-flash-image',
+            prompt: parts
+        });
+        
+        const media = response.media;
+        if (!media || !media.url) {
+            throw new Error("El modelo no devolvió ninguna imagen en la respuesta.");
+        }
+        
+        // Si el usuario tiene configurado ImgBB API Key, la subimos a la nube y guardamos registro en firestore
+        if (settings?.imgbbApiKey?.trim()) {
+            try {
+                const { url, deleteUrl } = await uploadToImgBB(media.url, settings.imgbbApiKey.trim());
+                await saveGeneratedCard({
+                    prefix: settings.prefix,
+                    employeeName,
+                    imageUrl: url,
+                    deleteUrl
+                });
+                console.log("Tarjeta guardada en historial de Firestore con URL:", url);
+            } catch (err) {
+                console.error("No se pudo subir e indexar la tarjeta de felicitación:", err);
+            }
+        }
+        
+        return media.url;
+    } catch (error: any) {
+        console.error("Error generating AI card:", error);
+        throw new Error(error.message || "No se pudo generar la tarjeta con Inteligencia Artificial.");
+    }
+}
+
+export type GeneratedCard = {
+    id: string;
+    prefix: string;
+    employeeName: string;
+    imageUrl: string;
+    deleteUrl?: string;
+    createdAt: Date;
+};
+
+const cardsCollectionRef = collection(db, "vacaciones_cards");
+
+async function uploadToImgBB(base64Image: string, apiKey: string): Promise<{ url: string; deleteUrl: string }> {
+    try {
+        const base64Data = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
+        
+        const body = new URLSearchParams();
+        body.append("image", base64Data);
+        
+        console.log("Uploading card image to ImgBB...");
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: body.toString()
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`ImgBB API error (${response.status}): ${errorText}`);
+        }
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error?.message || "ImgBB upload failed");
+        }
+        
+        return {
+            url: result.data.url,
+            deleteUrl: result.data.delete_url
+        };
+    } catch (error) {
+        console.error("Error uploading to ImgBB:", error);
+        throw error;
+    }
+}
+
+export async function getGeneratedCards(prefix: string): Promise<GeneratedCard[]> {
+    try {
+        const q = query(cardsCollectionRef, where("prefix", "==", prefix));
+        const snapshot = await getDocs(q);
+        const cards = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                prefix: data.prefix,
+                employeeName: data.employeeName,
+                imageUrl: data.imageUrl,
+                deleteUrl: data.deleteUrl || "",
+                createdAt: data.createdAt?.toDate() || new Date()
+            };
+        });
+        // Sort on the client side to avoid composite index requirements
+        return cards.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    } catch (error) {
+        console.error("Failed to get generated cards", error);
+        return [];
+    }
+}
+
+export async function saveGeneratedCard(card: Omit<GeneratedCard, 'id' | 'createdAt'>): Promise<void> {
+    await addDoc(cardsCollectionRef, {
+        ...card,
+        createdAt: Timestamp.now()
+    });
+}
+
+export async function deleteGeneratedCard(id: string): Promise<void> {
+    const cardDoc = doc(db, "vacaciones_cards", id);
+    await deleteDoc(cardDoc);
 }

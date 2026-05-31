@@ -64,7 +64,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <AppNameUpdater />
-      <body className="font-body antialiased">
+      <body className="font-body antialiased" suppressHydrationWarning>
         <Suspense>
           <AuthProvider>
             {children}
