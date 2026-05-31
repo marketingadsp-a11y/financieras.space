@@ -21,6 +21,7 @@ import { Loader2, UserCog } from "lucide-react";
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import type { CompanyProfile } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const formSchema = z.object({
   email: z.string().min(1, "El email o usuario es requerido."),
@@ -33,6 +34,7 @@ export function LoginForm() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false);
   
   // Default branding state
   const [appName, setAppName] = useState("Panel de Administración");
@@ -386,6 +388,32 @@ export function LoginForm() {
           </CardFooter>
         )}
       </Card>
+
+      {/* Footer Studio .space Logo */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center z-10">
+        <button 
+          onClick={() => setIsSpaceModalOpen(true)}
+          className="hover:scale-105 active:scale-95 transition-all duration-300 opacity-60 hover:opacity-100 focus:outline-none"
+        >
+          <img 
+            src="https://i.ibb.co/BKGcZ4Hw/studio-spane-SVapp.png" 
+            alt="Studio .space Logo" 
+            className="h-5 w-auto object-contain filter drop-shadow-md hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.4)]"
+          />
+        </button>
+      </div>
+
+      {/* Contact Modal */}
+      <Dialog open={isSpaceModalOpen} onOpenChange={setIsSpaceModalOpen}>
+        <DialogContent className="rounded-2xl border border-slate-100 dark:border-slate-800 shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg max-w-xs p-6 text-slate-800 dark:text-slate-100">
+          <center>
+            <img src="https://i.ibb.co/kb58VbG/space-saluda-1.jpg" alt="space" className="rounded-xl max-w-[200px] mb-4 shadow-md" /><br />
+            Studio .space<br />
+            hola@coorporativo.online <br />
+            3411975639<br />
+          </center>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
