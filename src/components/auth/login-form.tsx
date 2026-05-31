@@ -21,7 +21,7 @@ import { Loader2, UserCog } from "lucide-react";
 import { getCompanyProfileByPrefix } from "@/services/company-profile-service";
 import type { CompanyProfile } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const formSchema = z.object({
   email: z.string().min(1, "El email o usuario es requerido."),
@@ -406,6 +406,7 @@ export function LoginForm() {
       {/* Contact Modal */}
       <Dialog open={isSpaceModalOpen} onOpenChange={setIsSpaceModalOpen}>
         <DialogContent className="rounded-2xl border border-slate-100 dark:border-slate-800 shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg max-w-xs p-6 text-slate-800 dark:text-slate-100">
+          <DialogTitle className="sr-only">Información de Contacto de Studio .space</DialogTitle>
           <center>
             <img src="https://i.ibb.co/kb58VbG/space-saluda-1.jpg" alt="space" className="rounded-xl max-w-[200px] mb-4 shadow-md" /><br />
             Studio .space<br />
