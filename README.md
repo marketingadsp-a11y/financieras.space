@@ -1,4 +1,4 @@
-# Firebase Studio
+# financieras.spac
 
 This is a NextJS starter in Firebase Studio.
 
