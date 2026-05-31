@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -61,6 +61,123 @@ export function LoginForm() {
     localStorage.removeItem('companyLogoUrl');
     window.dispatchEvent(new Event('storage'));
     setBackgroundColor("#f4f4f5"); // Reset background color
+  }, []);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let particles: Array<{
+      x: number;
+      y: number;
+      text: string;
+      size: number;
+      color: string;
+      vx: number;
+      vy: number;
+      alpha: number;
+      decay: number;
+      rotation: number;
+      rotSpeed: number;
+    }> = [];
+
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    let lastX = 0;
+    let lastY = 0;
+    // Premium neon colors (emeralds, golds, soft indigos)
+    const colors = ["#10b981", "#34d399", "#059669", "#fbbf24", "#f59e0b", "#6366f1"];
+
+    const addParticle = (x: number, y: number, isAmbient = false) => {
+      const size = Math.floor(Math.random() * 12) + 12; // 12px to 24px
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const vx = (Math.random() - 0.5) * 1.5;
+      const vy = isAmbient ? -(Math.random() * 0.8 + 0.4) : (Math.random() - 0.5) * 1.5 - 0.5; // Ambient floats up slower, trail drifts
+      const decay = Math.random() * 0.008 + 0.008; // slower fade out for trail
+      const rotation = Math.random() * Math.PI * 2;
+      const rotSpeed = (Math.random() - 0.5) * 0.02;
+
+      particles.push({
+        x,
+        y,
+        text: "$",
+        size,
+        color,
+        vx,
+        vy,
+        alpha: 1,
+        decay,
+        rotation,
+        rotSpeed
+      });
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
+      if (dist > 15) {
+        addParticle(e.clientX, e.clientY);
+        lastX = e.clientX;
+        lastY = e.clientY;
+      }
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+
+    // Ambient floating dollar signs from the bottom of the screen
+    const ambientInterval = setInterval(() => {
+      if (particles.length < 50) {
+        const x = Math.random() * window.innerWidth;
+        const y = window.innerHeight + 20;
+        addParticle(x, y, true);
+      }
+    }, 500);
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+        p.rotation += p.rotSpeed;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        ctx.globalAlpha = p.alpha;
+        ctx.font = `bold ${p.size}px "Inter", sans-serif`;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.fillText(p.text, 0, 0);
+        ctx.restore();
+      }
+
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("mousemove", handleMouseMove);
+      clearInterval(ambientInterval);
+    };
   }, []);
 
   useEffect(() => {
@@ -135,6 +252,9 @@ export function LoginForm() {
         className="relative flex min-h-screen items-center justify-center p-4 transition-colors duration-500 overflow-hidden"
         style={{ backgroundColor: backgroundColor }}
     >
+      {/* Interactive mouse trail canvas */}
+      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0" />
+
       {/* Dynamic Keyframe Styles */}
       <style>{`
         @keyframes float-slow {
