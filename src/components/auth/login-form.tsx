@@ -132,24 +132,74 @@ export function LoginForm() {
 
   return (
     <div 
-        className="flex min-h-screen items-center justify-center p-4 transition-colors duration-500"
+        className="relative flex min-h-screen items-center justify-center p-4 transition-colors duration-500 overflow-hidden"
         style={{ backgroundColor: backgroundColor }}
     >
-      <Card className="w-full max-w-sm">
+      {/* Dynamic Keyframe Styles */}
+      <style>{`
+        @keyframes float-slow {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+        @keyframes float-delayed {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          50% { transform: translate(-40px, 40px) scale(1.05); }
+        }
+        @keyframes fadeInZoom {
+          from {
+            opacity: 0;
+            transform: scale(0.97) translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        .animate-float-1 {
+          animation: float-slow 15s infinite ease-in-out;
+        }
+        .animate-float-2 {
+          animation: float-delayed 12s infinite ease-in-out;
+        }
+        .login-card-animate {
+          animation: fadeInZoom 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
+      {/* Floating Ambient Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div 
+          className="absolute -top-[10%] -left-[10%] w-[50vw] h-[50vw] max-w-[450px] max-h-[450px] rounded-full opacity-30 dark:opacity-20 blur-[80px] animate-float-1"
+          style={{ 
+            background: `radial-gradient(circle, ${backgroundColor === '#f4f4f5' ? '#6366f1' : backgroundColor} 0%, transparent 70%)` 
+          }} 
+        />
+        <div 
+          className="absolute -bottom-[10%] -right-[10%] w-[55vw] h-[55vw] max-w-[500px] max-h-[500px] rounded-full opacity-25 dark:opacity-15 blur-[90px] animate-float-2"
+          style={{ 
+            background: `radial-gradient(circle, ${backgroundColor === '#f4f4f5' ? '#ec4899' : '#3b82f6'} 0%, transparent 75%)` 
+          }} 
+        />
+      </div>
+
+      <Card className="w-full max-w-sm border-white/20 dark:border-slate-800/40 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:shadow-primary/10 hover:border-primary/20 login-card-animate">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
              {logoUrl ? (
-                <Avatar className="h-20 w-20">
-                    <AvatarImage src={logoUrl} alt={appName} />
+                <Avatar className="h-20 w-20 border-2 border-primary/20 p-1 bg-white dark:bg-slate-950 shadow-lg hover:scale-105 transition-transform duration-300">
+                    <AvatarImage src={logoUrl} alt={appName} className="object-contain rounded-full" />
                     <AvatarFallback><UserCog className="h-10 w-10 text-primary" /></AvatarFallback>
                 </Avatar>
              ) : (
-                <UserCog className="h-12 w-12 text-primary" />
+                <div className="p-4 bg-primary/10 rounded-2xl border border-primary/20 text-primary shadow-inner animate-pulse" style={{ animationDuration: '4s' }}>
+                  <UserCog className="h-12 w-12" />
+                </div>
              )}
           </div>
-          <CardTitle>{appName}</CardTitle>
-          <CardDescription>
-            Ingrese sus credenciales para acceder.
+          <CardTitle className="text-2xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">{appName}</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground mt-1">
+            Ingrese sus credenciales para acceder al sistema.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -160,12 +210,13 @@ export function LoginForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Usuario o Email</FormLabel>
+                    <FormLabel className="text-xs font-semibold text-slate-700 dark:text-slate-300">Usuario o Email</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="ej. plaza.usuario"
                         {...field}
                         onChange={handleUsernameChange} // Use custom change handler
+                        className="transition-all duration-300 focus:scale-[1.01] focus:shadow-md focus:shadow-primary/5 border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/20 text-xs rounded-xl h-9"
                       />
                     </FormControl>
                     <FormMessage />
@@ -177,20 +228,25 @@ export function LoginForm() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contraseña</FormLabel>
+                    <FormLabel className="text-xs font-semibold text-slate-700 dark:text-slate-300">Contraseña</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
                         placeholder="••••••••"
                         {...field}
+                        className="transition-all duration-300 focus:scale-[1.01] focus:shadow-md focus:shadow-primary/5 border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/20 text-xs rounded-xl h-9"
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-              <Button type="submit" disabled={isLoading} className="w-full">
+              {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
+              <Button 
+                type="submit" 
+                disabled={isLoading} 
+                className="w-full bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/95 hover:to-indigo-600/95 text-white shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] rounded-xl h-9 text-xs font-bold"
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Ingresando...
@@ -203,8 +259,8 @@ export function LoginForm() {
           </Form>
         </CardContent>
         {footerText && (
-          <CardFooter>
-            <p className="w-full text-center text-xs text-muted-foreground">
+          <CardFooter className="pt-0 pb-4">
+            <p className="w-full text-center text-[10px] text-muted-foreground">
               {footerText}
             </p>
           </CardFooter>
