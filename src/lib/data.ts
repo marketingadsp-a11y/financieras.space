@@ -1,7 +1,7 @@
 
 
 import type { Timestamp } from "firebase/firestore";
-import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins, NotebookText, CalendarDays } from "lucide-react";
+import { FolderKanban, Landmark, BookCheck, Files, Workflow, CalendarClock, Percent, Notebook, ScanEye, HandCoins, NotebookText, CalendarDays, Printer } from "lucide-react";
 
 export type LinkedAdminAccess = {
   adminId: string;
@@ -21,6 +21,7 @@ export type Admin = {
   createdBy?: string;
   linkedAdmins?: LinkedAdminAccess[];
   visorAppPermissions?: VisorAppPermissions;
+  imprentaLink?: string;
 };
 
 export const INCOME_EXPENSES_PERMISSIONS = {
@@ -47,11 +48,12 @@ export type ToolAdmin = {
   username: string;
   status: "Activo" | "Inactivo";
   password?: string;
-  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales' | 'registro-oficina' | 'visor-app' | 'compensacion-ejecutivos' | 'concentrado' | 'control-vacaciones';
+  toolId: 'cartera-vencida' | 'income-expenses' | 'daily-control' | 'loan-control' | 'flujo' | 'mensuales' | 'registro-oficina' | 'visor-app' | 'compensacion-ejecutivos' | 'concentrado' | 'control-vacaciones' | 'imprenta';
   prefix?: string;
   createdBy?: string;
   sucursalAccess?: SucursalAccess[]; // Array of sucursal access objects for 'income-expenses'
   registroOficinaAccess?: RegistroOficinaAccess[]; // Array of oficina access objects for 'registro-oficina'
+  imprentaLink?: string;
 };
 
 export type SuperAdmin = {
@@ -59,6 +61,7 @@ export type SuperAdmin = {
   username:string;
   password?: string;
   prefix?: string;
+  imprentaLink?: string;
 };
 
 export type Plaza = {
@@ -165,6 +168,7 @@ export type PlazaUser = {
   mensualesPermissions?: MensualesPermissions;
   registroOficinaAccess?: RegistroOficinaAccess[];
   visorAppPermissions?: VisorAppPermissions;
+  imprentaLink?: string;
 };
 
 export type Customer = {
@@ -286,6 +290,14 @@ export const allTools: Tool[] = [
     href: "/tools/control-vacaciones",
     icon: CalendarDays,
     color: '#f59e0b'
+  },
+  {
+    id: "imprenta",
+    name: "Imprenta",
+    description: "Visualiza contenido embebido (iframe) configurado especialmente.",
+    href: "/tools/imprenta",
+    icon: Printer,
+    color: '#6366f1'
   }
 ];
 
@@ -300,6 +312,7 @@ export function getCustomizedTools(): Tool[] {
     return {
       ...tool,
       name: customSetting?.name || tool.name,
+      description: customSetting?.description || tool.description,
       color: customSetting?.color || tool.color,
     };
   });

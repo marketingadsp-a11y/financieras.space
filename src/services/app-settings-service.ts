@@ -13,6 +13,7 @@ export type ToolSetting = {
   id: string;
   name: string;
   color: string;
+  description?: string;
 }
 
 export type PwaSettings = {

@@ -45,6 +45,7 @@ import {
   CalendarDays,
   TrendingUp,
   TrendingDown,
+  Printer,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -620,6 +621,7 @@ function NavLinks({ customTools }: { customTools: Tool[] }) {
   const isVisorAppPath = pathname.startsWith('/tools/visor-app');
   const isConcentradoPath = pathname.startsWith('/tools/concentrado');
   const isControlVacacionesPath = pathname.startsWith('/tools/control-vacaciones');
+  const isImprentaPath = pathname.startsWith('/tools/imprenta');
   
   if (user?.isPlazaUser) {
       // Plaza users only see links to tools they have access to, and plazas within Cartera Vencida
@@ -1313,6 +1315,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isVisorAppPath = pathname.startsWith('/tools/visor-app');
   const isConcentradoPath = pathname.startsWith('/tools/concentrado');
   const isControlVacacionesPath = pathname.startsWith('/tools/control-vacaciones');
+  const isImprentaPath = pathname.startsWith('/tools/imprenta');
   
   const getToolFromPath = () => {
     if (isCarteraVencidaPath) return customTools.find(tool => tool.id === 'cartera-vencida');
@@ -1325,6 +1328,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (isVisorAppPath) return customTools.find(tool => tool.id === 'visor-app');
     if (isConcentradoPath) return customTools.find(tool => tool.id === 'concentrado');
     if (isControlVacacionesPath) return customTools.find(tool => tool.id === 'control-vacaciones');
+    if (isImprentaPath) return customTools.find(tool => tool.id === 'imprenta');
     return null;
   }
 
@@ -1345,7 +1349,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return user.username;
   }
 
-  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath || isRegistroOficinaPath || isVisorAppPath || isConcentradoPath || isControlVacacionesPath) && !user.isSuperAdmin;
+  const showBackButton = (pathname !== '/tools') && (isCarteraVencidaPath || isDailyControlPath || isLoanControlPath || isIncomeExpensesPath || isFlujoPath || isMensualesPath || isRegistroOficinaPath || isVisorAppPath || isConcentradoPath || isControlVacacionesPath || isImprentaPath) && !user.isSuperAdmin;
   
   const isGlobalAdmin = !user.isSuperAdmin && !user.isToolAdmin && !user.isPlazaUser;
 

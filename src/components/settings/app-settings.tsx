@@ -39,6 +39,7 @@ const toolSettingsSchema = z.object({
   id: z.string(),
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
   color: z.string().optional(),
+  description: z.string().optional(),
 });
 
 const supportInfoSchema = z.object({
@@ -72,7 +73,7 @@ export function AppSettings() {
     defaultValues: {
         appName: "Panel de Administración",
         footerText: "",
-        toolSettings: allTools.map(tool => ({ id: tool.id, name: tool.name, color: tool.color || '#3b82f6' })),
+        toolSettings: allTools.map(tool => ({ id: tool.id, name: tool.name, color: tool.color || '#3b82f6', description: tool.description })),
         supportInfo: {
             title: "",
             content: ""
@@ -99,7 +100,8 @@ export function AppSettings() {
             return {
                 id: tool.id,
                 name: storedSetting?.name || tool.name,
-                color: storedSetting?.color || tool.color || '#3b82f6'
+                color: storedSetting?.color || tool.color || '#3b82f6',
+                description: storedSetting?.description || tool.description
             }
         });
         
@@ -315,6 +317,19 @@ export function AppSettings() {
                                                 <Input type="color" className="w-16 h-10 p-1" {...field} />
                                                 <Input type="text" placeholder="#3b82f6" {...field} />
                                             </div>
+                                          </FormControl>
+                                          <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+                              <FormField
+                                  control={form.control}
+                                  name={`toolSettings.${index}.description`}
+                                  render={({ field }) => (
+                                      <FormItem>
+                                          <FormLabel>Descripción de la herramienta</FormLabel>
+                                          <FormControl>
+                                              <Textarea placeholder="Descripción corta de la herramienta" {...field} />
                                           </FormControl>
                                           <FormMessage />
                                       </FormItem>

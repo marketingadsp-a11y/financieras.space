@@ -31,6 +31,7 @@ export interface User {
   prefix?: string;
   createdBy?: string; // SuperAdmin ID
   linkedAdmins?: LinkedAdminAccess[];
+  imprentaLink?: string;
 }
 
 interface ImpersonationInfo {
@@ -48,6 +49,7 @@ interface AuthContextType {
   hasPermission: (id: string, permission: string) => boolean;
   impersonateUser: (userId: string, role: 'Admin' | 'ToolAdmin' | 'PlazaUser', allowedTools?: string[]) => Promise<void>;
   stopImpersonating: () => void;
+  updateUser: (data: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -152,7 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const superAdmin = await getSuperAdminByUsername(emailOrUsername);
       if (superAdmin && superAdmin.password === pass) {
-          const userData: User = { id: superAdmin.id, username: superAdmin.username, name: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false, prefix: superAdmin.prefix };
+          const userData: User = { id: superAdmin.id, username: superAdmin.username, name: superAdmin.username, isSuperAdmin: true, isToolAdmin: false, isPlazaUser: false, prefix: superAdmin.prefix, imprentaLink: superAdmin.imprentaLink };
           handleSuccessfulLogin(userData);
           return true;
       }
@@ -163,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             ? { permissions: Object.keys(VISOR_APP_PERMISSIONS) as VisorAppPermission[] } 
             : undefined;
 
-         const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy, linkedAdmins: admin.linkedAdmins, visorAppPermissions };
+         const userData: User = { id: admin.id, username: admin.username, name: admin.name, isSuperAdmin: false, isToolAdmin: false, isPlazaUser: false, accessibleTools: admin.accessibleTools || [], prefix: admin.prefix, createdBy: admin.createdBy, linkedAdmins: admin.linkedAdmins, visorAppPermissions, imprentaLink: admin.imprentaLink };
          handleSuccessfulLogin(userData);
          return true;
       } else if (admin && admin.status === "Inactivo") {
@@ -172,7 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const toolAdmin = await getToolAdminByUsername(usernamePart, prefix);
       if (toolAdmin && toolAdmin.password === pass && toolAdmin.status === "Activo") {
-         const userData: User = { id: toolAdmin.id, username: toolAdmin.username, name: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId], prefix: toolAdmin.prefix, createdBy: toolAdmin.createdBy, sucursalAccess: toolAdmin.sucursalAccess, registroOficinaAccess: toolAdmin.registroOficinaAccess };
+         const userData: User = { id: toolAdmin.id, username: toolAdmin.username, name: toolAdmin.name, isSuperAdmin: false, isToolAdmin: true, isPlazaUser: false, accessibleTools: [toolAdmin.toolId], prefix: toolAdmin.prefix, createdBy: toolAdmin.createdBy, sucursalAccess: toolAdmin.sucursalAccess, registroOficinaAccess: toolAdmin.registroOficinaAccess, imprentaLink: toolAdmin.imprentaLink };
          handleSuccessfulLogin(userData);
          return true;
       } else if (toolAdmin && toolAdmin.status === "Inactivo") {
@@ -194,6 +196,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
              overduePortfolioPermissions: plazaUser.overduePortfolioPermissions,
              registroOficinaAccess: plazaUser.registroOficinaAccess,
              visorAppPermissions: plazaUser.visorAppPermissions,
+             imprentaLink: plazaUser.imprentaLink
          };
          handleSuccessfulLogin(userData);
          return true;
@@ -241,6 +244,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 prefix: impersonatedUser.prefix,
                 createdBy: impersonatedUser.createdBy,
                 linkedAdmins: impersonatedUser.linkedAdmins,
+                imprentaLink: impersonatedUser.imprentaLink,
             };
         } else if (role === 'ToolAdmin') {
             userData = {
@@ -253,6 +257,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 registroOficinaAccess: impersonatedUser.registroOficinaAccess || [],
                 prefix: impersonatedUser.prefix,
                 createdBy: impersonatedUser.createdBy,
+                imprentaLink: impersonatedUser.imprentaLink,
             };
         } else {
             return;
@@ -331,7 +336,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const publicPaths = ['/login', '/tools/visor-app/qr'];
   const pathIsPublic = publicPaths.includes(pathname);
 
-  const value = { user, impersonation, login, logout, loading, hasPermission, impersonateUser, stopImpersonating };
+  const updateUser = (data: Partial<User>) => {
+    if (user) {
+      const updated = { ...user, ...data };
+      setUser(updated);
+      localStorage.setItem('appUser', JSON.stringify(updated));
+    }
+  };
+
+  const value = { user, impersonation, login, logout, loading, hasPermission, impersonateUser, stopImpersonating, updateUser };
 
   return (
     <AuthContext.Provider value={value}>
