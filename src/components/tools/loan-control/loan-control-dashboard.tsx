@@ -583,7 +583,7 @@ export function LoanControlDashboard() {
         <div className="space-y-4">
             <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div>
-                    <h1 className="text-2xl font-extrabold tracking-tight text-gradient">Control de Préstamos</h1>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-blue-900 dark:text-blue-400">Control de Préstamos</h1>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         Gestiona y organiza clientes en carteras, grupos y plazas de forma ágil y visual.
                     </p>
@@ -601,7 +601,7 @@ export function LoanControlDashboard() {
                      )}
                      <Dialog open={isImportModalOpen} onOpenChange={setImportModalOpen}>
                         <DialogTrigger asChild>
-                            <Button className="h-8 text-xs bg-gradient-to-r from-primary to-indigo-650 hover:from-primary/95 hover:to-indigo-650/95 text-white shadow-md shadow-primary/10 hover:shadow-lg hover:shadow-primary/20 hover:translate-y-[-1px] transition-all duration-300">
+                            <Button className="h-8 text-xs bg-blue-900 hover:bg-blue-950 dark:bg-blue-600 dark:hover:bg-blue-700 text-white shadow-md shadow-blue-900/20 hover:shadow-lg hover:shadow-blue-900/30 hover:translate-y-[-1px] transition-all duration-300">
                                 <Upload className="mr-1.5 h-3.5 w-3.5" /> Importar
                             </Button>
                         </DialogTrigger>
