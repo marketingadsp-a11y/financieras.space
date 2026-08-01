@@ -419,9 +419,11 @@ export async function performRecall(
                 if (customer.dueAmount < amountToApply) continue;
                 
                 customer.dueAmount -= amountToApply;
+                customer.loanAmount = Math.max(0, (customer.loanAmount || 0) - amountToApply);
                 customer.status = customer.dueAmount <= 0 ? 'Pagado' : 'Pendiente';
             } else {
                 customer.dueAmount += amountToApply;
+                customer.loanAmount = (customer.loanAmount || 0) + amountToApply;
                 customer.status = 'Pendiente';
             }
 
@@ -429,9 +431,10 @@ export async function performRecall(
             customersAffected.add(customer.id);
             changedInLastPass = true;
 
-            // Prepare doc update (only modify active debt and status, keeping loanAmount static)
+            // Prepare doc update (modify active debt, total loan amount, and status)
             batch.update(doc(db, "customers", customer.id), {
                 dueAmount: customer.dueAmount,
+                loanAmount: customer.loanAmount,
                 status: customer.status
             });
 

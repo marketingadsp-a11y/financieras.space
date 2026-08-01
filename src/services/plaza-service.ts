@@ -93,7 +93,7 @@ export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, 
         };
     });
 
-    return plazasWithCalculations;
+    return plazasWithCalculations.sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
 
 export async function getPlazaById(id: string): Promise<Plaza | null> {

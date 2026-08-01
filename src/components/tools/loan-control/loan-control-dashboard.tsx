@@ -8,7 +8,7 @@ import { useAuth } from "@/context/auth-context";
 import type { Plaza, LoanControlPermission } from "@/lib/data";
 import { getPlazas, updatePlaza } from "@/services/plaza-service";
 import { clearDataByPrefix } from "@/services/loan-control-service";
-import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search, FileSpreadsheet, FileText, Edit, RefreshCcw } from "lucide-react";
+import { Loader2, Building, ArrowRight, Upload, FileUp, DollarSign, Target, TrendingUp, TrendingDown, CalendarIcon, FilterX, MoreHorizontal, Trash2, Search, FileSpreadsheet, FileText, Edit, RefreshCcw, CheckCircle2, Eye } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -30,7 +30,17 @@ import { PlazaEditDialog } from "./plaza-edit-dialog";
 import { RecallDialog } from "./recall-dialog";
 
 
-const PlazaCard = ({ plaza, onEdit, canEdit }: { plaza: Plaza, onEdit: (plaza: Plaza) => void, canEdit: boolean }) => {
+const PlazaCard = ({ 
+    plaza, 
+    onEdit, 
+    canEdit,
+    onCheck
+}: { 
+    plaza: Plaza, 
+    onEdit: (plaza: Plaza) => void, 
+    canEdit: boolean,
+    onCheck: (plazaId: string) => void
+}) => {
     return (
         <Card className="premium-card group flex flex-col overflow-hidden relative">
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary to-indigo-500 opacity-80" />
@@ -45,20 +55,31 @@ const PlazaCard = ({ plaza, onEdit, canEdit }: { plaza: Plaza, onEdit: (plaza: P
                             <CardDescription className="text-[10px] text-muted-foreground truncate">Prefijo: {plaza.prefix}</CardDescription>
                         </div>
                     </div>
-                    {canEdit && (
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg opacity-50 hover:opacity-100 transition-opacity">
-                                    <MoreHorizontal className="h-3.5 w-3.5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="glassmorphic">
-                                <DropdownMenuItem onSelect={() => onEdit(plaza)} className="cursor-pointer text-xs">
-                                    <Edit className="mr-1.5 h-3.5 w-3.5" /> Editar Nombre
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                         </DropdownMenu>
-                    )}
+                    <div className="flex items-center gap-1">
+                        <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => onCheck(plaza.id)}
+                            title="Marcar revisada (Oculta 3 min)"
+                            className="h-7 w-7 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 active:scale-95 transition-all"
+                        >
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        </Button>
+                        {canEdit && (
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg opacity-50 hover:opacity-100 transition-opacity">
+                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="glassmorphic">
+                                    <DropdownMenuItem onSelect={() => onEdit(plaza)} className="cursor-pointer text-xs">
+                                        <Edit className="mr-1.5 h-3.5 w-3.5" /> Editar Nombre
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                        )}
+                    </div>
                 </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-2 px-3 pb-3 pt-0">
@@ -118,6 +139,7 @@ export function LoanControlDashboard() {
     const [searchTerm, setSearchTerm] = React.useState("");
     const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
     const [editingPlaza, setEditingPlaza] = React.useState<Plaza | null>(null);
+    const [hiddenPlazas, setHiddenPlazas] = React.useState<Record<string, number>>({});
 
     const [summary, setSummary] = React.useState({ 
         totalDebt: 0, 
@@ -126,6 +148,45 @@ export function LoanControlDashboard() {
         recoveryRate: 0, 
         totalLoaned: 0 
     });
+
+    // Cleanup expired hidden plazas every 5 seconds
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            const now = Date.now();
+            setHiddenPlazas(prev => {
+                let hasChanges = false;
+                const nextState = { ...prev };
+                for (const [id, expireTime] of Object.entries(prev)) {
+                    if (now >= expireTime) {
+                        delete nextState[id];
+                        hasChanges = true;
+                    }
+                }
+                return hasChanges ? nextState : prev;
+            });
+        }, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleCheckPlaza = (plazaId: string) => {
+        const THREE_MINUTES = 3 * 60 * 1000;
+        setHiddenPlazas(prev => ({
+            ...prev,
+            [plazaId]: Date.now() + THREE_MINUTES
+        }));
+        toast({
+            title: "Plaza comprobada",
+            description: "La plaza se ocultará por 3 minutos.",
+        });
+    };
+
+    const handleShowAllPlazas = () => {
+        setHiddenPlazas({});
+        toast({
+            title: "Plazas visibilizadas",
+            description: "Se están mostrando todas las plazas nuevamente.",
+        });
+    };
 
 
     const fetchPlazasForUser = React.useCallback(async () => {
@@ -235,11 +296,17 @@ export function LoanControlDashboard() {
         }
     };
 
+    const hiddenCount = Object.keys(hiddenPlazas).length;
+
     const filteredPlazas = React.useMemo(() => {
-        return plazas.filter(plaza => 
-            plaza.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [plazas, searchTerm]);
+        const now = Date.now();
+        return plazas.filter(plaza => {
+            if (hiddenPlazas[plaza.id] && hiddenPlazas[plaza.id] > now) {
+                return false;
+            }
+            return plaza.name.toLowerCase().includes(searchTerm.toLowerCase());
+        });
+    }, [plazas, searchTerm, hiddenPlazas]);
 
     const filteredSummary = React.useMemo(() => {
         return filteredPlazas.reduce((acc, plaza) => {
@@ -699,6 +766,17 @@ export function LoanControlDashboard() {
                                 <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
                             </PopoverContent>
                         </Popover>
+                        {hiddenCount > 0 && (
+                            <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={handleShowAllPlazas}
+                                className="h-8 text-xs border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition-all duration-200 shrink-0"
+                            >
+                                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                                Mostrar todas ({hiddenCount} ocultas)
+                            </Button>
+                        )}
                         <Button 
                             variant="ghost" 
                             onClick={clearFilters}
@@ -715,15 +793,26 @@ export function LoanControlDashboard() {
             {filteredPlazas.length > 0 ? (
                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                     {filteredPlazas.map(plaza => (
-                        <PlazaCard key={plaza.id} plaza={plaza} onEdit={setEditingPlaza} canEdit={canEditPlazaNames}/>
+                        <PlazaCard key={plaza.id} plaza={plaza} onEdit={setEditingPlaza} canEdit={canEditPlazaNames} onCheck={handleCheckPlaza}/>
                     ))}
                 </div>
             ) : (
                 <Card className="premium-card border-dashed bg-slate-50/20 dark:bg-slate-900/10">
-                    <CardContent className="pt-8 pb-8">
+                    <CardContent className="pt-8 pb-8 flex flex-col items-center justify-center gap-3">
                         <p className="text-center text-sm text-muted-foreground">
-                            {plazas.length > 0 ? "No se encontraron plazas que coincidan con los filtros de búsqueda." : "No hay plazas disponibles en esta cuenta. Importa datos desde un archivo de Excel para comenzar."}
+                            {plazas.length > 0 ? "No se encontraron plazas visibles que coincidan con los filtros de búsqueda." : "No hay plazas disponibles en esta cuenta. Importa datos desde un archivo de Excel para comenzar."}
                         </p>
+                        {hiddenCount > 0 && (
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleShowAllPlazas}
+                                className="text-xs border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400"
+                            >
+                                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                                Mostrar todas las plazas ({hiddenCount} ocultas por check)
+                            </Button>
+                        )}
                     </CardContent>
                 </Card>
             )}

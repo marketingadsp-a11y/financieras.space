@@ -1,8 +1,9 @@
 "use client";
  
 import * as React from "react";
-import { PlusCircle, Loader2, Users, Search, Award, Calendar, Cake } from "lucide-react";
-import { differenceInYears } from "date-fns";
+import { PlusCircle, Loader2, Users, Search, Award, Calendar, Cake, Download } from "lucide-react";
+import { differenceInYears, format } from "date-fns";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -137,6 +138,60 @@ export function EmpleadosManagement() {
       setEditingEmpleado(null);
     }
   };
+
+  const handleExportExcel = () => {
+    try {
+      const wsData = filteredEmpleados.map(emp => {
+        const nameParts = (emp.name || "").trim().split(/\s+/);
+        const nombre = nameParts[0] || "";
+        const apellido = nameParts.slice(1).join(" ") || "";
+        const birthDateStr = emp.birthday ? format(new Date(emp.birthday), "yyyy-MM-dd") : "";
+        const hireDateStr = emp.fechaIngreso ? format(new Date(emp.fechaIngreso), "yyyy-MM-dd") : "";
+
+        return {
+          "Nombre": nombre,
+          "Apellido": apellido,
+          "Celular / WhatsApp": "",
+          "Puesto": "",
+          "Plaza": "",
+          "Categoría": "",
+          "Teléfono": "",
+          "Fecha Nacimiento (YYYY-MM-DD)": birthDateStr,
+          "Fecha Contratación (YYYY-MM-DD)": hireDateStr
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(wsData);
+      
+      const colWidths = [
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 25 },
+        { wch: 25 },
+      ];
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Empleados");
+      XLSX.writeFile(wb, "empleados.xlsx");
+      
+      toast({
+        title: "Éxito",
+        description: "El archivo Excel ha sido generado y descargado.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo exportar a Excel.",
+      });
+    }
+  };
  
   return (
     <Card className="premium-card hover:translate-y-0 hover:scale-100 border border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md overflow-hidden">
@@ -149,26 +204,37 @@ export function EmpleadosManagement() {
             </CardTitle>
             <CardDescription className="text-xs mt-1">Crea, edita y elimina los colaboradores para el control de vacaciones.</CardDescription>
           </div>
-          <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
-            <DialogTrigger asChild>
-               <Button size="sm" onClick={handleAddNew} className="bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/95 hover:to-indigo-600/95 text-white shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Registrar Empleado
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-2xl border border-slate-100 dark:border-slate-800 shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg max-w-md">
-              <DialogHeader className="border-b pb-3 mb-2">
-                <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  {editingEmpleado ? 'Editar' : 'Registrar'} Empleado
-                </DialogTitle>
-              </DialogHeader>
-              <EmpleadoForm
-                onSubmit={handleFormSubmit}
-                empleado={editingEmpleado}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportExcel}
+              className="border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+            <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
+              <DialogTrigger asChild>
+                 <Button size="sm" onClick={handleAddNew} className="bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/95 hover:to-indigo-600/95 text-white shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Registrar Empleado
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-2xl border border-slate-100 dark:border-slate-800 shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg max-w-md">
+                <DialogHeader className="border-b pb-3 mb-2">
+                  <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    {editingEmpleado ? 'Editar' : 'Registrar'} Empleado
+                  </DialogTitle>
+                </DialogHeader>
+                <EmpleadoForm
+                  onSubmit={handleFormSubmit}
+                  empleado={editingEmpleado}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-6 space-y-4">
