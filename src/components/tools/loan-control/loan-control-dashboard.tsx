@@ -28,6 +28,7 @@ import { es } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { PlazaEditDialog } from "./plaza-edit-dialog";
 import { RecallDialog } from "./recall-dialog";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 
 const PlazaCard = ({ 
@@ -42,9 +43,9 @@ const PlazaCard = ({
     onCheck: (plazaId: string) => void
 }) => {
     return (
-        <Card className="premium-card group flex flex-col overflow-hidden relative">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary to-indigo-500 opacity-80" />
-            <CardHeader className="p-3 pb-1.5">
+        <Card className="premium-card group flex flex-col overflow-hidden relative border border-slate-200/80 dark:border-slate-800/80 shadow-lg dark:shadow-slate-950/50">
+            <BorderBeam size={180} duration={12} delay={Math.floor(Math.random() * 10)} colorFrom="#ffaa40" colorTo="#9c40ff" borderWidth={1.5} />
+            <CardHeader className="p-3 pb-1.5 z-10">
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                         <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
@@ -82,7 +83,7 @@ const PlazaCard = ({
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="flex-grow space-y-2 px-3 pb-3 pt-0">
+            <CardContent className="flex-grow space-y-2 px-3 pb-3 pt-0 z-10">
                 <div className="grid grid-cols-2 gap-1.5">
                     <div className="bg-slate-50/50 dark:bg-slate-900/40 p-1.5 rounded-lg border border-slate-100/50 dark:border-slate-800/50">
                         <span className="text-[9px] font-bold text-slate-500 tracking-wider flex items-center gap-1"><TrendingUp className="h-3 w-3 text-emerald-500"/> PRESTADO</span>
@@ -94,7 +95,7 @@ const PlazaCard = ({
                     </div>
                 </div>
             </CardContent>
-            <CardFooter className="p-1.5 border-t bg-slate-50/30 dark:bg-slate-900/10 px-3">
+            <CardFooter className="p-1.5 border-t bg-slate-50/30 dark:bg-slate-900/10 px-3 z-10">
                 <Button asChild className="w-full justify-between hover:bg-primary/5 hover:text-primary transition-all duration-300 rounded-lg h-7 text-[10px]" variant="ghost" size="sm">
                     <Link href={`/tools/loan-control/plaza/${plaza.id}`}>
                         <span className="font-bold">Administrar Plaza</span>
@@ -106,10 +107,11 @@ const PlazaCard = ({
     )
 };
 
-const StatCard = ({ title, value, icon: Icon, colorClass }: { title: string; value: number | undefined; icon: React.ElementType; colorClass: string }) => (
-    <Card className="premium-card overflow-hidden relative p-3">
+const StatCard = ({ title, value, icon: Icon, colorClass, beamFrom = "#6366f1", beamTo = "#06b6d4" }: { title: string; value: number | undefined; icon: React.ElementType; colorClass: string; beamFrom?: string; beamTo?: string }) => (
+    <Card className="premium-card overflow-hidden relative p-3.5 border border-slate-200/80 dark:border-slate-800/80">
+      <BorderBeam size={220} duration={10} colorFrom={beamFrom} colorTo={beamTo} borderWidth={1.5} />
       <div className={cn("absolute top-0 left-0 w-1 h-full", colorClass)} />
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 relative z-10">
         <div className="min-w-0">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">{title}</p>
           <p className="text-lg font-black tracking-tight text-slate-850 dark:text-slate-150 mt-0.5">
@@ -720,8 +722,8 @@ export function LoanControlDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                <StatCard title="Total Prestado (Filtrado)" value={filteredSummary.totalLoaned} icon={TrendingUp} colorClass="bg-gradient-to-b from-indigo-500 to-indigo-650" />
-                <StatCard title="Total Pendiente (Filtrado)" value={filteredSummary.totalDue} icon={TrendingDown} colorClass="bg-gradient-to-b from-rose-500 to-rose-600" />
+                <StatCard title="Total Prestado (Filtrado)" value={filteredSummary.totalLoaned} icon={TrendingUp} colorClass="bg-gradient-to-b from-emerald-500 to-indigo-500" beamFrom="#10b981" beamTo="#6366f1" />
+                <StatCard title="Total Pendiente (Filtrado)" value={filteredSummary.totalDue} icon={TrendingDown} colorClass="bg-gradient-to-b from-rose-500 to-amber-500" beamFrom="#f43f5e" beamTo="#fbbf24" />
             </div>
 
             <Card className="premium-card bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-slate-100 dark:border-slate-800/80 p-3">

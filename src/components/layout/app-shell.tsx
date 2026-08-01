@@ -1418,7 +1418,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset className={cn(impersonation && "pt-12", "bg-slate-50/50 dark:bg-slate-950/20")}>
         <ImpersonationBar />
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-white/70 dark:bg-slate-900/70 backdrop-blur-md px-4 lg:h-[60px] lg:px-6 transition-all duration-300">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-slate-200/60 dark:border-slate-800/80 bg-white/75 dark:bg-slate-950/80 backdrop-blur-xl px-4 lg:h-[60px] lg:px-6 transition-all duration-300 shadow-sm dark:shadow-slate-950/40">
           <SidebarTrigger />
            <Button variant="outline" size="sm" asChild className="hover:scale-105 transition-transform">
                 <Link href="/tools">
