@@ -261,16 +261,31 @@ export async function importFullLoanData(
         }
     };
     
+    const getRowVal = (row: any, ...keys: string[]) => {
+        for (const k of keys) {
+            if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return String(row[k]).trim();
+        }
+        const rowKeys = Object.keys(row);
+        for (const k of keys) {
+            const lower = k.toLowerCase();
+            const found = rowKeys.find(rk => rk.trim().toLowerCase() === lower);
+            if (found && row[found] !== undefined && row[found] !== null && String(row[found]).trim() !== '') {
+                return String(row[found]).trim();
+            }
+        }
+        return '';
+    };
+
     for (const row of data) {
-        const currentPlazaName = String(row.Plaza || row.plaza || '').trim() || lastPlazaName;
-        const currentCarteraName = String(row.Cartera || row.cartera || '').trim() || lastCarteraName;
-        const currentGroupName = String(row.Grupo || row.grupo || '').trim() || lastGroupName;
+        const currentPlazaName = getRowVal(row, 'Gerente', 'gerente', 'Plaza', 'plaza') || lastPlazaName;
+        const currentCarteraName = getRowVal(row, 'Cartera', 'cartera') || lastCarteraName;
+        const currentGroupName = getRowVal(row, 'Grupo', 'grupo') || lastGroupName;
         
         lastPlazaName = currentPlazaName;
         lastCarteraName = currentCarteraName;
         lastGroupName = currentGroupName;
 
-        const customerName = String(row.Cliente || row.Nombre || row.nombre || '').trim();
+        const customerName = getRowVal(row, 'Cliente', 'Nombre', 'nombre');
 
         // Skip if we don't have basic hierarchy info
         if (!currentPlazaName || !currentCarteraName || !currentGroupName) {

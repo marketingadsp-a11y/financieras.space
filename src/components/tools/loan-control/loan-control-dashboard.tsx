@@ -612,7 +612,7 @@ export function LoanControlDashboard() {
                                 </DialogTitle>
                                 <DialogDescriptionComponent className="text-xs text-muted-foreground mt-2">
                                   Selecciona un archivo de Excel (`.xlsx`, `.xls`) para una importación completa.
-                                  Las columnas deben tener encabezados como: Plaza, Cartera, Grupo, Nombre, Prestamo, etc.
+                                  Las columnas deben tener encabezados como: Gerente, Cartera, Grupo, Nombre, Prestamo, etc.
                                 </DialogDescriptionComponent>
                             </DialogHeader>
                             <div className="grid gap-5 py-4">
