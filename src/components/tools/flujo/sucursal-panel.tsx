@@ -5,6 +5,7 @@
 import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
+import { invalidateClientCache } from "@/lib/client-cache";
 import type { FlujoSucursal, FlujoEntry, FlujoWeeklySummary, FlujoGasto, FlujoVenta } from "@/lib/data";
 import { getFlujoSucursalById, addFlujoEntry, getFlujoWeeklySummary, addGastoToSummary, updateComisionesInSummary, deleteFlujoEntry, resetWeeklySummary, deleteGastoFromSummary, addVentaToSummary, deleteVentaFromSummary, transferToCentral } from "@/services/flujo-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -409,6 +410,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       try {
           const entryData = { ...data, sucursalId, date: selectedDate };
           await addFlujoEntry(entryData);
+          invalidateClientCache('flujo-week:');
           toast({ title: 'Éxito', description: 'Registro guardado correctamente.' });
           fetchData();
       } catch(e: any) {
@@ -421,6 +423,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
     const handleDeleteEntry = async (entry: FlujoEntry) => {
       try {
           await deleteFlujoEntry(entry.id);
+          invalidateClientCache('flujo-week:');
           toast({ title: "Éxito", description: "Registro eliminado y saldos ajustados." });
           fetchData();
       } catch(e: any) {
@@ -432,6 +435,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       if (!weeklySummary) return;
       try {
           await addGastoToSummary(weeklySummary.id, gasto, sucursalId);
+          invalidateClientCache('flujo-week:');
           toast({ title: 'Éxito', description: 'Gasto agregado.' });
           fetchData(); 
       } catch(e: any) {
@@ -443,6 +447,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       if (!weeklySummary) return;
       try {
           await deleteGastoFromSummary(weeklySummary.id, gasto.id);
+          invalidateClientCache('flujo-week:');
           toast({ title: 'Éxito', description: 'Gasto eliminado.' });
           fetchData(); 
       } catch(e: any) {
@@ -454,6 +459,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       if (!weeklySummary) return;
       try {
           await addVentaToSummary(weeklySummary.id, venta, sucursalId);
+          invalidateClientCache('flujo-week:');
           toast({ title: 'Éxito', description: 'Venta agregada.' });
           fetchData(); 
       } catch(e: any) {
@@ -465,6 +471,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       if (!weeklySummary) return;
       try {
           await deleteVentaFromSummary(weeklySummary.id, venta.id);
+          invalidateClientCache('flujo-week:');
           toast({ title: 'Éxito', description: 'Venta eliminada.' });
           fetchData(); 
       } catch(e: any) {
@@ -476,6 +483,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
        if (!weeklySummary) return;
         try {
           await updateComisionesInSummary(weeklySummary.id, amount, sucursalId);
+          invalidateClientCache('flujo-week:');
           toast({ title: 'Éxito', description: 'Comisiones guardadas.' });
           fetchData();
       } catch(e: any) {
@@ -487,6 +495,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       if (!weeklySummary) return;
       try {
         await updateComisionesInSummary(weeklySummary.id, 0, sucursalId);
+        invalidateClientCache('flujo-week:');
         toast({ title: 'Éxito', description: 'Comisiones restablecidas a cero.' });
         fetchData();
       } catch (e: any) {
@@ -499,6 +508,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
       setIsReseting(true);
       try {
           await resetWeeklySummary(weeklySummary.id);
+          invalidateClientCache('flujo-week:');
           toast({ title: "Éxito", description: "Resumen de la semana reiniciado."});
           fetchData();
       } catch (e: any) {
@@ -519,6 +529,7 @@ export function FlujoSucursalPanel({ sucursalId }: { sucursalId: string }) {
                 amount: amount,
                 userPerformed: user.name || user.username
             });
+            invalidateClientCache('flujo-week:');
             toast({ title: "Éxito", description: "Fondos transferidos a la Caja Chica."});
             fetchData();
             return true;

@@ -5,7 +5,6 @@ import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileDown, Loader2 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { importMensualesData } from "@/services/mensuales-service";
@@ -18,7 +17,8 @@ export function MensualesSettingsPage() {
     const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
     const [isImporting, setIsImporting] = React.useState(false);
 
-    const handleDownloadTemplate = () => {
+    const handleDownloadTemplate = async () => {
+        const XLSX = await import("xlsx");
         const headers = ["OFICINA", "CLIENTE", "MONTO PRESTAMO", "TASA INTERES (%)", "DIA PAGO"];
         const exampleData = [
             ["Oficina Matriz", "JUAN PEREZ", 10000, 5, 15],
@@ -58,6 +58,7 @@ export function MensualesSettingsPage() {
                     return toast({ variant: "destructive", title: "Error", description: "No se pudo leer el archivo." });
                 }
 
+                const XLSX = await import("xlsx");
                 const workbook = XLSX.read(fileContent, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];

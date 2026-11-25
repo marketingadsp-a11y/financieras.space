@@ -38,6 +38,11 @@
     --sidebar-accent: 217.2 32.6% 17.5%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-ring: 250 84% 54%;
+
+    /* --- Design Engineering Motion Tokens --- */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   .dark {
@@ -74,6 +79,11 @@
     --sidebar-accent: 217.2 32.6% 17.5%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-ring: 250 84% 54%;
+
+    /* --- Design Engineering Motion Tokens --- */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   }
 }
 
@@ -162,5 +172,68 @@
 
 .animate-border-beam {
   animation: border-beam var(--duration) linear infinite;
+}
+
+/* --- Loan Control Fintech Interaction Layer --- */
+.lc-surface {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+}
+
+.lc-card-interactive {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  transition:
+    transform 160ms var(--ease-out),
+    border-color 160ms ease,
+    box-shadow 160ms var(--ease-out);
+}
+
+.lc-pressable {
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.lc-pressable:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lc-card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--foreground) / 0.18);
+    box-shadow: 0 8px 20px -8px hsl(224 71% 4% / 0.12);
+  }
+
+  .dark .lc-card-interactive:hover {
+    border-color: hsl(210 40% 98% / 0.18);
+    box-shadow: 0 10px 24px -8px hsl(0 0% 0% / 0.55);
+  }
+}
+
+@media (pointer: coarse) {
+  .lc-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-card-interactive,
+  .lc-pressable {
+    transition-property: background-color, border-color, color, opacity;
+    transition-duration: 120ms;
+  }
+
+  .lc-card-interactive:hover,
+  .lc-pressable:active:not(:disabled) {
+    transform: none;
+  }
 }
 

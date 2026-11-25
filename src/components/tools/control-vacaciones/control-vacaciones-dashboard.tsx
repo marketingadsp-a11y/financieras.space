@@ -3,7 +3,6 @@
 import * as React from "react";
 import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, subWeeks, addWeeks } from "date-fns";
 import { es } from "date-fns/locale";
-import jsPDF from "jspdf";
 
 import {
   Card,
@@ -146,7 +145,7 @@ const WeeklyCalendarView = ({ requests, employees }: { requests: VacationRequest
 
 
 
-const generatePermitPDF = (
+const generatePermitPDF = async (
     employee: EmpleadoVacaciones,
     request: {
         daysRequested: number;
@@ -157,6 +156,7 @@ const generatePermitPDF = (
         deductedAmount?: number;
     }
 ) => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF();
 
     // 1. Header with Border
@@ -349,8 +349,13 @@ export function ControlVacacionesDashboard() {
     setIsGeneratingCard(true);
     setAiImageUrl("");
     try {
-      const defaultPrompt = settings?.cardPrompt || "Genera una tarjeta de felicitación alegre de cumpleaños para nuestro colaborador {name}. El diseño debe ser muy alegre, con mucho confeti y globos festivos sobre un fondo de tono claro y colorido (evita tonos oscuros). Integra el logotipo y la mascota adjuntos de forma de celebración.";
-      const generatedUrl = await generateAICard(selectedBirthdayEmp.name, settings, defaultPrompt);
+      let activeSettings = settings;
+      if (activeSettings === null) {
+        activeSettings = await getVacationSettings(user.prefix);
+        setSettings(activeSettings);
+      }
+      const defaultPrompt = activeSettings?.cardPrompt || "Genera una tarjeta de felicitación alegre de cumpleaños para nuestro colaborador {name}. El diseño debe ser muy alegre, con mucho confeti y globos festivos sobre un fondo de tono claro y colorido (evita tonos oscuros). Integra el logotipo y la mascota adjuntos de forma de celebración.";
+      const generatedUrl = await generateAICard(selectedBirthdayEmp.name, activeSettings, defaultPrompt);
       setAiImageUrl(generatedUrl);
       
       // Actualizar listado local de tarjetas
@@ -398,17 +403,15 @@ export function ControlVacacionesDashboard() {
     };
     setIsLoading(true);
     try {
-        const [empData, rulesData, reqData, settingsData, cardsData] = await Promise.all([
+        const [empData, rulesData, reqData, cardsData] = await Promise.all([
             getEmpleados(user.prefix),
             getVacationRules(user.prefix),
             getVacationRequests(user.prefix),
-            getVacationSettings(user.prefix),
             getGeneratedCards(user.prefix)
         ]);
         setEmployees(empData);
         setRules(rulesData);
         setRequests(reqData);
-        setSettings(settingsData);
         setGeneratedCards(cardsData);
     } catch(e) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos necesarios.' });
@@ -448,7 +451,7 @@ export function ControlVacacionesDashboard() {
 
         // Generate and display PDF
         try {
-            generatePermitPDF(selectedEmployee, newRequest);
+            await generatePermitPDF(selectedEmployee, newRequest);
         } catch (pdfErr) {
             console.error("Failed to generate permit PDF", pdfErr);
             toast({ variant: 'destructive', title: 'Error al generar PDF', description: 'El permiso se guardó pero no se pudo descargar el documento.' });

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Trash2, Loader2, Building } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { getPlazas, deleteAllPlazasByPrefix } from "@/services/plaza-service";
+import { getPlazasList, deleteAllPlazasByPrefix } from "@/services/plaza-service";
 import { deleteCustomersByPlaza } from "@/services/customer-service";
 import type { Plaza } from "@/lib/data";
 import { Label } from "@/components/ui/label";
@@ -41,7 +41,7 @@ export function DangerZoneManagement() {
   React.useEffect(() => {
     if (user?.prefix) {
         setIsLoadingPlazas(true);
-        getPlazas({ prefix: user.prefix, toolContext: 'overdue-portfolio' }).then(setPlazas).catch(() => {
+        getPlazasList({ prefix: user.prefix, toolContext: 'overdue-portfolio' }).then(setPlazas).catch(() => {
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las plazas.'})
         }).finally(() => setIsLoadingPlazas(false));
     }

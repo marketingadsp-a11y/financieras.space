@@ -3,9 +3,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 import { DollarSign, Users, UserCheck, Percent, Building, ArrowRight, Loader2, Upload, Target, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -13,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import type { Plaza, Customer } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
-import { getPlazas, addPlaza } from "@/services/plaza-service";
-import { getAllCustomersByPrefixAndTool, addMultipleCustomers } from "@/services/customer-service";
+import { getOverduePortfolioDashboardData, getPlazasList, addPlaza } from "@/services/plaza-service";
+import { addMultipleCustomers } from "@/services/customer-service";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -118,26 +115,13 @@ export function ToolsPage() {
         try {
             setIsLoading(true);
             const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-            const [plazasFromDb, allCustomers] = await Promise.all([
-                getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, toolContext }),
-                getAllCustomersByPrefixAndTool(user.prefix, toolContext)
-            ]);
+            const { plazas: plazasFromDb, summary: summaryData } = await getOverduePortfolioDashboardData({
+                prefix: user.prefix,
+                fetchAll: shouldFetchAll,
+            });
 
             setPlazas(plazasFromDb);
-
-            const totalClients = allCustomers.length;
-            const recoveredClients = allCustomers.filter(c => c.dueAmount <= 0).length;
-            const totalDebt = allCustomers.reduce((acc, c) => acc + (c.dueAmount || 0), 0);
-            const totalLoanAmount = allCustomers.reduce((acc, c) => acc + (c.loanAmount || 0), 0);
-            const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
-            
-            setSummary({
-                totalDebt,
-                totalClients,
-                recoveredClients,
-                recoveryRate,
-                totalLoanAmount
-            });
+            setSummary(summaryData);
 
         } catch (error) {
             toast({
@@ -183,6 +167,7 @@ export function ToolsPage() {
                     return toast({ variant: "destructive", title: "Error", description: "No se pudo leer el archivo." });
                 }
 
+                const XLSX = await import("xlsx");
                 const workbook = XLSX.read(fileContent, { type: 'array', cellDates: true });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
@@ -217,7 +202,7 @@ export function ToolsPage() {
 
                 const dataRows = json.slice(1);
                 
-                const existingPlazas = await getPlazas({ prefix: user.prefix, fetchAll: false, toolContext });
+                const existingPlazas = await getPlazasList({ prefix: user.prefix, fetchAll: false, toolContext });
                 const plazaMap: Record<string, string> = {};
                 existingPlazas.forEach(p => { plazaMap[p.name.toUpperCase()] = p.id; });
 

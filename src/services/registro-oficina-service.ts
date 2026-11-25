@@ -82,38 +82,69 @@ export async function deleteOficina(id: string) {
 
 // --- Weekly Registrations ---
 
+function mapRegistroDoc(docSnap: any): OficinaSemanalRegistro {
+    const data = docSnap.data();
+    const toDateSafe = (timestamp: any): Date => {
+        if (!timestamp) return new Date(0);
+        if (timestamp instanceof Timestamp) {
+            return timestamp.toDate();
+        }
+        if (timestamp && typeof (timestamp as any).toDate === 'function') {
+            return timestamp.toDate();
+        }
+        if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+            const d = new Date(timestamp);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return new Date(0);
+    };
+
+    return {
+        ...data,
+        id: docSnap.id,
+        weekStartDate: toDateSafe(data.weekStartDate),
+        updatedAt: toDateSafe(data.updatedAt),
+    } as OficinaSemanalRegistro;
+}
+
 export async function getTodosRegistrosPorOficina(oficinaId: string): Promise<OficinaSemanalRegistro[]> {
     const q = query(registrosCollectionRef, where("oficinaId", "==", oficinaId));
-
     const snapshot = await getDocs(q);
-    
-    const registros = snapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-         // This robustly converts Firestore Timestamps or JS Dates into a consistent JS Date object
-        const toDateSafe = (timestamp: any): Date => {
-            if (!timestamp) return new Date(0); // Return an invalid date if no timestamp
-            if (timestamp instanceof Timestamp) {
-                return timestamp.toDate();
-            }
-            if (timestamp && typeof (timestamp as any).toDate === 'function') {
-                 return timestamp.toDate();
-            }
-            if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-                const d = new Date(timestamp);
-                if (!isNaN(d.getTime())) return d;
-            }
-            return new Date(0); 
-        };
-        
-        return {
-            ...data,
-            id: docSnap.id,
-            weekStartDate: toDateSafe(data.weekStartDate),
-            updatedAt: toDateSafe(data.updatedAt),
-        } as OficinaSemanalRegistro;
-    });
+    return snapshot.docs.map(mapRegistroDoc);
+}
 
-    return registros;
+export async function getTodosRegistrosPorPrefix(prefix?: string, allowedOficinaIds?: string[]): Promise<OficinaSemanalRegistro[]> {
+    if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length === 0) {
+        return [];
+    }
+
+    if (Array.isArray(allowedOficinaIds) && allowedOficinaIds.length > 0) {
+        const chunks: string[][] = [];
+        for (let i = 0; i < allowedOficinaIds.length; i += 30) {
+            chunks.push(allowedOficinaIds.slice(i, i + 30));
+        }
+        const snapshots = await Promise.all(
+            chunks.map(chunk => getDocs(query(registrosCollectionRef, where("oficinaId", "in", chunk))))
+        );
+        return snapshots.flatMap(snap => snap.docs.map(mapRegistroDoc));
+    }
+
+    const q = prefix
+        ? query(registrosCollectionRef, where("prefix", "==", prefix))
+        : query(registrosCollectionRef);
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(mapRegistroDoc);
+}
+
+export async function getOficinaRegistroPanelData(oficinaId: string): Promise<{
+    oficina: OficinaRegistro | null;
+    registros: OficinaSemanalRegistro[];
+}> {
+    const [oficina, registros] = await Promise.all([
+        getOficinaById(oficinaId),
+        getTodosRegistrosPorOficina(oficinaId),
+    ]);
+    return { oficina, registros };
 }
 
 export async function addOrUpdateRegistroSemanal(registro: Omit<OficinaSemanalRegistro, 'id'>) {

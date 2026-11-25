@@ -2,9 +2,6 @@
 "use client";
 
 import * as React from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 import {
   Calendar as CalendarIcon,
   ArrowDown,
@@ -64,7 +61,7 @@ import type { DailyRecordEntry, DailyRecordType, Plaza } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DailyRecordForm } from "./daily-record-form";
-import { getPlazas } from "@/services/plaza-service";
+import { getPlazasList } from "@/services/plaza-service";
 import { addDailyRecordEntry, getDailyRecord, getAllDailyRecordsByPlaza } from "@/services/daily-record-service";
 
 
@@ -126,7 +123,7 @@ export function DailyControlDashboard() {
     if (!user) return;
     const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
     try {
-        const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
+        const plazasFromDb = await getPlazasList({ prefix: user.prefix, fetchAll: shouldFetchAll });
         setPlazas(plazasFromDb);
         if (plazasFromDb.length > 0) {
             setSelectedPlaza(plazasFromDb[0].id);
@@ -192,12 +189,16 @@ export function DailyControlDashboard() {
     }
   }
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!plazaName || !date || entries.length === 0) {
       toast({ variant: "destructive", title: "No hay datos para exportar", description: "Selecciona una fecha con movimientos para generar el PDF." });
       return;
     }
 
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF();
     const formattedDate = format(date, "PPP", { locale: es });
     
@@ -239,11 +240,13 @@ export function DailyControlDashboard() {
     doc.save(`control_diario_${plazaName.replace(/\s/g, '_')}_${format(date, 'yyyy-MM-dd')}.pdf`);
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!plazaName || !date || entries.length === 0) {
       toast({ variant: "destructive", title: "No hay datos para exportar", description: "Selecciona una fecha con movimientos para generar el Excel." });
       return;
     }
+
+    const XLSX = await import("xlsx");
     
     const formattedDate = format(date, "PPP", { locale: es });
 
@@ -291,6 +294,8 @@ export function DailyControlDashboard() {
         toast({ title: "Sin datos", description: "No hay movimientos registrados para esta plaza." });
         return;
       }
+
+      const XLSX = await import("xlsx");
       
       allEntries.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 

@@ -17,9 +17,7 @@ import Link from "next/link";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import { getCachedOrFetch, invalidateClientCache } from "@/lib/client-cache";
 import { FlujoExportDialog } from "./flujo-export-dialog";
 import { CajaChicaHistory } from "./caja-chica-history";
 import { Label } from "@/components/ui/label";
@@ -204,14 +202,21 @@ export function FlujoDashboard() {
   const [isExportDialogOpen, setExportDialogOpen] = React.useState(false);
 
 
-  const fetchData = React.useCallback(async () => {
+  const fetchData = React.useCallback(async (forceRefresh = false) => {
     if (!user?.prefix) {
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
-      const summary = await getFlujoSummariesForWeek(user.prefix, selectedDate);
+      const weekKey = format(startOfWeek(selectedDate, { weekStartsOn: 6 }), 'yyyy-MM-dd');
+      const cacheKey = `flujo-week:${user.prefix}:${weekKey}`;
+      if (forceRefresh) {
+        invalidateClientCache(`flujo-week:${user.prefix}:`);
+      }
+      const summary = await getCachedOrFetch(cacheKey, () =>
+        getFlujoSummariesForWeek(user.prefix!, selectedDate)
+      );
       setAccount(summary.centralAccount);
       setSucursalSummaries(summary.sucursalSummaries);
       setWeekDateRange(summary.dateRange);
@@ -250,7 +255,7 @@ export function FlujoDashboard() {
         toast({ title: 'Éxito', description: 'Sucursal creada.' });
       }
       closeForm();
-      fetchData();
+      fetchData(true);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la sucursal.' });
     } finally {
@@ -264,7 +269,7 @@ export function FlujoDashboard() {
         await deleteFlujoSucursal(sucursalToDelete.id);
         toast({ title: 'Éxito', description: 'Sucursal eliminada.' });
         closeDeleteDialog();
-        fetchData();
+        fetchData(true);
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo eliminar la sucursal.' });
     }
@@ -280,7 +285,7 @@ export function FlujoDashboard() {
               userPerformed: user.name
           });
           toast({ title: 'Éxito', description: 'Retiro registrado.' });
-          fetchData();
+          fetchData(true);
       } catch (error: any) {
           toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo registrar el retiro.' });
       }
@@ -291,7 +296,7 @@ export function FlujoDashboard() {
       try {
         await deleteCentralTransaction(user.prefix, txId);
         toast({ title: 'Éxito', description: 'Transacción eliminada.' });
-        fetchData();
+        fetchData(true);
       } catch (error: any) {
           toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo eliminar la transacción.' });
       }
@@ -324,8 +329,8 @@ export function FlujoDashboard() {
     setIsExporting(true);
     try {
         const data = await getFlujoExportData(user.prefix, sucursalIds, startDate, endDate);
-        if (formatType === 'pdf') generatePDF(data);
-        else generateExcel(data);
+        if (formatType === 'pdf') await generatePDF(data);
+        else await generateExcel(data);
         toast({ title: 'Éxito', description: 'Reporte generado.' });
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'Error', description: e.message || 'No se pudo generar el reporte.' });
@@ -335,7 +340,11 @@ export function FlujoDashboard() {
     }
   }
   
-  const generatePDF = (data: Awaited<ReturnType<typeof getFlujoExportData>>) => {
+  const generatePDF = async (data: Awaited<ReturnType<typeof getFlujoExportData>>) => {
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+          import("jspdf"),
+          import("jspdf-autotable"),
+      ]);
       const doc = new jsPDF();
       const { sucursales, dateRange } = data;
       doc.text(`Reporte de Flujo`, 14, 16);
@@ -361,7 +370,8 @@ export function FlujoDashboard() {
       doc.save('Reporte_Flujo.pdf');
   }
 
-  const generateExcel = (data: Awaited<ReturnType<typeof getFlujoExportData>>) => {
+  const generateExcel = async (data: Awaited<ReturnType<typeof getFlujoExportData>>) => {
+      const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
       data.sucursales.forEach(sucursal => {
           const ws_data = sucursal.weeklySummaries.map(s => ({

@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/tooltip";
 
 import { getAdmins, updateAdmin } from "@/services/admin-service";
-import { getPlazas } from "@/services/plaza-service";
+import { getPlazasList } from "@/services/plaza-service";
 import { getAllCompanyProfiles } from "@/services/company-profile-service";
 import { addMultipleDailyRecords, deleteDailyRecordsByPlaza } from "@/services/daily-record-service";
 import { parseDailyRecords } from "@/ai/flows/daily-record-parser-flow";
@@ -320,7 +320,7 @@ function SuperAdminToolsView({ customTools }: { customTools: Tool[] }) {
     try {
         const [adminData, plazaData, profileData] = await Promise.all([
             getAdmins(),
-            getPlazas({ fetchAll: true }),
+            getPlazasList({ fetchAll: true }),
             getAllCompanyProfiles()
         ]);
         setAdmins(adminData);

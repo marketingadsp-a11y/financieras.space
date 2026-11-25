@@ -3,7 +3,6 @@
 
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import * as XLSX from "xlsx";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit } from "@/lib/data";
@@ -16,7 +15,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ClientForm } from "./client-form";
 import Link from "next/link";
 import QRCode from "qrcode.react";
-import jsPDF from "jspdf";
 import {
   Table,
   TableBody,

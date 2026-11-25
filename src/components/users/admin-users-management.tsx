@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAllPlazaUsers, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
 import { getAllToolAdminsWithPasswords, addToolAdmin as addToolAdminService, updateToolAdmin as updateToolAdminService, deleteToolAdmin as deleteToolAdminService } from "@/services/tool-admin-service";
 import { getAdmins } from "@/services/admin-service";
-import { getPlazas } from "@/services/plaza-service";
+import { getPlazasList } from "@/services/plaza-service";
 import { getOficinas as getAllOficinasRegistro } from "@/services/registro-oficina-service";
 import { getSucursales as getAllSucursales } from "@/services/income-expenses-service";
 import { useToast } from "@/hooks/use-toast";
@@ -58,7 +58,7 @@ export function AdminUsersManagement() {
       ] = await Promise.all([
         getAllPlazaUsers(),
         getAllToolAdminsWithPasswords(),
-        getPlazas({ fetchAll: true }),
+        getPlazasList({ fetchAll: true }),
         getAdmins(),
         getAllSucursales(), // Fetches all sucursales from all prefixes
         getAllOficinasRegistro(), // Fetches all oficinas from all prefixes

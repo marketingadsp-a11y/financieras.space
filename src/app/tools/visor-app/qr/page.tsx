@@ -3,7 +3,6 @@
 
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import type { VisorSupervisor, VisorClient, VisorVisit, CompanyProfile } from "@/lib/data";
 import { getSupervisorByAccessCode, addVisit, getSupervisorById } from "@/services/visor-app-service";

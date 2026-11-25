@@ -14,6 +14,7 @@ import {
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Loader2, ChevronLeft, ChevronRight, History } from "lucide-react";
 import { getConcentradoOficinas, getAllConcentradoRegistros } from "@/services/concentrado-service";
+import { getCachedOrFetch } from "@/lib/client-cache";
 import type { ConcentradoOficina, ConcentradoSemanal } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -81,7 +82,8 @@ function getWeeksForMonth(monthDate: Date): { start: Date; end: Date }[] {
 
 
 export function ResumenPanel() {
-  const [summaries, setSummaries] = React.useState<MonthlySummaryRow[]>([]);
+  const [oficinas, setOficinas] = React.useState<ConcentradoOficina[]>([]);
+  const [allRegistros, setAllRegistros] = React.useState<ConcentradoSemanal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -94,63 +96,14 @@ export function ResumenPanel() {
         return;
     }
     setIsLoading(true);
-
-    const weeksOfMonth = getWeeksForMonth(currentMonth);
-    if (weeksOfMonth.length === 0) {
-        setSummaries([]);
-        setIsLoading(false);
-        return;
-    }
-    const monthCycleStart = weeksOfMonth[0].start;
-    const monthCycleEnd = weeksOfMonth[weeksOfMonth.length - 1].end;
-    
+    const prefix = user.prefix;
     try {
-        const [oficinas, allRegistros] = await Promise.all([
-            getConcentradoOficinas(user.prefix),
-            getAllConcentradoRegistros(user.prefix)
+        const [oficinasData, registrosData] = await Promise.all([
+            getCachedOrFetch(`concentrado-oficinas:${prefix}`, () => getConcentradoOficinas(prefix)),
+            getCachedOrFetch(`concentrado-registros:${prefix}`, () => getAllConcentradoRegistros(prefix)),
         ]);
-
-        const monthlySummaries = oficinas.map(oficina => {
-            const registrosDelMes = allRegistros.filter(r => {
-                const registroDate = new Date(r.weekStartDate);
-                return registroDate >= monthCycleStart && registroDate <= monthCycleEnd && r.oficinaId === oficina.id;
-            });
-            
-            const firstWeekRecord = registrosDelMes.sort((a,b) => a.weekStartDate.getTime() - b.weekStartDate.getTime())[0];
-            const lastWeekRecord = registrosDelMes.sort((a,b) => b.weekStartDate.getTime() - a.weekStartDate.getTime())[0];
-
-            const summary = registrosDelMes.reduce((acc, r) => {
-                acc.venta += r.venta || 0;
-                acc.cajaChica += r.cajaChica || 0;
-                acc.recolectado += r.recolectado || 0;
-                acc.gastos += r.gastos || 0;
-                acc.seguros += r.seguros || 0;
-                acc.interesMensual += r.interesMensual || 0;
-                acc.capitalMensual += r.capitalMensual || 0;
-                acc.carteraVencida += r.carteraVencida || 0;
-                return acc;
-            }, {
-                venta: 0,
-                cajaChica: 0,
-                recolectado: 0,
-                gastos: 0,
-                seguros: 0,
-                interesMensual: 0,
-                capitalMensual: 0,
-                carteraVencida: 0,
-            });
-
-            return {
-                oficinaId: oficina.id,
-                oficinaName: oficina.name,
-                fondoInicio: firstWeekRecord?.fondoInicio || 0,
-                fondoSiguienteSemana: lastWeekRecord?.fondoSiguienteSemana || 0,
-                ...summary
-            };
-        });
-
-        setSummaries(monthlySummaries);
-
+        setOficinas(oficinasData);
+        setAllRegistros(registrosData);
     } catch (error) {
         toast({
             variant: "destructive",
@@ -160,12 +113,64 @@ export function ResumenPanel() {
     } finally {
         setIsLoading(false);
     }
-  }, [user?.prefix, toast, currentMonth]);
-
+  }, [user?.prefix, toast]);
 
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const summaries: MonthlySummaryRow[] = React.useMemo(() => {
+    const weeksOfMonth = getWeeksForMonth(currentMonth);
+    if (weeksOfMonth.length === 0) return [];
+    const monthCycleStart = weeksOfMonth[0].start;
+    const monthCycleEnd = weeksOfMonth[weeksOfMonth.length - 1].end;
+
+    const registrosByOficina = new Map<string, ConcentradoSemanal[]>();
+    for (const r of allRegistros) {
+        const registroDate = new Date(r.weekStartDate);
+        if (registroDate >= monthCycleStart && registroDate <= monthCycleEnd) {
+            const list = registrosByOficina.get(r.oficinaId);
+            if (list) list.push(r);
+            else registrosByOficina.set(r.oficinaId, [r]);
+        }
+    }
+
+    return oficinas.map(oficina => {
+        const registrosDelMes = registrosByOficina.get(oficina.id) || [];
+        const sortedByDate = [...registrosDelMes].sort((a, b) => a.weekStartDate.getTime() - b.weekStartDate.getTime());
+        const firstWeekRecord = sortedByDate[0];
+        const lastWeekRecord = sortedByDate[sortedByDate.length - 1];
+
+        const summary = registrosDelMes.reduce((acc, r) => {
+            acc.venta += r.venta || 0;
+            acc.cajaChica += r.cajaChica || 0;
+            acc.recolectado += r.recolectado || 0;
+            acc.gastos += r.gastos || 0;
+            acc.seguros += r.seguros || 0;
+            acc.interesMensual += r.interesMensual || 0;
+            acc.capitalMensual += r.capitalMensual || 0;
+            acc.carteraVencida += r.carteraVencida || 0;
+            return acc;
+        }, {
+            venta: 0,
+            cajaChica: 0,
+            recolectado: 0,
+            gastos: 0,
+            seguros: 0,
+            interesMensual: 0,
+            capitalMensual: 0,
+            carteraVencida: 0,
+        });
+
+        return {
+            oficinaId: oficina.id,
+            oficinaName: oficina.name,
+            fondoInicio: firstWeekRecord?.fondoInicio || 0,
+            fondoSiguienteSemana: lastWeekRecord?.fondoSiguienteSemana || 0,
+            ...summary
+        };
+    });
+  }, [oficinas, allRegistros, currentMonth]);
   
   const handlePreviousMonth = () => setCurrentMonth(prevDate => subMonths(prevDate, 1));
   const handleNextMonth = () => setCurrentMonth(prevDate => addMonths(prevDate, 1));

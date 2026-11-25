@@ -1,10 +1,9 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, where, writeBatch } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, where, writeBatch, type QueryConstraint } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Plaza, Customer } from "@/lib/data";
-import { getCustomersByPlaza } from "./customer-service";
 import { customerFromDoc } from "./customer-service-helper";
 
 const plazasCollectionRef = collection(db, "plazas");
@@ -18,68 +17,99 @@ type GetPlazasOptions = {
     toolContext?: 'overdue-portfolio' | 'loan-control';
 }
 
-export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, toolContext }: GetPlazasOptions = {}): Promise<Plaza[]> {
-    let constraints = [];
-    
-    // If a tool context is provided, always filter by it.
+function buildPlazaConstraints({ prefix, fetchAll = false, toolContext }: Pick<GetPlazasOptions, 'prefix' | 'fetchAll' | 'toolContext'>): QueryConstraint[] {
+    const constraints: QueryConstraint[] = [];
     if (toolContext) {
         constraints.push(where("toolContext", "==", toolContext));
     }
-
     if (!fetchAll && prefix) {
         constraints.push(where("prefix", "==", prefix));
     }
-    
-    const q = query(plazasCollectionRef, ...constraints);
-    const plazasSnapshot = await getDocs(q);
-    
-    // Fetch all customers for prefix and toolContext in a single query to avoid N+1 waterfall queries
-    let allCustomers: Customer[] = [];
-    if (prefix) {
-        let customerConstraints = [where("prefix", "==", prefix)];
-        if (toolContext) {
-            customerConstraints.push(where("toolContext", "==", toolContext));
-        }
-        const customersSnapshot = await getDocs(query(customersCollectionRef, ...customerConstraints));
-        allCustomers = customersSnapshot.docs.map(customerFromDoc);
-    } else {
-        // Fallback for fetchAll (SuperAdmin or cases without prefix)
-        let customerConstraints = [];
-        if (toolContext) {
-            customerConstraints.push(where("toolContext", "==", toolContext));
-        }
-        const customersSnapshot = await getDocs(query(customersCollectionRef, ...customerConstraints));
-        allCustomers = customersSnapshot.docs.map(customerFromDoc);
+    return constraints;
+}
+
+function buildCustomerConstraints({ prefix, fetchAll = false, toolContext }: Pick<GetPlazasOptions, 'prefix' | 'fetchAll' | 'toolContext'>): QueryConstraint[] {
+    const constraints: QueryConstraint[] = [];
+    if (!fetchAll && prefix) {
+        constraints.push(where("prefix", "==", prefix));
     }
-    
-    const plazasWithCalculations = plazasSnapshot.docs.map((doc) => {
-        const plazaData = doc.data() as Omit<Plaza, 'id' | 'totalLoanAmount'>;
-        const plazaId = doc.id;
-        
-        // Filter in memory instead of executing separate Firestore queries for each plaza
-        const allCustomersInPlaza = allCustomers.filter(c => c.plazaId === plazaId);
-        
-        // Filter customers by date range in the application code
-        const filteredCustomers = allCustomersInPlaza.filter(customer => {
-            if (!startDate && !endDate) return true;
-            if (!customer.fechaPrestamo) return false;
-            
-            const customerDate = new Date(customer.fechaPrestamo);
+    if (toolContext) {
+        constraints.push(where("toolContext", "==", toolContext));
+    }
+    return constraints;
+}
 
-            if (startDate && customerDate < startDate) return false;
-            if (endDate) {
-                 const endOfDay = new Date(endDate);
-                 endOfDay.setHours(23, 59, 59, 999);
-                 if (customerDate > endOfDay) return false;
-            }
-            return true;
-        });
+/**
+ * Lightweight plaza list query that only reads the plazas collection without fetching customers.
+ * Use this for navigation links, dropdowns, user assignment, and management tables.
+ */
+export async function getPlazasList({ prefix, fetchAll = false, toolContext }: Pick<GetPlazasOptions, 'prefix' | 'fetchAll' | 'toolContext'> = {}): Promise<Plaza[]> {
+    const constraints = buildPlazaConstraints({ prefix, fetchAll, toolContext });
+    const plazasSnapshot = await getDocs(query(plazasCollectionRef, ...constraints));
 
-        const pendingDebt = filteredCustomers.reduce((acc, customer) => acc + (customer.dueAmount || 0), 0);
-        const totalLoanAmount = filteredCustomers.reduce((acc, customer) => acc + (customer.loanAmount || 0), 0);
-        
+    const plazas = plazasSnapshot.docs.map((docSnap) => {
+        const plazaData = docSnap.data() as Omit<Plaza, 'id'>;
+        return {
+            id: docSnap.id,
+            name: plazaData.name,
+            pendingDebt: plazaData.pendingDebt || 0,
+            recoveryRate: plazaData.recoveryRate || 0,
+            prefix: plazaData.prefix,
+            toolContext: plazaData.toolContext,
+            totalLoanAmount: plazaData.totalLoanAmount || 0,
+        };
+    });
+
+    return plazas.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
+function computePlazasWithStats(
+    plazasSnapshotDocs: any[],
+    allCustomers: Customer[],
+    startDate?: Date,
+    endDate?: Date
+): Plaza[] {
+    const endOfDayTime = endDate ? (() => {
+        const d = new Date(endDate);
+        d.setHours(23, 59, 59, 999);
+        return d.getTime();
+    })() : null;
+    const startTime = startDate ? new Date(startDate).getTime() : null;
+
+    // Group customers by plazaId in O(C) instead of scanning all customers per plaza in O(P * C)
+    const customersByPlaza = new Map<string, Customer[]>();
+    for (const customer of allCustomers) {
+        if (startTime !== null || endOfDayTime !== null) {
+            if (!customer.fechaPrestamo) continue;
+            const customerTime = new Date(customer.fechaPrestamo).getTime();
+            if (startTime !== null && customerTime < startTime) continue;
+            if (endOfDayTime !== null && customerTime > endOfDayTime) continue;
+        }
+        const list = customersByPlaza.get(customer.plazaId);
+        if (list) {
+            list.push(customer);
+        } else {
+            customersByPlaza.set(customer.plazaId, [customer]);
+        }
+    }
+
+    const plazasWithCalculations = plazasSnapshotDocs.map((docSnap) => {
+        const plazaData = docSnap.data() as Omit<Plaza, 'id' | 'totalLoanAmount'>;
+        const plazaId = docSnap.id;
+        const filteredCustomers = customersByPlaza.get(plazaId) || [];
+
+        let pendingDebt = 0;
+        let totalLoanAmount = 0;
+        let recoveredClients = 0;
+
+        for (const customer of filteredCustomers) {
+            const due = customer.dueAmount || 0;
+            pendingDebt += due;
+            totalLoanAmount += customer.loanAmount || 0;
+            if (due <= 0) recoveredClients++;
+        }
+
         const totalClients = filteredCustomers.length;
-        const recoveredClients = filteredCustomers.filter(c => c.dueAmount <= 0).length;
         const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
 
         return {
@@ -89,11 +119,73 @@ export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, 
             recoveryRate,
             prefix: plazaData.prefix,
             toolContext: plazaData.toolContext,
-            totalLoanAmount: totalLoanAmount,
+            totalLoanAmount,
         };
     });
 
     return plazasWithCalculations.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
+export async function getPlazas({ prefix, fetchAll = false, startDate, endDate, toolContext }: GetPlazasOptions = {}): Promise<Plaza[]> {
+    const plazaConstraints = buildPlazaConstraints({ prefix, fetchAll, toolContext });
+    const customerConstraints = buildCustomerConstraints({ prefix, fetchAll, toolContext });
+
+    const [plazasSnapshot, customersSnapshot] = await Promise.all([
+        getDocs(query(plazasCollectionRef, ...plazaConstraints)),
+        getDocs(query(customersCollectionRef, ...customerConstraints)),
+    ]);
+
+    const allCustomers = customersSnapshot.docs.map(customerFromDoc);
+    return computePlazasWithStats(plazasSnapshot.docs, allCustomers, startDate, endDate);
+}
+
+/**
+ * Fetches plazas and global customer summary in a single round-trip without duplicating customer reads.
+ */
+export async function getOverduePortfolioDashboardData({
+    prefix,
+    fetchAll = false,
+}: {
+    prefix?: string;
+    fetchAll?: boolean;
+}): Promise<{
+    plazas: Plaza[];
+    summary: { totalDebt: number; totalClients: number; recoveredClients: number; recoveryRate: number; totalLoanAmount: number };
+}> {
+    const toolContext = 'overdue-portfolio' as const;
+    const plazaConstraints = buildPlazaConstraints({ prefix, fetchAll, toolContext });
+    const customerConstraints = buildCustomerConstraints({ prefix, fetchAll, toolContext });
+
+    const [plazasSnapshot, customersSnapshot] = await Promise.all([
+        getDocs(query(plazasCollectionRef, ...plazaConstraints)),
+        getDocs(query(customersCollectionRef, ...customerConstraints)),
+    ]);
+
+    const allCustomers = customersSnapshot.docs.map(customerFromDoc);
+    const plazas = computePlazasWithStats(plazasSnapshot.docs, allCustomers);
+
+    let totalDebt = 0;
+    let totalLoanAmount = 0;
+    let recoveredClients = 0;
+    for (const c of allCustomers) {
+        const due = c.dueAmount || 0;
+        totalDebt += due;
+        totalLoanAmount += c.loanAmount || 0;
+        if (due <= 0) recoveredClients++;
+    }
+    const totalClients = allCustomers.length;
+    const recoveryRate = totalClients > 0 ? (recoveredClients / totalClients) * 100 : 0;
+
+    return {
+        plazas,
+        summary: {
+            totalDebt,
+            totalClients,
+            recoveredClients,
+            recoveryRate,
+            totalLoanAmount,
+        },
+    };
 }
 
 export async function getPlazaById(id: string): Promise<Plaza | null> {
@@ -147,26 +239,30 @@ export async function deletePlaza(id: string) {
 }
 
 export async function deleteAllPlazasByPrefix(prefix: string, toolContext: 'overdue-portfolio') {
-    const batch = writeBatch(db);
-    
-    // 1. Find all plazas with the given prefix and tool context
-    const plazasQuery = query(plazasCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", toolContext));
-    const plazasSnapshot = await getDocs(plazasQuery);
-    
-    // 2. For each plaza, find and delete its customers
-    for (const plazaDoc of plazasSnapshot.docs) {
-        const customersQuery = query(customersCollectionRef, where("plazaId", "==", plazaDoc.id));
-        const customersSnapshot = await getDocs(customersQuery);
-        customersSnapshot.forEach(customerDoc => {
-            batch.delete(customerDoc.ref);
-        });
-        
-        // 3. Delete the plaza itself
-        batch.delete(plazaDoc.ref);
+    const [plazasSnapshot, customersSnapshot] = await Promise.all([
+        getDocs(query(plazasCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", toolContext))),
+        getDocs(query(customersCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", toolContext))),
+    ]);
+
+    const refsToDelete = [
+        ...customersSnapshot.docs.map(d => d.ref),
+        ...plazasSnapshot.docs.map(d => d.ref),
+    ];
+
+    let batch = writeBatch(db);
+    let count = 0;
+    for (const ref of refsToDelete) {
+        batch.delete(ref);
+        count++;
+        if (count >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            count = 0;
+        }
     }
-    
-    // 4. Commit all deletions at once
-    await batch.commit();
+    if (count > 0) {
+        await batch.commit();
+    }
 }
 
 export async function getPlazaDetailData(plazaId: string, prefix?: string): Promise<{

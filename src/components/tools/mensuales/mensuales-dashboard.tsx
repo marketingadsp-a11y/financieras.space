@@ -13,9 +13,6 @@ import { Loader2, PlusCircle, DollarSign, Search, FileDown, Building, TrendingUp
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PrestamoForm } from "./prestamo-form";
 import { ExportDialog } from "./export-dialog";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
@@ -140,9 +137,9 @@ export function MensualesDashboard() {
         });
 
         if (formatType === 'pdf') {
-            generatePDF(clientesToExport, oficinaName);
+            await generatePDF(clientesToExport, oficinaName);
         } else {
-            generateExcel(clientesToExport, oficinaName);
+            await generateExcel(clientesToExport, oficinaName);
         }
     } catch (error) {
         toast({ variant: "destructive", title: "Error", description: "No se pudo generar el reporte." });
@@ -152,7 +149,11 @@ export function MensualesDashboard() {
     }
   };
 
-  const generatePDF = (data: ClienteMensual[], oficinaName: string) => {
+  const generatePDF = async (data: ClienteMensual[], oficinaName: string) => {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
@@ -219,7 +220,8 @@ export function MensualesDashboard() {
     doc.save(`Reporte_Mensuales_${oficinaName.replace(/\s/g, '_')}.pdf`);
   };
 
-  const generateExcel = (data: ClienteMensual[], oficinaName: string) => {
+  const generateExcel = async (data: ClienteMensual[], oficinaName: string) => {
+      const XLSX = await import("xlsx");
       const dataToExport = data.map(c => {
           const monthlyInterest = (c.currentBalance * c.interestRateValue) / 100;
           return {

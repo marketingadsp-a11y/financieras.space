@@ -6,15 +6,13 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
-import { getOficinaById, getTodosRegistrosPorOficina, addOrUpdateRegistroSemanal, deleteRegistrosByMonth } from "@/services/registro-oficina-service";
+import { getOficinaRegistroPanelData, addOrUpdateRegistroSemanal, deleteRegistrosByMonth } from "@/services/registro-oficina-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, Calendar, Edit, DollarSign, Lock, Trash2, FileText } from "lucide-react";
 import Link from "next/link";
 import { startOfMonth, endOfMonth, addMonths, subMonths, format, isPast, getDay, addDays } from "date-fns";
 import { es } from "date-fns/locale";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { RegistroSemanalForm } from "./registro-semanal-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -151,11 +149,10 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const oficinaData = await getOficinaById(oficinaId);
+      const { oficina: oficinaData, registros } = await getOficinaRegistroPanelData(oficinaId);
       setOficina(oficinaData);
       if (oficinaData) {
-          const todosLosRegistros = await getTodosRegistrosPorOficina(oficinaId);
-          setAllRegistros(todosLosRegistros);
+          setAllRegistros(registros);
       }
     } catch (error) {
       toast({
@@ -300,8 +297,12 @@ export function OficinaRegistroPanel({ oficinaId }: { oficinaId: string }) {
     return `Del ${format(start, "dd 'de' LLLL")} al ${format(end, "dd 'de' LLLL 'de' yyyy", { locale: es })}`;
   }, [weeks]);
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!oficina) return;
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'letter' });
     const currency = (val: number) => val.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 

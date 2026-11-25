@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -33,10 +32,11 @@ export function PlazaEditDialog({ plaza, isOpen, onClose, onSave }: PlazaEditDia
     }
   }, [plaza]);
 
-  const handleSave = async () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!plaza || !name.trim()) return;
     setIsSaving(true);
-    const success = await onSave(plaza.id, name);
+    const success = await onSave(plaza.id, name.trim());
     setIsSaving(false);
     if (success) {
       onClose();
@@ -51,29 +51,40 @@ export function PlazaEditDialog({ plaza, isOpen, onClose, onSave }: PlazaEditDia
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Nombre de la Plaza</DialogTitle>
           <DialogDescription>
-            Estás a punto de cambiar el nombre de la plaza "{plaza?.name}".
+            Cambia el nombre visible para <strong>{plaza?.name}</strong>.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          <Label htmlFor="plaza-name">Nuevo nombre de la plaza</Label>
-          <Input
-            id="plaza-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={isSaving || !name.trim()}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar Cambios
-          </Button>
-        </DialogFooter>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="space-y-2 py-2">
+            <Label htmlFor="plaza-name" className="text-xs font-semibold text-foreground">
+              Nuevo nombre de la plaza
+            </Label>
+            <Input
+              id="plaza-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nombre de la plaza"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} className="lc-pressable">
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSaving || !name.trim()}
+              className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 lc-pressable"
+            >
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

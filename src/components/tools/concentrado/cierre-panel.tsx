@@ -6,6 +6,7 @@ import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { ConcentradoSemanal, ConcentradoCierre, RentaItem, PasivoItem } from "@/lib/data";
 import { getAllConcentradoRegistros, getCierreMensual, saveCierreMensual } from "@/services/concentrado-service";
+import { getCachedOrFetch } from "@/lib/client-cache";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ChevronLeft, ChevronRight, Save, PlusCircle, Trash2, FileText } from "lucide-react";
@@ -15,8 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription, } from "@/components/ui/dialog";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 
 // This function needs to be identical to the one in oficina-panel.tsx
@@ -163,10 +162,11 @@ export function CierrePanel() {
             return;
         }
         setIsLoading(true);
+        const prefix = user.prefix;
         try {
             const [registrosData, cierreDataFromDb] = await Promise.all([
-                getAllConcentradoRegistros(user.prefix),
-                getCierreMensual(user.prefix, currentMonth),
+                getCachedOrFetch(`concentrado-registros:${prefix}`, () => getAllConcentradoRegistros(prefix)),
+                getCierreMensual(prefix, currentMonth),
             ]);
             setAllRegistros(registrosData || []);
             setCierreData(cierreDataFromDb);
@@ -280,7 +280,11 @@ export function CierrePanel() {
         totalRentas -
         totalPasivos;
         
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ]);
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();

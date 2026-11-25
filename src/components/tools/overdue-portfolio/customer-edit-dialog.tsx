@@ -1,12 +1,9 @@
-
 "use client";
 
 import * as React from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 import {
   Dialog,
@@ -33,13 +30,14 @@ import { addPayment as addLoanPayment } from "@/services/loan-control-service";
 import { Loader2, DollarSign } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useAuth } from "@/context/auth-context";
+import { cn } from "@/lib/utils";
 
 type CustomerEditDialogProps = {
   customer: Customer | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  mode: 'edit' | 'payment';
+  mode: "edit" | "payment";
 };
 
 const customerFormSchema = z.object({
@@ -60,7 +58,13 @@ const paymentSchema = z.object({
   amount: z.coerce.number().positive("El monto a abonar debe ser mayor a cero."),
 });
 
-export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode }: CustomerEditDialogProps) {
+export function CustomerEditDialog({
+  customer,
+  isOpen,
+  onClose,
+  onSuccess,
+  mode,
+}: CustomerEditDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -74,6 +78,8 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
     resolver: zodResolver(paymentSchema),
     defaultValues: { amount: undefined },
   });
+
+  const watchedPaymentAmount = paymentForm.watch("amount");
 
   React.useEffect(() => {
     if (isOpen && customer) {
@@ -94,14 +100,17 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
     }
   }, [isOpen, customer, customerForm, paymentForm]);
 
-
   const handleCustomerUpdate = async (values: z.infer<typeof customerFormSchema>) => {
     if (!customer || !user?.name) return;
     setIsSubmitting(true);
     try {
-      // Determine status based on the new dueAmount
-      const newStatus = values.dueAmount > 0 ? 'Pendiente' : 'Pagado';
-      const dataToUpdate = { ...values, status: newStatus, prefix: customer.prefix, toolContext: customer.toolContext };
+      const newStatus: "Pendiente" | "Pagado" = values.dueAmount > 0 ? "Pendiente" : "Pagado";
+      const dataToUpdate = {
+        ...values,
+        status: newStatus,
+        prefix: customer.prefix,
+        toolContext: customer.toolContext,
+      };
 
       await updateCustomer(customer.id, dataToUpdate, user.name);
       toast({ title: "Éxito", description: "Cliente actualizado." });
@@ -130,88 +139,143 @@ export function CustomerEditDialog({ customer, isOpen, onClose, onSuccess, mode 
       setIsSubmitting(false);
     }
   };
-  
+
   if (!customer) return null;
   const isPaid = (customer.dueAmount || 0) <= 0;
+  const parsedPayment = Number(watchedPaymentAmount) || 0;
+  const remainingAfterPayment = Math.max(0, (customer.dueAmount || 0) - parsedPayment);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="sm:max-w-2xl">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className={mode === "edit" ? "sm:max-w-2xl" : "sm:max-w-md"}>
         <DialogHeader>
-          <DialogTitle>{mode === 'edit' ? 'Editar Cliente' : 'Registrar Abono'}</DialogTitle>
+          <DialogTitle>{mode === "edit" ? "Editar Cliente" : "Registrar Abono"}</DialogTitle>
           <DialogDescription>
-            {mode === 'edit' ? `Editando los datos de ${customer.name}` : `Cliente: ${customer.name}`}
+            {mode === "edit" ? (
+              <>
+                Editando los datos de <strong className="text-foreground">{customer.name}</strong>.
+              </>
+            ) : (
+              <>
+                Cliente: <strong className="text-foreground">{customer.name}</strong>
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
-        
-        <div>
-          {mode === 'edit' ? (
-            <Form {...customerForm}>
-              <form onSubmit={customerForm.handleSubmit(handleCustomerUpdate)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={customerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                     <FormField control={customerForm.control} name="promoter" render={({ field }) => (<FormItem><FormLabel>Promotor/a</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                     <FormField control={customerForm.control} name="groupName" render={({ field }) => (<FormItem><FormLabel>Grupo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel>Nombre del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Teléfono del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Monto Préstamo</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel>Monto Pago</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="installmentsDue" render={({ field }) => (<FormItem><FormLabel>No. Vencidos</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={customerForm.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel>Adeudo Actual</FormLabel><FormControl><CurrencyInput value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                </div>
 
-                <DialogFooter className="pt-4 sticky bottom-0 bg-background">
-                  <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Guardar Cambios
+        {mode === "edit" ? (
+          <Form {...customerForm}>
+            <form onSubmit={customerForm.handleSubmit(handleCustomerUpdate)} className="space-y-4">
+              <div className="max-h-[60vh] overflow-y-auto overscroll-contain pr-1 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <FormField control={customerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Nombre Completo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Dirección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Teléfono</FormLabel><FormControl><Input className="tabular-nums" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="promoter" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Promotor/a</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="groupName" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Grupo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="guarantor" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Nombre del Aval</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Teléfono del Aval</FormLabel><FormControl><Input className="tabular-nums" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Monto Préstamo</FormLabel><FormControl><CurrencyInput className="tabular-nums" value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="paymentAmount" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Monto Pago</FormLabel><FormControl><CurrencyInput className="tabular-nums" value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="installmentsDue" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">No. Vencidos</FormLabel><FormControl><Input type="number" className="tabular-nums" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={customerForm.control} name="dueAmount" render={({ field }) => (<FormItem><FormLabel className="text-xs font-semibold">Adeudo Actual</FormLabel><FormControl><CurrencyInput className="tabular-nums" value={field.value} onValueChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                </div>
+              </div>
+
+              <DialogFooter className="pt-3 border-t border-border">
+                <Button variant="outline" onClick={onClose} type="button" className="lc-pressable">
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 lc-pressable"
+                >
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                  Guardar Cambios
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        ) : (
+          <div className="space-y-4 pt-1">
+            <div className="rounded-lg border border-border bg-muted/40 p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Monto Préstamo</span>
+                <span className="font-medium text-foreground tabular-nums">
+                  ${(customer.loanAmount || 0).toLocaleString("es-MX")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Adeudo Actual</span>
+                <span
+                  className={cn(
+                    "font-semibold tabular-nums",
+                    isPaid ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                  )}
+                >
+                  ${(customer.dueAmount || 0).toLocaleString("es-MX")}
+                </span>
+              </div>
+              {parsedPayment > 0 && !isPaid && (
+                <div className="flex items-center justify-between border-t border-border/70 pt-2 text-xs">
+                  <span className="text-muted-foreground">Saldo estimado tras abono</span>
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                    ${remainingAfterPayment.toLocaleString("es-MX")}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <Form {...paymentForm}>
+              <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
+                <FormField
+                  control={paymentForm.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold">Monto a Abonar</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <DollarSign
+                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <CurrencyInput
+                            placeholder="0.00"
+                            className="pl-9 tabular-nums"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            autoFocus
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={onClose} type="button" className="lc-pressable">
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || isPaid}
+                    className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 lc-pressable"
+                  >
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                    {isPaid ? "Deuda Liquidada" : "Registrar Abono"}
                   </Button>
                 </DialogFooter>
               </form>
             </Form>
-          ) : (
-            <div className="space-y-6 py-4">
-                <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
-                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Monto Préstamo:</span><span className="font-medium">${(customer.loanAmount || 0).toLocaleString('es-MX')}</span></div>
-                    <div className="flex justify-between text-lg"><span className="text-muted-foreground">Adeudo Actual:</span><span className="font-bold text-destructive">${(customer.dueAmount || 0).toLocaleString('es-MX')}</span></div>
-                </div>
-                <Form {...paymentForm}>
-                  <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
-                    <FormField
-                      control={paymentForm.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Monto a Abonar</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <CurrencyInput 
-                                placeholder="0.00" 
-                                className="pl-9" 
-                                value={field.value}
-                                onValueChange={field.onChange}
-                                autoFocus />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter>
-                       <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
-                       <Button type="submit" disabled={isSubmitting || isPaid}>
-                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          {isPaid ? 'Deuda Liquidada' : 'Registrar Abono'}
-                       </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

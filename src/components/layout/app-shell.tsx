@@ -64,11 +64,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { getCustomizedTools, type Tool, type Plaza, type LoanControlCartera, type LoanControlGrupo } from "@/lib/data";
-import { getPlazas, getPlazaById } from "@/services/plaza-service";
-import { getCarterasByPlaza, getGruposByCartera, getGrupoById, getCarteraById } from "@/services/loan-control-service";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import { getPlazas, getPlazasList } from "@/services/plaza-service";
+import { getCachedOrFetch } from "@/lib/client-cache";
 import { format } from "date-fns";
 import { FileText, FileSpreadsheet, Download, Images } from "lucide-react";
 
@@ -201,10 +198,13 @@ function PlazaNavLinks({toolPrefix}: {toolPrefix: string}) {
                     })) || [];
                      setPlazas(userPlazas.sort((a,b) => a.name.localeCompare(b.name)) as Plaza[]);
                 } else {
-                    // For admins, fetch based on their prefix
+                    // For admins, fetch lightweight plaza list without loading customers
                     const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-                    const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
-                    setPlazas(plazasFromDb.sort((a,b) => a.name.localeCompare(b.name)));
+                    const cacheKey = `overdue-plazas-list:${shouldFetchAll ? 'all' : (user.prefix || '')}`;
+                    const plazasFromDb = await getCachedOrFetch(cacheKey, () =>
+                        getPlazasList({ prefix: user.prefix, fetchAll: shouldFetchAll, toolContext: 'overdue-portfolio' })
+                    );
+                    setPlazas(plazasFromDb);
                 }
 
             } catch (error) {
@@ -258,22 +258,31 @@ function LoanControlNav() {
     const [plazas, setPlazas] = React.useState<Plaza[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
-    React.useEffect(() => {
-        const fetchNavData = async () => {
-            if (!user) return;
-            setIsLoading(true);
-            try {
-                const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-                const fetchedPlazas = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll });
-                setPlazas(fetchedPlazas);
-            } catch (error) {
-                console.error("Failed to fetch loan control nav plazas", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchNavData();
+    const fetchNavData = React.useCallback(async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
+            const cacheKey = `loan-control-plazas:${shouldFetchAll ? 'all' : (user.prefix || '')}`;
+            const fetchedPlazas = await getCachedOrFetch(cacheKey, () =>
+                getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, toolContext: 'loan-control' })
+            );
+            setPlazas(fetchedPlazas);
+        } catch (error) {
+            console.error("Failed to fetch loan control nav plazas", error);
+        } finally {
+            setIsLoading(false);
+        }
     }, [user]);
+
+    React.useEffect(() => {
+        fetchNavData();
+        const handleUpdate = () => {
+            fetchNavData();
+        };
+        window.addEventListener('loan-control-updated', handleUpdate);
+        return () => window.removeEventListener('loan-control-updated', handleUpdate);
+    }, [fetchNavData]);
 
     if (isLoading) {
         return (
@@ -287,8 +296,12 @@ function LoanControlNav() {
     const totalLoaned = plazas.reduce((acc, p) => acc + (p.totalLoanAmount || 0), 0);
     const totalDue = plazas.reduce((acc, p) => acc + (p.pendingDebt || 0), 0);
 
-    const exportToPDF = () => {
+    const exportToPDF = async () => {
         if (plazas.length === 0) return;
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ]);
 
         // Separate active and inactive plazas
         const activePlazas = plazas.filter(p => (p.totalLoanAmount || 0) > 0 || (p.pendingDebt || 0) > 0);
@@ -499,8 +512,9 @@ function LoanControlNav() {
         doc.save(fileName);
     };
 
-    const exportToExcel = () => {
+    const exportToExcel = async () => {
         if (plazas.length === 0) return;
+        const XLSX = await import("xlsx");
         const dataToExport = plazas.map(p => ({
             'Plaza': p.name,
             'Prefijo': p.prefix,

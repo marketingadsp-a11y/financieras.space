@@ -7,6 +7,7 @@ import Link from "next/link";
 import { format, subMonths, addMonths, isPast } from "date-fns";
 import { es } from "date-fns/locale";
 import { getConcentradoOficinaById, getRegistrosByOficina, addOrUpdateRegistroSemanal, deleteRegistrosByMonth, getWeeklyClosures } from "@/services/concentrado-service";
+import { invalidateClientCache } from "@/lib/client-cache";
 import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
@@ -297,6 +298,7 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
 
     try {
         await addOrUpdateRegistroSemanal(registroData);
+        invalidateClientCache('concentrado-', 'concentrado-updated');
         toast({ title: "Éxito", description: "Registro guardado correctamente."});
         setIsFormOpen(false);
         fetchData();
@@ -313,6 +315,7 @@ export function OficinaPanel({ oficinaId }: { oficinaId: string }) {
     setIsDeletingMonth(true);
     try {
         await deleteRegistrosByMonth(oficinaId, currentMonth);
+        invalidateClientCache('concentrado-', 'concentrado-updated');
         toast({ title: "Éxito", description: `Todos los registros para ${format(currentMonth, "LLLL yyyy", {locale: es})} han sido eliminados.`});
         fetchData();
         setIsDeleteMonthAuthOpen(false);

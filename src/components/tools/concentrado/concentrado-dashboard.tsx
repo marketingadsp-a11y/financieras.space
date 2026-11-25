@@ -14,6 +14,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2, ChevronLeft, ChevronRight, History, DollarSign, Lock, LockOpen } from "lucide-react";
 import { getConcentradoOficinas, getAllConcentradoRegistros, getWeeklyClosures, setWeeklyClosure } from "@/services/concentrado-service";
+import { getCachedOrFetch, invalidateClientCache } from "@/lib/client-cache";
 import type { ConcentradoOficina, ConcentradoSemanal, ConcentradoWeeklyClosure } from "@/lib/data";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -106,92 +107,36 @@ function getMonthWeeks(monthDate: Date): { start: Date; end: Date }[] {
 
 
 export function ConcentradoDashboard() {
-  const [summaries, setSummaries] = React.useState<SummaryRow[]>([]);
+  const [oficinas, setOficinas] = React.useState<ConcentradoOficina[]>([]);
+  const [allRegistros, setAllRegistros] = React.useState<ConcentradoSemanal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = React.useState(new Date());
-  const [totalCajaChicaMes, setTotalCajaChicaMes] = React.useState(0);
   const [selectedOficinaId, setSelectedOficinaId] = React.useState<string | null>(null);
   const [weeklyClosures, setWeeklyClosures] = React.useState<ConcentradoWeeklyClosure[]>([]);
 
 
-  const fetchData = React.useCallback(async () => {
+  const fetchData = React.useCallback(async (forceRefresh = false) => {
     if (!user?.prefix) {
         setIsLoading(false);
         return;
     }
     setIsLoading(true);
-
-    const { start: weekStart, end: weekEnd } = getWeekBoundaries(selectedDate);
-    
-    const now = new Date();
-    const currentMonthDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    const weeksInCurrentMonth = getMonthWeeks(currentMonthDate);
-    
-    const currentMonthStart = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[0].start : new Date(now.getFullYear(), now.getMonth(), 1);
-    const currentMonthEnd = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[weeksInCurrentMonth.length - 1].end : new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    
+    const prefix = user.prefix;
+    if (forceRefresh) {
+        invalidateClientCache('concentrado-');
+    }
     try {
-        const [oficinas, allRegistros, closures] = await Promise.all([
-            getConcentradoOficinas(user.prefix),
-            getAllConcentradoRegistros(user.prefix),
-            getWeeklyClosures(user.prefix)
+        const [oficinasData, registrosData, closures] = await Promise.all([
+            getCachedOrFetch(`concentrado-oficinas:${prefix}`, () => getConcentradoOficinas(prefix)),
+            getCachedOrFetch(`concentrado-registros:${prefix}`, () => getAllConcentradoRegistros(prefix)),
+            getCachedOrFetch(`concentrado-closures:${prefix}`, () => getWeeklyClosures(prefix)),
         ]);
 
+        setOficinas(oficinasData);
+        setAllRegistros(registrosData);
         setWeeklyClosures(closures);
-
-        const monthlyCajaChicaTotal = allRegistros
-            .filter(r => {
-                const registroDate = new Date(r.weekStartDate);
-                return registroDate >= currentMonthStart && registroDate <= currentMonthEnd;
-            })
-            .reduce((sum, r) => sum + (r.cajaChica || 0), 0);
-        
-        setTotalCajaChicaMes(monthlyCajaChicaTotal);
-        
-        const weeklySummaries = oficinas.map(oficina => {
-            const registrosDeLaOficina = allRegistros.filter(r => r.oficinaId === oficina.id);
-            
-            const registrosDeLaSemana = registrosDeLaOficina.filter(r => {
-                const registroDate = new Date(r.weekStartDate);
-                return registroDate.getTime() >= weekStart.getTime() && registroDate.getTime() <= weekEnd.getTime();
-            });
-
-            const summary = registrosDeLaSemana.reduce((acc, r) => {
-                acc.fondoInicio += r.fondoInicio || 0;
-                acc.venta += r.venta || 0;
-                acc.cajaChica += r.cajaChica || 0;
-                acc.recolectado += r.recolectado || 0;
-                acc.gastos += r.gastos || 0;
-                acc.fondoSiguienteSemana += r.fondoSiguienteSemana || 0;
-                acc.seguros += r.seguros || 0;
-                acc.interesMensual += r.interesMensual || 0;
-                acc.capitalMensual += r.capitalMensual || 0;
-                acc.carteraVencida += r.carteraVencida || 0;
-                return acc;
-            }, {
-                fondoInicio: 0,
-                venta: 0,
-                cajaChica: 0,
-                recolectado: 0,
-                gastos: 0,
-                fondoSiguienteSemana: 0,
-                seguros: 0,
-                interesMensual: 0,
-                capitalMensual: 0,
-                carteraVencida: 0,
-            });
-
-            return {
-                oficinaId: oficina.id,
-                oficinaName: oficina.name,
-                ...summary
-            };
-        });
-
-        setSummaries(weeklySummaries);
-
     } catch (error) {
         toast({
             variant: "destructive",
@@ -201,12 +146,81 @@ export function ConcentradoDashboard() {
     } finally {
         setIsLoading(false);
     }
-}, [user?.prefix, toast, selectedDate]);
-
+  }, [user?.prefix, toast]);
 
   React.useEffect(() => {
     fetchData();
+    const handleUpdated = () => fetchData(true);
+    window.addEventListener('concentrado-updated', handleUpdated);
+    return () => window.removeEventListener('concentrado-updated', handleUpdated);
   }, [fetchData]);
+
+  const totalCajaChicaMes = React.useMemo(() => {
+    const now = new Date();
+    const currentMonthDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const weeksInCurrentMonth = getMonthWeeks(currentMonthDate);
+    const currentMonthStart = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[0].start : new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = weeksInCurrentMonth.length > 0 ? weeksInCurrentMonth[weeksInCurrentMonth.length - 1].end : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    return allRegistros
+        .filter(r => {
+            const registroDate = new Date(r.weekStartDate);
+            return registroDate >= currentMonthStart && registroDate <= currentMonthEnd;
+        })
+        .reduce((sum, r) => sum + (r.cajaChica || 0), 0);
+  }, [allRegistros]);
+
+  const summaries: SummaryRow[] = React.useMemo(() => {
+    const { start: weekStart, end: weekEnd } = getWeekBoundaries(selectedDate);
+    const weekStartTime = weekStart.getTime();
+    const weekEndTime = weekEnd.getTime();
+
+    const registrosDeLaSemana = allRegistros.filter(r => {
+        const registroTime = new Date(r.weekStartDate).getTime();
+        return registroTime >= weekStartTime && registroTime <= weekEndTime;
+    });
+
+    const registrosByOficina = new Map<string, ConcentradoSemanal[]>();
+    for (const r of registrosDeLaSemana) {
+        const list = registrosByOficina.get(r.oficinaId);
+        if (list) list.push(r);
+        else registrosByOficina.set(r.oficinaId, [r]);
+    }
+
+    return oficinas.map(oficina => {
+        const list = registrosByOficina.get(oficina.id) || [];
+        const summary = list.reduce((acc, r) => {
+            acc.fondoInicio += r.fondoInicio || 0;
+            acc.venta += r.venta || 0;
+            acc.cajaChica += r.cajaChica || 0;
+            acc.recolectado += r.recolectado || 0;
+            acc.gastos += r.gastos || 0;
+            acc.fondoSiguienteSemana += r.fondoSiguienteSemana || 0;
+            acc.seguros += r.seguros || 0;
+            acc.interesMensual += r.interesMensual || 0;
+            acc.capitalMensual += r.capitalMensual || 0;
+            acc.carteraVencida += r.carteraVencida || 0;
+            return acc;
+        }, {
+            fondoInicio: 0,
+            venta: 0,
+            cajaChica: 0,
+            recolectado: 0,
+            gastos: 0,
+            fondoSiguienteSemana: 0,
+            seguros: 0,
+            interesMensual: 0,
+            capitalMensual: 0,
+            carteraVencida: 0,
+        });
+
+        return {
+            oficinaId: oficina.id,
+            oficinaName: oficina.name,
+            ...summary
+        };
+    });
+  }, [oficinas, allRegistros, selectedDate]);
   
   const handlePreviousWeek = () => setSelectedDate(prevDate => addDays(prevDate, -7));
   const handleNextWeek = () => setSelectedDate(prevDate => addDays(prevDate, 7));
@@ -225,7 +239,7 @@ export function ConcentradoDashboard() {
     try {
         await setWeeklyClosure(user.prefix, weekStart, true);
         toast({ title: "Semana Cerrada", description: "Ya no se podrán registrar nuevos datos para esta semana sin autorización." });
-        fetchData();
+        fetchData(true);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cerrar la semana.' });
     }

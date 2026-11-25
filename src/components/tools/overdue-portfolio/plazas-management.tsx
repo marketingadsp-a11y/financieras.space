@@ -9,7 +9,7 @@ import { PlazaForm } from "@/components/tools/overdue-portfolio/plaza-form";
 import type { Plaza } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getPlazas, addPlaza, updatePlaza, deletePlaza } from "@/services/plaza-service";
+import { getPlazasList, addPlaza, updatePlaza, deletePlaza } from "@/services/plaza-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 
@@ -26,7 +26,7 @@ export function PlazasManagement() {
     try {
       setIsLoading(true);
       const shouldFetchAll = user.isSuperAdmin || user.isToolAdmin;
-      const plazasFromDb = await getPlazas({ prefix: user.prefix, fetchAll: shouldFetchAll, toolContext: 'overdue-portfolio' });
+      const plazasFromDb = await getPlazasList({ prefix: user.prefix, fetchAll: shouldFetchAll, toolContext: 'overdue-portfolio' });
       setPlazas(plazasFromDb);
     } catch (error) {
       toast({

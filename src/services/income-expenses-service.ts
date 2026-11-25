@@ -80,15 +80,14 @@ export async function adjustSucursalBalance(sucursalId: string, newBalance: numb
 // --- Dashboard & Central Account Functions ---
 export async function getIncomeExpensesSummary(prefix: string) {
   const centralAccountDocRef = doc(db, "centralAccounts", prefix);
-  const sucursales = await getSucursales(prefix);
-
   const qTransactions = query(
     centralAccountTransactionsCollectionRef, 
     where("accountId", "==", prefix),
     limit(25)
   );
   
-  const [accountSnap, transactionsSnap] = await Promise.all([
+  const [sucursales, accountSnap, transactionsSnap] = await Promise.all([
+    getSucursales(prefix),
     getDoc(centralAccountDocRef),
     getDocs(qTransactions),
   ]);
@@ -367,6 +366,60 @@ export async function getSucursalStats(sucursalId: string) {
     }, { totalIncome: 0, totalExpenses: 0 });
 
     return totals;
+}
+
+/**
+ * Fetches sucursal info, recent transactions, and total stats in a single pass
+ * without reading sucursalTransactions twice.
+ */
+export async function getSucursalPanelData(sucursalId: string): Promise<{
+    sucursal: Sucursal | null;
+    transactions: any[];
+    stats: { totalIncome: number; totalExpenses: number };
+}> {
+    const sucursalRef = doc(db, "sucursales", sucursalId);
+    const q = query(
+        sucursalTransactionsCollectionRef,
+        where("sucursalId", "==", sucursalId)
+    );
+
+    const [docSnap, txSnap] = await Promise.all([
+        getDoc(sucursalRef),
+        getDocs(q),
+    ]);
+
+    const sucursal: Sucursal | null = docSnap.exists()
+        ? ({
+            id: docSnap.id,
+            ...docSnap.data(),
+            currentBalance: docSnap.data().currentBalance || 0,
+        } as Sucursal)
+        : null;
+
+    let totalIncome = 0;
+    let totalExpenses = 0;
+
+    const allTransactions = txSnap.docs.map(d => {
+        const data = d.data();
+        if (data.type === 'deposit') {
+            totalIncome += data.amount || 0;
+        } else if (data.type === 'expense') {
+            totalExpenses += data.amount || 0;
+        }
+        return {
+            ...data,
+            id: d.id,
+            date: (data.date as Timestamp).toDate().toISOString(),
+        };
+    });
+
+    allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return {
+        sucursal,
+        transactions: allTransactions.slice(0, 50),
+        stats: { totalIncome, totalExpenses },
+    };
 }
 
 

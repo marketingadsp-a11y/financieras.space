@@ -6,7 +6,7 @@ import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getHistoryLogs } from "@/services/history-service";
 import type { HistoryLog, Plaza } from "@/lib/data";
-import { getPlazas } from "@/services/plaza-service";
+import { getPlazasList } from "@/services/plaza-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, DollarSign, CalendarIcon, FilterX } from "lucide-react";
@@ -42,7 +42,7 @@ export function HistoryPanel() {
     try {
       const [logsData, plazasData] = await Promise.all([
         getHistoryLogs(user.prefix, 'overdue-portfolio'),
-        getPlazas({ prefix: user.prefix, fetchAll: user.isSuperAdmin, toolContext: 'overdue-portfolio' })
+        getPlazasList({ prefix: user.prefix, fetchAll: user.isSuperAdmin, toolContext: 'overdue-portfolio' })
       ]);
       setLogs(logsData);
       setPlazas(plazasData);

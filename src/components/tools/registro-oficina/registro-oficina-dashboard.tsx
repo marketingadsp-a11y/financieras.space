@@ -6,7 +6,7 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { OficinaRegistro, OficinaSemanalRegistro } from "@/lib/data";
-import { getOficinas, getTodosRegistrosPorOficina } from "@/services/registro-oficina-service";
+import { getOficinas, getTodosRegistrosPorPrefix } from "@/services/registro-oficina-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Building, ArrowRight, DollarSign, Calendar } from "lucide-react";
@@ -54,31 +54,28 @@ export function RegistroOficinaDashboard() {
             }
         }
         
-        let data = await getOficinas(prefixToUse, allowedOficinaIds);
-
+        const [data, allRegistros] = await Promise.all([
+            getOficinas(prefixToUse, allowedOficinaIds),
+            getTodosRegistrosPorPrefix(prefixToUse, allowedOficinaIds),
+        ]);
 
       const today = new Date();
       const monthStart = startOfMonth(today);
       const monthEnd = endOfMonth(today);
 
-      const oficinasWithSummaries = await Promise.all(
-        data.map(async (oficina) => {
-          const registros = await getTodosRegistrosPorOficina(oficina.id);
-          const registrosDelMes = registros.filter(r => {
-            const registroDate = new Date(r.weekStartDate);
-            return registroDate >= monthStart && registroDate <= monthEnd;
-          });
+      const totalsByOficina = new Map<string, number>();
+      for (const r of allRegistros) {
+          const registroDate = new Date(r.weekStartDate);
+          if (registroDate >= monthStart && registroDate <= monthEnd) {
+              const sum = (r.recogidoSeguros || 0) + (r.carteraVencida || 0) + (r.interesMensual || 0) + (r.capitalMensual || 0) + (r.cajaChica || 0);
+              totalsByOficina.set(r.oficinaId, (totalsByOficina.get(r.oficinaId) || 0) + sum);
+          }
+      }
 
-          const monthlyTotal = registrosDelMes.reduce((acc, r) => {
-            return acc + (r.recogidoSeguros || 0) + (r.carteraVencida || 0) + (r.interesMensual || 0) + (r.capitalMensual || 0) + (r.cajaChica || 0);
-          }, 0);
-          
-          return {
-            ...oficina,
-            monthlyTotal,
-          };
-        })
-      );
+      const oficinasWithSummaries = data.map(oficina => ({
+          ...oficina,
+          monthlyTotal: totalsByOficina.get(oficina.id) || 0,
+      }));
 
       setOficinas(oficinasWithSummaries);
     } catch (error) {

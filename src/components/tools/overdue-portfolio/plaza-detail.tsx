@@ -3,9 +3,6 @@
 "use client";
 
 import * as React from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 import {
   DollarSign,
   Users,
@@ -137,6 +134,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
   
   const [selectedGroup, setSelectedGroup] = React.useState<string>("");
   const [selectedPromoter, setSelectedPromoter] = React.useState<string>("");
+  const [visibleCount, setVisibleCount] = React.useState(48);
 
   const fetchPlazaAndCustomers = React.useCallback(async () => {
     try {
@@ -280,7 +278,11 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF();
     const dateString = format(new Date(), 'dd/MM/yyyy');
     doc.text(`Clientes de la Plaza: ${plaza?.name}`, 14, 16);
@@ -301,7 +303,8 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
     doc.save(fileName);
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import("xlsx");
     const dateString = format(new Date(), 'PPP', { locale: es });
     const dataToExport = sortedCustomers.map(c => ({
       Promotor: c.promoter,
@@ -363,6 +366,15 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
         ...paid.sort(sortFunction)
     ];
   }, [filteredCustomers]);
+
+  React.useEffect(() => {
+    setVisibleCount(48);
+  }, [searchTerm, selectedPromoter, selectedGroup]);
+
+  const visibleCustomers = React.useMemo(
+    () => sortedCustomers.slice(0, visibleCount),
+    [sortedCustomers, visibleCount]
+  );
   
   const summaryStats = React.useMemo(() => {
     return sortedCustomers.reduce((acc, customer) => {
@@ -714,7 +726,7 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
             </div>
           <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {sortedCustomers.map(customer => (
+              {visibleCustomers.map(customer => (
                 <CustomerCard 
                   key={customer.id} 
                   customer={customer} 
@@ -728,6 +740,13 @@ export function PlazaDetail({ plazaId }: { plazaId: string }) {
                 />
               ))}
             </div>
+            {visibleCount < sortedCustomers.length && (
+              <div className="flex justify-center mt-6">
+                <Button variant="outline" onClick={() => setVisibleCount(c => c + 48)}>
+                  Mostrar más clientes ({visibleCustomers.length} de {sortedCustomers.length})
+                </Button>
+              </div>
+            )}
              <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>

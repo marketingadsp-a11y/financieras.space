@@ -12,7 +12,7 @@ import { getCustomizedTools } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getPlazaUsersByPrefix, addPlazaUser, updatePlazaUser, deletePlazaUser } from "@/services/plaza-user-service";
-import { getPlazas } from "@/services/plaza-service";
+import { getPlazasList } from "@/services/plaza-service";
 import { getOficinas as getOficinasRegistro } from "@/services/registro-oficina-service";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
@@ -53,7 +53,7 @@ export function UsersManagement() {
         oficinasRegistroFromDb
       ] = await Promise.all([
         getPlazaUsersByPrefix(user.prefix),
-        getPlazas({ prefix: user.prefix }),
+        getPlazasList({ prefix: user.prefix }),
         getOficinasRegistro(user.prefix)
       ]);
       setPlazaUsers(plazaUsersFromDb);

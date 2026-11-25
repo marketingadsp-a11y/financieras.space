@@ -5,7 +5,7 @@ import * as React from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { OficinaMensual, ClienteMensual } from "@/lib/data";
-import { getOficinaById, getClientes, addPaymentToCliente } from "@/services/mensuales-service";
+import { getOficinaById, getClientesByOficina, addPaymentToCliente } from "@/services/mensuales-service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Search } from "lucide-react";
@@ -34,12 +34,12 @@ export function OficinaDetailPanel({ oficinaId }: { oficinaId: string }) {
     }
     setIsLoading(true);
     try {
-      const [oficinaData, allClientesData] = await Promise.all([
+      const [oficinaData, oficinaClientes] = await Promise.all([
         getOficinaById(oficinaId),
-        getClientes(user.prefix),
+        getClientesByOficina(oficinaId),
       ]);
       setOficina(oficinaData);
-      setClientes(allClientesData.filter(c => c.oficinaId === oficinaId));
+      setClientes(oficinaClientes);
     } catch (error) {
       toast({
         variant: "destructive",

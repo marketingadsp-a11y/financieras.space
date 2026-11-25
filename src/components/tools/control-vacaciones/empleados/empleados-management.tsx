@@ -3,7 +3,6 @@
 import * as React from "react";
 import { PlusCircle, Loader2, Users, Search, Award, Calendar, Cake, Download } from "lucide-react";
 import { differenceInYears, format } from "date-fns";
-import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -139,8 +138,9 @@ export function EmpleadosManagement() {
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
+      const XLSX = await import("xlsx");
       const wsData = filteredEmpleados.map(emp => {
         const nameParts = (emp.name || "").trim().split(/\s+/);
         const nombre = nameParts[0] || "";

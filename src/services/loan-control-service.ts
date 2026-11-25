@@ -78,6 +78,12 @@ export async function deleteCartera(carteraId: string) {
 
 // --- Grupo Functions ---
 
+export async function getGruposByPlaza(plazaId: string): Promise<LoanControlGrupo[]> {
+    const q = query(gruposCollectionRef, where("plazaId", "==", plazaId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoanControlGrupo[];
+}
+
 export async function getGruposByCartera(carteraId: string): Promise<LoanControlGrupo[]> {
     const q = query(gruposCollectionRef, where("carteraId", "==", carteraId));
     const snapshot = await getDocs(q);
@@ -195,28 +201,29 @@ export async function clearDataByPrefix(prefix: string) {
         query(plazasCollectionRef, where("prefix", "==", prefix), where("toolContext", "==", "loan-control")),
         query(carterasCollectionRef, where("prefix", "==", prefix)),
         query(gruposCollectionRef, where("prefix", "==", prefix)),
-        query(customersCollectionRef, where("prefix", "==", prefix)), // Assuming customers are shared, or filter by a context if they are not
+        query(customersCollectionRef, where("prefix", "==", prefix)),
     ];
 
-    for (const q of collectionsToDelete) {
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) continue;
+    const snapshots = await Promise.all(collectionsToDelete.map(q => getDocs(q)));
+    const refsToDelete: any[] = [];
 
-        let batch = writeBatch(db);
-        let count = 0;
-        for (const d of snapshot.docs) {
-            batch.delete(d.ref);
-            count++;
-            if (count >= 400) {
-                await batch.commit();
-                batch = writeBatch(db);
-                count = 0;
+    snapshots.forEach((snapshot, idx) => {
+        snapshot.docs.forEach(d => {
+            // Preserve overdue-portfolio customers sharing the same prefix
+            if (idx === 3 && d.data()?.toolContext === 'overdue-portfolio') {
+                return;
             }
-        }
-        if (count > 0) {
-            await batch.commit();
-        }
+            refsToDelete.push(d.ref);
+        });
+    });
+
+    const batchPromises: Promise<void>[] = [];
+    for (let i = 0; i < refsToDelete.length; i += 400) {
+        const batch = writeBatch(db);
+        refsToDelete.slice(i, i + 400).forEach(ref => batch.delete(ref));
+        batchPromises.push(batch.commit());
     }
+    await Promise.all(batchPromises);
 }
 
 export async function importFullLoanData(
@@ -534,4 +541,86 @@ export async function getLoanControlPlazaDetailData(plazaId: string): Promise<{
         plaza,
         carteras: carterasWithStats,
     };
+}
+
+export async function getLoanControlCarteraDetailData(carteraId: string): Promise<{
+    cartera: LoanControlCartera | null;
+    plaza: Plaza | null;
+    grupos: LoanControlGrupo[];
+}> {
+    const [carteraSnap, gruposSnap] = await Promise.all([
+        getDoc(doc(db, "loanControlCarteras", carteraId)),
+        getDocs(query(gruposCollectionRef, where("carteraId", "==", carteraId))),
+    ]);
+
+    if (!carteraSnap.exists()) {
+        return { cartera: null, plaza: null, grupos: [] };
+    }
+
+    const cartera = { id: carteraSnap.id, ...carteraSnap.data() } as LoanControlCartera;
+    const grupos = gruposSnap.docs.map(d => ({ id: d.id, ...d.data() })) as LoanControlGrupo[];
+
+    let plaza: Plaza | null = null;
+    if (cartera.plazaId) {
+        const plazaSnap = await getDoc(doc(db, "plazas", cartera.plazaId));
+        if (plazaSnap.exists()) {
+            const pData = plazaSnap.data();
+            plaza = {
+                id: plazaSnap.id,
+                ...pData,
+                pendingDebt: pData.pendingDebt || 0,
+                recoveryRate: pData.recoveryRate || 0,
+                totalLoanAmount: pData.totalLoanAmount || 0,
+            } as Plaza;
+        }
+    }
+
+    return { cartera, plaza, grupos };
+}
+
+export async function getLoanControlGrupoDetailData(grupoId: string): Promise<{
+    grupo: LoanControlGrupo | null;
+    cartera: LoanControlCartera | null;
+    plaza: Plaza | null;
+    customers: Customer[];
+}> {
+    const [grupoSnap, customersSnap] = await Promise.all([
+        getDoc(doc(db, "loanControlGrupos", grupoId)),
+        getDocs(query(customersCollectionRef, where("loanControlGroupId", "==", grupoId))),
+    ]);
+
+    if (!grupoSnap.exists()) {
+        return { grupo: null, cartera: null, plaza: null, customers: [] };
+    }
+
+    const grupo = { id: grupoSnap.id, ...grupoSnap.data() } as LoanControlGrupo;
+    const customers = customersSnap.docs.map(customerFromDoc);
+
+    const [carteraSnap, plazaSnapInitial] = await Promise.all([
+        grupo.carteraId ? getDoc(doc(db, "loanControlCarteras", grupo.carteraId)) : Promise.resolve(null),
+        grupo.plazaId ? getDoc(doc(db, "plazas", grupo.plazaId)) : Promise.resolve(null),
+    ]);
+
+    const cartera = carteraSnap && carteraSnap.exists()
+        ? ({ id: carteraSnap.id, ...carteraSnap.data() } as LoanControlCartera)
+        : null;
+
+    let plazaSnap = plazaSnapInitial;
+    if ((!plazaSnap || !plazaSnap.exists()) && cartera?.plazaId) {
+        plazaSnap = await getDoc(doc(db, "plazas", cartera.plazaId));
+    }
+
+    let plaza: Plaza | null = null;
+    if (plazaSnap && plazaSnap.exists()) {
+        const pData = plazaSnap.data();
+        plaza = {
+            id: plazaSnap.id,
+            ...pData,
+            pendingDebt: pData.pendingDebt || 0,
+            recoveryRate: pData.recoveryRate || 0,
+            totalLoanAmount: pData.totalLoanAmount || 0,
+        } as Plaza;
+    }
+
+    return { grupo, cartera, plaza, customers };
 }

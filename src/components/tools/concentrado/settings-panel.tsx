@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, LockOpen } from "lucide-react";
 import type { ConcentradoOficina, ConcentradoWeeklyClosure } from "@/lib/data";
 import { getConcentradoOficinas, deleteRegistrosPorSemanas, getWeeklyClosures, setWeeklyClosure } from "@/services/concentrado-service";
+import { invalidateClientCache } from "@/lib/client-cache";
 import { format, subMonths, addMonths } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -104,6 +105,7 @@ export function ConcentradoSettingsPanel() {
         setIsSubmitting(true);
         try {
             await setWeeklyClosure(user.prefix, weekStartDate, false);
+            invalidateClientCache('concentrado-', 'concentrado-updated');
             toast({ title: "Éxito", description: "La semana ha sido re-abierta." });
             fetchData(); // Refetch all data
         } catch (error) {
@@ -162,6 +164,7 @@ export function ConcentradoSettingsPanel() {
         try {
             const weekStartDatesToDelete = Array.from(selectedWeekIndices).map(index => weeksOfMonth[index].start);
             await deleteRegistrosPorSemanas(Array.from(selectedOficinaIds), weekStartDatesToDelete);
+            invalidateClientCache('concentrado-', 'concentrado-updated');
             toast({ title: "Éxito", description: "Los registros seleccionados han sido eliminados." });
             setConfirmationCode(''); // Reset code
         } catch (error) {

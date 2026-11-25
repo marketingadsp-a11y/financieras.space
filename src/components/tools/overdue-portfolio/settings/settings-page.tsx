@@ -5,11 +5,10 @@ import * as React from "react";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileDown, Loader2, ClipboardPaste } from "lucide-react";
-import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { addMultipleCustomers } from "@/services/customer-service";
-import { addPlaza, getPlazas } from "@/services/plaza-service";
+import { addPlaza, getPlazasList } from "@/services/plaza-service";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
@@ -22,7 +21,8 @@ export function OverduePortfolioSettingsPage() {
     const [isImporting, setIsImporting] = React.useState(false);
     const toolContext = 'overdue-portfolio';
 
-    const handleDownloadTemplate = () => {
+    const handleDownloadTemplate = async () => {
+        const XLSX = await import("xlsx");
         const headers = ["FECHA", "PLAZA", "PROMOTOR", "GRUPO", "NOMBRE", "DIRECCION", "TELEFONO", "AVAL", "TEL. AVAL", "PRESTAMO", "PAGO", "NO.VENC.", "ADEUDO"];
         const exampleData = [
             ["01/05/2024", "Plaza Central", "JUAN PEREZ", "Grupo A", "CLIENTE DE EJEMPLO 1", "CALLE FALSA 123", "5551234567", "AVAL DE EJEMPLO 1", "5557654321", 10000, 1000, 2, 5000],
@@ -64,6 +64,7 @@ export function OverduePortfolioSettingsPage() {
                     return toast({ variant: "destructive", title: "Error", description: "No se pudo leer el archivo." });
                 }
 
+                const XLSX = await import("xlsx");
                 const workbook = XLSX.read(fileContent, { type: 'array', cellDates: true });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
@@ -99,7 +100,7 @@ export function OverduePortfolioSettingsPage() {
 
                 const dataRows = json.slice(1);
                 
-                const existingPlazas = await getPlazas({ prefix: user.prefix, fetchAll: false, toolContext });
+                const existingPlazas = await getPlazasList({ prefix: user.prefix, fetchAll: false, toolContext });
                 const plazaMap: Record<string, string> = {};
                 existingPlazas.forEach(p => { plazaMap[p.name.toUpperCase()] = p.id; });
 

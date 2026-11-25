@@ -5,6 +5,7 @@ import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import type { ConcentradoOficina, ConcentradoSemanal } from "@/lib/data";
 import { getConcentradoOficinas, getAllConcentradoRegistros } from "@/services/concentrado-service";
+import { getCachedOrFetch } from "@/lib/client-cache";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ChevronLeft, ChevronRight, Calendar, DollarSign } from "lucide-react";
@@ -67,10 +68,11 @@ export function CajaChicaViewer() {
             return;
         }
         setIsLoading(true);
+        const prefix = user.prefix;
         try {
             const [oficinasData, registrosData] = await Promise.all([
-                getConcentradoOficinas(user.prefix),
-                getAllConcentradoRegistros(user.prefix),
+                getCachedOrFetch(`concentrado-oficinas:${prefix}`, () => getConcentradoOficinas(prefix)),
+                getCachedOrFetch(`concentrado-registros:${prefix}`, () => getAllConcentradoRegistros(prefix)),
             ]);
             setOficinas(oficinasData);
             setAllRegistros(registrosData);

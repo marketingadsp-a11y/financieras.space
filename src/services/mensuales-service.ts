@@ -2,7 +2,7 @@
 
 'use server';
 
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, getDoc, orderBy } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch, runTransaction, Timestamp, getDoc, orderBy, type Transaction } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { OficinaMensual, ClienteMensual, MovimientoMensual, InterestRate } from "@/lib/data";
 
@@ -11,40 +11,35 @@ const clientesCollectionRef = collection(db, "mensuales_clientes");
 const movimientosCollectionRef = collection(db, "mensuales_movimientos");
 const interestRatesCollectionRef = collection(db, "mensuales_interestRates");
 
+type PendingInterestResult = {
+    updatedCliente: ClienteMensual;
+    updates?: Partial<ClienteMensual>;
+    newMovements: Omit<MovimientoMensual, 'id' | 'clienteId'>[];
+};
 
-// This function will automatically charge interest if a payment cycle has passed.
-async function chargeInterestIfNeeded(cliente: ClienteMensual, transaction?: FirebaseFirestore.Transaction): Promise<ClienteMensual> {
+function computePendingInterest(cliente: ClienteMensual): PendingInterestResult {
     if (cliente.status === 'liquidado' || !cliente.registrationDate) {
-        return cliente;
+        return { updatedCliente: cliente, newMovements: [] };
     }
 
-    const clienteRef = doc(db, 'mensuales_clientes', cliente.id);
-    let updatedClienteData = { ...cliente };
-    
-    // Determine the last charge date, defaulting to registration date
+    const updatedClienteData = { ...cliente };
     const lastChargeDate = cliente.lastInterestChargedDate || cliente.registrationDate;
-
-    // Use a function that can work with or without a transaction
-    const updateFn = transaction ? transaction.update.bind(transaction) : updateDoc;
 
     const now = new Date();
     let chargeDateCursor = new Date(lastChargeDate);
     let interestToCharge = 0;
-    let newMovements: Omit<MovimientoMensual, 'id' | 'clienteId'>[] = [];
+    const newMovements: Omit<MovimientoMensual, 'id' | 'clienteId'>[] = [];
     let newLastChargedDate = lastChargeDate;
 
-    // Loop through months between last charge and now
-    while(chargeDateCursor < now) {
+    while (chargeDateCursor < now) {
         const nextChargeCutoff = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth(), cliente.paymentDay + 1);
 
         if (now >= nextChargeCutoff && lastChargeDate < nextChargeCutoff) {
-            
-            // DYNAMIC INTEREST CALCULATION
             const interestForThisMonth = (updatedClienteData.currentBalance * updatedClienteData.interestRateValue) / 100;
-            
+
             interestToCharge += interestForThisMonth;
             newLastChargedDate = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth() + 1, cliente.paymentDay);
-            
+
             newMovements.push({
                 date: newLastChargedDate,
                 type: 'charge_interest',
@@ -52,51 +47,117 @@ async function chargeInterestIfNeeded(cliente: ClienteMensual, transaction?: Fir
                 notes: `Cargo de interés del ${cliente.interestRateValue}% sobre $${updatedClienteData.currentBalance.toLocaleString()}`
             });
 
-            // Update client's unpaid interest locally for the next loop iteration's calculation
             updatedClienteData.unpaidInterest = (updatedClienteData.unpaidInterest || 0) + interestForThisMonth;
-
             chargeDateCursor = new Date(chargeDateCursor.getFullYear(), chargeDateCursor.getMonth() + 1, 1);
         } else {
             break;
         }
     }
-    
-    if (interestToCharge > 0) {
-        const newUnpaidInterest = updatedClienteData.unpaidInterest; // We already updated it locally
-        const monthsOverdue = cliente.interestRateValue > 0 ? newUnpaidInterest / ((cliente.loanAmount * cliente.interestRateValue)/100) : 0;
-        
-        const newStatus = monthsOverdue >= 3 ? 'vencido' : 'vigente';
 
-        const updates: Partial<ClienteMensual> = {
-            unpaidInterest: newUnpaidInterest,
-            lastInterestChargedDate: newLastChargedDate,
-            status: newStatus,
-        };
-
-        if(transaction) {
-            transaction.update(clienteRef, updates);
-            newMovements.forEach(movement => {
-                const movRef = doc(movimientosCollectionRef);
-                transaction.set(movRef, { ...movement, clienteId: cliente.id });
-            });
-        } else {
-            // If not in a transaction, perform writes directly
-            await updateDoc(clienteRef, updates);
-            const batch = writeBatch(db);
-            newMovements.forEach(movement => {
-                const movRef = doc(movimientosCollectionRef);
-                batch.set(movRef, { ...movement, clienteId: cliente.id });
-            });
-            await batch.commit();
-        }
-
-        // Update the local object to reflect changes immediately
-        updatedClienteData.lastInterestChargedDate = newLastChargedDate;
-        updatedClienteData.status = newStatus;
+    if (interestToCharge <= 0) {
+        return { updatedCliente: cliente, newMovements: [] };
     }
 
-    // Return the potentially updated client data
-    return updatedClienteData;
+    const newUnpaidInterest = updatedClienteData.unpaidInterest;
+    const monthsOverdue = cliente.interestRateValue > 0 ? newUnpaidInterest / ((cliente.loanAmount * cliente.interestRateValue) / 100) : 0;
+    const newStatus = monthsOverdue >= 3 ? 'vencido' : 'vigente';
+
+    const updates: Partial<ClienteMensual> = {
+        unpaidInterest: newUnpaidInterest,
+        lastInterestChargedDate: newLastChargedDate,
+        status: newStatus,
+    };
+
+    updatedClienteData.lastInterestChargedDate = newLastChargedDate;
+    updatedClienteData.status = newStatus;
+
+    return { updatedCliente: updatedClienteData, updates, newMovements };
+}
+
+// This function will automatically charge interest if a payment cycle has passed.
+async function chargeInterestIfNeeded(cliente: ClienteMensual, transaction?: Transaction): Promise<ClienteMensual> {
+    const { updatedCliente, updates, newMovements } = computePendingInterest(cliente);
+    if (!updates) return updatedCliente;
+
+    const clienteRef = doc(db, 'mensuales_clientes', cliente.id);
+
+    if (transaction) {
+        transaction.update(clienteRef, updates);
+        newMovements.forEach(movement => {
+            const movRef = doc(movimientosCollectionRef);
+            transaction.set(movRef, { ...movement, clienteId: cliente.id });
+        });
+    } else {
+        const batch = writeBatch(db);
+        batch.update(clienteRef, updates);
+        newMovements.forEach(movement => {
+            const movRef = doc(movimientosCollectionRef);
+            batch.set(movRef, { ...movement, clienteId: cliente.id });
+        });
+        await batch.commit();
+    }
+
+    return updatedCliente;
+}
+
+async function processClientsInterestBatch(clientes: ClienteMensual[]): Promise<ClienteMensual[]> {
+    const results = clientes.map(computePendingInterest);
+    const pendingItems = results.filter(r => r.updates);
+
+    if (pendingItems.length > 0) {
+        let batch = writeBatch(db);
+        let opCount = 0;
+
+        for (const item of pendingItems) {
+            const clienteRef = doc(db, 'mensuales_clientes', item.updatedCliente.id);
+            batch.update(clienteRef, item.updates!);
+            opCount++;
+
+            for (const movement of item.newMovements) {
+                if (opCount >= 400) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    opCount = 0;
+                }
+                const movRef = doc(movimientosCollectionRef);
+                batch.set(movRef, { ...movement, clienteId: item.updatedCliente.id });
+                opCount++;
+            }
+
+            if (opCount >= 400) {
+                await batch.commit();
+                batch = writeBatch(db);
+                opCount = 0;
+            }
+        }
+
+        if (opCount > 0) {
+            await batch.commit();
+        }
+    }
+
+    return results.map(r => r.updatedCliente);
+}
+
+function mapClienteDoc(docSnap: any): ClienteMensual {
+    const data = docSnap.data();
+    return {
+        id: docSnap.id,
+        displayId: data.displayId || "0000",
+        name: data.name || "",
+        prefix: data.prefix || "",
+        oficinaId: data.oficinaId || "",
+        loanAmount: data.loanAmount || 0,
+        paymentDay: data.paymentDay || 1,
+        interestRateId: data.interestRateId || "",
+        interestRateValue: data.interestRateValue || 0,
+        currentBalance: data.currentBalance || 0,
+        unpaidInterest: data.unpaidInterest || 0,
+        registrationDate: data.registrationDate?.toDate(),
+        status: data.status || 'vigente',
+        lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
+        lastPaymentDate: data.lastPaymentDate?.toDate(),
+    } as ClienteMensual;
 }
 
 
@@ -151,32 +212,15 @@ export async function deleteOficina(id: string) {
 export async function getClientes(prefix: string): Promise<ClienteMensual[]> {
     const q = query(clientesCollectionRef, where("prefix", "==", prefix));
     const snapshot = await getDocs(q);
-    
-    const clientesPromises = snapshot.docs.map(async doc => {
-        const data = doc.data();
-        const cliente = {
-            id: doc.id,
-            displayId: data.displayId || "0000",
-            name: data.name || "",
-            prefix: data.prefix || "",
-            oficinaId: data.oficinaId || "", // Ensure oficinaId is a string
-            loanAmount: data.loanAmount || 0,
-            paymentDay: data.paymentDay || 1,
-            interestRateId: data.interestRateId || "",
-            interestRateValue: data.interestRateValue || 0,
-            currentBalance: data.currentBalance || 0,
-            unpaidInterest: data.unpaidInterest || 0,
-            registrationDate: data.registrationDate?.toDate(),
-            status: data.status || 'vigente',
-            lastInterestChargedDate: data.lastInterestChargedDate?.toDate(),
-            lastPaymentDate: data.lastPaymentDate?.toDate(),
-        } as ClienteMensual;
-        return chargeInterestIfNeeded(cliente);
-    });
-    
-    const clientes = await Promise.all(clientesPromises);
+    const clientes = snapshot.docs.map(mapClienteDoc);
+    return processClientsInterestBatch(clientes);
+}
 
-    return clientes;
+export async function getClientesByOficina(oficinaId: string): Promise<ClienteMensual[]> {
+    const q = query(clientesCollectionRef, where("oficinaId", "==", oficinaId));
+    const snapshot = await getDocs(q);
+    const clientes = snapshot.docs.map(mapClienteDoc);
+    return processClientsInterestBatch(clientes);
 }
 
 export async function searchClientesByName(name: string, prefix: string): Promise<ClienteMensual[]> {
@@ -446,15 +490,16 @@ export async function getMovimientosByCliente(clienteId: string): Promise<Movimi
 // --- Bulk Import ---
 export async function importMensualesData(jsonData: string, prefix: string): Promise<void> {
     const data = JSON.parse(jsonData);
-    const batch = writeBatch(db);
 
-    // Pre-fetch existing oficinas and rates to avoid duplicates
+    // Pre-fetch existing oficinas, rates, and displayIds once to avoid N+1 queries inside the loop
     const oficinasQuery = query(oficinasCollectionRef, where("prefix", "==", prefix));
     const ratesQuery = query(interestRatesCollectionRef, where("prefix", "==", prefix));
+    const existingClientesQuery = query(clientesCollectionRef, where("prefix", "==", prefix));
     
-    const [oficinasSnapshot, ratesSnapshot] = await Promise.all([
+    const [oficinasSnapshot, ratesSnapshot, existingClientesSnapshot] = await Promise.all([
         getDocs(oficinasQuery),
         getDocs(ratesQuery),
+        getDocs(existingClientesQuery),
     ]);
 
     const oficinaMap = new Map<string, string>();
@@ -462,6 +507,31 @@ export async function importMensualesData(jsonData: string, prefix: string): Pro
 
     const rateMap = new Map<number, string>();
     ratesSnapshot.forEach(doc => rateMap.set(doc.data().value, doc.id));
+
+    const usedDisplayIds = new Set<string>();
+    existingClientesSnapshot.forEach(doc => {
+        const dId = doc.data().displayId;
+        if (dId) usedDisplayIds.add(String(dId));
+    });
+
+    const nextDisplayId = () => {
+        let candidate = '';
+        do {
+            candidate = Math.floor(1000 + Math.random() * 9000).toString();
+        } while (usedDisplayIds.has(candidate));
+        usedDisplayIds.add(candidate);
+        return candidate;
+    };
+
+    let batch = writeBatch(db);
+    let opCount = 0;
+    const commitIfNeeded = async () => {
+        if (opCount >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            opCount = 0;
+        }
+    };
     
     for (const row of data) {
         const oficinaName = String(row.OFICINA || '').trim().toUpperCase();
@@ -480,6 +550,7 @@ export async function importMensualesData(jsonData: string, prefix: string): Pro
             const newOficinaRef = doc(oficinasCollectionRef);
             oficinaId = newOficinaRef.id;
             batch.set(newOficinaRef, { name: oficinaName, prefix });
+            opCount++;
             oficinaMap.set(oficinaName, oficinaId);
         }
         
@@ -488,10 +559,11 @@ export async function importMensualesData(jsonData: string, prefix: string): Pro
             const newRateRef = doc(interestRatesCollectionRef);
             rateId = newRateRef.id;
             batch.set(newRateRef, { value: interestRateValue, prefix });
+            opCount++;
             rateMap.set(interestRateValue, rateId);
         }
         
-        const displayId = await generateUniqueDisplayId(prefix);
+        const displayId = nextDisplayId();
 
         const newCliente: Omit<ClienteMensual, 'id'> = {
             displayId,
@@ -510,6 +582,7 @@ export async function importMensualesData(jsonData: string, prefix: string): Pro
         
         const newClienteRef = doc(clientesCollectionRef);
         batch.set(newClienteRef, newCliente);
+        opCount++;
         
         const initialMovement: Omit<MovimientoMensual, 'id' | 'clienteId'> = {
             date: new Date(),
@@ -519,39 +592,44 @@ export async function importMensualesData(jsonData: string, prefix: string): Pro
         };
         const newMovimientoRef = doc(movimientosCollectionRef);
         batch.set(newMovimientoRef, { ...initialMovement, clienteId: newClienteRef.id });
+        opCount++;
+
+        await commitIfNeeded();
     }
     
-    await batch.commit();
+    if (opCount > 0) {
+        await batch.commit();
+    }
 }
 
 
 // DANGER ZONE FUNCTIONS
 export async function deleteAllMensualesData(prefix: string, type: 'clientes' | 'oficinas' | 'interes'): Promise<void> {
-    const batch = writeBatch(db);
+    const refsToDelete: any[] = [];
 
     if (type === 'clientes' || type === 'oficinas') {
-        const clientesQuery = query(clientesCollectionRef, where("prefix", "==", prefix));
-        const clientesSnapshot = await getDocs(clientesQuery);
-        for (const clienteDoc of clientesSnapshot.docs) {
-            batch.delete(clienteDoc.ref);
-            const movimientosQuery = query(movimientosCollectionRef, where("clienteId", "==", clienteDoc.id));
-            const movimientosSnapshot = await getDocs(movimientosQuery);
-            movimientosSnapshot.forEach(movDoc => batch.delete(movDoc.ref));
-        }
+        const clientesSnapshot = await getDocs(query(clientesCollectionRef, where("prefix", "==", prefix)));
+        const movimientosSnapshots = await Promise.all(
+            clientesSnapshot.docs.map(c => getDocs(query(movimientosCollectionRef, where("clienteId", "==", c.id))))
+        );
+        clientesSnapshot.docs.forEach(d => refsToDelete.push(d.ref));
+        movimientosSnapshots.forEach(snap => snap.docs.forEach(d => refsToDelete.push(d.ref)));
     }
 
     if (type === 'oficinas') {
-        const oficinasQuery = query(oficinasCollectionRef, where("prefix", "==", prefix));
-        const oficinasSnapshot = await getDocs(oficinasQuery);
-        oficinasSnapshot.forEach(doc => batch.delete(doc.ref));
+        const oficinasSnapshot = await getDocs(query(oficinasCollectionRef, where("prefix", "==", prefix)));
+        oficinasSnapshot.docs.forEach(d => refsToDelete.push(d.ref));
     }
 
     if (type === 'interes') {
-        const ratesQuery = query(interestRatesCollectionRef, where("prefix", "==", prefix));
-        const ratesSnapshot = await getDocs(ratesQuery);
-        ratesSnapshot.forEach(doc => batch.delete(doc.ref));
+        const ratesSnapshot = await getDocs(query(interestRatesCollectionRef, where("prefix", "==", prefix)));
+        ratesSnapshot.docs.forEach(d => refsToDelete.push(d.ref));
     }
 
-    await batch.commit();
+    for (let i = 0; i < refsToDelete.length; i += 400) {
+        const batch = writeBatch(db);
+        refsToDelete.slice(i, i + 400).forEach(ref => batch.delete(ref));
+        await batch.commit();
+    }
 }
 

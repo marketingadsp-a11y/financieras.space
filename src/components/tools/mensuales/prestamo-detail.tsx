@@ -15,8 +15,6 @@ import { es } from "date-fns/locale";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -155,12 +153,16 @@ export function PrestamoDetail({ clienteId }: { clienteId: string }) {
         }
     }
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         if (!cliente) {
             toast({ variant: "destructive", title: "Error", description: "No hay datos del cliente para exportar." });
             return;
         }
 
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ]);
         const doc = new jsPDF();
         const dateStr = format(new Date(), "PPP p", { locale: es });
 

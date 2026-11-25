@@ -2,14 +2,12 @@
 "use client";
 
 import * as React from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getSucursalById, getSucursalTransactions, getSucursalStats, performSucursalTransaction, deleteSucursalTransaction, updateSucursalTransaction } from "@/services/income-expenses-service";
+import { getSucursalPanelData, performSucursalTransaction, deleteSucursalTransaction, updateSucursalTransaction } from "@/services/income-expenses-service";
 import type { Sucursal, SucursalTransaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -139,11 +137,7 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
     const fetchData = React.useCallback(async () => {
         setIsLoading(true);
         try {
-            const [sucursalData, transactionsData, statsData] = await Promise.all([
-                getSucursalById(sucursalId),
-                getSucursalTransactions(sucursalId),
-                getSucursalStats(sucursalId)
-            ]);
+            const { sucursal: sucursalData, transactions: transactionsData, stats: statsData } = await getSucursalPanelData(sucursalId);
             setSucursal(sucursalData);
             setTransactions(transactionsData as SucursalTransaction[]);
             setStats(statsData);
@@ -233,11 +227,15 @@ export function SucursalPanel({ sucursalId }: { sucursalId: string }) {
         }
     }
     
-    const exportToPDF = () => {
+    const exportToPDF = async () => {
         if (!sucursal) {
             toast({ variant: "destructive", title: "Sin datos", description: "No hay información de la sucursal para exportar." });
             return;
         }
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ]);
         const doc = new jsPDF();
         const totals = filteredTransactions.reduce((acc, tx) => {
             if (tx.type === 'deposit') acc.deposits += tx.amount;

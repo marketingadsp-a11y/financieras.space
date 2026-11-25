@@ -101,10 +101,21 @@ const getWeekBoundaries = (date: Date): { start: Date; end: Date; weekId: string
 type SucursalSummary = FlujoSucursal & { summary: FlujoWeeklySummary | null };
 
 export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
-    const { start, end, weekId } = getWeekBoundaries(date);
+    const { start, end } = getWeekBoundaries(date);
 
-    // Get all sucursales for the prefix
-    const sucursales = await getFlujoSucursales(prefix);
+    const centralAccountDocRef = doc(db, "flujo_central_accounts", prefix);
+    const transactionsQuery = query(
+        centralTransactionsCollectionRef(prefix),
+        orderBy("date", "desc"),
+        limit(10)
+    );
+
+    // Fetch sucursales and central account data in parallel
+    const [sucursales, accountSnap, transactionsSnapshot] = await Promise.all([
+        getFlujoSucursales(prefix),
+        getDoc(centralAccountDocRef),
+        getDocs(transactionsQuery),
+    ]);
 
     const sucursalSummaries = await Promise.all(
         sucursales.map(async (s) => {
@@ -137,20 +148,10 @@ export async function getFlujoSummariesForWeek(prefix: string, date: Date) {
         return s;
     });
 
-    
-    // Get central account info
-    const centralAccountDocRef = doc(db, "flujo_central_accounts", prefix);
-    const accountSnap = await getDoc(centralAccountDocRef);
     let centralAccount: FlujoCentralAccount;
 
     if (accountSnap.exists()) {
         const centralAccountData = accountSnap.data();
-        const transactionsQuery = query(
-            centralTransactionsCollectionRef(prefix),
-            orderBy("date", "desc"),
-            limit(10)
-        );
-        const transactionsSnapshot = await getDocs(transactionsQuery);
         const transactions = transactionsSnapshot.docs.map(doc => ({
             ...doc.data(),
             id: doc.id,
@@ -262,18 +263,19 @@ export async function getFlujoWeeklySummary(sucursalId: string, date: Date): Pro
         where("date", "<=", end),
         orderBy("date", "asc")
     );
-    const weeklyEntriesSnapshot = await getDocs(q);
+    const summaryId = `${sucursalId}_${weekId}`;
+    const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
+
+    const [weeklyEntriesSnapshot, summarySnap] = await Promise.all([
+        getDocs(q),
+        getDoc(summaryRef),
+    ]);
 
     const weeklyEntries = weeklyEntriesSnapshot.docs.map(docSnap => ({
             ...docSnap.data(),
             id: docSnap.id,
             date: (docSnap.data().date as Timestamp).toDate()
     }) as FlujoEntry);
-
-    const summaryId = `${sucursalId}_${weekId}`;
-    const summaryRef = doc(db, 'flujo_weekly_summaries', summaryId);
-    
-    const summarySnap = await getDoc(summaryRef);
     let summary: FlujoWeeklySummary | null = null;
     
     const calculatedTotalCobrado = weeklyEntries.reduce((acc, e) => acc + (e.totalCobrado || 0), 0);
